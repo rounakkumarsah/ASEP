@@ -1,0 +1,3 @@
+"""
+ASEP — src package initialiser
+"""

@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* TODO (Phase 0.2): Replace with full design token system */
+:root {
+  --background: #09090b;
+  --foreground: #fafafa;
+}

@@ -1,0 +1,115 @@
+# =============================================================================
+# ASEP — GitHub Actions: CI Pipeline
+# =============================================================================
+# Triggers: push to any branch, PRs to main
+# Jobs:
+#   lint   — Black, Ruff, MyPy
+#   test   — Pytest with coverage
+#   docker — Build images to verify Dockerfiles
+# =============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Lint
+  # ---------------------------------------------------------------------------
+  lint:
+    name: Lint (Black · Ruff · MyPy)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dev dependencies
+        run: pip install --no-cache-dir ".[dev]"
+
+      - name: Black (format check)
+        run: black --check src/ tests/
+
+      - name: Ruff (lint)
+        run: ruff check src/ tests/
+
+      - name: MyPy (type check)
+        run: mypy src/
+
+  # ---------------------------------------------------------------------------
+  # Test
+  # ---------------------------------------------------------------------------
+  test:
+    name: Test (Pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install --no-cache-dir ".[dev]"
+
+      - name: Run tests
+        run: pytest --tb=short -q
+        env:
+          APP_ENV: development
+          DATABASE_URL: "postgresql+asyncpg://asep:test@localhost:5432/asep_test"
+          REDIS_URL: "redis://localhost:6379/0"
+          NEO4J_URI: "bolt://localhost:7687"
+          QDRANT_HOST: "localhost"
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: backend/htmlcov/coverage.xml
+          fail_ci_if_error: false
+
+  # ---------------------------------------------------------------------------
+  # Docker Build (dry-run)
+  # ---------------------------------------------------------------------------
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: false
+          tags: asep-backend:ci
+
+      - name: Validate docker-compose
+        run: docker compose config --quiet
