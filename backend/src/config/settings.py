@@ -86,6 +86,14 @@ class Settings(BaseSettings):
     EMBEDDING_API_KEY: str | None = Field(default=None, description="API Key for embedding service")
     EMBEDDING_MODEL: str = Field(default="nomic-embed-text", description="Name of the embedding model")
 
+    # LLM Settings
+    LLM_API_URL: str = Field(
+        default="http://localhost:11434/v1/chat/completions",
+        description="OpenAI-compatible chat completions endpoint URL"
+    )
+    LLM_API_KEY: str | None = Field(default=None, description="API Key for the LLM service")
+    LLM_MODEL: str = Field(default="qwen2.5-coder:7b", description="Name of the LLM model to use")
+
     # -----------------------------------------------------------------------
     # PostgreSQL
     # -----------------------------------------------------------------------
