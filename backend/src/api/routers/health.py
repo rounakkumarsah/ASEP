@@ -137,8 +137,15 @@ async def readiness_check() -> ReadinessResponse:
         )
     )
 
-    # TODO (Phase 0.2): ping Redis via redis.asyncio
-    # deps.append(DependencyStatus(name="redis", status="unknown", detail="TODO: implement ping"))
+    from src.cache.health import redis_health_check
+    redis_healthy = await redis_health_check()
+    deps.append(
+        DependencyStatus(
+            name="redis",
+            status="ok" if redis_healthy else "unavailable",
+            detail="Redis ping successful" if redis_healthy else "Redis ping failed",
+        )
+    )
 
     # TODO (Phase 0.2): ping Neo4j via neo4j async driver
     # deps.append(DependencyStatus(name="neo4j", status="unknown", detail="TODO: implement ping"))

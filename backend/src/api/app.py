@@ -35,6 +35,7 @@ from src.api.routers import (
     auth_router,
     knowledge_router,
 )
+from src.cache.redis import close_redis, init_redis
 from src.config.settings import get_settings
 from src.db.postgres import close_db, init_db
 from src.utils.logging import configure_logging
@@ -71,7 +72,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Initialize database connection pool
     await init_db()
 
-    # TODO (Phase 0.2): await redis_client.init()
+    # Initialize redis pool
+    await init_redis()
+
     # TODO (Phase 0.2): await neo4j_client.init()
     # TODO (Phase 0.2): await qdrant_client.init()
     # TODO (Phase 0.2): await supervisor.start()
@@ -81,7 +84,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("ASEP backend shutting down")
     # Close database connection pool gracefully
     await close_db()
-    # TODO (Phase 0.2): await redis_client.close()
+    
+    # Close redis pool
+    await close_redis()
+    
     # TODO (Phase 0.2): await neo4j_client.close()
     # TODO (Phase 0.2): await qdrant_client.close()
 

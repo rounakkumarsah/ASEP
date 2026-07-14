@@ -56,11 +56,17 @@ class Settings(BaseSettings):
     # Security / Authentication
     # -----------------------------------------------------------------------
     SECRET_KEY: str = "change-this-to-a-random-256-bit-secret"
-    JWT_SECRET_KEY: str = Field(default="super-secret-key-override-me-in-production")
-    JWT_REFRESH_SECRET_KEY: str = Field(default="super-secret-refresh-key-override-me")
+    JWT_SECRET_KEY: str = "change_me_in_production"
+    JWT_REFRESH_SECRET_KEY: str = "change_me_in_production_refresh"
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_EXPIRE_MINUTES: int = 30
     JWT_REFRESH_EXPIRE_DAYS: int = 7
+
+    # Redis Settings
+    REDIS_URL: str = Field(
+        default="redis://localhost:6379/0",
+        description="Redis connection URL for caching and distributed locks."
+    )
 
     # -----------------------------------------------------------------------
     # PostgreSQL
