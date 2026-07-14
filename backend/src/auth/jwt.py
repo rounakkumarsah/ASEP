@@ -13,6 +13,7 @@ from src.config.settings import get_settings
 
 def create_token(
     subject: str | uuid.UUID,
+    role: str,
     token_type: str,
     secret_key: str,
     expires_delta: timedelta,
@@ -23,6 +24,7 @@ def create_token(
     
     to_encode = {
         "sub": str(subject),
+        "role": role,
         "type": token_type,
         "exp": expire,
         "iat": datetime.now(timezone.utc),
@@ -33,24 +35,26 @@ def create_token(
     return encoded_jwt
 
 
-def create_access_token(subject: str | uuid.UUID) -> str:
+def create_access_token(subject: str | uuid.UUID, role: str) -> str:
     """Create an access token."""
     settings = get_settings()
     expires_delta = timedelta(minutes=settings.JWT_ACCESS_EXPIRE_MINUTES)
     return create_token(
         subject=subject,
+        role=role,
         token_type="access",
         secret_key=settings.JWT_SECRET_KEY,
         expires_delta=expires_delta,
     )
 
 
-def create_refresh_token(subject: str | uuid.UUID) -> str:
+def create_refresh_token(subject: str | uuid.UUID, role: str) -> str:
     """Create a refresh token."""
     settings = get_settings()
     expires_delta = timedelta(days=settings.JWT_REFRESH_EXPIRE_DAYS)
     return create_token(
         subject=subject,
+        role=role,
         token_type="refresh",
         secret_key=settings.JWT_REFRESH_SECRET_KEY,
         expires_delta=expires_delta,

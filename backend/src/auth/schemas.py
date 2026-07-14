@@ -29,6 +29,7 @@ class RefreshTokenResponse(BaseModel):
 class TokenPayload(BaseModel):
     """Internal JWT payload representation."""
     sub: str
+    role: str
     type: Literal["access", "refresh"]
     exp: int
     iat: int
@@ -40,6 +41,7 @@ class UserResponse(BaseModel):
     id: uuid.UUID
     username: str
     email: str
+    role: str
     is_active: bool
 
     model_config = ConfigDict(from_attributes=True)

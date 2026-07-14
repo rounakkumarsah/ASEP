@@ -71,6 +71,13 @@ class User(TimestampMixin, Base):
         doc="Argon2 hashed password string.",
     )
 
+    role: Mapped[str] = mapped_column(
+        String(50),
+        default="viewer",
+        nullable=False,
+        doc="RBAC role assigned to the user.",
+    )
+
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         default=True,

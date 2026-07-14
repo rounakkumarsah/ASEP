@@ -12,12 +12,14 @@ from src.api.schemas import (
     PaginatedResponse,
     PaginationParams
 )
+from src.auth.decorators import RequirePermission
+from src.auth.permissions import Permission
 
 
 router = APIRouter(prefix="/knowledge", tags=["Knowledge"])
 
 
-@router.post("/", response_model=KnowledgeDocumentResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=KnowledgeDocumentResponse, status_code=status.HTTP_201_CREATED, dependencies=[RequirePermission(Permission.KNOWLEDGE_WRITE)])
 async def create_document(
     payload: KnowledgeDocumentRegister,
     service: KnowledgeServiceDep,
@@ -30,7 +32,7 @@ async def create_document(
     )
 
 
-@router.post("/{doc_id}/indexing", response_model=KnowledgeDocumentResponse)
+@router.post("/{doc_id}/indexing", response_model=KnowledgeDocumentResponse, dependencies=[RequirePermission(Permission.KNOWLEDGE_WRITE)])
 async def mark_indexing(
     doc_id: uuid.UUID,
     service: KnowledgeServiceDep,
@@ -39,7 +41,7 @@ async def mark_indexing(
     return await service.mark_indexing(doc_id)
 
 
-@router.get("/", response_model=PaginatedResponse[KnowledgeDocumentResponse])
+@router.get("/", response_model=PaginatedResponse[KnowledgeDocumentResponse], dependencies=[RequirePermission(Permission.KNOWLEDGE_READ)])
 async def list_documents(
     service: KnowledgeServiceDep,
     pagination: PaginationParams = Depends(),

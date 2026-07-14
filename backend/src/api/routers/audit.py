@@ -12,13 +12,15 @@ from src.api.schemas import (
     PaginatedResponse,
     PaginationParams
 )
+from src.auth.decorators import RequirePermission
+from src.auth.permissions import Permission
 from src.db.models.audit_log import ActorType
 
 
 router = APIRouter(prefix="/audit", tags=["Audit"])
 
 
-@router.get("/", response_model=PaginatedResponse[AuditLogResponse])
+@router.get("/", response_model=PaginatedResponse[AuditLogResponse], dependencies=[RequirePermission(Permission.AUDIT_READ)])
 async def list_audit_logs(
     service: AuditServiceDep,
     actor_type: ActorType | None = None,
@@ -55,7 +57,7 @@ async def list_audit_logs(
     )
 
 
-@router.get("/critical", response_model=PaginatedResponse[AuditLogResponse])
+@router.get("/critical", response_model=PaginatedResponse[AuditLogResponse], dependencies=[RequirePermission(Permission.AUDIT_READ)])
 async def list_critical_failures(
     service: AuditServiceDep,
     days: int = Query(7, ge=1, le=30),

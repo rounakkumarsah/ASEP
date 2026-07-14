@@ -37,8 +37,8 @@ class AuthService:
 
     def create_login_tokens(self, user: User) -> RefreshTokenResponse:
         """Create new access and refresh tokens for a user."""
-        access_token = create_access_token(user.id)
-        refresh_token = create_refresh_token(user.id)
+        access_token = create_access_token(user.id, user.role)
+        refresh_token = create_refresh_token(user.id, user.role)
         return RefreshTokenResponse(
             access_token=access_token,
             refresh_token=refresh_token,

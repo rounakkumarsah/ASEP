@@ -9,6 +9,8 @@ from pydantic import BaseModel
 
 from src.api.dependencies import TaskServiceDep
 from src.api.schemas import TaskResponse
+from src.auth.decorators import RequirePermission
+from src.auth.permissions import Permission
 
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
@@ -21,7 +23,7 @@ class TaskUpdateRequest(BaseModel):
     tool_name: str | None = None
 
 
-@router.get("/{task_id}", response_model=TaskResponse)
+@router.get("/{task_id}", response_model=TaskResponse, dependencies=[RequirePermission(Permission.TASKS_READ)])
 async def get_task(
     task_id: uuid.UUID,
     service: TaskServiceDep,
@@ -30,7 +32,7 @@ async def get_task(
     return await service.get_task(task_id)
 
 
-@router.patch("/{task_id}", response_model=TaskResponse)
+@router.patch("/{task_id}", response_model=TaskResponse, dependencies=[RequirePermission(Permission.TASKS_UPDATE)])
 async def update_task(
     task_id: uuid.UUID,
     payload: TaskUpdateRequest,
@@ -46,7 +48,7 @@ async def update_task(
     )
 
 
-@router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[RequirePermission(Permission.TASKS_DELETE)])
 async def delete_task(
     task_id: uuid.UUID,
     service: TaskServiceDep,
@@ -59,7 +61,7 @@ async def delete_task(
 # State Transitions
 # ------------------------------------------------------------------
 
-@router.post("/{task_id}/start", response_model=TaskResponse)
+@router.post("/{task_id}/start", response_model=TaskResponse, dependencies=[RequirePermission(Permission.TASKS_EXECUTE)])
 async def start_task(
     task_id: uuid.UUID,
     service: TaskServiceDep,
@@ -68,7 +70,7 @@ async def start_task(
     return await service.start_task(task_id)
 
 
-@router.post("/{task_id}/retry", response_model=TaskResponse)
+@router.post("/{task_id}/retry", response_model=TaskResponse, dependencies=[RequirePermission(Permission.TASKS_EXECUTE)])
 async def retry_task(
     task_id: uuid.UUID,
     service: TaskServiceDep,
@@ -77,7 +79,7 @@ async def retry_task(
     return await service.retry_task(task_id)
 
 
-@router.post("/{task_id}/cancel", response_model=TaskResponse)
+@router.post("/{task_id}/cancel", response_model=TaskResponse, dependencies=[RequirePermission(Permission.TASKS_EXECUTE)])
 async def cancel_task(
     task_id: uuid.UUID,
     service: TaskServiceDep,

@@ -12,12 +12,14 @@ from src.api.schemas import (
     PaginatedResponse,
     PaginationParams
 )
+from src.auth.decorators import RequirePermission
+from src.auth.permissions import Permission
 
 
 router = APIRouter(prefix="/memory", tags=["Memory"])
 
 
-@router.post("/", response_model=MemoryEntryResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=MemoryEntryResponse, status_code=status.HTTP_201_CREATED, dependencies=[RequirePermission(Permission.MEMORY_WRITE)])
 async def create_memory(
     payload: MemoryEntryCreate,
     service: MemoryServiceDep,
@@ -32,7 +34,7 @@ async def create_memory(
     )
 
 
-@router.get("/", response_model=PaginatedResponse[MemoryEntryResponse])
+@router.get("/", response_model=PaginatedResponse[MemoryEntryResponse], dependencies=[RequirePermission(Permission.MEMORY_READ)])
 async def list_memory(
     agent_run_id: uuid.UUID,
     service: MemoryServiceDep,

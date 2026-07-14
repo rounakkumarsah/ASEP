@@ -14,12 +14,14 @@ from src.api.schemas import (
     TaskDefinitionSchema,
     TaskResponse
 )
+from src.auth.decorators import RequirePermission
+from src.auth.permissions import Permission
 
 
 router = APIRouter(prefix="/agent-runs", tags=["Agent Runs"])
 
 
-@router.post("/", response_model=AgentRunResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=AgentRunResponse, status_code=status.HTTP_201_CREATED, dependencies=[RequirePermission(Permission.AGENT_RUNS_CREATE)])
 async def create_agent_run(
     payload: AgentRunCreate,
     service: AgentRunServiceDep,
@@ -33,7 +35,7 @@ async def create_agent_run(
     return run
 
 
-@router.get("/", response_model=PaginatedResponse[AgentRunResponse])
+@router.get("/", response_model=PaginatedResponse[AgentRunResponse], dependencies=[RequirePermission(Permission.AGENT_RUNS_READ)])
 async def list_agent_runs(
     service: AgentRunServiceDep,
     pagination: PaginationParams = Depends(),
@@ -54,7 +56,7 @@ async def list_agent_runs(
     )
 
 
-@router.get("/{run_id}", response_model=AgentRunResponse)
+@router.get("/{run_id}", response_model=AgentRunResponse, dependencies=[RequirePermission(Permission.AGENT_RUNS_READ)])
 async def get_agent_run(
     run_id: uuid.UUID,
     service: AgentRunServiceDep,
@@ -67,7 +69,7 @@ async def get_agent_run(
 # Nested Task Endpoints
 # ------------------------------------------------------------------
 
-@router.post("/{run_id}/tasks", response_model=list[TaskResponse], status_code=status.HTTP_201_CREATED)
+@router.post("/{run_id}/tasks", response_model=list[TaskResponse], status_code=status.HTTP_201_CREATED, dependencies=[RequirePermission(Permission.TASKS_CREATE)])
 async def bulk_create_tasks(
     run_id: uuid.UUID,
     payload: list[TaskDefinitionSchema],
@@ -81,7 +83,7 @@ async def bulk_create_tasks(
     return tasks
 
 
-@router.get("/{run_id}/tasks", response_model=list[TaskResponse])
+@router.get("/{run_id}/tasks", response_model=list[TaskResponse], dependencies=[RequirePermission(Permission.TASKS_READ)])
 async def get_tasks_for_run(
     run_id: uuid.UUID,
     service: TaskServiceDep,
