@@ -25,7 +25,15 @@ from typing import AsyncGenerator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from src.api.exceptions import register_exception_handlers
 from src.api.routers import health
+from src.api.routers import (
+    agent_runs_router,
+    tasks_router,
+    memory_router,
+    audit_router,
+    knowledge_router,
+)
 from src.config.settings import get_settings
 from src.db.postgres import close_db, init_db
 from src.utils.logging import configure_logging
@@ -113,16 +121,18 @@ def create_app() -> FastAPI:
     # -----------------------------------------------------------------------
     # Exception handlers
     # -----------------------------------------------------------------------
-    # TODO (Phase 0.2): register global exception handlers
+    register_exception_handlers(app)
 
     # -----------------------------------------------------------------------
     # Routers
     # -----------------------------------------------------------------------
     app.include_router(health.router, tags=["Observability"])
 
-    # TODO (Phase 0.2): app.include_router(agents.router, prefix="/api/v1/agents")
-    # TODO (Phase 0.2): app.include_router(tasks.router,  prefix="/api/v1/tasks")
-    # TODO (Phase 0.2): app.include_router(memory.router, prefix="/api/v1/memory")
+    app.include_router(agent_runs_router, prefix="/api/v1")
+    app.include_router(tasks_router, prefix="/api/v1")
+    app.include_router(memory_router, prefix="/api/v1")
+    app.include_router(audit_router, prefix="/api/v1")
+    app.include_router(knowledge_router, prefix="/api/v1")
 
     logger.info("FastAPI application created", extra={"routes": len(app.routes)})
     return app

@@ -475,6 +475,69 @@ class TaskService:
     # Read-only queries
     # ------------------------------------------------------------------
 
+    async def get_task(self, task_id: uuid.UUID) -> Task:
+        """Return a single Task by ID.
+
+        Args:
+            task_id: UUID of the target Task.
+
+        Returns:
+            The Task instance.
+
+        Raises:
+            NoResultFound: If no task with task_id exists.
+        """
+        async with self._uow_factory() as uow:
+            return await uow.tasks.get_or_raise(task_id)
+
+    async def update_task(
+        self,
+        task_id: uuid.UUID,
+        title: str | None = None,
+        description: str | None = None,
+        task_metadata: dict[str, Any] | None = None,
+        tool_name: str | None = None,
+    ) -> Task:
+        """Update mutable fields of a Task.
+
+        Args:
+            task_id: UUID of the target Task.
+            title: Optional new title.
+            description: Optional new description.
+            task_metadata: Optional new metadata.
+            tool_name: Optional new tool_name.
+
+        Returns:
+            The updated Task instance.
+        """
+        async with self._uow_factory() as uow:
+            task = await uow.tasks.get_or_raise(task_id)
+            kwargs = {}
+            if title is not None:
+                kwargs["title"] = title.strip()
+            if description is not None:
+                kwargs["description"] = description
+            if task_metadata is not None:
+                kwargs["task_metadata"] = task_metadata
+            if tool_name is not None:
+                kwargs["tool_name"] = tool_name
+                
+            if kwargs:
+                task = await uow.tasks.update(task, **kwargs)
+                await uow.commit()
+            return task
+
+    async def delete_task(self, task_id: uuid.UUID) -> None:
+        """Delete a single Task.
+
+        Args:
+            task_id: UUID of the target Task.
+        """
+        async with self._uow_factory() as uow:
+            task = await uow.tasks.get_or_raise(task_id)
+            await uow.tasks.delete(task)
+            await uow.commit()
+
     async def get_next_task(self, agent_run_id: uuid.UUID) -> Task | None:
         """Return the next ``PENDING`` task in a run, or ``None``.
 
