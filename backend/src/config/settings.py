@@ -78,6 +78,14 @@ class Settings(BaseSettings):
     QDRANT_URL: str = Field(default="http://localhost:6333", description="Qdrant API URL")
     QDRANT_API_KEY: str | None = Field(default=None, description="Qdrant API Key")
 
+    # Embedding Provider Settings
+    EMBEDDING_API_URL: str = Field(
+        default="http://localhost:11434/v1/embeddings", 
+        description="OpenAI-compatible embedding endpoint URL"
+    )
+    EMBEDDING_API_KEY: str | None = Field(default=None, description="API Key for embedding service")
+    EMBEDDING_MODEL: str = Field(default="nomic-embed-text", description="Name of the embedding model")
+
     # -----------------------------------------------------------------------
     # PostgreSQL
     # -----------------------------------------------------------------------

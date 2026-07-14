@@ -11,8 +11,22 @@ MATCH (n {id: $node_id})
 RETURN n
 """
 
-# Example queries placeholder for future phases (Phase 1.1)
-# 
-# MERGE_DOCUMENT_NODE_QUERY = ...
-# MERGE_CHUNK_NODE_QUERY = ...
-# LINK_CHUNK_TO_DOCUMENT_QUERY = ...
+# Examples of queries for Phase 1.2 Ingestion
+CREATE_DOCUMENT_QUERY = """
+MERGE (d:Document {id: $doc_id})
+SET d += $properties
+RETURN d
+"""
+
+CREATE_CHUNK_QUERY = """
+MERGE (c:Chunk {id: $chunk_id})
+SET c += $properties
+RETURN c
+"""
+
+LINK_CHUNK_TO_DOCUMENT_QUERY = """
+MATCH (d:Document {id: $doc_id})
+MATCH (c:Chunk {id: $chunk_id})
+MERGE (d)-[r:HAS_CHUNK {index: $index}]->(c)
+RETURN r
+"""

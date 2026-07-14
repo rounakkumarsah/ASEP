@@ -167,8 +167,15 @@ async def readiness_check() -> ReadinessResponse:
         )
     )
 
-    # TODO (Phase 0.2): ping Ollama via httpx
-    # deps.append(DependencyStatus(name="ollama", status="unknown", detail="TODO: implement ping"))
+    from src.documents.health import embedding_health_check
+    embedding_healthy = await embedding_health_check()
+    deps.append(
+        DependencyStatus(
+            name="embeddings",
+            status="ok" if embedding_healthy else "unavailable",
+            detail="Embedding provider ping successful" if embedding_healthy else "Embedding provider ping failed",
+        )
+    )
 
     # Determine overall status
     all_ok = all(dep.status == "ok" for dep in deps)
