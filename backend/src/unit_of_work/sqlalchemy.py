@@ -54,6 +54,7 @@ from src.repositories.audit_log import AuditLogRepository
 from src.repositories.knowledge_document import KnowledgeDocumentRepository
 from src.repositories.memory_entry import MemoryEntryRepository
 from src.repositories.task import TaskRepository
+from src.repositories.user import UserRepository
 from src.unit_of_work.base import AbstractUnitOfWork
 
 logger = logging.getLogger(__name__)
@@ -134,6 +135,7 @@ class SQLAlchemyUnitOfWork(AbstractUnitOfWork):
         self.memory_entries = MemoryEntryRepository(self._session)
         self.audit_logs = AuditLogRepository(self._session)
         self.knowledge_documents = KnowledgeDocumentRepository(self._session)
+        self.users = UserRepository(self._session)
         logger.debug("SQLAlchemyUnitOfWork session opened")
         return self
 

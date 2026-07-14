@@ -22,6 +22,7 @@ from src.db.models.audit_log import ActorType, AuditLog, AuditOutcome, AuditSeve
 from src.db.models.knowledge_document import CrawlStatus, DocumentSourceType, DocumentStatus, KnowledgeDocument
 from src.db.models.memory_entry import MemoryEntry, MemoryType
 from src.db.models.task import Task, TaskPriority, TaskStatus
+from src.db.models.user import User
 
 __all__: list[str] = [
     # agent_run
@@ -45,4 +46,5 @@ __all__: list[str] = [
     "DocumentSourceType",
     "DocumentStatus",
     "CrawlStatus",
+    "User",
 ]

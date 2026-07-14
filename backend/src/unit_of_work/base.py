@@ -47,6 +47,7 @@ if TYPE_CHECKING:
     from src.repositories.knowledge_document import KnowledgeDocumentRepository
     from src.repositories.memory_entry import MemoryEntryRepository
     from src.repositories.task import TaskRepository
+    from src.repositories.user import UserRepository
 
 
 class AbstractUnitOfWork(ABC):
@@ -88,6 +89,7 @@ class AbstractUnitOfWork(ABC):
     memory_entries: MemoryEntryRepository
     audit_logs: AuditLogRepository
     knowledge_documents: KnowledgeDocumentRepository
+    users: UserRepository
 
     # ------------------------------------------------------------------
     # Async context manager protocol

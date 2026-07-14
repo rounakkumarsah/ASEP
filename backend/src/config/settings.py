@@ -53,6 +53,16 @@ class Settings(BaseSettings):
     APP_WORKERS: int = Field(default=1, ge=1)
 
     # -----------------------------------------------------------------------
+    # Security / Authentication
+    # -----------------------------------------------------------------------
+    SECRET_KEY: str = "change-this-to-a-random-256-bit-secret"
+    JWT_SECRET_KEY: str = Field(default="super-secret-key-override-me-in-production")
+    JWT_REFRESH_SECRET_KEY: str = Field(default="super-secret-refresh-key-override-me")
+    JWT_ALGORITHM: str = "HS256"
+    JWT_ACCESS_EXPIRE_MINUTES: int = 30
+    JWT_REFRESH_EXPIRE_DAYS: int = 7
+
+    # -----------------------------------------------------------------------
     # PostgreSQL
     # -----------------------------------------------------------------------
     DATABASE_URL: str = "postgresql+asyncpg://asep:changeme@localhost:5432/asep"
@@ -74,20 +84,12 @@ class Settings(BaseSettings):
     # -----------------------------------------------------------------------
     QDRANT_HOST: str = "localhost"
     QDRANT_PORT: int = Field(default=6333, ge=1, le=65535)
-    QDRANT_API_KEY: str = ""
 
     # -----------------------------------------------------------------------
     # Ollama
     # -----------------------------------------------------------------------
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     OLLAMA_DEFAULT_MODEL: str = "llama3.2"
-
-    # -----------------------------------------------------------------------
-    # Security
-    # -----------------------------------------------------------------------
-    SECRET_KEY: str = "change-this-to-a-random-256-bit-secret"
-    JWT_ALGORITHM: str = "HS256"
-    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
     # -----------------------------------------------------------------------
     # CORS
@@ -102,10 +104,10 @@ class Settings(BaseSettings):
         """Parse comma-separated CORS origins into a list."""
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
 
-    @field_validator("SECRET_KEY")
+    @field_validator("SECRET_KEY", "JWT_SECRET_KEY", "JWT_REFRESH_SECRET_KEY")
     @classmethod
     def secret_key_must_not_be_default_in_production(cls, v: str, info: object) -> str:
-        # TODO (Phase 0.2): enforce minimum entropy / length
+        # TODO (Phase 0.2): enforce minimum entropy / length in production
         return v
 
 

@@ -32,6 +32,7 @@ from src.api.routers import (
     tasks_router,
     memory_router,
     audit_router,
+    auth_router,
     knowledge_router,
 )
 from src.config.settings import get_settings
@@ -128,6 +129,7 @@ def create_app() -> FastAPI:
     # -----------------------------------------------------------------------
     app.include_router(health.router, tags=["Observability"])
 
+    app.include_router(auth_router, prefix="/api/v1")
     app.include_router(agent_runs_router, prefix="/api/v1")
     app.include_router(tasks_router, prefix="/api/v1")
     app.include_router(memory_router, prefix="/api/v1")
