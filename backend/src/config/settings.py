@@ -68,6 +68,12 @@ class Settings(BaseSettings):
         description="Redis connection URL for caching and distributed locks."
     )
 
+    # Neo4j Settings
+    NEO4J_URI: str = Field(default="bolt://localhost:7687", description="Neo4j connection URI")
+    NEO4J_USER: str = Field(default="neo4j", description="Neo4j user")
+    NEO4J_PASSWORD: str = Field(default="password", description="Neo4j password")
+    NEO4J_DATABASE: str = Field(default="neo4j", description="Neo4j database name")
+
     # -----------------------------------------------------------------------
     # PostgreSQL
     # -----------------------------------------------------------------------

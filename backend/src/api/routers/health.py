@@ -147,8 +147,15 @@ async def readiness_check() -> ReadinessResponse:
         )
     )
 
-    # TODO (Phase 0.2): ping Neo4j via neo4j async driver
-    # deps.append(DependencyStatus(name="neo4j", status="unknown", detail="TODO: implement ping"))
+    from src.graph.health import neo4j_health_check
+    neo4j_healthy = await neo4j_health_check()
+    deps.append(
+        DependencyStatus(
+            name="neo4j",
+            status="ok" if neo4j_healthy else "unavailable",
+            detail="Neo4j ping successful" if neo4j_healthy else "Neo4j ping failed",
+        )
+    )
 
     # TODO (Phase 0.2): ping Qdrant via qdrant_client
     # deps.append(DependencyStatus(name="qdrant", status="unknown", detail="TODO: implement ping"))
