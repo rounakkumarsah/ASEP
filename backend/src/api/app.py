@@ -80,7 +80,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Initialize neo4j driver
     await init_neo4j()
 
-    # TODO (Phase 0.2): await qdrant_client.init()
+    from src.vector.qdrant import close_qdrant, init_qdrant
+    from src.vector.collections import create_collection_if_not_exists, DEFAULT_COLLECTION
+
+    # Initialize qdrant client and default collection
+    await init_qdrant()
+    from src.vector.qdrant import get_qdrant_client
+    await create_collection_if_not_exists(get_qdrant_client(), collection_name=DEFAULT_COLLECTION)
+
     # TODO (Phase 0.2): await supervisor.start()
 
     yield
@@ -94,7 +101,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     
     # Close neo4j driver
     await close_neo4j()
-    # TODO (Phase 0.2): await qdrant_client.close()
+    
+    # Close qdrant client
+    await close_qdrant()
 
 
 def create_app() -> FastAPI:

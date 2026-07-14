@@ -157,8 +157,15 @@ async def readiness_check() -> ReadinessResponse:
         )
     )
 
-    # TODO (Phase 0.2): ping Qdrant via qdrant_client
-    # deps.append(DependencyStatus(name="qdrant", status="unknown", detail="TODO: implement ping"))
+    from src.vector.health import qdrant_health_check
+    qdrant_healthy = await qdrant_health_check()
+    deps.append(
+        DependencyStatus(
+            name="qdrant",
+            status="ok" if qdrant_healthy else "unavailable",
+            detail="Qdrant ping successful" if qdrant_healthy else "Qdrant ping failed",
+        )
+    )
 
     # TODO (Phase 0.2): ping Ollama via httpx
     # deps.append(DependencyStatus(name="ollama", status="unknown", detail="TODO: implement ping"))

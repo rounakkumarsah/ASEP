@@ -74,6 +74,10 @@ class Settings(BaseSettings):
     NEO4J_PASSWORD: str = Field(default="password", description="Neo4j password")
     NEO4J_DATABASE: str = Field(default="neo4j", description="Neo4j database name")
 
+    # Qdrant Settings
+    QDRANT_URL: str = Field(default="http://localhost:6333", description="Qdrant API URL")
+    QDRANT_API_KEY: str | None = Field(default=None, description="Qdrant API Key")
+
     # -----------------------------------------------------------------------
     # PostgreSQL
     # -----------------------------------------------------------------------
