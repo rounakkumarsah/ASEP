@@ -42,6 +42,10 @@ class SubTask(BaseModel):
     )
     complexity: Complexity = Field(default=Complexity.MEDIUM, description="Task execution complexity")
     priority: TaskPriority = Field(default=TaskPriority.MEDIUM, description="Task execution priority")
+    tool_name: str | None = Field(
+        default=None,
+        description="Optional name of the tool to invoke when executing this task via the ToolRouter"
+    )
 
 
 class DecomposedPlan(BaseModel):
