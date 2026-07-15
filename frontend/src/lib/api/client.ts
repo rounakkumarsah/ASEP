@@ -1,10 +1,18 @@
-import axios from "axios";
+import axios, { AxiosError } from "axios";
+import { 
+  ApiError, 
+  UnauthorizedError, 
+  ForbiddenError, 
+  NotFoundError, 
+  ValidationError, 
+  ServerError 
+} from "./errors";
 
-// Assume the FastAPI backend is running on port 8000
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export const apiClient = axios.create({
   baseURL: API_URL,
+  timeout: 10000, // 10 second timeout
   headers: {
     "Content-Type": "application/json",
   },
@@ -23,18 +31,36 @@ apiClient.interceptors.request.use((config) => {
   return Promise.reject(error);
 });
 
-// Response interceptor for handling 401s (Future: refresh token logic)
+// Response interceptor for unified error handling
 apiClient.interceptors.response.use(
   (response) => response,
-  async (error) => {
-    if (error.response?.status === 401) {
-      // Future: Implement refresh token logic here
-      // For now, clear token and optionally redirect to login
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("asep_access_token");
-        // We'll handle redirecting in the auth provider or middleware
-      }
+  async (error: AxiosError) => {
+    if (!error.response) {
+      // Network error or timeout
+      return Promise.reject(new ApiError(0, error.message));
     }
-    return Promise.reject(error);
+
+    const { status, data } = error.response;
+    const message = (data as Record<string, unknown>)?.message as string || error.message;
+
+    switch (status) {
+      case 401:
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("asep_access_token");
+          // The AuthProvider and Route Guards will automatically detect the missing token 
+          // and redirect to /login on next render or location change.
+          window.dispatchEvent(new Event("auth:unauthorized"));
+        }
+        return Promise.reject(new UnauthorizedError(message, data));
+      case 403:
+        return Promise.reject(new ForbiddenError(message, data));
+      case 404:
+        return Promise.reject(new NotFoundError(message, data));
+      case 422:
+        return Promise.reject(new ValidationError(message, data));
+      case 500:
+      default:
+        return Promise.reject(new ServerError(message, data));
+    }
   }
 );
