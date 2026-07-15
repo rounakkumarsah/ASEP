@@ -5,6 +5,7 @@ import { FeaturesSection } from "@/components/landing/features"
 import { ArchitectureSection } from "@/components/landing/architecture"
 import { ProductPreviewSection } from "@/components/landing/product-preview"
 import { CtaSection } from "@/components/landing/cta-section"
+import { LandingFooter } from "@/components/landing/footer"
 
 export default function LandingPage() {
   return (
@@ -16,6 +17,7 @@ export default function LandingPage() {
       <ArchitectureSection />
       <ProductPreviewSection />
       <CtaSection />
+      <LandingFooter />
     </main>
   )
 }

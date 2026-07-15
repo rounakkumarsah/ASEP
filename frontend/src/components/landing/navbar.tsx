@@ -3,11 +3,11 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useTheme } from "next-themes"
 import { motion } from "framer-motion"
-import { Menu, Moon, Sun, Github, Hexagon } from "lucide-react"
+import { Menu, Github, Hexagon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { ThemeToggle } from "@/components/ui/theme-toggle"
 import {
   Sheet,
   SheetContent,
@@ -30,7 +30,6 @@ const NAV_LINKS = [
 export function LandingNavbar() {
   const [isScrolled, setIsScrolled] = React.useState(false)
   const pathname = usePathname()
-  const { setTheme, theme } = useTheme()
 
   React.useEffect(() => {
     const handleScroll = () => {
@@ -84,15 +83,7 @@ export function LandingNavbar() {
 
         {/* Right: Actions */}
         <div className="hidden md:flex md:items-center md:space-x-2 lg:space-x-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-            aria-label="Toggle theme"
-          >
-            <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-            <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-          </Button>
+          <ThemeToggle />
 
           <Link href="https://github.com/rounakkumarsah/ASEP" target="_blank">
             <Button variant="ghost" size="icon" aria-label="GitHub">
@@ -142,15 +133,7 @@ export function LandingNavbar() {
 
               <div className="flex flex-col space-y-4 border-t border-border pt-6 pb-4">
                 <div className="flex items-center space-x-4">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-                    aria-label="Toggle theme"
-                  >
-                    <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                    <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                  </Button>
+                  <ThemeToggle />
                   
                   <Link href="https://github.com/rounakkumarsah/ASEP" target="_blank">
                     <Button variant="outline" size="icon" aria-label="GitHub">
