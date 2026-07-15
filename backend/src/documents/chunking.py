@@ -3,7 +3,6 @@ ASEP — Configurable Recursive Character Text Chunker
 """
 
 import re
-from typing import list
 
 
 class RecursiveCharacterTextSplitter:
@@ -13,7 +12,7 @@ class RecursiveCharacterTextSplitter:
         self,
         chunk_size: int = 1000,
         chunk_overlap: int = 200,
-        separators: list[str] | None = None,
+        separators: list[str] | None = None,  # type: ignore[type-arg]
     ) -> None:
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
