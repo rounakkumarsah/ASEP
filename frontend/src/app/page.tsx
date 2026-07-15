@@ -4,6 +4,7 @@ import { SocialProofSection } from "@/components/landing/social-proof"
 import { FeaturesSection } from "@/components/landing/features"
 import { ArchitectureSection } from "@/components/landing/architecture"
 import { ProductPreviewSection } from "@/components/landing/product-preview"
+import { CtaSection } from "@/components/landing/cta-section"
 
 export default function LandingPage() {
   return (
@@ -14,6 +15,7 @@ export default function LandingPage() {
       <FeaturesSection />
       <ArchitectureSection />
       <ProductPreviewSection />
+      <CtaSection />
     </main>
   )
 }
