@@ -1,6 +1,7 @@
 import { HeroSection } from "@/components/landing/hero-section"
 import { LandingNavbar } from "@/components/landing/navbar"
 import { SocialProofSection } from "@/components/landing/social-proof"
+import { FeaturesSection } from "@/components/landing/features"
 
 export default function LandingPage() {
   return (
@@ -8,6 +9,7 @@ export default function LandingPage() {
       <LandingNavbar />
       <HeroSection />
       <SocialProofSection />
+      <FeaturesSection />
     </main>
   )
 }
