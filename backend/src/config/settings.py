@@ -139,7 +139,20 @@ class Settings(BaseSettings):
     @field_validator("SECRET_KEY", "JWT_SECRET_KEY", "JWT_REFRESH_SECRET_KEY")
     @classmethod
     def secret_key_must_not_be_default_in_production(cls, v: str, info: object) -> str:
-        # TODO (Phase 0.2): enforce minimum entropy / length in production
+        # Pydantic v2 field_validator behavior: info provides access to other parsed fields.
+        # However, to access APP_ENV securely across all fields, it's safer to just check
+        # if the value matches the known default defaults.
+        defaults = [
+            "change-this-to-a-random-256-bit-secret",
+            "change_me_in_production",
+            "change_me_in_production_refresh"
+        ]
+        
+        import os
+        is_prod = os.getenv("APP_ENV", "development") == "production"
+        
+        if is_prod and v in defaults:
+            raise ValueError(f"CRITICAL: {info.field_name} must be properly configured in production environment.")
         return v
 
 

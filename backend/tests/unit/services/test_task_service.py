@@ -6,7 +6,7 @@ import uuid
 import pytest
 from unittest.mock import AsyncMock
 
-from src.db.models.task import Task, TaskStatus, TaskType
+from src.db.models.task import Task, TaskStatus, TaskPriority
 from src.services.task_service import TaskService, TaskDefinition
 from src.services.exceptions import InvalidStateError
 

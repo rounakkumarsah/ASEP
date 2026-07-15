@@ -6,7 +6,7 @@ import uuid
 import pytest
 from sqlalchemy.exc import NoResultFound
 
-from src.db.models.task import Task, TaskStatus, TaskType
+from src.db.models.task import Task, TaskStatus, TaskPriority
 from src.repositories.task import TaskRepository
 
 

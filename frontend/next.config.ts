@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import "./src/lib/config/env";
 
 /**
  * ASEP — Next.js Configuration

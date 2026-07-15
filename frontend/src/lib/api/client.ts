@@ -1,4 +1,5 @@
 import axios, { AxiosError } from "axios";
+import { env } from "../config/env";
 import { 
   ApiError, 
   UnauthorizedError, 
@@ -8,7 +9,7 @@ import {
   ServerError 
 } from "./errors";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = env.NEXT_PUBLIC_API_URL;
 
 export const apiClient = axios.create({
   baseURL: API_URL,
