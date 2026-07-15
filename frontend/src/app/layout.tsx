@@ -1,27 +1,38 @@
-/**
- * ASEP — Root Layout
- * Scaffold only. TODO (Phase 0.2): implement full layout with sidebar nav.
- */
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "./globals.css";
+import type { Metadata } from "next"
+import { Inter } from "next/font/google"
+import "@/app/globals.css"
+import { ThemeProvider } from "@/lib/providers/theme-provider"
+import { QueryProvider } from "@/lib/providers/query-provider"
+import { AuthProvider } from "@/lib/providers/auth-provider"
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "ASEP — Autonomous Software Engineering Platform",
-  description:
-    "Local-first AI engineering operating system. Run autonomous software agents on your own hardware.",
-};
+  title: "ASEP | Autonomous Software Engineering Platform",
+  description: "Production Control Plane Dashboard",
+}
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className={inter.className}>{children}</body>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${inter.className} min-h-screen bg-background antialiased`}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <QueryProvider>
+            <AuthProvider>
+              {children}
+            </AuthProvider>
+          </QueryProvider>
+        </ThemeProvider>
+      </body>
     </html>
-  );
+  )
 }
