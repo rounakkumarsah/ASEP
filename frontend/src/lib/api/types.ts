@@ -22,12 +22,29 @@ export interface Project {
   updatedAt: string;
 }
 
+export enum SessionStatus {
+  Pending = "pending",
+  Planning = "planning",
+  Executing = "executing",
+  WaitingApproval = "waiting_approval",
+  Reflecting = "reflecting",
+  Evaluating = "evaluating",
+  Completed = "completed",
+  Failed = "failed",
+  Cancelled = "cancelled",
+}
+
 export interface Session {
-  id: string;
-  projectId: string;
-  status: "active" | "completed" | "failed";
+  sessionId: string;
+  runId: string;
+  threadId: string;
+  status: SessionStatus;
+  stage: string;
   startedAt: string;
-  endedAt?: string;
+  updatedAt: string;
+  progress: number;
+  activeAgent: string;
+  currentTask: string;
 }
 
 export interface Metric {
