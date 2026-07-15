@@ -12,16 +12,7 @@ export interface PaginatedResponse<T> {
   pages: number;
 }
 
-// Common Domain Models (Placeholders for now)
-
-export interface Project {
-  id: string;
-  name: string;
-  description?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
+// Session Models
 export enum SessionStatus {
   Pending = "pending",
   Planning = "planning",
@@ -45,6 +36,39 @@ export interface Session {
   progress: number;
   activeAgent: string;
   currentTask: string;
+}
+
+// Memory Models
+export type MemoryType = "working" | "episodic" | "semantic" | "procedural";
+
+export interface MemoryItem {
+  id: string;
+  type: MemoryType;
+  content: string;
+  context?: string;
+  confidence: number;
+  tags: string[];
+  createdAt: string;
+  associations?: string[]; // IDs of related memories or knowledge
+}
+
+// Knowledge Models
+export interface KnowledgeDocument {
+  id: string;
+  title: string;
+  snippet: string;
+  source: string; // e.g., "Documentation", "API Spec", "User Upload"
+  createdAt: string;
+  updatedAt: string;
+  tags: string[];
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Metric {
