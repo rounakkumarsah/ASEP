@@ -75,10 +75,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Initialize redis pool
     await init_redis()
 
-    from src.graph.neo4j import close_neo4j, init_neo4j
+    # from src.graph.neo4j import close_neo4j, init_neo4j
 
     # Initialize neo4j driver
-    await init_neo4j()
+    # await init_neo4j()
 
     from src.vector.qdrant import close_qdrant, init_qdrant
     from src.vector.collections import create_collection_if_not_exists, DEFAULT_COLLECTION
@@ -100,7 +100,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await close_redis()
     
     # Close neo4j driver
-    await close_neo4j()
+    # await close_neo4j()
     
     # Close qdrant client
     await close_qdrant()

@@ -1,11 +1,6 @@
 # =============================================================================
 # ASEP — Autonomous Software Engineering Platform
-# Docker Compose — Local Development Stack
-# =============================================================================
-# Usage:
-#   docker compose up -d          — start all services
-#   docker compose down -v        — stop and remove volumes
-#   docker compose logs -f asep   — tail backend logs
+# Docker Compose — Production Stack (Phase 3.9.2)
 # =============================================================================
 
 services:
@@ -20,16 +15,15 @@ services:
     container_name: asep-backend
     restart: unless-stopped
     env_file:
-      - .env
+      - ./backend/.env
     environment:
       POSTGRES_HOST: postgres
       REDIS_HOST: redis
-      NEO4J_HOST: neo4j
       QDRANT_HOST: qdrant
-      OLLAMA_BASE_URL: http://ollama:11434
       DATABASE_URL: postgresql+asyncpg://asep:changeme@postgres:5432/asep
       REDIS_URL: redis://redis:6379/0
-      NEO4J_URI: bolt://neo4j:7687
+      # Force production fail-fast checks
+      APP_ENV: production
     ports:
       - "8000:8000"
     depends_on:
@@ -37,22 +31,10 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      neo4j:
-        condition: service_healthy
       qdrant:
-        condition: service_healthy
-      ollama:
         condition: service_started
-    volumes:
-      - ./backend:/app
     networks:
       - asep-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 20s
 
   # ---------------------------------------------------------------------------
   # Frontend — Next.js
@@ -61,22 +43,22 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
     container_name: asep-frontend
     restart: unless-stopped
+    env_file:
+      - ./frontend/.env.local
     environment:
+      # This is injected via args for build time, and at runtime
       NEXT_PUBLIC_API_URL: http://localhost:8000
+      NODE_ENV: production
     ports:
       - "3000:3000"
     depends_on:
       - asep
     networks:
       - asep-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
 
   # ---------------------------------------------------------------------------
   # PostgreSQL — Primary relational store
@@ -91,11 +73,11 @@ services:
       POSTGRES_PASSWORD: changeme
       POSTGRES_HOST_AUTH_METHOD: trust
       PGDATA: /var/lib/postgresql/data/pgdata
-    ports:
-      - "5433:5432"
+    # In production, do not expose internal DB ports to the host natively unless needed
+    # ports:
+    #   - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - asep-network
     healthcheck:
@@ -113,8 +95,8 @@ services:
     container_name: asep-redis
     restart: unless-stopped
     command: redis-server --requirepass "" --appendonly yes
-    ports:
-      - "6379:6379"
+    # ports:
+    #   - "6379:6379"
     volumes:
       - redis_data:/data
     networks:
@@ -126,76 +108,18 @@ services:
       retries: 5
 
   # ---------------------------------------------------------------------------
-  # Neo4j — Knowledge graph / code graph
-  # ---------------------------------------------------------------------------
-  neo4j:
-    image: neo4j:5-community
-    container_name: asep-neo4j
-    restart: unless-stopped
-    environment:
-      NEO4J_AUTH: neo4j/changeme
-      NEO4J_PLUGINS: '["apoc"]'
-      NEO4J_dbms_security_procedures_unrestricted: "apoc.*"
-      NEO4J_dbms_memory_heap_initial__size: 512m
-      NEO4J_dbms_memory_heap_max__size: 1G
-    ports:
-      - "7474:7474"   # HTTP browser
-      - "7687:7687"   # Bolt protocol
-    volumes:
-      - neo4j_data:/data
-      - neo4j_logs:/logs
-      - neo4j_plugins:/plugins
-    networks:
-      - asep-network
-    healthcheck:
-      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:7474 || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-
-  # ---------------------------------------------------------------------------
   # Qdrant — Vector database for semantic search / embeddings
   # ---------------------------------------------------------------------------
   qdrant:
     image: qdrant/qdrant:latest
     container_name: asep-qdrant
     restart: unless-stopped
-    ports:
-      - "6333:6333"   # REST
-      - "6334:6334"   # gRPC
+    # ports:
+    #   - "6333:6333"   # REST
     volumes:
       - qdrant_data:/qdrant/storage
     networks:
       - asep-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-
-  # ---------------------------------------------------------------------------
-  # Ollama — Local LLM inference
-  # ---------------------------------------------------------------------------
-  ollama:
-    image: ollama/ollama:latest
-    container_name: asep-ollama
-    restart: unless-stopped
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    networks:
-      - asep-network
-    # GPU support: uncomment the deploy section and set runtime to nvidia
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
 
 # =============================================================================
 # Volumes
@@ -205,15 +129,7 @@ volumes:
     driver: local
   redis_data:
     driver: local
-  neo4j_data:
-    driver: local
-  neo4j_logs:
-    driver: local
-  neo4j_plugins:
-    driver: local
   qdrant_data:
-    driver: local
-  ollama_data:
     driver: local
 
 # =============================================================================

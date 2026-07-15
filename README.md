@@ -15,21 +15,22 @@ It is **not** a chatbot. It is **not** a demo. It is production-grade infrastruc
 
 ## Quick Start
 
+### Production Topology (Docker)
+ASEP uses a multi-stage Docker build for both backend and frontend, optimized for production security and footprint.
+
 ```bash
 # 1. Clone and enter the repo
 git clone <repo-url> && cd ASEP
 
-# 2. Bootstrap the dev environment
-bash scripts/setup.sh
+# 2. Ensure environment variables are set
+# (e.g., configure backend/.env and frontend/.env.local)
 
-# 3. Start the full stack
-make docker-up
+# 3. Build and Start the full production stack
+docker compose up -d --build
 
-# 4. Start the backend dev server
-make dev
-
-# 5. Open the API docs
-open http://localhost:8000/docs
+# 4. Access the applications
+# Frontend: http://localhost:3000
+# Backend API Docs: http://localhost:8000/docs
 ```
 
 ---

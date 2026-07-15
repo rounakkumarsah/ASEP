@@ -15,6 +15,9 @@ logger = logging.getLogger(__name__)
 _qdrant_client: AsyncQdrantClient | None = None
 
 
+from tenacity import retry, stop_after_attempt, wait_exponential
+
+@retry(stop=stop_after_attempt(10), wait=wait_exponential(multiplier=1, min=2, max=10), reraise=True)
 async def init_qdrant() -> None:
     """Initialise the global Qdrant client."""
     global _qdrant_client
@@ -33,6 +36,7 @@ async def init_qdrant() -> None:
             logger.info(f"Successfully connected to Qdrant. Found {len(collections.collections)} collections.")
         except Exception as e:
             logger.error(f"Failed to connect to Qdrant: {e}")
+            _qdrant_client = None
             raise
 
 

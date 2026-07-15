@@ -13,6 +13,7 @@ import "./src/lib/config/env";
 const nextConfig: NextConfig = {
   // Strict mode enables extra React development warnings
   reactStrictMode: true,
+  output: "standalone",
 
   // TODO (Phase 0.2): add rewrites for API proxy
   // async rewrites() {

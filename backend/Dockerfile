@@ -1,67 +1,70 @@
 # =============================================================================
-# ASEP Backend — Dockerfile
-# Multi-stage build for production-ready container
+# Stage 1: Builder
 # =============================================================================
-
-# ---------------------------------------------------------------------------
-# Stage 1: dependency builder
-# ---------------------------------------------------------------------------
 FROM python:3.12-slim AS builder
 
-WORKDIR /build
-
-# Install system deps needed for compilation
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    libpq-dev \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install pip and hatch
-RUN pip install --no-cache-dir --upgrade pip hatchling
-
-# Copy only dependency manifest and readme (layer cache optimisation)
-COPY pyproject.toml README.md ./
-
-# Install project dependencies into a prefix
-RUN pip install --no-cache-dir --prefix=/install ".[dev]" || \
-    pip install --no-cache-dir --prefix=/install .
-
-# ---------------------------------------------------------------------------
-# Stage 2: runtime image
-# ---------------------------------------------------------------------------
-FROM python:3.12-slim AS runtime
-
-LABEL maintainer="ASEP Platform Team"
-LABEL version="0.1.0"
-LABEL description="ASEP Backend — Autonomous Software Engineering Platform"
-
-# Security: non-root user
-RUN groupadd --gid 1001 asep && \
-    useradd --uid 1001 --gid asep --shell /bin/bash --create-home asep
+# Prevent Python from writing pyc files and buffering stdout
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# System runtime deps
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install system build dependencies required for compiling Python packages
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install python dependencies in a virtual environment
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+COPY pyproject.toml README.md ./
+
+# We upgrade pip and install dependencies using pip.
+# Assuming hatchling handles the pyproject.toml properly via pip install.
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir .
+
+# =============================================================================
+# Stage 2: Runner
+# =============================================================================
+FROM python:3.12-slim AS runner
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# Install runtime system dependencies (e.g., libpq for PostgreSQL connection)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
     libpq5 \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy installed packages from builder
-COPY --from=builder /install /usr/local
+# Create a non-root user
+RUN addgroup --system asepgroup && \
+    adduser --system --group asepuser
 
-# Copy source code
-COPY --chown=asep:asep . .
+# Copy virtual environment from builder
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
-# Switch to non-root user
-USER asep
+# Copy application source
+COPY --chown=asepuser:asepgroup src/ src/
+COPY --chown=asepuser:asepgroup alembic/ alembic/
+COPY --chown=asepuser:asepgroup alembic.ini alembic.ini
+
+# Set user
+USER asepuser
 
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+# Healthcheck targeting the FastAPI /health endpoint
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=20s \
+  CMD curl -f http://localhost:8000/health || exit 1
 
-# Entrypoint: uvicorn in production mode
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+# Start the application using uvicorn
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
