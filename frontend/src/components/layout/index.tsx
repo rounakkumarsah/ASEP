@@ -24,7 +24,7 @@ export function Sidebar() {
   const pathname = usePathname()
   
   const navItems = [
-    { name: "Overview", href: "/", icon: LayoutDashboard },
+    { name: "Overview", href: "/overview", icon: LayoutDashboard },
     { name: "Projects", href: "/projects", icon: FolderOpen },
     { name: "Sessions", href: "/sessions", icon: Activity },
     { name: "Knowledge", href: "/knowledge", icon: Database },

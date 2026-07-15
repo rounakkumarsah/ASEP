@@ -49,10 +49,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     if (!isLoading) {
       const isAuthRoute = pathname?.startsWith("/login")
-      if (!user && !isAuthRoute) {
+      const isPublicRoute = pathname === "/"
+
+      if (!user && !isAuthRoute && !isPublicRoute) {
         router.push("/login")
       } else if (user && isAuthRoute) {
-        router.push("/")
+        router.push("/overview")
       }
     }
   }, [user, isLoading, pathname, router])
@@ -60,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = (token: string, user: User) => {
     localStorage.setItem("asep_access_token", token)
     setUser(user)
-    router.push("/")
+    router.push("/overview")
   }
 
   const logout = () => {
