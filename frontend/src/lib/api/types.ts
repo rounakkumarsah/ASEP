@@ -115,3 +115,15 @@ export interface Metric {
   value: number;
   timestamp: string;
 }
+
+// Control Plane Models
+export interface SystemHealth {
+  status: "operational" | "degraded" | "outage";
+  uptime: number; // seconds
+  activeAgents: number;
+  activeSessions: number;
+  pendingApprovals: number;
+  cpuUsage: number;
+  memoryUsage: number;
+  lastUpdated: string;
+}

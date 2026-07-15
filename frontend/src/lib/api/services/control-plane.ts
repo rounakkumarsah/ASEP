@@ -1,10 +1,23 @@
-﻿import { apiClient } from "../client";
-import { ApiResponse } from "../types";
+import { ApiResponse, SystemHealth } from "../types";
 
 export const controlPlaneService = {
-  // Scaffolded service for control-plane
-  async getStatus(): Promise<ApiResponse<unknown>> {
-    const response = await apiClient.get('/api/v1/control-plane/status');
-    return response.data;
+  async getSystemOverview(): Promise<ApiResponse<SystemHealth>> {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve({
+          status: "success",
+          data: {
+            status: "operational",
+            uptime: 1209600, // 14 days
+            activeAgents: 12,
+            activeSessions: 3,
+            pendingApprovals: 5,
+            cpuUsage: 45,
+            memoryUsage: 68,
+            lastUpdated: new Date().toISOString()
+          }
+        });
+      }, 400); // Simulate network latency
+    });
   }
 };
