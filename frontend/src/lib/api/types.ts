@@ -49,7 +49,7 @@ export interface MemoryItem {
   confidence: number;
   tags: string[];
   createdAt: string;
-  associations?: string[]; // IDs of related memories or knowledge
+  associations?: string[];
 }
 
 // Knowledge Models
@@ -57,10 +57,48 @@ export interface KnowledgeDocument {
   id: string;
   title: string;
   snippet: string;
-  source: string; // e.g., "Documentation", "API Spec", "User Upload"
+  source: string;
   createdAt: string;
   updatedAt: string;
   tags: string[];
+}
+
+// Governance Models
+export type ApprovalStatus = "pending" | "approved" | "denied" | "expired" | "cancelled";
+export type RiskLevel = "low" | "medium" | "high" | "critical";
+
+export interface ApprovalRequest {
+  id: string;
+  resourceId: string;
+  agentId: string;
+  requestedAction: string;
+  status: ApprovalStatus;
+  riskLevel: RiskLevel;
+  justification: string;
+  requestedAt: string;
+  expiresAt: string;
+  resolvedAt?: string;
+  resolvedBy?: string;
+}
+
+export interface GovernancePolicy {
+  id: string;
+  name: string;
+  description: string;
+  isActive: boolean;
+  riskThreshold: RiskLevel;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AuditRecord {
+  id: string;
+  action: string;
+  actor: string;
+  target: string;
+  status: "success" | "failure" | "blocked";
+  timestamp: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface Project {
