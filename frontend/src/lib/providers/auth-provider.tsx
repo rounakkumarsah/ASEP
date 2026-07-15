@@ -1,16 +1,17 @@
 "use client"
 
 import * as React from "react"
-import { useRouter, usePathname } from "next/navigation"
+import { useRouter } from "next/navigation"
 
-type User = {
+export type User = {
   id: string
   username: string
   role: string
 }
 
-type AuthContextType = {
+export type AuthContextType = {
   user: User | null
+  isAuthenticated: boolean
   isLoading: boolean
   login: (token: string, user: User) => void
   logout: () => void
@@ -22,42 +23,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null)
   const [isLoading, setIsLoading] = React.useState(true)
   const router = useRouter()
-  const pathname = usePathname()
 
   React.useEffect(() => {
     const initAuth = async () => {
+      // In Phase 3C.2 we don't have a backend. We just simulate checking a token.
       const token = localStorage.getItem("asep_access_token")
+      
       if (token) {
-        try {
-          // For now, we mock the /me endpoint if the backend is not fully integrated yet.
-          // In the future:
-          // const response = await apiClient.get("/me")
-          // setUser(response.data)
-          
-          // MOCK:
-          setUser({ id: "1", username: "admin", role: "supervisor" })
-        } catch {
-          localStorage.removeItem("asep_access_token")
-          setUser(null)
-        }
+        // MOCK: Simulate token validation and fetching user profile
+        // In the future this will be an API call to the FastAPI backend.
+        setUser({ id: "1", username: "admin", role: "supervisor" })
+      } else {
+        setUser(null)
       }
+      
       setIsLoading(false)
     }
+    
     initAuth()
   }, [])
-
-  React.useEffect(() => {
-    if (!isLoading) {
-      const isAuthRoute = pathname?.startsWith("/login")
-      const isPublicRoute = pathname === "/"
-
-      if (!user && !isAuthRoute && !isPublicRoute) {
-        router.push("/login")
-      } else if (user && isAuthRoute) {
-        router.push("/overview")
-      }
-    }
-  }, [user, isLoading, pathname, router])
 
   const login = (token: string, user: User) => {
     localStorage.setItem("asep_access_token", token)
@@ -72,7 +56,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
+    <AuthContext.Provider 
+      value={{ 
+        user, 
+        isAuthenticated: !!user,
+        isLoading, 
+        login, 
+        logout 
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )

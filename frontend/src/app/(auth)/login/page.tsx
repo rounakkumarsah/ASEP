@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { useAuth } from "@/lib/providers/auth-provider"
+import { GuestRoute } from "@/components/auth/guest-route"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
@@ -38,9 +39,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex h-screen w-full items-center justify-center bg-muted/40">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="text-center">
+    <GuestRoute>
+      <div className="flex h-screen w-full items-center justify-center bg-muted/40">
+        <Card className="w-full max-w-sm">
+          <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">ASEP</CardTitle>
           <CardDescription>Enter your credentials to access the Control Plane</CardDescription>
         </CardHeader>
@@ -78,7 +80,8 @@ export default function LoginPage() {
             </form>
           </Form>
         </CardContent>
-      </Card>
-    </div>
+        </Card>
+      </div>
+    </GuestRoute>
   )
 }

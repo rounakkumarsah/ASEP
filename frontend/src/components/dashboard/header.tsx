@@ -8,10 +8,12 @@ import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { SidebarNav } from "@/components/dashboard/sidebar"
+import { useAuth } from "@/lib/providers/auth-provider"
 
 export function DashboardHeader() {
   const [isOpen, setIsOpen] = React.useState(false)
   const pathname = usePathname()
+  const { logout } = useAuth()
 
   // Simple breadcrumb generator based on pathname
   const pathSegments = pathname.split("/").filter(Boolean)
@@ -60,8 +62,18 @@ export function DashboardHeader() {
           
           <ThemeToggle />
           
-          {/* Profile Menu Placeholder */}
-          <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50" aria-label="User profile">
+          {/* Profile Menu Placeholder - Hooked up to logout for Phase 3C.2 */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="rounded-full bg-secondary/50" 
+            aria-label="User profile / Logout"
+            onClick={() => {
+              if (window.confirm("Are you sure you want to log out?")) {
+                logout()
+              }
+            }}
+          >
             <User className="h-4 w-4 text-muted-foreground" />
           </Button>
         </div>
