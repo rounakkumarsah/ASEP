@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import { motion, Variants } from "framer-motion"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { ArrowRight, Github } from "lucide-react"
+import { motion, Variants } from "framer-motion";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { ArrowRight, Github } from "lucide-react";
 
 export function HeroSection() {
   const containerVariants: Variants = {
@@ -15,12 +15,16 @@ export function HeroSection() {
         delayChildren: 0.2,
       },
     },
-  }
+  };
 
   const itemVariants: Variants = {
     hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
-  }
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.5, ease: "easeOut" },
+    },
+  };
 
   return (
     <section className="relative overflow-hidden bg-background pt-24 pb-32 md:pt-32 md:pb-40">
@@ -35,7 +39,10 @@ export function HeroSection() {
           animate="visible"
         >
           {/* Badge */}
-          <motion.div variants={itemVariants} className="mb-8 flex justify-center">
+          <motion.div
+            variants={itemVariants}
+            className="mb-8 flex justify-center"
+          >
             <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-sm font-medium text-primary shadow-sm backdrop-blur-sm">
               <span className="mr-2 flex h-2 w-2 rounded-full bg-primary" />
               v2.4 Released — Production Ready
@@ -55,7 +62,9 @@ export function HeroSection() {
             variants={itemVariants}
             className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-muted-foreground sm:text-xl"
           >
-            Unify Planning, Execution, Memory, and Governance. ASEP is the open-source control plane for production-grade AI agents, built for absolute reliability and scale.
+            Unify Planning, Execution, Memory, and Governance. ASEP is the
+            open-source control plane for production-grade AI agents, built for
+            absolute reliability and scale.
           </motion.p>
 
           {/* CTAs */}
@@ -70,7 +79,11 @@ export function HeroSection() {
               </Button>
             </Link>
             <Link href="https://github.com/rounakkumarsah/ASEP" target="_blank">
-              <Button size="lg" variant="outline" className="h-12 px-8 text-base">
+              <Button
+                size="lg"
+                variant="outline"
+                className="h-12 px-8 text-base"
+              >
                 <Github className="mr-2 h-4 w-4" />
                 View Source
               </Button>
@@ -118,5 +131,5 @@ export function HeroSection() {
         </motion.div>
       </div>
     </section>
-  )
+  );
 }

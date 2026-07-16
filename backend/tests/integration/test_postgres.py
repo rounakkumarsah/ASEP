@@ -9,6 +9,7 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import DeclarativeBase
 
 from src.db.postgres import (
     Base,
@@ -103,7 +104,7 @@ class TestDeclarativeBase:
     def test_base_is_declarative(self) -> None:
         """Base should be a valid SQLAlchemy DeclarativeBase."""
         assert hasattr(Base, "metadata")
-        assert hasattr(Base, "__tablename__")
+        assert issubclass(Base, DeclarativeBase)
 
     def test_base_registry_is_empty_initially(self) -> None:
         """Base registry should be empty initially (no models defined)."""

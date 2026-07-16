@@ -1,12 +1,14 @@
-import * as React from "react"
-import { KnowledgeDocument } from "@/lib/api/types"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { FileText, Database } from "lucide-react"
+import * as React from "react";
+import { KnowledgeDocument } from "@/lib/api/types";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { FileText, Database } from "lucide-react";
 
 export function KnowledgeCard({ document }: { document: KnowledgeDocument }) {
-  const date = new Date(document.createdAt).toLocaleDateString(undefined, { 
-    month: "short", day: "numeric", year: "numeric"
-  })
+  const date = new Date(document.createdAt).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 
   return (
     <Card className="hover:border-primary/50 transition-colors h-full flex flex-col group cursor-pointer">
@@ -27,20 +29,23 @@ export function KnowledgeCard({ document }: { document: KnowledgeDocument }) {
           <span>Added {date}</span>
         </div>
       </CardHeader>
-      
+
       <CardContent className="p-4 pt-3 flex-1 flex flex-col">
         <p className="text-sm text-muted-foreground leading-relaxed flex-1 line-clamp-3">
           {document.snippet}
         </p>
-        
+
         <div className="mt-4 flex gap-1.5 flex-wrap">
-          {document.tags.map(tag => (
-            <span key={tag} className="inline-flex items-center rounded-md bg-secondary/50 px-2 py-0.5 text-[10px] font-medium text-secondary-foreground border border-border/50">
+          {document.tags.map((tag) => (
+            <span
+              key={tag}
+              className="inline-flex items-center rounded-md bg-secondary/50 px-2 py-0.5 text-[10px] font-medium text-secondary-foreground border border-border/50"
+            >
               #{tag}
             </span>
           ))}
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

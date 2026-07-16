@@ -1,37 +1,50 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { usePathname } from "next/navigation"
-import { Menu, Search, Bell, User } from "lucide-react"
+import * as React from "react";
+import { usePathname } from "next/navigation";
+import { Menu, Search, Bell, User } from "lucide-react";
 
-import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet"
-import { ThemeToggle } from "@/components/ui/theme-toggle"
-import { SidebarNav } from "@/components/dashboard/sidebar"
-import { useAuth } from "@/lib/providers/auth-provider"
+import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { SidebarNav } from "@/components/dashboard/sidebar";
+import { useAuth } from "@/lib/providers/auth-provider";
 
 export function DashboardHeader() {
-  const [isOpen, setIsOpen] = React.useState(false)
-  const pathname = usePathname()
-  const { logout } = useAuth()
+  const [isOpen, setIsOpen] = React.useState(false);
+  const pathname = usePathname();
+  const { logout } = useAuth();
 
   // Simple breadcrumb generator based on pathname
-  const pathSegments = pathname.split("/").filter(Boolean)
-  const breadcrumb = pathSegments.length > 0 
-    ? pathSegments[0].charAt(0).toUpperCase() + pathSegments[0].slice(1)
-    : "Overview"
+  const pathSegments = pathname.split("/").filter(Boolean);
+  const breadcrumb =
+    pathSegments.length > 0
+      ? pathSegments[0].charAt(0).toUpperCase() + pathSegments[0].slice(1)
+      : "Overview";
 
   return (
     <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-x-4 border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
       {/* Mobile Sidebar Toggle */}
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
         <SheetTrigger asChild>
-          <Button variant="ghost" size="icon" className="lg:hidden -m-2.5 p-2.5 text-muted-foreground">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden -m-2.5 p-2.5 text-muted-foreground"
+          >
             <span className="sr-only">Open sidebar</span>
             <Menu className="h-5 w-5" aria-hidden="true" />
           </Button>
         </SheetTrigger>
-        <SheetContent side="left" className="p-0 w-64 border-r border-border/50">
+        <SheetContent
+          side="left"
+          className="p-0 w-64 border-r border-border/50"
+        >
           <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
           <SidebarNav onClick={() => setIsOpen(false)} />
         </SheetContent>
@@ -47,30 +60,43 @@ export function DashboardHeader() {
             {breadcrumb}
           </h1>
         </div>
-        
+
         {/* Right Actions */}
         <div className="flex items-center gap-x-2 lg:gap-x-4">
-          <Button variant="ghost" size="icon" className="text-muted-foreground" aria-label="Search">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-muted-foreground"
+            aria-label="Search"
+          >
             <Search className="h-4 w-4" />
           </Button>
-          
-          <Button variant="ghost" size="icon" className="text-muted-foreground" aria-label="Notifications">
+
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-muted-foreground"
+            aria-label="Notifications"
+          >
             <Bell className="h-4 w-4" />
           </Button>
-          
-          <div className="hidden lg:block h-6 w-px bg-border" aria-hidden="true" />
-          
+
+          <div
+            className="hidden lg:block h-6 w-px bg-border"
+            aria-hidden="true"
+          />
+
           <ThemeToggle />
-          
+
           {/* Profile Menu Placeholder - Hooked up to logout for Phase 3C.2 */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="rounded-full bg-secondary/50" 
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full bg-secondary/50"
             aria-label="User profile / Logout"
             onClick={() => {
               if (window.confirm("Are you sure you want to log out?")) {
-                logout()
+                logout();
               }
             }}
           >
@@ -79,5 +105,5 @@ export function DashboardHeader() {
         </div>
       </div>
     </header>
-  )
+  );
 }

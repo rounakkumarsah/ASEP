@@ -1,0 +1,10 @@
+services:
+  postgres:
+    ports:
+      - "5440:5432"
+  redis:
+    ports:
+      - "6380:6379"
+  qdrant:
+    ports:
+      - "6334:6333"

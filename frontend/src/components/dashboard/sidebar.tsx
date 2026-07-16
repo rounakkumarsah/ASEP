@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { cn } from "@/lib/utils"
-import { Hexagon } from "lucide-react"
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
+import { Hexagon } from "lucide-react";
 import {
   Home,
   FolderKanban,
@@ -17,7 +17,7 @@ import {
   Gauge,
   ClipboardList,
   Settings,
-} from "lucide-react"
+} from "lucide-react";
 
 const navigationGroups = [
   {
@@ -53,14 +53,12 @@ const navigationGroups = [
   },
   {
     name: "System",
-    items: [
-      { name: "Settings", href: "/settings", icon: Settings },
-    ],
+    items: [{ name: "Settings", href: "/settings", icon: Settings }],
   },
-]
+];
 
 export function SidebarNav({ onClick }: { onClick?: () => void }) {
-  const pathname = usePathname()
+  const pathname = usePathname();
 
   return (
     <div className="flex flex-col space-y-6">
@@ -82,8 +80,8 @@ export function SidebarNav({ onClick }: { onClick?: () => void }) {
             </h4>
             <nav className="flex flex-col space-y-1">
               {group.items.map((item) => {
-                const isActive = pathname === item.href
-                const Icon = item.icon
+                const isActive = pathname === item.href;
+                const Icon = item.icon;
                 return (
                   <Link
                     key={item.name}
@@ -93,20 +91,25 @@ export function SidebarNav({ onClick }: { onClick?: () => void }) {
                       "flex items-center space-x-3 rounded-md px-2 py-2 text-sm font-medium transition-colors",
                       isActive
                         ? "bg-secondary text-secondary-foreground"
-                        : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                        : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground",
                     )}
                   >
-                    <Icon className={cn("h-4 w-4", isActive ? "text-primary" : "text-muted-foreground")} />
+                    <Icon
+                      className={cn(
+                        "h-4 w-4",
+                        isActive ? "text-primary" : "text-muted-foreground",
+                      )}
+                    />
                     <span>{item.name}</span>
                   </Link>
-                )
+                );
               })}
             </nav>
           </div>
         ))}
       </div>
     </div>
-  )
+  );
 }
 
 export function DashboardSidebar() {
@@ -114,5 +117,5 @@ export function DashboardSidebar() {
     <aside className="hidden lg:flex w-64 flex-col border-r border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 fixed inset-y-0 z-30">
       <SidebarNav />
     </aside>
-  )
+  );
 }

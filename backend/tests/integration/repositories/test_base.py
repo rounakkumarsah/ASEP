@@ -22,7 +22,7 @@ async def test_base_create(repo, db_session):
         goal="Base create",
         plan={},
         status=RunStatus.PENDING,
-        created_by="test"
+        session_id="test-session"
     )
     result = await repo.create(run)
     await db_session.flush()
@@ -36,7 +36,7 @@ async def test_base_update(repo, db_session):
         goal="Base update",
         plan={},
         status=RunStatus.PENDING,
-        created_by="test"
+        session_id="test-session"
     )
     await repo.create(run)
     await db_session.flush()
@@ -54,7 +54,7 @@ async def test_base_delete(repo, db_session):
         goal="Base delete",
         plan={},
         status=RunStatus.PENDING,
-        created_by="test"
+        session_id="test-session"
     )
     await repo.create(run)
     await db_session.flush()

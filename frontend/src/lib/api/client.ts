@@ -1,12 +1,12 @@
 import axios, { AxiosError } from "axios";
 import { env } from "../config/env";
-import { 
-  ApiError, 
-  UnauthorizedError, 
-  ForbiddenError, 
-  NotFoundError, 
-  ValidationError, 
-  ServerError 
+import {
+  ApiError,
+  UnauthorizedError,
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+  ServerError,
 } from "./errors";
 
 const API_URL = env.NEXT_PUBLIC_API_URL;
@@ -20,17 +20,20 @@ export const apiClient = axios.create({
 });
 
 // Request interceptor for attaching JWT tokens
-apiClient.interceptors.request.use((config) => {
-  if (typeof window !== "undefined") {
-    const token = localStorage.getItem("asep_access_token");
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
+apiClient.interceptors.request.use(
+  (config) => {
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("asep_access_token");
+      if (token && config.headers) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
-  }
-  return config;
-}, (error) => {
-  return Promise.reject(error);
-});
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  },
+);
 
 // Response interceptor for unified error handling
 apiClient.interceptors.response.use(
@@ -42,13 +45,14 @@ apiClient.interceptors.response.use(
     }
 
     const { status, data } = error.response;
-    const message = (data as Record<string, unknown>)?.message as string || error.message;
+    const message =
+      ((data as Record<string, unknown>)?.message as string) || error.message;
 
     switch (status) {
       case 401:
         if (typeof window !== "undefined") {
           localStorage.removeItem("asep_access_token");
-          // The AuthProvider and Route Guards will automatically detect the missing token 
+          // The AuthProvider and Route Guards will automatically detect the missing token
           // and redirect to /login on next render or location change.
           window.dispatchEvent(new Event("auth:unauthorized"));
         }
@@ -63,5 +67,5 @@ apiClient.interceptors.response.use(
       default:
         return Promise.reject(new ServerError(message, data));
     }
-  }
+  },
 );

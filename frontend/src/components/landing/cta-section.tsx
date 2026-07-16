@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import { motion } from "framer-motion"
-import Link from "next/link"
-import { ArrowRight, BookOpen } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { motion } from "framer-motion";
+import Link from "next/link";
+import { ArrowRight, BookOpen } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export function CtaSection() {
   return (
@@ -25,7 +25,7 @@ export function CtaSection() {
             Build Enterprise AI Systems,
             <br className="hidden sm:block" /> Not Just AI Workflows.
           </motion.h2>
-          
+
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -33,9 +33,11 @@ export function CtaSection() {
             transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
             className="mt-6 text-xl leading-relaxed text-muted-foreground"
           >
-            Deploy autonomous AI agents with planning, execution, memory, governance, evaluation, and production-ready architecture — all in one platform.
+            Deploy autonomous AI agents with planning, execution, memory,
+            governance, evaluation, and production-ready architecture — all in
+            one platform.
           </motion.p>
-          
+
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -44,14 +46,21 @@ export function CtaSection() {
             className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4"
           >
             <Link href="/login" className="w-full sm:w-auto">
-              <Button size="lg" className="w-full sm:w-auto text-base font-semibold group h-12 px-8">
+              <Button
+                size="lg"
+                className="w-full sm:w-auto text-base font-semibold group h-12 px-8"
+              >
                 Start Building
                 <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
               </Button>
             </Link>
-            
+
             <Link href="/docs" className="w-full sm:w-auto">
-              <Button size="lg" variant="outline" className="w-full sm:w-auto text-base font-medium h-12 px-8 border-border/60 hover:bg-muted/50">
+              <Button
+                size="lg"
+                variant="outline"
+                className="w-full sm:w-auto text-base font-medium h-12 px-8 border-border/60 hover:bg-muted/50"
+              >
                 <BookOpen className="mr-2 h-4 w-4 text-muted-foreground" />
                 View Documentation
               </Button>
@@ -60,5 +69,5 @@ export function CtaSection() {
         </div>
       </div>
     </section>
-  )
+  );
 }

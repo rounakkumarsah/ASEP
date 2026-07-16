@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { useAuth } from "@/lib/providers/auth-provider"
-import { Button } from "@/components/ui/button"
+import * as React from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useAuth } from "@/lib/providers/auth-provider";
+import { Button } from "@/components/ui/button";
 import {
   LayoutDashboard,
   FolderOpen,
@@ -16,13 +16,13 @@ import {
   ShieldAlert,
   LogOut,
   Moon,
-  Sun
-} from "lucide-react"
-import { useTheme } from "next-themes"
+  Sun,
+} from "lucide-react";
+import { useTheme } from "next-themes";
 
 export function Sidebar() {
-  const pathname = usePathname()
-  
+  const pathname = usePathname();
+
   const navItems = [
     { name: "Overview", href: "/overview", icon: LayoutDashboard },
     { name: "Projects", href: "/projects", icon: FolderOpen },
@@ -32,7 +32,7 @@ export function Sidebar() {
     { name: "Approvals", href: "/approvals", icon: CheckSquare },
     { name: "Metrics", href: "/metrics", icon: BarChart },
     { name: "Audit Log", href: "/audit", icon: ShieldAlert },
-  ]
+  ];
 
   return (
     <div className="flex h-screen w-64 flex-col border-r bg-card text-card-foreground">
@@ -41,7 +41,7 @@ export function Sidebar() {
       </div>
       <nav className="flex-1 space-y-1 overflow-y-auto p-4">
         {navItems.map((item) => {
-          const isActive = pathname === item.href
+          const isActive = pathname === item.href;
           return (
             <Link key={item.name} href={item.href}>
               <Button
@@ -52,16 +52,16 @@ export function Sidebar() {
                 {item.name}
               </Button>
             </Link>
-          )
+          );
         })}
       </nav>
     </div>
-  )
+  );
 }
 
 export function Header() {
-  const { user, logout } = useAuth()
-  const { theme, setTheme } = useTheme()
+  const { user, logout } = useAuth();
+  const { theme, setTheme } = useTheme();
 
   return (
     <header className="flex h-14 items-center justify-between border-b bg-card px-6">
@@ -91,5 +91,5 @@ export function Header() {
         </Button>
       </div>
     </header>
-  )
+  );
 }

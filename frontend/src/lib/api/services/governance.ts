@@ -1,4 +1,10 @@
-import { ApiResponse, PaginatedResponse, ApprovalRequest, GovernancePolicy, AuditRecord } from "../types";
+import {
+  ApiResponse,
+  PaginatedResponse,
+  ApprovalRequest,
+  GovernancePolicy,
+  AuditRecord,
+} from "../types";
 
 const mockApprovals: ApprovalRequest[] = [
   {
@@ -37,14 +43,15 @@ const mockApprovals: ApprovalRequest[] = [
     expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString(),
     resolvedAt: new Date(Date.now() - 1000 * 60 * 60 * 23).toISOString(),
     resolvedBy: "secops@asep.dev",
-  }
+  },
 ];
 
 const mockPolicies: GovernancePolicy[] = [
   {
     id: "pol_01",
     name: "Production Database Write Protection",
-    description: "All write/delete operations to production databases require explicit human approval.",
+    description:
+      "All write/delete operations to production databases require explicit human approval.",
     isActive: true,
     riskThreshold: "high",
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString(),
@@ -53,12 +60,13 @@ const mockPolicies: GovernancePolicy[] = [
   {
     id: "pol_02",
     name: "Secrets Access Policy",
-    description: "Agents may access staging secrets autonomously but production secrets require approval.",
+    description:
+      "Agents may access staging secrets autonomously but production secrets require approval.",
     isActive: true,
     riskThreshold: "critical",
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60).toISOString(),
     updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString(),
-  }
+  },
 ];
 
 const mockAudits: AuditRecord[] = [
@@ -69,7 +77,7 @@ const mockAudits: AuditRecord[] = [
     target: "api_stripe_key",
     status: "success",
     timestamp: new Date(Date.now() - 1000 * 60 * 50).toISOString(),
-    metadata: { approvalId: "app_02" }
+    metadata: { approvalId: "app_02" },
   },
   {
     id: "aud_02",
@@ -78,28 +86,44 @@ const mockAudits: AuditRecord[] = [
     target: "i-0abcd1234efgh5678",
     status: "blocked",
     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 23).toISOString(),
-    metadata: { reason: "Policy Denied" }
-  }
+    metadata: { reason: "Policy Denied" },
+  },
 ];
 
 export const governanceService = {
-  async getApprovals(): Promise<ApiResponse<PaginatedResponse<ApprovalRequest>>> {
+  async getApprovals(): Promise<
+    ApiResponse<PaginatedResponse<ApprovalRequest>>
+  > {
     return new Promise((resolve) => {
       setTimeout(() => {
         resolve({
           status: "success",
-          data: { items: mockApprovals, total: mockApprovals.length, page: 1, size: 50, pages: 1 }
+          data: {
+            items: mockApprovals,
+            total: mockApprovals.length,
+            page: 1,
+            size: 50,
+            pages: 1,
+          },
         });
       }, 400);
     });
   },
-  
-  async getPolicies(): Promise<ApiResponse<PaginatedResponse<GovernancePolicy>>> {
+
+  async getPolicies(): Promise<
+    ApiResponse<PaginatedResponse<GovernancePolicy>>
+  > {
     return new Promise((resolve) => {
       setTimeout(() => {
         resolve({
           status: "success",
-          data: { items: mockPolicies, total: mockPolicies.length, page: 1, size: 50, pages: 1 }
+          data: {
+            items: mockPolicies,
+            total: mockPolicies.length,
+            page: 1,
+            size: 50,
+            pages: 1,
+          },
         });
       }, 400);
     });
@@ -110,9 +134,15 @@ export const governanceService = {
       setTimeout(() => {
         resolve({
           status: "success",
-          data: { items: mockAudits, total: mockAudits.length, page: 1, size: 50, pages: 1 }
+          data: {
+            items: mockAudits,
+            total: mockAudits.length,
+            page: 1,
+            size: 50,
+            pages: 1,
+          },
         });
       }, 400);
     });
-  }
+  },
 };

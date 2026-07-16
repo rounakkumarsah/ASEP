@@ -1,30 +1,40 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { useSessions } from "@/lib/api/hooks/use-sessions"
-import { SessionCard } from "@/components/dashboard/sessions/session-card"
-import { Loader2, Plus, RefreshCw } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import * as React from "react";
+import { useSessions } from "@/lib/api/hooks/use-sessions";
+import { SessionCard } from "@/components/dashboard/sessions/session-card";
+import { Loader2, Plus, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function SessionsPage() {
-  const { data: sessions, isLoading, isError, refetch, isFetching } = useSessions()
+  const {
+    data: sessions,
+    isLoading,
+    isError,
+    refetch,
+    isFetching,
+  } = useSessions();
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Active Sessions</h1>
-          <p className="text-muted-foreground">Monitor and manage live autonomous agent executions.</p>
+          <p className="text-muted-foreground">
+            Monitor and manage live autonomous agent executions.
+          </p>
         </div>
-        
+
         <div className="flex items-center gap-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => refetch()} 
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
             disabled={isFetching}
           >
-            <RefreshCw className={`mr-2 h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
+            />
             Refresh
           </Button>
           <Button size="sm">
@@ -42,7 +52,12 @@ export default function SessionsPage() {
       ) : isError ? (
         <div className="h-[400px] w-full flex flex-col items-center justify-center text-destructive border border-destructive/20 bg-destructive/5 rounded-lg">
           <p className="font-medium">Failed to load sessions</p>
-          <Button variant="outline" size="sm" onClick={() => refetch()} className="mt-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            className="mt-4"
+          >
             Try again
           </Button>
         </div>
@@ -52,7 +67,9 @@ export default function SessionsPage() {
             <Bot className="h-6 w-6 text-muted-foreground" />
           </div>
           <h3 className="font-semibold text-foreground">No active sessions</h3>
-          <p className="text-sm mt-1 mb-4">Start a new agent execution to see it here.</p>
+          <p className="text-sm mt-1 mb-4">
+            Start a new agent execution to see it here.
+          </p>
           <Button>
             <Plus className="mr-2 h-4 w-4" />
             Create Session
@@ -66,8 +83,8 @@ export default function SessionsPage() {
         </div>
       )}
     </div>
-  )
+  );
 }
 
 // Just importing Bot inside the file if missing
-import { Bot } from "lucide-react"
+import { Bot } from "lucide-react";

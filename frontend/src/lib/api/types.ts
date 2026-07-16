@@ -64,7 +64,8 @@ export interface KnowledgeDocument {
 }
 
 // Governance Models
-export type ApprovalStatus = "pending" | "approved" | "denied" | "expired" | "cancelled";
+export type ApprovalStatus =
+  "pending" | "approved" | "denied" | "expired" | "cancelled";
 export type RiskLevel = "low" | "medium" | "high" | "critical";
 
 export interface ApprovalRequest {

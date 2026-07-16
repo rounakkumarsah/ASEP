@@ -14,10 +14,10 @@ export const controlPlaneService = {
             pendingApprovals: 5,
             cpuUsage: 45,
             memoryUsage: 68,
-            lastUpdated: new Date().toISOString()
-          }
+            lastUpdated: new Date().toISOString(),
+          },
         });
       }, 400); // Simulate network latency
     });
-  }
+  },
 };

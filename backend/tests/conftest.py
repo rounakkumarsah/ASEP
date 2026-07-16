@@ -6,6 +6,14 @@ Pytest root conftest: shared fixtures and async event loop configuration.
 
 from __future__ import annotations
 
+import os
+
+# Override env vars for tests to point to exposed localhost ports instead of docker service names
+os.environ["DATABASE_URL"] = "postgresql+asyncpg://asep:changeme@localhost:5440/asep_test"
+os.environ["REDIS_URL"] = "redis://localhost:6380/0"
+os.environ["QDRANT_URL"] = "http://localhost:6334"
+os.environ["APP_ENV"] = "development"
+
 import pytest
 from fastapi.testclient import TestClient
 from httpx import AsyncClient, ASGITransport

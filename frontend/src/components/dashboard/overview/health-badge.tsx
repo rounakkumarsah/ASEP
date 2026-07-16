@@ -1,6 +1,6 @@
-import * as React from "react"
-import { SystemHealth } from "@/lib/api/types"
-import { AlertTriangle, XCircle } from "lucide-react"
+import * as React from "react";
+import { SystemHealth } from "@/lib/api/types";
+import { AlertTriangle, XCircle } from "lucide-react";
 
 export function HealthBadge({ status }: { status: SystemHealth["status"] }) {
   if (status === "operational") {
@@ -12,7 +12,7 @@ export function HealthBadge({ status }: { status: SystemHealth["status"] }) {
         </span>
         Operational
       </div>
-    )
+    );
   }
 
   if (status === "degraded") {
@@ -21,7 +21,7 @@ export function HealthBadge({ status }: { status: SystemHealth["status"] }) {
         <AlertTriangle className="w-3.5 h-3.5" />
         Degraded
       </div>
-    )
+    );
   }
 
   return (
@@ -29,5 +29,5 @@ export function HealthBadge({ status }: { status: SystemHealth["status"] }) {
       <XCircle className="w-3.5 h-3.5" />
       Outage
     </div>
-  )
+  );
 }

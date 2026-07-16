@@ -24,14 +24,13 @@ def test_init(agent_run_service, mock_uow):
 async def test_create_run(agent_run_service, mock_uow):
     # Setup
     run_id = uuid.uuid4()
-    mock_run = AgentRun(id=run_id, status=RunStatus.PENDING)
+    mock_run = AgentRun(id=run_id, goal="Test goal", status=RunStatus.PENDING)
     mock_uow.agent_runs.create.return_value = mock_run
 
     # Execute
     result = await agent_run_service.create_run(
         goal="Test goal",
-        plan={"steps": []},
-        created_by="test_user"
+        session_id="test_user"
     )
 
     # Assert
@@ -42,7 +41,7 @@ async def test_create_run(agent_run_service, mock_uow):
 
 @pytest.mark.asyncio
 async def test_create_run_validation(agent_run_service):
-    with pytest.raises(ValueError, match="AgentRun.goal must be non-empty"):
+    with pytest.raises(ValueError, match="AgentRun.goal must be a non-empty string."):
         await agent_run_service.create_run(goal="   ")
 
 
@@ -50,9 +49,9 @@ async def test_create_run_validation(agent_run_service):
 async def test_start_run_success(agent_run_service, mock_uow):
     # Setup
     run_id = uuid.uuid4()
-    mock_run = AgentRun(id=run_id, status=RunStatus.PENDING)
+    mock_run = AgentRun(id=run_id, goal="Test goal", status=RunStatus.PENDING)
     mock_uow.agent_runs.get_or_raise.return_value = mock_run
-    mock_run_updated = AgentRun(id=run_id, status=RunStatus.RUNNING)
+    mock_run_updated = AgentRun(id=run_id, goal="Test goal", status=RunStatus.RUNNING)
     mock_uow.agent_runs.update.return_value = mock_run_updated
 
     # Execute
@@ -60,7 +59,8 @@ async def test_start_run_success(agent_run_service, mock_uow):
 
     # Assert
     assert result.status == RunStatus.RUNNING
-    mock_uow.agent_runs.update.assert_awaited_once_with(mock_run, status=RunStatus.RUNNING)
+    from unittest.mock import ANY
+    mock_uow.agent_runs.update.assert_awaited_once_with(mock_run, status=RunStatus.RUNNING, started_at=ANY)
     mock_uow.commit.assert_awaited_once()
 
 
@@ -69,7 +69,7 @@ async def test_start_run_invalid_state(agent_run_service, mock_uow):
     # Setup
     run_id = uuid.uuid4()
     # Already RUNNING
-    mock_run = AgentRun(id=run_id, status=RunStatus.RUNNING)
+    mock_run = AgentRun(id=run_id, goal="Test goal", status=RunStatus.RUNNING)
     mock_uow.agent_runs.get_or_raise.return_value = mock_run
 
     # Execute & Assert
@@ -80,12 +80,12 @@ async def test_start_run_invalid_state(agent_run_service, mock_uow):
 @pytest.mark.asyncio
 async def test_complete_run(agent_run_service, mock_uow):
     run_id = uuid.uuid4()
-    mock_run = AgentRun(id=run_id, status=RunStatus.RUNNING)
+    mock_run = AgentRun(id=run_id, goal="Test goal", status=RunStatus.RUNNING)
     mock_uow.agent_runs.get_or_raise.return_value = mock_run
-    mock_run_updated = AgentRun(id=run_id, status=RunStatus.COMPLETED)
+    mock_run_updated = AgentRun(id=run_id, goal="Test goal", status=RunStatus.COMPLETED)
     mock_uow.agent_runs.update.return_value = mock_run_updated
 
-    result = await agent_run_service.complete_run(run_id, result_data={"success": True})
+    result = await agent_run_service.complete_run(run_id, final_output="success")
 
     assert result.status == RunStatus.COMPLETED
     mock_uow.agent_runs.update.assert_awaited_once()

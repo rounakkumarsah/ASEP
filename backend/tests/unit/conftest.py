@@ -25,6 +25,7 @@ class MockUnitOfWork(AbstractUnitOfWork):
         self.memory_entries = AsyncMock()
         self.audit_logs = AsyncMock()
         self.knowledge_documents = AsyncMock()
+        self.users = AsyncMock()
         
         # Mock transaction methods
         self.commit = AsyncMock()
@@ -36,6 +37,14 @@ class MockUnitOfWork(AbstractUnitOfWork):
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if exc_type is not None:
             await self.rollback()
+
+    async def commit(self):
+        """Implement commit abstract method."""
+        pass
+
+    async def rollback(self):
+        """Implement rollback abstract method."""
+        pass
 
 
 @pytest.fixture

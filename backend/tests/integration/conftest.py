@@ -9,15 +9,28 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+import src.db.postgres
 from src.config.settings import get_settings
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest.fixture(autouse=True)
+def reset_db_singletons():
+    """Reset the database engine and session factory singletons to prevent event loop leakage."""
+    src.db.postgres._engine = None
+    src.db.postgres._session_factory = None
+    yield
+    src.db.postgres._engine = None
+    src.db.postgres._session_factory = None
+
+
+@pytest_asyncio.fixture
 async def db_engine():
     """Create a single async engine for the test session."""
     settings = get_settings()
     # Ensure tests run against the dedicated test database
-    test_url = settings.DATABASE_URL.replace("/asep", "/asep_test")
+    # Split by / to only replace the DB name, avoiding replacing the username "asep"
+    parts = settings.DATABASE_URL.rsplit("/", 1)
+    test_url = f"{parts[0]}/asep_test"
     engine = create_async_engine(test_url, echo=False)
     yield engine
     await engine.dispose()

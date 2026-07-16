@@ -37,7 +37,7 @@ const mockSessions: Session[] = [
     progress: 100,
     activeAgent: "SupervisorAgent",
     currentTask: "Run finished successfully",
-  }
+  },
 ];
 
 export const sessionsService = {
@@ -45,12 +45,12 @@ export const sessionsService = {
     // In Phase 3C.4, we mock this network call for the UI
     // const response = await apiClient.get('/api/v1/sessions');
     // return response.data;
-    
+
     return new Promise((resolve) => {
       setTimeout(() => {
         resolve({
           status: "success",
-          data: mockSessions
+          data: mockSessions,
         });
       }, 500); // simulate network latency
     });
@@ -62,16 +62,16 @@ export const sessionsService = {
 
     return new Promise((resolve, reject) => {
       setTimeout(() => {
-        const session = mockSessions.find(s => s.sessionId === id);
+        const session = mockSessions.find((s) => s.sessionId === id);
         if (session) {
           resolve({
             status: "success",
-            data: session
+            data: session,
           });
         } else {
           reject(new Error("Session not found"));
         }
       }, 500);
     });
-  }
+  },
 };

@@ -1,25 +1,27 @@
-import type { Metadata } from "next"
-import { Inter } from "next/font/google"
-import "@/app/globals.css"
-import { ThemeProvider } from "@/lib/providers/theme-provider"
-import { QueryProvider } from "@/lib/providers/query-provider"
-import { AuthProvider } from "@/lib/providers/auth-provider"
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "@/app/globals.css";
+import { ThemeProvider } from "@/lib/providers/theme-provider";
+import { QueryProvider } from "@/lib/providers/query-provider";
+import { AuthProvider } from "@/lib/providers/auth-provider";
 
-const inter = Inter({ subsets: ["latin"] })
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "ASEP | Autonomous Software Engineering Platform",
   description: "Production Control Plane Dashboard",
-}
+};
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} min-h-screen bg-background antialiased`}>
+      <body
+        className={`${inter.className} min-h-screen bg-background antialiased`}
+      >
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
@@ -27,12 +29,10 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <QueryProvider>
-            <AuthProvider>
-              {children}
-            </AuthProvider>
+            <AuthProvider>{children}</AuthProvider>
           </QueryProvider>
         </ThemeProvider>
       </body>
     </html>
-  )
+  );
 }

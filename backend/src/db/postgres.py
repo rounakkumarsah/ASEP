@@ -16,6 +16,7 @@ All ORM models and migrations belong in src/db/models/.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from collections.abc import AsyncGenerator
@@ -80,7 +81,7 @@ def _get_engine() -> AsyncEngine:
             "command_timeout": 10,
             "server_settings": {
                 "jit": "off",
-                "random_page_cost": 1.1,
+                "random_page_cost": "1.1",
             },
         },
     )
@@ -206,7 +207,7 @@ async def check_db_health(timeout_seconds: float = 5.0) -> tuple[bool, str, floa
     start = time.monotonic()
     try:
         async with engine.begin() as conn:
-            await conn.execute(text("SELECT 1"))
+            await asyncio.wait_for(conn.execute(text("SELECT 1")), timeout=timeout_seconds)
         latency_ms = (time.monotonic() - start) * 1000
         return (True, f"Connected in {latency_ms:.1f}ms", latency_ms)
     except Exception as exc:

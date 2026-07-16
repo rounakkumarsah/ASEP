@@ -1,11 +1,11 @@
-import { HeroSection } from "@/components/landing/hero-section"
-import { LandingNavbar } from "@/components/landing/navbar"
-import { SocialProofSection } from "@/components/landing/social-proof"
-import { FeaturesSection } from "@/components/landing/features"
-import { ArchitectureSection } from "@/components/landing/architecture"
-import { ProductPreviewSection } from "@/components/landing/product-preview"
-import { CtaSection } from "@/components/landing/cta-section"
-import { LandingFooter } from "@/components/landing/footer"
+import { HeroSection } from "@/components/landing/hero-section";
+import { LandingNavbar } from "@/components/landing/navbar";
+import { SocialProofSection } from "@/components/landing/social-proof";
+import { FeaturesSection } from "@/components/landing/features";
+import { ArchitectureSection } from "@/components/landing/architecture";
+import { ProductPreviewSection } from "@/components/landing/product-preview";
+import { CtaSection } from "@/components/landing/cta-section";
+import { LandingFooter } from "@/components/landing/footer";
 
 export default function LandingPage() {
   return (
@@ -19,5 +19,5 @@ export default function LandingPage() {
       <CtaSection />
       <LandingFooter />
     </main>
-  )
+  );
 }

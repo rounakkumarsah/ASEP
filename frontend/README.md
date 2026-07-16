@@ -7,6 +7,7 @@ ASEP is an enterprise-grade platform for deploying, managing, and evaluating aut
 The frontend is a strictly typed Single Page Application (SPA) built for maximum resilience, performance, and operational density.
 
 ### Tech Stack
+
 - **Framework**: Next.js 15.1 (App Router)
 - **Language**: TypeScript (Strict Mode)
 - **Styling**: Tailwind CSS, shadcn/ui primitives
@@ -15,6 +16,7 @@ The frontend is a strictly typed Single Page Application (SPA) built for maximum
 - **Icons**: Lucide React
 
 ### Folder Structure
+
 ```
 frontend/
 ├── src/
@@ -40,6 +42,7 @@ frontend/
 ### Data Layer & State Management
 
 ASEP enforces a strict unidirectional API flow ensuring consistent error handling and type safety:
+
 1. **React Query (`use-*.ts`)**: Acts as the single source of truth for all remote server state. Caching, polling, and invalidation occur here.
 2. **Service Layer (`services/*.ts`)**: Strongly typed Promise wrappers mapping frontend requests to backend DTOs.
 3. **Axios Client (`client.ts`)**: Global interceptors seamlessly handle JWT token injection and centralized error unrolling (401/403/404/500).
@@ -47,7 +50,9 @@ ASEP enforces a strict unidirectional API flow ensuring consistent error handlin
 No UI component fetches data or calls `axios` directly.
 
 ### Authentication Flow
+
 Authentication leverages a custom JWT architecture designed for future FastAPI integration.
+
 - The global `AuthProvider` evaluates token presence upon mount.
 - Protected routes in the App Router leverage layout-level redirection eliminating layout flashing.
 - Intercepted `401 Unauthorized` responses gracefully wipe local tokens and push the user back to the `/login` terminal.
@@ -81,8 +86,10 @@ npm start
 ```
 
 ## Deployment Notes
+
 - This Next.js application utilizes extensive static rendering (`SSG`) optimizations for marketing pages, paired with dynamic client-side fetching (`CSR`) for internal dashboard widgets.
 - Ensure the `NEXT_PUBLIC_API_URL` environment variable is explicitly provided to point to the production FastAPI backend cluster.
 
 ---
+
 **Status**: Frontend Implementation Complete (Phase 3C.8). Ready for Phase 4 Backend Integration.

@@ -2,10 +2,15 @@ import { z } from "zod";
 
 const envSchema = z.object({
   // Server-side only (never exposed to client bundle)
-  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-  
+  NODE_ENV: z
+    .enum(["development", "test", "production"])
+    .default("development"),
+
   // Client-side (exposed via NEXT_PUBLIC_ prefix)
-  NEXT_PUBLIC_API_URL: z.string().url("NEXT_PUBLIC_API_URL must be a valid URL").default("http://localhost:8000"),
+  NEXT_PUBLIC_API_URL: z
+    .string()
+    .url("NEXT_PUBLIC_API_URL must be a valid URL")
+    .default("http://localhost:8000"),
 });
 
 const _env = envSchema.safeParse({
