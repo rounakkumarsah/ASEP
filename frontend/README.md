@@ -85,6 +85,29 @@ npm run build
 npm start
 ```
 
+## Testing
+
+ASEP uses **Vitest** paired with **React Testing Library** and **jsdom** for fast, reliable, and isolated testing of components, custom hooks, providers, and routing.
+
+### Running Tests
+
+```bash
+# Run tests interactively (watch mode)
+npm run test
+
+# Run tests once
+npm run test:run
+
+# Run tests and generate coverage report
+npm run test:coverage
+```
+
+### Test Architecture
+
+- **Config**: `vitest.config.ts` handles alias path mapping (`@/*`), JSDom setup, and Vite React plugin injection.
+- **Global Setup**: `src/test/setup.ts` registers global mock providers, polyfills browser APIs (like `window.matchMedia` and `ResizeObserver`), and mocks global `next/navigation` hooks using a reusable mock router spy (`mockRouter`).
+- **Render Utility**: `src/test/utils.tsx` exposes `renderWithProviders`, wrapping components in `QueryClientProvider`, `ThemeProvider`, and a custom `AuthContext.Provider` (allowing custom auth states).
+
 ## Deployment Notes
 
 - This Next.js application utilizes extensive static rendering (`SSG`) optimizations for marketing pages, paired with dynamic client-side fetching (`CSR`) for internal dashboard widgets.
@@ -92,4 +115,4 @@ npm start
 
 ---
 
-**Status**: Frontend Implementation Complete (Phase 3C.8). Ready for Phase 4 Backend Integration.
+**Status**: Frontend Implementation & Testing Suite Complete (Phase 3.9.4). Ready for Phase 3.9.5 Playwright E2E Testing.
