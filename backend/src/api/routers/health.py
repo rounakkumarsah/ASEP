@@ -24,7 +24,7 @@ import platform
 import time
 from typing import Any
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, status, Response
 from pydantic import BaseModel
 
 from src.config.settings import get_settings
@@ -107,9 +107,9 @@ async def health_check() -> HealthResponse:
     "/ready",
     response_model=ReadinessResponse,
     summary="Readiness probe",
-    description="Returns 200 if all critical dependencies are reachable.",
+    description="Returns 200 if all critical dependencies are reachable, or 503 if degraded.",
 )
-async def readiness_check() -> ReadinessResponse:
+async def readiness_check(response: Response) -> ReadinessResponse:
     """
     Readiness probe — checks connectivity to all external dependencies.
 
@@ -182,6 +182,7 @@ async def readiness_check() -> ReadinessResponse:
     overall_status = "ready" if all_ok else "degraded"
 
     if not all_ok:
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         logger.warning(
             "Readiness check failed",
             extra={"status": overall_status, "dependencies": [d.name for d in deps if d.status != "ok"]},

@@ -48,10 +48,14 @@ class TestHealthEndpoint:
 class TestReadinessEndpoint:
     """Tests for the GET /ready readiness probe."""
 
-    def test_ready_returns_200(self, client: TestClient) -> None:
-        """Readiness endpoint must return HTTP 200."""
+    def test_ready_returns_200_or_503(self, client: TestClient) -> None:
+        """Readiness endpoint must return HTTP 200 or 503 depending on status."""
         response = client.get("/ready")
-        assert response.status_code == 200
+        data = response.json()
+        if data["status"] == "ready":
+            assert response.status_code == 200
+        else:
+            assert response.status_code == 503
 
     def test_ready_response_schema(self, client: TestClient) -> None:
         """Readiness endpoint must return the expected JSON schema."""
@@ -117,18 +121,25 @@ class TestHealthEndpointAsync:
     async def test_ready_endpoint_async(self, async_client: AsyncClient) -> None:
         """Readiness endpoint should work with async client."""
         response = await async_client.get("/ready")
-        assert response.status_code == 200
         data = response.json()
+        if data["status"] == "ready":
+            assert response.status_code == 200
+        else:
+            assert response.status_code == 503
         assert data["status"] in ["ready", "degraded", "not_ready"]
 
 
 class TestReadinessEndpoint:
     """Tests for the GET /ready endpoint."""
 
-    def test_ready_returns_200(self, client: TestClient) -> None:
-        """Ready endpoint must return HTTP 200."""
+    def test_ready_returns_200_or_503(self, client: TestClient) -> None:
+        """Ready endpoint must return HTTP 200 or 503."""
         response = client.get("/ready")
-        assert response.status_code == 200
+        data = response.json()
+        if data["status"] == "ready":
+            assert response.status_code == 200
+        else:
+            assert response.status_code == 503
 
     def test_ready_has_dependencies_list(self, client: TestClient) -> None:
         """Ready response must include a dependencies list."""

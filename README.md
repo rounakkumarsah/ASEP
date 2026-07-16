@@ -106,13 +106,15 @@ ASEP uses **GitHub Actions** for automated build validation, testing, code quali
 
 ---
 
-## Health Endpoints
+## Health & Telemetry Endpoints
 
-| Endpoint | Description |
-|---|---|
-| `GET /health` | Liveness probe — process alive? |
-| `GET /ready` | Readiness probe — all deps reachable? |
-| `GET /docs` | Interactive API docs (dev only) |
+| Endpoint | Method | Description | Response Code |
+|---|---|---|---|
+| `/health` | `GET` | **Liveness Probe**: Confirms the service process is active. | `200 OK` |
+| `/ready` | `GET` | **Readiness Probe**: Asynchronously queries database (PostgreSQL), cache (Redis), and vector store (Qdrant) latency. | `200 OK` / `503 Service Unavailable` |
+| `/metrics` | `GET` | **Application Metrics**: Returns JSON telemetry. Returns Prometheus format if Accept header matches `text/plain`. | `200 OK` |
+| `/diagnostics` | `GET` | **Diagnostics**: Exposes version, environment, runtime metadata, and system uptime. | `200 OK` |
+| `/docs` | `GET` | **FastAPI Documentation**: Interactive endpoints overview (Development mode only). | `200 OK` |
 
 ---
 

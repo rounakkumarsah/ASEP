@@ -26,7 +26,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.exceptions import register_exception_handlers
-from src.api.routers import health
+from src.api.routers import health, metrics, diagnostics
 from src.api.routers import (
     agent_runs_router,
     tasks_router,
@@ -35,6 +35,7 @@ from src.api.routers import (
     auth_router,
     knowledge_router,
 )
+from src.api.middleware.logging import StructuredLoggingMiddleware
 from src.cache.redis import close_redis, init_redis
 from src.config.settings import get_settings
 from src.db.postgres import close_db, init_db
@@ -66,7 +67,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         1. Close all connections gracefully
     """
     settings = get_settings()
-    configure_logging(level=settings.APP_LOG_LEVEL)
+    configure_logging(
+        level=settings.APP_LOG_LEVEL,
+        json_logs=(settings.APP_ENV == "production")
+    )
     logger.info("ASEP backend starting", extra={"version": settings.APP_VERSION, "env": settings.APP_ENV})
 
     # Initialize database connection pool
@@ -135,9 +139,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # TODO (Phase 0.2): add request-id middleware
-    # TODO (Phase 0.2): add structured-logging middleware
-    # TODO (Phase 0.2): add rate-limit middleware
+    app.add_middleware(StructuredLoggingMiddleware)
 
     # -----------------------------------------------------------------------
     # Exception handlers
@@ -148,6 +150,8 @@ def create_app() -> FastAPI:
     # Routers
     # -----------------------------------------------------------------------
     app.include_router(health.router, tags=["Observability"])
+    app.include_router(metrics.router, tags=["Observability"])
+    app.include_router(diagnostics.router, tags=["Observability"])
 
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(agent_runs_router, prefix="/api/v1")

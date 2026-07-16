@@ -21,13 +21,13 @@ from httpx import AsyncClient, ASGITransport
 from src.api.app import create_app
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def app():
     """Return a freshly created FastAPI test application."""
     return create_app()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def client(app):
     """Synchronous test client (for simple endpoint tests)."""
     with TestClient(app) as c:
