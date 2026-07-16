@@ -88,6 +88,24 @@ make docker-logs  # Tail backend logs
 
 ---
 
+## CI/CD Pipeline
+
+ASEP uses **GitHub Actions** for automated build validation, testing, code quality audits, and container checks. The pipeline is split into modular workflows under `.github/workflows/`:
+
+1. **Pull Request Verification (`pull-request.yml`)**: Runs on PRs to `main`. Validates backend (Ruff, Black, MyPy, Pytest with PostgreSQL/Redis/Qdrant service containers) and frontend (ESLint, TypeScript, Vitest, Playwright E2E tests, Next.js build) alongside Docker builds.
+2. **Push to Main Validation (`push-main.yml`)**: Runs on direct pushes or merges to `main`, validating code sanity.
+3. **Release Validation (`release-validation.yml`)**: Runs automatically when a GitHub release is published.
+
+### Pipeline Features
+
+- **Caching**: Leverages actions caching for `pip` packages, `npm` node modules, and Playwright Chromium binaries to accelerate runtime validation.
+- **Service Containers**: Bootstraps real Docker services (PostgreSQL 16, Redis 7, Qdrant) in the GitHub runner sandbox to run backend repository integration tests.
+- **Fail-Safe Artifacts**: Automatically archives Playwright E2E test HTML reports and screenshots if integration tests fail.
+- **Repository Secrets**:
+  - `CODECOV_TOKEN` (optional): Upload coverage profiles safely without leakage.
+
+---
+
 ## Health Endpoints
 
 | Endpoint | Description |
