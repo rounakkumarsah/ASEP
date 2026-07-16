@@ -15,8 +15,7 @@ describe('ApprovalCard Component', () => {
     status: 'pending',
     riskLevel: 'high',
     requestedAt: '2026-07-16T12:00:00Z',
-    reviewedAt: null,
-    reviewedBy: null,
+    expiresAt: '2026-07-17T12:00:00Z',
   };
 
   it('renders pending approval with action buttons, justification, and details', () => {

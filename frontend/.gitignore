@@ -5,6 +5,8 @@
 
 # testing
 /coverage
+/playwright/.auth
+/test-results/
 
 # next.js
 /.next/

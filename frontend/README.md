@@ -104,9 +104,29 @@ npm run test:coverage
 
 ### Test Architecture
 
-- **Config**: `vitest.config.ts` handles alias path mapping (`@/*`), JSDom setup, and Vite React plugin injection.
+- **Config**: `vitest.config.ts` handles alias path mapping (`@/*`), JSDom setup, and Vite React plugin injection (with `e2e/` folder explicitly excluded to avoid test runner collisions).
 - **Global Setup**: `src/test/setup.ts` registers global mock providers, polyfills browser APIs (like `window.matchMedia` and `ResizeObserver`), and mocks global `next/navigation` hooks using a reusable mock router spy (`mockRouter`).
 - **Render Utility**: `src/test/utils.tsx` exposes `renderWithProviders`, wrapping components in `QueryClientProvider`, `ThemeProvider`, and a custom `AuthContext.Provider` (allowing custom auth states).
+
+### End-to-End Tests (Playwright)
+
+ASEP uses **Playwright** paired with **Chromium** for complete browser-level integration testing across desktop and mobile viewports.
+
+#### E2E Command Runners
+
+```bash
+# Run Playwright E2E tests
+npm run e2e
+
+# Run Playwright E2E tests in interactive UI mode
+npm run e2e:ui
+```
+
+#### E2E Architecture
+
+- **Config**: `playwright.config.ts` configures Chromium desktop and mobile viewports, base URL targeting, local web server spawning, and sequential execution.
+- **Session Persistence (`storageState`)**: An initial setup project (`e2e/auth.setup.ts`) logs in once using mock credentials (`admin`/`password`) and caches the browser state (localStorage tokens) to `playwright/.auth/user.json`. Other dashboard tests reuse this storage state to bypass redundant logins.
+- **Page Object Models (POM)**: Main components and action groups are encapsulated inside `e2e/pom/login-page.ts` and `e2e/pom/dashboard-page.ts` to keep DOM selectors centralized.
 
 ## Deployment Notes
 
@@ -115,4 +135,4 @@ npm run test:coverage
 
 ---
 
-**Status**: Frontend Implementation & Testing Suite Complete (Phase 3.9.4). Ready for Phase 3.9.5 Playwright E2E Testing.
+**Status**: Frontend Implementation, Unit, and E2E Testing Complete (Phase 3.9.5). Ready for Phase 3.9.6 GitHub Actions CI/CD.

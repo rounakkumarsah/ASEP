@@ -7,10 +7,14 @@ import { SystemHealth } from '@/lib/api/types';
 
 describe('SystemOverviewCard Component', () => {
   const mockHealth: SystemHealth = {
-    status: 'healthy',
+    status: 'operational',
     uptime: 172800, // 2 days in seconds
     cpuUsage: 45,
     memoryUsage: 60,
+    activeAgents: 3,
+    activeSessions: 5,
+    pendingApprovals: 2,
+    lastUpdated: '2026-07-16T12:00:00Z',
   };
 
   it('renders uptime, cpu usage, and memory usage correctly', () => {

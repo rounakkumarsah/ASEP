@@ -13,7 +13,6 @@ describe('MemoryCard Component', () => {
     tags: ['test', 'unit', 'frontend', 'coverage'],
     confidence: 0.952,
     createdAt: '2026-07-16T12:00:00Z',
-    projectId: 'p1',
   };
 
   it('renders memory label, content, confidence, and tags', () => {
