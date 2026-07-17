@@ -11,6 +11,16 @@ from src.governance.health import governance_health_check
 from src.governance.intent import ActionIntent
 from src.governance.policy_engine import PolicyEvaluator
 from src.governance.runtime_authorization import RuntimeAuthorizer
+from src.governance.hitl import (
+    RiskLevel,
+    ApprovalAction,
+    ReviewerRole,
+    ApprovalTemplate,
+    ReviewSession,
+    ApprovalSLA,
+    HITLEngine,
+    get_hitl_engine
+)
 
 __all__ = [
     "ApprovalManager",
@@ -27,4 +37,12 @@ __all__ = [
     "ActionIntent",
     "PolicyEvaluator",
     "RuntimeAuthorizer",
+    "RiskLevel",
+    "ApprovalAction",
+    "ReviewerRole",
+    "ApprovalTemplate",
+    "ReviewSession",
+    "ApprovalSLA",
+    "HITLEngine",
+    "get_hitl_engine"
 ]

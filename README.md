@@ -128,6 +128,14 @@ ASEP features a unified, vendor-agnostic AI Runtime layer preventing business la
 3. **Context Management**: Token budgeting, message history trimming, system prompt injection, and context compression hooks.
 4. **Normalized Usage**: Consistent cost, prompt/completion/reasoning token counts, and execution latency tracking.
 
+## Human-in-the-Loop (HITL) Framework
+
+ASEP integrates an enterprise-grade Human-in-the-Loop (HITL) system to govern critical, sensitive, or high-risk tool operations.
+1. **Configurable Policies**: Defines granular risk assessments mapping tool execution to risk levels (`Low`, `Medium`, `High`, `Critical`).
+2. **Review Sessions**: Pauses high-risk operations (e.g., executing commands, modifying configurations, writing filesystem blocks) to spawn an audit-ready `ReviewSession` containing full execution context.
+3. **Escalations & Timeouts**: Implements SLA alerts tracking approval latency, automatic session expiration, and reviewer escalation paths.
+4. **Dashboard Queue Integration**: Exposes REST interfaces at `/api/v1/governance/hitl` allowing real-time dashboard reviews, decision overrides, argument modification, and secure resumed execution.
+
 ---
 
 ## Roadmap
