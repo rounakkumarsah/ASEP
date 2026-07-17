@@ -136,6 +136,14 @@ ASEP integrates an enterprise-grade Human-in-the-Loop (HITL) system to govern cr
 3. **Escalations & Timeouts**: Implements SLA alerts tracking approval latency, automatic session expiration, and reviewer escalation paths.
 4. **Dashboard Queue Integration**: Exposes REST interfaces at `/api/v1/governance/hitl` allowing real-time dashboard reviews, decision overrides, argument modification, and secure resumed execution.
 
+## Autonomous Workflow Engine
+
+ASEP includes a production-grade Autonomous Workflow Engine that orchestrates agent operations, conditional paths, timeouts, retries, and checkpointing for long-running workflows.
+1. **Execution Graph**: Sequential, conditional routing, switch/loop flows, parallel execution with fan-out and fan-in synchronization.
+2. **State & Context Preservation**: `CheckpointManager` snapshots runtime context, execution histories, agent/tool outputs, and memory references to guarantee resume capability from the latest execution node.
+3. **Robust Retry Policies**: Configures automatic backoffs, immediate retry conditions, and failure limits.
+4. **HITL Synchronization**: Seamlessly pauses executions at designated security gates to query reviews and resumes safely from checkpoints.
+
 ---
 
 ## Roadmap
