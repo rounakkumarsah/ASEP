@@ -115,6 +115,18 @@ ASEP uses **GitHub Actions** for automated build validation, testing, code quali
 | `/metrics` | `GET` | **Application Metrics**: Returns JSON telemetry. Returns Prometheus format if Accept header matches `text/plain`. | `200 OK` |
 | `/diagnostics` | `GET` | **Diagnostics**: Exposes version, environment, runtime metadata, and system uptime. | `200 OK` |
 | `/docs` | `GET` | **FastAPI Documentation**: Interactive endpoints overview (Development mode only). | `200 OK` |
+| `/api/v1/ai/health` | `GET` | **AI Providers Health**: Exposes liveness, active model, latency, and circuit breaker status across AI engines. | `200 OK` |
+| `/api/v1/ai/capabilities` | `GET` | **AI Capabilities Matrix**: Exposes support matrices for vision, tools, JSON mode, streaming, context limits. | `200 OK` |
+
+---
+
+## AI Runtime Abstraction Layer
+
+ASEP features a unified, vendor-agnostic AI Runtime layer preventing business layers from importing vendor SDKs. It provides:
+1. **Model Registry**: Dynamic priority-driven model mapping (Ollama -> Gemini -> OpenAI -> Mock).
+2. **Circuit Breakers**: Individual CLOSED/OPEN/HALF-OPEN breaker state tracking protecting against repeated provider timeout failures.
+3. **Context Management**: Token budgeting, message history trimming, system prompt injection, and context compression hooks.
+4. **Normalized Usage**: Consistent cost, prompt/completion/reasoning token counts, and execution latency tracking.
 
 ---
 
