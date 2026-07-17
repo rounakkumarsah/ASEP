@@ -1,75 +1,41 @@
-"""
-ASEP — Executor Agent
-"""
+from __future__ import annotations
+from typing import Dict, Any, Optional
+from src.multi_agent.contracts import AgentRole, AgentManifest, AgentRequest
+from src.multi_agent.base_agent import BaseAgent
+from src.ai_runtime.service import AIRuntimeService
+from src.ai_runtime.contracts import CompletionRequest, Message
 
-import asyncio
-import logging
+class ExecutionAgent(BaseAgent):
+    """Execution Agent invoking AIRuntimeService, running prompts, and capturing usage telemetry."""
 
-from src.multi_agent.contracts import AgentRole, Message, MessageType
-from src.multi_agent.coordination import CoordinationContext
-from src.multi_agent.handoff import HandoffManager
-from src.multi_agent.messaging import MessageBus
-from src.executor.executor import Executor
-from src.planner.plan import DecomposedPlan
-
-logger = logging.getLogger(__name__)
-
-
-class ExecutorAgent:
-    """Wraps the Phase 1.6 Executor Engine into a messaging-driven autonomous agent."""
-
-    def __init__(self, bus: MessageBus, executor: Executor) -> None:
-        self.role = AgentRole.EXECUTOR
-        self._bus = bus
-        self._executor = executor
-        self._task: asyncio.Task | None = None
-
-    def start(self) -> None:
-        self._task = asyncio.create_task(self._run())
-
-    async def _run(self) -> None:
-        async for msg in self._bus.subscribe(self.role):
-            if msg.message_type == MessageType.HANDOFF:
-                await self._handle_handoff(msg)
-
-    async def _handle_handoff(self, msg: Message) -> None:
-        plan_data = msg.payload.get("plan")
-        if not plan_data:
-            logger.error(f"[{msg.session_id}] EXECUTOR received handoff without a plan.")
-            return
-
-        plan = DecomposedPlan.model_validate(plan_data)
-        logger.info(f"[{msg.session_id}] EXECUTOR started execution.")
-        
-        ctx = CoordinationContext(
-            session_id=msg.session_id,
-            run_id=msg.run_id,
-            thread_id=msg.thread_id,
-            trace_id=msg.trace_id,
-            goal=msg.payload.get("goal", "")
+    def __init__(self, service: Optional[AIRuntimeService] = None) -> None:
+        manifest = AgentManifest(
+            name="ExecutionAgent",
+            version="1.0.0",
+            description="Executes generative tasks by calling AIRuntimeService.",
+            capabilities=["prompt_execution", "response_normalization"],
+            supported_inputs=["prompt"],
+            supported_outputs=["result", "tokens_used", "provider"]
         )
+        super().__init__(role=AgentRole.EXECUTOR, manifest=manifest)
+        self.service = service or AIRuntimeService()
 
-        try:
-            # Delegate to existing engine
-            result = await self._executor.execute(plan)
-            
-            # Note: Executor doesn't need to handoff directly to EVALUATOR/REFLECTOR.
-            # It hands off to SUPERVISOR, who decides the next routing step based on policies.
-            handoff_msg = HandoffManager.create_handoff(
-                context=ctx,
-                from_role=self.role,
-                to_role=AgentRole.SUPERVISOR,
-                payload={"execution_result": result.model_dump(mode="json"), "status": "completed"}
-            )
-            await self._bus.publish(handoff_msg)
-            
-        except Exception as exc:
-            logger.error(f"[{msg.session_id}] EXECUTOR failed: {exc}")
-            # Handoff back to SUPERVISOR on error
-            error_msg = HandoffManager.create_handoff(
-                context=ctx,
-                from_role=self.role,
-                to_role=AgentRole.SUPERVISOR,
-                payload={"error": str(exc), "status": "failed"}
-            )
-            await self._bus.publish(error_msg)
+    async def _execute_internal(self, request: AgentRequest) -> Dict[str, Any]:
+        prompt = request.input_data.get("prompt", "")
+        
+        # Prepare runtime request matching CompletionRequest contracts
+        runtime_req = CompletionRequest(
+            messages=[Message(role="user", content=prompt)],
+            model="llama3.2",
+            max_tokens=256,
+            temperature=0.7
+        )
+        
+        # Run AI completions
+        resp = await self.service.complete(runtime_req)
+        
+        return {
+            "result": resp.text,
+            "tokens_used": resp.usage.total_tokens,
+            "provider": resp.provider
+        }

@@ -1,81 +1,32 @@
-"""
-ASEP — Reflection Agent
-"""
+from __future__ import annotations
+from typing import Dict, Any
+from src.multi_agent.contracts import AgentRole, AgentManifest, AgentRequest
+from src.multi_agent.base_agent import BaseAgent
 
-import asyncio
-import logging
+class ReflectionAgent(BaseAgent):
+    """Reflection Agent critiquing generated agent actions and suggesting iterative improvements."""
 
-from src.multi_agent.contracts import AgentRole, Message, MessageType
-from src.multi_agent.coordination import CoordinationContext
-from src.multi_agent.handoff import HandoffManager
-from src.multi_agent.messaging import MessageBus
-from src.reflection.reflector import Reflector
-from src.evaluation.evaluator import EvaluationResult
-
-logger = logging.getLogger(__name__)
-
-
-class ReflectionAgent:
-    """Wraps the Phase 2.0 Reflector Engine into a messaging-driven autonomous agent."""
-
-    def __init__(self, bus: MessageBus, reflector: Reflector) -> None:
-        self.role = AgentRole.REFLECTOR
-        self._bus = bus
-        self._reflector = reflector
-        self._task: asyncio.Task | None = None
-
-    def start(self) -> None:
-        self._task = asyncio.create_task(self._run())
-
-    async def _run(self) -> None:
-        async for msg in self._bus.subscribe(self.role):
-            if msg.message_type == MessageType.HANDOFF:
-                await self._handle_handoff(msg)
-
-    async def _handle_handoff(self, msg: Message) -> None:
-        logger.info(f"[{msg.session_id}] REFLECTOR starting reflection.")
-        ctx = CoordinationContext(
-            session_id=msg.session_id,
-            run_id=msg.run_id,
-            thread_id=msg.thread_id,
-            trace_id=msg.trace_id,
-            goal=msg.payload.get("goal", "")
+    def __init__(self) -> None:
+        manifest = AgentManifest(
+            name="ReflectionAgent",
+            version="1.0.0",
+            description="Reviews generated results and suggests re-execution or refinements.",
+            capabilities=["critique_output", "suggest_refinements"],
+            supported_inputs=["candidate_output"],
+            supported_outputs=["needs_revision", "suggestions"]
         )
+        super().__init__(role=AgentRole.REFLECTOR, manifest=manifest)
 
-        try:
-            eval_data = msg.payload.get("evaluation_result")
-            if not eval_data:
-                raise ValueError("No evaluation_result provided for reflection.")
-
-            result = EvaluationResult.model_validate(eval_data)
+    async def _execute_internal(self, request: AgentRequest) -> Dict[str, Any]:
+        output = request.input_data.get("candidate_output", "")
+        
+        # Simple critique: if result is empty or too short, request refinement
+        needs_revision = len(output.split()) < 3
+        suggestions = []
+        if needs_revision:
+            suggestions.append("Result is too brief. Provide more background details.")
             
-            report = await self._reflector.reflect(
-                session_id=msg.session_id,
-                run_id=msg.run_id,
-                trajectory=result.trajectory,
-                metrics=result.metrics,
-                scores=result.scores,
-                policy=msg.payload.get("policy") # Can be passed in payload
-            )
-            
-            payload = {"status": "completed"}
-            if report:
-                payload["reflection_report"] = report.model_dump(mode="json")
-
-            handoff_msg = HandoffManager.create_handoff(
-                context=ctx,
-                from_role=self.role,
-                to_role=AgentRole.SUPERVISOR,
-                payload=payload
-            )
-            await self._bus.publish(handoff_msg)
-            
-        except Exception as exc:
-            logger.error(f"[{msg.session_id}] REFLECTOR failed: {exc}")
-            error_msg = HandoffManager.create_handoff(
-                context=ctx,
-                from_role=self.role,
-                to_role=AgentRole.SUPERVISOR,
-                payload={"error": str(exc), "status": "failed"}
-            )
-            await self._bus.publish(error_msg)
+        return {
+            "needs_revision": needs_revision,
+            "suggestions": suggestions
+        }

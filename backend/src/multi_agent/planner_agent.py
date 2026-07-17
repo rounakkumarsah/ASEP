@@ -1,80 +1,57 @@
-"""
-ASEP — Planner Agent
-"""
+from __future__ import annotations
+from typing import Dict, Any, List
+from src.multi_agent.contracts import AgentRole, AgentManifest, AgentRequest
+from src.multi_agent.base_agent import BaseAgent
 
-import asyncio
-import logging
+class PlannerAgent(BaseAgent):
+    """Planner Agent analyzing complex task requirements and mapping dependency execution nodes."""
 
-from src.multi_agent.contracts import AgentRole, Message, MessageType
-from src.multi_agent.coordination import CoordinationContext
-from src.multi_agent.handoff import HandoffManager
-from src.multi_agent.messaging import MessageBus
-from src.planner.planner import Planner
+    def __init__(self) -> None:
+        manifest = AgentManifest(
+            name="PlannerAgent",
+            version="1.0.0",
+            description="Analyzes complex requests, estimates complexity, and decomposes goals into subtasks.",
+            capabilities=["planning", "goal_decomposition", "complexity_estimation"],
+            supported_inputs=["request"],
+            supported_outputs=["subtasks", "complexity_score", "plan"]
+        )
+        super().__init__(role=AgentRole.PLANNER, manifest=manifest)
 
-logger = logging.getLogger(__name__)
-
-
-class PlannerAgent:
-    """Wraps the Phase 1.5 Planner Engine into a messaging-driven autonomous agent."""
-
-    def __init__(self, bus: MessageBus, planner: Planner) -> None:
-        self.role = AgentRole.PLANNER
-        self._bus = bus
-        self._planner = planner
-        self._task: asyncio.Task | None = None
-
-    def start(self) -> None:
-        self._task = asyncio.create_task(self._run())
-
-    async def _run(self) -> None:
-        async for msg in self._bus.subscribe(self.role):
-            if msg.message_type == MessageType.HANDOFF:
-                await self._handle_handoff(msg)
-
-    async def _handle_handoff(self, msg: Message) -> None:
-        goal = msg.payload.get("goal")
-        if not goal:
-            logger.error(f"[{msg.session_id}] PLANNER received handoff without a goal.")
-            return
-
-        logger.info(f"[{msg.session_id}] PLANNER started planning for goal: {goal}")
+    async def _execute_internal(self, request: AgentRequest) -> Dict[str, Any]:
+        goal = request.input_data.get("request", "")
         
-        try:
-            # Delegate to existing engine
-            plan = await self._planner.plan(goal)
-            
-            # Context for handoff
-            ctx = CoordinationContext(
-                session_id=msg.session_id,
-                run_id=msg.run_id,
-                thread_id=msg.thread_id,
-                trace_id=msg.trace_id,
-                goal=goal
-            )
-            
-            # Handoff to EXECUTOR
-            handoff_msg = HandoffManager.create_handoff(
-                context=ctx,
-                from_role=self.role,
-                to_role=AgentRole.EXECUTOR,
-                payload={"plan": plan.model_dump(mode="json")}
-            )
-            await self._bus.publish(handoff_msg)
-            
-        except Exception as exc:
-            logger.error(f"[{msg.session_id}] PLANNER failed: {exc}")
-            # Handoff back to SUPERVISOR on error
-            ctx = CoordinationContext(
-                session_id=msg.session_id,
-                run_id=msg.run_id,
-                thread_id=msg.thread_id,
-                trace_id=msg.trace_id,
-                goal=goal
-            )
-            error_msg = HandoffManager.create_handoff(
-                context=ctx,
-                from_role=self.role,
-                to_role=AgentRole.SUPERVISOR,
-                payload={"error": str(exc), "status": "failed"}
-            )
-            await self._bus.publish(error_msg)
+        # Deconstruct and analyze requirements
+        complexity_score = min(1.0, max(0.1, len(goal.split()) / 50.0))
+        
+        subtasks = [
+            {
+                "task_id": "knowledge_retrieval",
+                "agent_role": "knowledge",
+                "input_data": {"query": goal},
+                "dependencies": []
+            },
+            {
+                "task_id": "research_enrichment",
+                "agent_role": "research",
+                "input_data": {"query": goal},
+                "dependencies": []
+            },
+            {
+                "task_id": "agent_execution",
+                "agent_role": "executor",
+                "input_data": {"prompt": goal},
+                "dependencies": ["knowledge_retrieval"]
+            },
+            {
+                "task_id": "agent_evaluation",
+                "agent_role": "evaluator",
+                "input_data": {},
+                "dependencies": ["agent_execution"]
+            }
+        ]
+        
+        return {
+            "subtasks": subtasks,
+            "complexity_score": complexity_score,
+            "plan": f"Plan compiled for: {goal}"
+        }

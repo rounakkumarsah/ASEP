@@ -2,34 +2,36 @@
 ASEP — Multi-Agent Package
 """
 
-from src.multi_agent.contracts import AgentRole, Message, MessageType
-from src.multi_agent.coordination import CoordinationContext
-from src.multi_agent.evaluator_agent import EvaluatorAgent
-from src.multi_agent.executor_agent import ExecutorAgent
-from src.multi_agent.handoff import HandoffManager
-from src.multi_agent.health import multi_agent_health_check
-from src.multi_agent.memory_agent import MemoryAgent
-from src.multi_agent.messaging import MessageBus
+from src.multi_agent.contracts import AgentRole, AgentState, AgentEvent
+from src.multi_agent.base_agent import BaseAgent
+from src.multi_agent.registry import AgentRegistry, get_agent_registry
+from src.multi_agent.engine import ExecutionEngine, ExecutionTask
+from src.multi_agent.supervisor import SupervisorAgent
 from src.multi_agent.planner_agent import PlannerAgent
+from src.multi_agent.knowledge_agent import KnowledgeAgent
+from src.multi_agent.research_agent import ResearchAgent
+from src.multi_agent.memory_agent import MemoryAgent
+from src.multi_agent.executor_agent import ExecutionAgent
 from src.multi_agent.reflection_agent import ReflectionAgent
-from src.multi_agent.registry import AgentRegistry
-from src.multi_agent.router import MessageRouter
-from src.multi_agent.supervisor import Supervisor
+from src.multi_agent.evaluator_agent import EvaluationAgent
+from src.multi_agent.governance_agent import GovernanceAgent
 
 __all__ = [
     "AgentRole",
-    "Message",
-    "MessageType",
-    "CoordinationContext",
-    "EvaluatorAgent",
-    "ExecutorAgent",
-    "HandoffManager",
-    "multi_agent_health_check",
-    "MemoryAgent",
-    "MessageBus",
-    "PlannerAgent",
-    "ReflectionAgent",
+    "AgentState",
+    "AgentEvent",
+    "BaseAgent",
     "AgentRegistry",
-    "MessageRouter",
-    "Supervisor",
+    "get_agent_registry",
+    "ExecutionEngine",
+    "ExecutionTask",
+    "SupervisorAgent",
+    "PlannerAgent",
+    "KnowledgeAgent",
+    "ResearchAgent",
+    "MemoryAgent",
+    "ExecutionAgent",
+    "ReflectionAgent",
+    "EvaluationAgent",
+    "GovernanceAgent",
 ]
