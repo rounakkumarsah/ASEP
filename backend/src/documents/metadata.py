@@ -1,12 +1,37 @@
-"""
-ASEP — Document Metadata Extraction
-"""
-
+from __future__ import annotations
 import os
-from typing import Any
+import hashlib
+import time
+from typing import Any, Dict, List, Optional
+from pydantic import BaseModel, Field
 
+class DocumentMetadata(BaseModel):
+    document_id: str
+    collection: str = "default"
+    source: str = "local"
+    filename: str
+    file_path: str
+    section: Optional[str] = None
+    page: Optional[int] = None
+    chunk_number: int = 0
+    created_time: float = Field(default_factory=time.time)
+    updated_time: float = Field(default_factory=time.time)
+    tags: List[str] = Field(default_factory=list)
+    version: str = "1.0"
+    permissions: List[str] = Field(default_factory=list)  # Scaffold only
 
-def extract_file_metadata(file_path: str, content: str) -> dict[str, Any]:
+class ChunkRecord(BaseModel):
+    chunk_id: str
+    parent_id: Optional[str] = None
+    content: str
+    metadata: DocumentMetadata
+    content_hash: str
+
+def compute_hash(text: str) -> str:
+    """Generate SHA256 signature for text data."""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+def extract_file_metadata(file_path: str, content: str) -> Dict[str, Any]:
     """Extract metadata from the raw file and parsed content."""
     stats = os.stat(file_path)
     file_name = os.path.basename(file_path)

@@ -59,9 +59,10 @@ class VectorService:
         collection_name: str,
         query_vector: list[float],
         limit: int = 10,
-        payload_filters: dict[str, Any] | None = None
+        payload_filters: dict[str, Any] | None = None,
+        score_threshold: float | None = None
     ) -> list[VectorSearchResult]:
-        """Search for similar vectors, optionally filtering by exact payload matches."""
+        """Search for similar vectors, optionally filtering by exact payload matches and score thresholds."""
         query_filter = None
         
         if payload_filters:
@@ -77,6 +78,7 @@ class VectorService:
                 query_vector=query_vector,
                 query_filter=query_filter,
                 limit=limit,
+                score_threshold=score_threshold,
                 with_payload=True
             )
             
