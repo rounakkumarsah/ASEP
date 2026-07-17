@@ -4,10 +4,13 @@ ASEP — Tool Permissions mapping
 
 class ToolPermission:
     """Standard permission scopes required to execute specific class tools."""
-    FS_READ = "fs:read"
-    FS_WRITE = "fs:write"
-    SYS_INFO = "sys:info"
-    WEB_SEARCH = "web:search"
+    READ = "read"
+    WRITE = "write"
+    EXECUTE = "execute"
+    NETWORK = "network"
+    FILESYSTEM = "filesystem"
+    SECRETS = "secrets"
+    ADMIN = "admin"
 
 
 def verify_tool_permissions(
@@ -22,5 +25,5 @@ def verify_tool_permissions(
     granted_set = set(user_granted)
     for permission in tool_required:
         if permission not in granted_set:
-            return False, f"Missing required permission scope: '{permission}'"
+            return False, f"Permission Denied: Missing required permission scope: '{permission}'"
     return True, None

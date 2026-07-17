@@ -4,7 +4,7 @@ ASEP — Tooling Infrastructure Health Check
 
 import logging
 
-from src.tools.base import SysInfoTool
+from src.tools.impl import ConfigurationTool
 from src.tools.mcp_client import MCPClient
 from src.tools.registry import ToolRegistry
 
@@ -20,8 +20,8 @@ async def tool_infrastructure_health_check() -> bool:
     try:
         # 1. Local Registration Verification
         registry = ToolRegistry()
-        registry.register(SysInfoTool())
-        if not registry.get_tool("system_info"):
+        registry.register(ConfigurationTool())
+        if not registry.lookup("configuration"):
             return False
             
         # 2. Remote Client Lifecycle Validation
