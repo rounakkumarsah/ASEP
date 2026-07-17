@@ -187,3 +187,37 @@ async def test_all_initial_tools_registration():
     for t in tools:
         assert registry.lookup(t.name) == t
         assert registry.is_enabled(t.name) is True
+
+@pytest.mark.asyncio
+async def test_governance_agent_tool_permissions():
+    from src.multi_agent.governance_agent import GovernanceAgent
+    from src.multi_agent.contracts import AgentRequest
+    
+    gov = GovernanceAgent()
+    
+    # Check unauthorized tool execution request via GovernanceAgent
+    req_unauth = AgentRequest(
+        execution_id="exec-gov-1",
+        correlation_id="corr-gov-1",
+        input_data={
+            "candidate_result": "",
+            "tool_name": "filesystem",
+            "granted_permissions": [ToolPermission.READ] # filesystem requires ToolPermission.FILESYSTEM ("filesystem")
+        }
+    )
+    resp_unauth = await gov.execute(req_unauth)
+    assert resp_unauth.output_data["approved"] is False
+    assert "Permission Denied" in resp_unauth.output_data["policy_notes"]
+    
+    # Check authorized tool execution request via GovernanceAgent
+    req_auth = AgentRequest(
+        execution_id="exec-gov-2",
+        correlation_id="corr-gov-2",
+        input_data={
+            "candidate_result": "",
+            "tool_name": "filesystem",
+            "granted_permissions": [ToolPermission.FILESYSTEM]
+        }
+    )
+    resp_auth = await gov.execute(req_auth)
+    assert resp_auth.output_data["approved"] is True

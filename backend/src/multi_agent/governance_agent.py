@@ -18,6 +18,21 @@ class GovernanceAgent(BaseAgent):
         super().__init__(role=AgentRole.GOVERNANCE, manifest=manifest)
 
     async def _execute_internal(self, request: AgentRequest) -> Dict[str, Any]:
+        tool_name = request.input_data.get("tool_name")
+        if tool_name:
+            from src.tools import get_tool_registry, verify_tool_permissions
+            registry = get_tool_registry()
+            tool = registry.lookup(tool_name)
+            if tool:
+                granted_permissions = request.input_data.get("granted_permissions", [])
+                authorized, reason = verify_tool_permissions(tool.required_permissions, granted_permissions)
+                if not authorized:
+                    return {
+                        "approved": False,
+                        "risk_score": 1.0,
+                        "policy_notes": f"Governance Gate: Permission Denied for tool '{tool_name}': {reason}"
+                    }
+
         result = request.input_data.get("candidate_result", "")
         
         # Simple policy compliance check

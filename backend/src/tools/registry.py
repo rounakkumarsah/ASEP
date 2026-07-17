@@ -89,3 +89,30 @@ class ToolRegistry:
         """Get version of a registered tool."""
         tool = self._tools.get(name)
         return tool.version if tool else None
+
+
+_global_tool_registry: Optional[ToolRegistry] = None
+
+def get_tool_registry() -> ToolRegistry:
+    global _global_tool_registry
+    if _global_tool_registry is None:
+        _global_tool_registry = ToolRegistry()
+        from src.tools.impl import (
+            FilesystemTool, TerminalTool, GitTool, GitHubTool, DockerTool,
+            HTTPTool, PostgresTool, Neo4jTool, QdrantTool, RedisTool,
+            EnvironmentTool, ConfigurationTool, BrowserTool
+        )
+        _global_tool_registry.register(FilesystemTool())
+        _global_tool_registry.register(TerminalTool())
+        _global_tool_registry.register(GitTool())
+        _global_tool_registry.register(GitHubTool())
+        _global_tool_registry.register(DockerTool())
+        _global_tool_registry.register(HTTPTool())
+        _global_tool_registry.register(PostgresTool())
+        _global_tool_registry.register(Neo4jTool())
+        _global_tool_registry.register(QdrantTool())
+        _global_tool_registry.register(RedisTool())
+        _global_tool_registry.register(EnvironmentTool())
+        _global_tool_registry.register(ConfigurationTool())
+        _global_tool_registry.register(BrowserTool())
+    return _global_tool_registry
