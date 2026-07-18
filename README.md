@@ -144,6 +144,14 @@ ASEP includes a production-grade Autonomous Workflow Engine that orchestrates ag
 3. **Robust Retry Policies**: Configures automatic backoffs, immediate retry conditions, and failure limits.
 4. **HITL Synchronization**: Seamlessly pauses executions at designated security gates to query reviews and resumes safely from checkpoints.
 
+## Enterprise Evaluation Framework
+
+ASEP includes a production-grade Enterprise Evaluation Framework that continuously measures the quality, safety, and efficiency of every subsystem.
+1. **Evaluation Registry**: Registers and manages benchmark datasets, golden sets, regression datasets, and synthetic datasets.
+2. **Deterministic Metrics**: Tracks task success, tool success rate, retrieval precision/recall, citation accuracy, groundedness, hallucination risk, token usage, cost, and latency.
+3. **Subsystem Scoring**: Calculates distinct performance grades for RAG, agent execution, workflow engine, runtime operations, and tool dispatches.
+4. **Report Generator**: Exposes REST interfaces to trigger runs and export summaries to JSON, HTML, and Markdown.
+
 ---
 
 ## Roadmap

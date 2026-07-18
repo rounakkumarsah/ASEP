@@ -93,3 +93,30 @@ class ReportBuilder:
     def to_dict(self, report: EvaluationReport) -> dict[str, Any]:
         """Serialize the report to a plain dict for JSON export or API exposure."""
         return report.model_dump(mode="json")
+
+    def to_markdown(self, report: EvaluationReport) -> str:
+        """Generate a clean Markdown summary report."""
+        s = report.summary
+        md = []
+        md.append(f"# Evaluation Summary Report — {s.dataset_name}")
+        md.append(f"- **Generated At**: {report.generated_at.isoformat()}")
+        md.append(f"- **Total Cases**: {s.total_cases}")
+        md.append(f"- **Passed**: {s.passed}")
+        md.append(f"- **Failed**: {s.failed}")
+        md.append(f"- **Pass Rate**: {s.pass_rate * 100:.1f}%")
+        md.append(f"- **Average Score**: {s.avg_overall_score:.4f}")
+        md.append("\n## Subsystem Averages")
+        for dim, avg in s.avg_per_dimension.items():
+            md.append(f"- **{dim.replace('_', ' ').title()}**: {avg:.4f}")
+        md.append("\n## Recommendations")
+        if s.pass_rate < 0.8:
+            md.append("- Enhance agent reflection patterns to reduce failure rates.")
+        else:
+            md.append("- System health meets enterprise target benchmarks.")
+        return "\n".join(md)
+
+    def to_html(self, report: EvaluationReport) -> str:
+        """Generate a basic HTML summary report."""
+        s = report.summary
+        md_text = self.to_markdown(report).replace("\n", "<br>")
+        return f"<html><body>{md_text}</body></html>"

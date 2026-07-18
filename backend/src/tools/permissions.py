@@ -11,6 +11,10 @@ class ToolPermission:
     FILESYSTEM = "filesystem"
     SECRETS = "secrets"
     ADMIN = "admin"
+    SYS_INFO = "sys_info"
+    FS_READ = "fs_read"
+    FS_WRITE = "fs_write"
+    WEB_SEARCH = "web_search"
 
 
 def verify_tool_permissions(

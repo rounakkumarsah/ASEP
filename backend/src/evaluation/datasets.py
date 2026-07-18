@@ -23,6 +23,7 @@ class EvaluationDataset(BaseModel):
     name: str
     version: str = "1.0"
     description: str = ""
+    dataset_type: str = "custom"  # golden, benchmark, regression, synthetic, custom
     cases: list[EvaluationCase] = Field(default_factory=list)
 
     @property
