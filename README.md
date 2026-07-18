@@ -152,6 +152,14 @@ ASEP includes a production-grade Enterprise Evaluation Framework that continuous
 3. **Subsystem Scoring**: Calculates distinct performance grades for RAG, agent execution, workflow engine, runtime operations, and tool dispatches.
 4. **Report Generator**: Exposes REST interfaces to trigger runs and export summaries to JSON, HTML, and Markdown.
 
+## Knowledge Synchronization Engine
+
+ASEP features a production-grade Knowledge Synchronization Engine that continuously indexes trusted knowledge sources without full re-indexing.
+1. **Source Registry**: Configures and discovers trusted sources including Git Repositories, internal Documentation, Local Files, API paths, and Websites.
+2. **Change Detection**: Compares document hashes, checksums, and version headers to execute incremental indexing pipelines only when content has changed.
+3. **Processing Pipeline**: Standardizes fetch, validation, normalization, cleaning, semantic chunking, embedding generation, Qdrant indexing, Neo4j updating, and audit log generation.
+4. **Resiliency & Recovery**: Supports pausing/resuming runs via checkpoints, rollbacks on failure, and manual retries.
+
 ---
 
 ## Roadmap

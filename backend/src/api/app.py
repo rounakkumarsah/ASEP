@@ -26,7 +26,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.exceptions import register_exception_handlers
-from src.api.routers import health, metrics, diagnostics, ai_runtime, rag, hitl, workflows, evaluation
+from src.api.routers import health, metrics, diagnostics, ai_runtime, rag, hitl, workflows, evaluation, knowledge_sync
 from src.api.routers import (
     agent_runs_router,
     tasks_router,
@@ -164,6 +164,7 @@ def create_app() -> FastAPI:
     app.include_router(hitl.router, prefix="/api/v1")
     app.include_router(workflows.router, prefix="/api/v1")
     app.include_router(evaluation.router, prefix="/api/v1")
+    app.include_router(knowledge_sync.router, prefix="/api/v1")
 
     logger.info("FastAPI application created", extra={"routes": len(app.routes)})
     return app
