@@ -35,10 +35,9 @@ export function LandingFooter() {
             </h3>
             <ul className="space-y-4">
               {[
-                { name: "Platform", href: "#platform" },
-                { name: "Architecture", href: "#architecture" },
-                { name: "Features", href: "#features" },
-                { name: "Documentation", href: "/docs" },
+                { name: "Platform", href: "/platform" },
+                { name: "Architecture", href: "/architecture" },
+                { name: "Documentation", href: "/documentation" },
               ].map((item) => (
                 <li key={item.name}>
                   <Link
@@ -64,9 +63,9 @@ export function LandingFooter() {
                   href: "https://github.com/rounakkumarsah/ASEP",
                   external: true,
                 },
-                { name: "API Documentation", href: "#" },
-                { name: "Roadmap", href: "#" },
-                { name: "Changelog", href: "#" },
+                { name: "API Documentation", href: "/documentation" },
+                { name: "Roadmap", href: "/platform" },
+                { name: "Changelog", href: "/platform" },
               ].map((item) => (
                 <li key={item.name}>
                   <Link
@@ -90,10 +89,10 @@ export function LandingFooter() {
             </h3>
             <ul className="space-y-4">
               {[
-                { name: "About", href: "#" },
-                { name: "Contact", href: "#" },
-                { name: "Privacy Policy", href: "#" },
-                { name: "Terms of Service", href: "#" },
+                { name: "About", href: "/about" },
+                { name: "Contact", href: "/contact" },
+                { name: "Privacy Policy", href: "/about" },
+                { name: "Terms of Service", href: "/about" },
               ].map((item) => (
                 <li key={item.name}>
                   <Link

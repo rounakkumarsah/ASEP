@@ -19,12 +19,12 @@ import {
 
 const NAV_LINKS = [
   { name: "Home", href: "/" },
-  { name: "Platform", href: "#platform" },
-  { name: "Architecture", href: "#architecture" },
-  { name: "Documentation", href: "#documentation" },
-  { name: "Pricing", href: "#pricing" },
-  { name: "About", href: "#about" },
-  { name: "Contact", href: "#contact" },
+  { name: "Platform", href: "/platform" },
+  { name: "Architecture", href: "/architecture" },
+  { name: "Documentation", href: "/documentation" },
+  { name: "Pricing", href: "/pricing" },
+  { name: "About", href: "/about" },
+  { name: "Contact", href: "/contact" },
 ];
 
 export function LandingNavbar() {
