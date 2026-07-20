@@ -17,23 +17,8 @@ export const apiClient = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  withCredentials: true, // Enable cookie transmission across cross-origin requests
 });
-
-// Request interceptor for attaching JWT tokens
-apiClient.interceptors.request.use(
-  (config) => {
-    if (typeof window !== "undefined") {
-      const token = localStorage.getItem("asep_access_token");
-      if (token && config.headers) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  },
-);
 
 // Response interceptor for unified error handling
 apiClient.interceptors.response.use(
@@ -51,9 +36,7 @@ apiClient.interceptors.response.use(
     switch (status) {
       case 401:
         if (typeof window !== "undefined") {
-          localStorage.removeItem("asep_access_token");
-          // The AuthProvider and Route Guards will automatically detect the missing token
-          // and redirect to /login on next render or location change.
+          // The AuthProvider and Route Guards will detect unauthorized sessions
           window.dispatchEvent(new Event("auth:unauthorized"));
         }
         return Promise.reject(new UnauthorizedError(message, data));

@@ -31,6 +31,13 @@ describe('AuthProvider and useAuth', () => {
   beforeEach(() => {
     localStorage.clear();
     vi.clearAllMocks();
+    // Reset global fetch mock
+    global.fetch = vi.fn().mockImplementation(() =>
+      Promise.resolve({
+        ok: false,
+        json: () => Promise.resolve({}),
+      })
+    );
   });
 
   it('initially resolves unauthenticated state when no token is present', async () => {
@@ -45,9 +52,17 @@ describe('AuthProvider and useAuth', () => {
     expect(guestText).toBeInTheDocument();
   });
 
-  it('initially resolves authenticated state when token is present', async () => {
-    localStorage.setItem('asep_access_token', 'mock_token');
-    
+  it('initially resolves authenticated state when server returns user details', async () => {
+    global.fetch = vi.fn().mockImplementation((url) => {
+      if (url.endsWith('/api/v1/auth/me')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ id: '1', username: 'admin', role: 'supervisor' }),
+        });
+      }
+      return Promise.resolve({ ok: false });
+    });
+
     renderWithProviders(
       <AuthProvider>
         <TestComponent />
@@ -73,14 +88,25 @@ describe('AuthProvider and useAuth', () => {
       loginButton.click();
     });
 
-    expect(localStorage.getItem('asep_access_token')).toBe('token123');
     expect(screen.getByText('Authenticated as tester')).toBeInTheDocument();
     expect(router.push).toHaveBeenCalledWith('/overview');
   });
 
   it('performs logout correctly', async () => {
     const router = useRouter();
-    localStorage.setItem('asep_access_token', 'mock_token');
+    
+    global.fetch = vi.fn().mockImplementation((url) => {
+      if (url.endsWith('/api/v1/auth/me')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ id: '1', username: 'admin', role: 'supervisor' }),
+        });
+      }
+      if (url.endsWith('/api/v1/auth/logout')) {
+        return Promise.resolve({ ok: true });
+      }
+      return Promise.resolve({ ok: false });
+    });
 
     renderWithProviders(
       <AuthProvider>
@@ -95,7 +121,6 @@ describe('AuthProvider and useAuth', () => {
       logoutButton.click();
     });
 
-    expect(localStorage.getItem('asep_access_token')).toBeNull();
     expect(screen.getByText('Guest')).toBeInTheDocument();
     expect(router.push).toHaveBeenCalledWith('/login');
   });

@@ -143,8 +143,11 @@ class Settings(BaseSettings):
     # -----------------------------------------------------------------------
     @property
     def cors_origins_list(self) -> list[str]:
-        """Parse comma-separated CORS origins into a list."""
-        return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+        """Parse comma-separated CORS origins into a list. Rejects wildcards in production."""
+        origins = [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+        if self.APP_ENV == "production" and "*" in origins:
+            raise ValueError("Wildcard CORS origins are forbidden in production when credentials are allowed.")
+        return origins
 
     @field_validator("SECRET_KEY", "JWT_SECRET_KEY", "JWT_REFRESH_SECRET_KEY")
     @classmethod

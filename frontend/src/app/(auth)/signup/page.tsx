@@ -162,9 +162,6 @@ export default function SignupPage() {
         return;
       }
 
-      // Store signup details in local storage for testing verification flow
-      localStorage.setItem("asep_pending_verify_email", values.email);
-      localStorage.setItem("asep_pending_verify_password", values.password);
       router.push(`/verify-email?email=${encodeURIComponent(values.email)}`);
     } catch {
       setCaptchaError("Unable to connect to the authentication server.");

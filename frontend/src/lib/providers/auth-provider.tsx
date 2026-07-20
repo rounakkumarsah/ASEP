@@ -28,9 +28,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   const initAuth = async () => {
-    // Read local token to support unit tests/persistence
-    const localToken = typeof window !== "undefined" ? localStorage.getItem("asep_access_token") : null;
-
     try {
       const res = await fetch(`${API_URL}/api/v1/auth/me`, {
         headers: {
@@ -41,18 +38,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (res.ok) {
         const userData = await res.json();
         setUser(userData);
-      } else if (localToken) {
-        // Fallback for tests if backend is not responding but token exists in localStorage
-        setUser({ id: "1", username: "admin", role: "supervisor" });
       } else {
         setUser(null);
       }
     } catch {
-      if (localToken) {
-        setUser({ id: "1", username: "admin", role: "supervisor" });
-      } else {
-        setUser(null);
-      }
+      setUser(null);
     } finally {
       setIsLoading(false);
     }
@@ -63,18 +53,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = (token: string, userData: User) => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("asep_access_token", token);
-    }
     setUser(userData);
     router.push("/overview");
   };
 
   const logout = async () => {
-    // Clear state synchronously first so UI updates instantly and tests pass
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("asep_access_token");
-    }
     setUser(null);
     router.push("/login");
 

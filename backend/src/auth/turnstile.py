@@ -8,13 +8,23 @@ async def verify_turnstile_token(token: str, remote_ip: str | None = None) -> bo
     """Verify Cloudflare Turnstile token with Cloudflare API."""
     settings = get_settings()
     secret_key = getattr(settings, "TURNSTILE_SECRET", None)
-    if not secret_key:
-        logger.warning("TURNSTILE_SECRET not configured. Bypassing Turnstile validation.")
-        return True
-
-    # Check for test/mock tokens
-    if token in ("mock-turnstile-token", "dummy-turnstile-token"):
-        return True
+    
+    if settings.APP_ENV == "production":
+        if not secret_key:
+            logger.error("TURNSTILE_SECRET is not configured in production!")
+            return False
+        
+        # In production, reject any dummy/mock token values
+        if token in ("mock-turnstile-token", "dummy-turnstile-token"):
+            logger.warning("Mock Turnstile token rejected in production environment.")
+            return False
+    else:
+        # Development / Testing environments allow bypass if TURNSTILE_SECRET is omitted
+        if not secret_key:
+            logger.warning("TURNSTILE_SECRET not configured. Bypassing Turnstile validation in non-production.")
+            return True
+        if token in ("mock-turnstile-token", "dummy-turnstile-token"):
+            return True
 
     url = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
     data = {

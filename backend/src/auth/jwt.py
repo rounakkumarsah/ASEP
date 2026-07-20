@@ -18,7 +18,7 @@ def create_token(
     secret_key: str,
     expires_delta: timedelta,
 ) -> str:
-    """Create a JWT token."""
+    """Create a JWT token with strict standard claims."""
     settings = get_settings()
     expire = datetime.now(timezone.utc) + expires_delta
     
@@ -29,6 +29,8 @@ def create_token(
         "exp": expire,
         "iat": datetime.now(timezone.utc),
         "jti": str(uuid.uuid4()),
+        "iss": "asep-auth",
+        "aud": "asep-app",
     }
     
     encoded_jwt = jwt.encode(to_encode, secret_key, algorithm=settings.JWT_ALGORITHM)
@@ -62,6 +64,13 @@ def create_refresh_token(subject: str | uuid.UUID, role: str) -> str:
 
 
 def decode_token(token: str, secret_key: str) -> dict[str, Any]:
-    """Decode and validate a JWT token."""
+    """Decode and validate a JWT token with strict signature, issuer, and audience checks."""
     settings = get_settings()
-    return jwt.decode(token, secret_key, algorithms=[settings.JWT_ALGORITHM])
+    return jwt.decode(
+        token,
+        secret_key,
+        algorithms=[settings.JWT_ALGORITHM],
+        audience="asep-app",
+        issuer="asep-auth",
+        options={"require": ["exp", "iss", "sub", "aud"]},
+    )

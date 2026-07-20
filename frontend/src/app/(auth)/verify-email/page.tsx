@@ -40,7 +40,6 @@ export default function VerifyEmailPage() {
 
       setVerifying(false);
       setSuccess(true);
-      localStorage.setItem("asep_email_verified", "true");
       setTimeout(() => {
         router.push("/login?verified=true");
       }, 1500);

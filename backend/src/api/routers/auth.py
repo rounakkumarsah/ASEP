@@ -242,8 +242,20 @@ async def refresh(
     response: Response,
     auth_service: AuthServiceDep,
     payload: RefreshTokenRequest = None,
+    redis_client: Annotated[object, Depends(get_redis_client)] = None,
 ) -> TokenResponse:
     """Exchange refresh token cookie or request body for new access token."""
+    settings = get_settings()
+    # Rate limiting: 10 refresh attempts per IP per minute
+    client_ip = request.client.host if request.client else "unknown"
+    rate_limit_key = f"rate_limit:refresh:{client_ip}"
+    if settings.APP_ENV == "production" and redis_client:
+        if not await check_rate_limit(redis_client, rate_limit_key, max_attempts=10, window_seconds=60):
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many refresh attempts. Please try again later.",
+            )
+
     # Check cookie first, fall back to payload body
     refresh_token = request.cookies.get("refresh_token")
     if not refresh_token and payload:
@@ -255,7 +267,6 @@ async def refresh(
             detail="Refresh token is required",
         )
 
-    settings = get_settings()
     try:
         tokens = await auth_service.refresh_tokens(refresh_token)
         _set_auth_cookies(response, tokens, settings.APP_ENV)
