@@ -61,7 +61,7 @@ export function SidebarNav({ onClick }: { onClick?: () => void }) {
   const pathname = usePathname();
 
   return (
-    <div className="flex flex-col space-y-6">
+    <div className="flex flex-col space-y-6 h-full">
       {/* Brand */}
       <div className="px-6 py-4 flex items-center space-x-2">
         <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
@@ -114,7 +114,7 @@ export function SidebarNav({ onClick }: { onClick?: () => void }) {
 
 export function DashboardSidebar() {
   return (
-    <aside className="hidden lg:flex w-64 flex-col border-r border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 fixed inset-y-0 z-30">
+    <aside className="hidden lg:flex w-64 h-screen flex-col border-r border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 fixed inset-y-0 z-30">
       <SidebarNav />
     </aside>
   );

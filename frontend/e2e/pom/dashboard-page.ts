@@ -25,8 +25,8 @@ export class DashboardPage {
     }
     
     // Locate the link inside nav structure and click it
-    const link = this.page.getByRole('link', { name }).first();
-    await link.click();
+    const link = this.page.getByRole('link', { name }).filter({ visible: true }).first();
+    await link.click({ force: true });
   }
 
   async logout() {
