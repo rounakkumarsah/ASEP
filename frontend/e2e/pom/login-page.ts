@@ -9,8 +9,8 @@ export class LoginPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.usernameInput = page.getByLabel('Username');
-    this.passwordInput = page.getByLabel('Password');
+    this.usernameInput = page.getByLabel('Email', { exact: true });
+    this.passwordInput = page.getByLabel('Password', { exact: true });
     this.submitButton = page.getByRole('button', { name: 'Sign In' });
     this.errorMessage = page.locator('text=Invalid username or password');
   }
@@ -30,7 +30,7 @@ export class LoginPage {
   }
 
   async expectValidationErrors() {
-    await expect(this.page.locator('text=Username must be at least 3 characters')).toBeVisible();
+    await expect(this.page.locator('text=Username or email must be at least 3 characters')).toBeVisible();
     await expect(this.page.locator('text=Password must be at least 6 characters')).toBeVisible();
   }
 }

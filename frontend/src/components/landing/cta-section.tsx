@@ -45,7 +45,7 @@ export function CtaSection() {
             transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
             className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4"
           >
-            <Link href="/login" className="w-full sm:w-auto">
+            <Link href="/signup" className="w-full sm:w-auto">
               <Button
                 size="lg"
                 className="w-full sm:w-auto text-base font-semibold group h-12 px-8"

@@ -97,7 +97,7 @@ export function LandingNavbar() {
             </Button>
           </Link>
 
-          <Link href="/login">
+          <Link href="/signup">
             <Button className="text-sm font-medium">Get Started</Button>
           </Link>
         </div>
@@ -160,7 +160,7 @@ export function LandingNavbar() {
                     </Link>
                   </SheetClose>
                   <SheetClose asChild>
-                    <Link href="/login">
+                    <Link href="/signup">
                       <Button className="w-full justify-center">
                         Get Started
                       </Button>

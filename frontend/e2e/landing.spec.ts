@@ -11,11 +11,11 @@ test.describe('Public Landing Page', () => {
     await expect(page.getByText('ASEP').first()).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Autonomous Software Engineering at Enterprise Scale' })).toBeVisible();
     
-    // Check CTA navigation to login
+    // Check CTA navigation to signup
     const ctaLink = page.getByRole('link', { name: 'Deploy Control Plane' });
     await expect(ctaLink).toBeVisible();
     await ctaLink.click();
     
-    await expect(page).toHaveURL(/\/login/);
+    await expect(page).toHaveURL(/\/signup/);
   });
 });

@@ -72,7 +72,7 @@ export function HeroSection() {
             variants={itemVariants}
             className="mt-10 flex flex-col items-center justify-center space-y-4 sm:flex-row sm:space-x-4 sm:space-y-0"
           >
-            <Link href="/login">
+            <Link href="/signup">
               <Button size="lg" className="h-12 px-8 text-base group">
                 Deploy Control Plane
                 <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
