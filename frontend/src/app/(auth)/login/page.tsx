@@ -90,7 +90,11 @@ export default function LoginPage() {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input placeholder="admin or email" {...field} />
+                        <Input
+                          placeholder="admin or email"
+                          autoComplete="email"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -116,6 +120,7 @@ export default function LoginPage() {
                           <Input
                             type={showPassword ? "text" : "password"}
                             placeholder="••••••"
+                            autoComplete="current-password"
                             {...field}
                           />
                         </FormControl>

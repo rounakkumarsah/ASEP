@@ -33,14 +33,20 @@ const signupSchema = z
     lastName: z.string().min(1, "Last name is required"),
     company: z.string().optional(),
     email: z.string().email("Invalid email address"),
-    password: z.string().min(8, "Password must be at least 8 characters"),
-    confirmPassword: z.string().min(8, "Confirm password must be at least 8 characters"),
+    password: z
+      .string()
+      .min(12, "Password must be at least 12 characters")
+      .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+      .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+      .regex(/\d/, "Password must contain at least one number")
+      .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character"),
+    confirmPassword: z.string().min(1, "Please confirm your password"),
     acceptTerms: z.boolean().refine((val) => val === true, {
       message: "You must accept the terms and conditions",
     }),
   })
   .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match",
+    message: "Confirm password does not match the entered password",
     path: ["confirmPassword"],
   });
 
@@ -49,6 +55,7 @@ type SignupValues = z.infer<typeof signupSchema>;
 export default function SignupPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = React.useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
   const [captchaToken, setCaptchaToken] = React.useState<string | null>(null);
   const [captchaError, setCaptchaError] = React.useState("");
 
@@ -69,7 +76,9 @@ export default function SignupPage() {
 
   // Password rules validation
   const rules = {
-    length: watchPassword.length >= 8,
+    length: watchPassword.length >= 12,
+    uppercase: /[A-Z]/.test(watchPassword),
+    lowercase: /[a-z]/.test(watchPassword),
     number: /\d/.test(watchPassword),
     special: /[^A-Za-z0-9]/.test(watchPassword),
   };
@@ -78,22 +87,24 @@ export default function SignupPage() {
   const getStrength = (): { score: number; label: string; color: string } => {
     if (!watchPassword) return { score: 0, label: "None", color: "bg-muted" };
     let score = 0;
-    if (watchPassword.length >= 6) score += 1;
-    if (watchPassword.length >= 8) score += 1;
-    if (/\d/.test(watchPassword)) score += 1;
-    if (/[^A-Za-z0-9]/.test(watchPassword)) score += 1;
+    if (rules.length) score += 1;
+    if (rules.uppercase) score += 1;
+    if (rules.lowercase) score += 1;
+    if (rules.number) score += 1;
+    if (rules.special) score += 1;
 
     switch (score) {
       case 1:
-        return { score: 25, label: "Weak", color: "bg-red-500" };
       case 2:
-        return { score: 50, label: "Medium", color: "bg-yellow-500" };
+        return { score: 40, label: "Weak", color: "bg-red-500" };
       case 3:
-        return { score: 75, label: "Strong", color: "bg-blue-500" };
+        return { score: 60, label: "Medium", color: "bg-yellow-500" };
       case 4:
+        return { score: 80, label: "Strong", color: "bg-blue-500" };
+      case 5:
         return { score: 100, label: "Excellent", color: "bg-green-500" };
       default:
-        return { score: 10, label: "Weak", color: "bg-red-500" };
+        return { score: 20, label: "Weak", color: "bg-red-500" };
     }
   };
 
@@ -101,15 +112,22 @@ export default function SignupPage() {
 
   // Generate strong password helper
   const generatePassword = () => {
-    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+~`|}{[]:;?><,./-=";
+    const uppercaseChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const lowercaseChars = "abcdefghijklmnopqrstuvwxyz";
+    const numberChars = "0123456789";
+    const specialChars = "!@#$%^&*()_+~`|}{[]:;?><,./-=";
+    const allChars = uppercaseChars + lowercaseChars + numberChars + specialChars;
+    
     let newPassword = "";
-    // Ensure we meet all requirements
-    newPassword += "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.floor(Math.random() * 26)];
-    newPassword += "0123456789"[Math.floor(Math.random() * 10)];
-    newPassword += "!@#$%^&*()"[Math.floor(Math.random() * 10)];
-    for (let i = 0; i < 9; i++) {
-      newPassword += chars[Math.floor(Math.random() * chars.length)];
+    newPassword += uppercaseChars[Math.floor(Math.random() * uppercaseChars.length)];
+    newPassword += lowercaseChars[Math.floor(Math.random() * lowercaseChars.length)];
+    newPassword += numberChars[Math.floor(Math.random() * numberChars.length)];
+    newPassword += specialChars[Math.floor(Math.random() * specialChars.length)];
+    
+    for (let i = 0; i < 12; i++) {
+      newPassword += allChars[Math.floor(Math.random() * allChars.length)];
     }
+    
     form.setValue("password", newPassword, { shouldValidate: true });
     form.setValue("confirmPassword", newPassword, { shouldValidate: true });
   };
@@ -195,7 +213,12 @@ export default function SignupPage() {
                     <FormItem>
                       <FormLabel>Email Address</FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="jane@company.com" {...field} />
+                        <Input
+                          type="email"
+                          placeholder="jane@company.com"
+                          autoComplete="email"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -225,6 +248,7 @@ export default function SignupPage() {
                           <Input
                             type={showPassword ? "text" : "password"}
                             placeholder="••••••••"
+                            autoComplete="new-password"
                             {...field}
                           />
                         </FormControl>
@@ -255,14 +279,30 @@ export default function SignupPage() {
                       ></div>
                     </div>
                     {/* Rules */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 text-xs text-muted-foreground">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-xs text-muted-foreground">
                       <div className="flex items-center gap-1.5">
                         {rules.length ? (
                           <Check className="h-3.5 w-3.5 text-green-500" />
                         ) : (
                           <X className="h-3.5 w-3.5 text-muted-foreground/50" />
                         )}
-                        <span>8+ Characters</span>
+                        <span>12+ Characters</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {rules.uppercase ? (
+                          <Check className="h-3.5 w-3.5 text-green-500" />
+                        ) : (
+                          <X className="h-3.5 w-3.5 text-muted-foreground/50" />
+                        )}
+                        <span>Uppercase Letter</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {rules.lowercase ? (
+                          <Check className="h-3.5 w-3.5 text-green-500" />
+                        ) : (
+                          <X className="h-3.5 w-3.5 text-muted-foreground/50" />
+                        )}
+                        <span>Lowercase Letter</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         {rules.number ? (
@@ -270,7 +310,7 @@ export default function SignupPage() {
                         ) : (
                           <X className="h-3.5 w-3.5 text-muted-foreground/50" />
                         )}
-                        <span>1+ Number</span>
+                        <span>Number</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         {rules.special ? (
@@ -278,7 +318,7 @@ export default function SignupPage() {
                         ) : (
                           <X className="h-3.5 w-3.5 text-muted-foreground/50" />
                         )}
-                        <span>1+ Special Char</span>
+                        <span>Special Character</span>
                       </div>
                     </div>
                   </div>
@@ -291,13 +331,24 @@ export default function SignupPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Confirm Password</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="password"
-                          placeholder="••••••••"
-                          {...field}
-                        />
-                      </FormControl>
+                      <div className="relative">
+                        <FormControl>
+                          <Input
+                            type={showConfirmPassword ? "text" : "password"}
+                            placeholder="••••••••"
+                            autoComplete="new-password"
+                            {...field}
+                          />
+                        </FormControl>
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                        >
+                          {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -326,7 +377,15 @@ export default function SignupPage() {
                       </FormControl>
                       <div className="space-y-1 leading-none">
                         <label htmlFor="acceptTerms" className="text-sm font-medium text-muted-foreground leading-snug">
-                          I accept the terms of service and privacy policy.
+                          I accept the{" "}
+                          <Link href="/terms" className="text-primary hover:underline font-semibold">
+                            Terms of Service
+                          </Link>{" "}
+                          and{" "}
+                          <Link href="/privacy" className="text-primary hover:underline font-semibold">
+                            Privacy Policy
+                          </Link>
+                          .
                         </label>
                       </div>
                     </FormItem>
