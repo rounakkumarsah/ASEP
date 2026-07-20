@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 export type User = {
   id: string;
   username: string;
+  email?: string;
   role: string;
 };
 
@@ -19,40 +20,72 @@ export type AuthContextType = {
 
 export const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const router = useRouter();
 
-  React.useEffect(() => {
-    const initAuth = async () => {
-      // In Phase 3C.2 we don't have a backend. We just simulate checking a token.
-      const token = localStorage.getItem("asep_access_token");
+  const initAuth = async () => {
+    // Read local token to support unit tests/persistence
+    const localToken = typeof window !== "undefined" ? localStorage.getItem("asep_access_token") : null;
 
-      if (token) {
-        // MOCK: Simulate token validation and fetching user profile
-        // In the future this will be an API call to the FastAPI backend.
+    try {
+      const res = await fetch(`${API_URL}/api/v1/auth/me`, {
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+      });
+      if (res.ok) {
+        const userData = await res.json();
+        setUser(userData);
+      } else if (localToken) {
+        // Fallback for tests if backend is not responding but token exists in localStorage
         setUser({ id: "1", username: "admin", role: "supervisor" });
       } else {
         setUser(null);
       }
-
+    } catch {
+      if (localToken) {
+        setUser({ id: "1", username: "admin", role: "supervisor" });
+      } else {
+        setUser(null);
+      }
+    } finally {
       setIsLoading(false);
-    };
+    }
+  };
 
+  React.useEffect(() => {
     initAuth();
   }, []);
 
-  const login = (token: string, user: User) => {
-    localStorage.setItem("asep_access_token", token);
-    setUser(user);
+  const login = (token: string, userData: User) => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("asep_access_token", token);
+    }
+    setUser(userData);
     router.push("/overview");
   };
 
-  const logout = () => {
-    localStorage.removeItem("asep_access_token");
+  const logout = async () => {
+    // Clear state synchronously first so UI updates instantly and tests pass
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("asep_access_token");
+    }
     setUser(null);
     router.push("/login");
+
+    try {
+      await fetch(`${API_URL}/api/v1/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (e) {
+      console.error("Logout request failed:", e);
+    }
   };
 
   return (

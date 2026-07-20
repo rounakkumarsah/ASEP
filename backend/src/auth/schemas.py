@@ -3,9 +3,9 @@ ASEP — Authentication Schemas
 """
 
 import uuid
-from typing import Literal
-
-from pydantic import BaseModel, ConfigDict
+import datetime
+from typing import Literal, Optional
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 
 
 class TokenResponse(BaseModel):
@@ -43,5 +43,44 @@ class UserResponse(BaseModel):
     email: str
     role: str
     is_active: bool
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    company: Optional[str] = None
+    email_verified: bool
+    status: str
+    avatar_url: Optional[str] = None
+    last_login: Optional[datetime.datetime] = None
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class SignupRequest(BaseModel):
+    firstName: str = Field(..., min_length=1)
+    lastName: str = Field(..., min_length=1)
+    company: Optional[str] = None
+    email: str
+    password: str = Field(..., min_length=12)
+    acceptTerms: bool = Field(..., Literal=True)
+    captchaToken: str
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+    rememberMe: Optional[bool] = False
+
+
+class VerifyEmailRequest(BaseModel):
+    email: str
+    code: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    password: str = Field(..., min_length=12)

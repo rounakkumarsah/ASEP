@@ -50,19 +50,46 @@ export default function LoginPage() {
 
   async function onSubmit(values: LoginValues) {
     setError("");
-    const isMockAdmin = values.username === "admin" && values.password === "password";
-    const isRegisteredUser = 
-      values.username === localStorage.getItem("asep_pending_verify_email") && 
-      values.password === localStorage.getItem("asep_pending_verify_password");
-
-    if (isMockAdmin || isRegisteredUser) {
-      login("mock_jwt_token_123", {
-        id: "1",
-        username: values.username,
-        role: "supervisor",
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    try {
+      const res = await fetch(`${API_URL}/api/v1/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: values.username,
+          password: values.password,
+          rememberMe: values.rememberMe,
+        }),
+        credentials: "include",
       });
-    } else {
-      setError("Invalid username or password");
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        setError(errorData.detail || "Invalid email or password");
+        return;
+      }
+
+      const tokenData = await res.json();
+
+      // Fetch current user details
+      const userRes = await fetch(`${API_URL}/api/v1/auth/me`, {
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+      });
+
+      if (!userRes.ok) {
+        setError("Failed to fetch user profile after login.");
+        return;
+      }
+
+      const userData = await userRes.json();
+      login(tokenData.access_token, userData);
+    } catch {
+      setError("Unable to connect to the authentication server.");
     }
   }
 

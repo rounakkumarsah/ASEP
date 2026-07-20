@@ -128,6 +128,16 @@ class Settings(BaseSettings):
     # -----------------------------------------------------------------------
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:8000"
 
+    # Turnstile
+    TURNSTILE_SECRET: str | None = None
+
+    # SMTP / Email
+    SMTP_HOST: str = "localhost"
+    SMTP_PORT: int = 1025
+    SMTP_USERNAME: str | None = None
+    SMTP_PASSWORD: str | None = None
+    EMAIL_FROM: str = "noreply@asep.local"
+
     # -----------------------------------------------------------------------
     # Computed helpers
     # -----------------------------------------------------------------------

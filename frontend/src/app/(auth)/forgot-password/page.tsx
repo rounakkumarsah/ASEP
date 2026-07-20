@@ -20,13 +20,36 @@ type ForgotValues = z.infer<typeof forgotSchema>;
 
 export default function ForgotPasswordPage() {
   const [success, setSuccess] = React.useState(false);
+  const [error, setError] = React.useState("");
   const form = useForm<ForgotValues>({
     resolver: zodResolver(forgotSchema),
     defaultValues: { email: "" },
   });
 
-  const onSubmit = () => {
-    setSuccess(true);
+  const onSubmit = async (values: ForgotValues) => {
+    setError("");
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    try {
+      const res = await fetch(`${API_URL}/api/v1/auth/forgot-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: values.email,
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        setError(errorData.detail || "Unable to process password reset request.");
+        return;
+      }
+
+      setSuccess(true);
+    } catch {
+      setError("Unable to connect to the authentication server.");
+    }
   };
 
   return (
@@ -47,10 +70,15 @@ export default function ForgotPasswordPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {error && (
+              <div className="p-3 mb-4 text-sm text-destructive bg-destructive/10 rounded-lg border border-destructive/20 font-semibold text-center">
+                {error}
+              </div>
+            )}
             {success ? (
               <div className="space-y-4 text-center">
                 <div className="p-3 text-sm text-green-600 bg-green-500/10 rounded-lg border border-green-500/20 font-semibold">
-                  Password reset link sent successfully! Check your inbox.
+                  Password reset link sent successfully! Check your server logs or inbox.
                 </div>
                 <Link href="/login">
                   <Button variant="outline" className="w-full font-semibold">

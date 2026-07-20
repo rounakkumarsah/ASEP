@@ -132,16 +132,43 @@ export default function SignupPage() {
     form.setValue("confirmPassword", newPassword, { shouldValidate: true });
   };
 
-  const onSubmit = (values: SignupValues) => {
+  const onSubmit = async (values: SignupValues) => {
     if (!captchaToken) {
       setCaptchaError("Please complete the human verification step.");
       return;
     }
     setCaptchaError("");
-    // Store signup details in local storage for testing verification flow
-    localStorage.setItem("asep_pending_verify_email", values.email);
-    localStorage.setItem("asep_pending_verify_password", values.password);
-    router.push(`/verify-email?email=${encodeURIComponent(values.email)}`);
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    try {
+      const res = await fetch(`${API_URL}/api/v1/auth/signup`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          firstName: values.firstName,
+          lastName: values.lastName,
+          company: values.company || null,
+          email: values.email,
+          password: values.password,
+          acceptTerms: values.acceptTerms,
+          captchaToken: captchaToken,
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        setCaptchaError(errorData.detail || "Registration failed. Please verify your entries.");
+        return;
+      }
+
+      // Store signup details in local storage for testing verification flow
+      localStorage.setItem("asep_pending_verify_email", values.email);
+      localStorage.setItem("asep_pending_verify_password", values.password);
+      router.push(`/verify-email?email=${encodeURIComponent(values.email)}`);
+    } catch {
+      setCaptchaError("Unable to connect to the authentication server.");
+    }
   };
 
   return (
