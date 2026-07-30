@@ -227,29 +227,30 @@ def create_app() -> FastAPI:
     # Routers
     # -----------------------------------------------------------------------
     app.include_router(health.router, tags=["Observability"])
-    app.include_router(metrics.router, tags=["Observability"])
-    app.include_router(diagnostics.router, tags=["Observability"])
+    # app.include_router(metrics.router, tags=["Observability"])
+    # app.include_router(diagnostics.router, tags=["Observability"])
 
-    app.include_router(auth_router, prefix="/api/v1")
-    app.include_router(agent_runs_router, prefix="/api/v1")
-    app.include_router(tasks_router, prefix="/api/v1")
-    app.include_router(memory_router, prefix="/api/v1")
-    app.include_router(audit_router, prefix="/api/v1")
-    app.include_router(knowledge_router, prefix="/api/v1")
-    app.include_router(payments_router, prefix="/api/v1")
-    app.include_router(organizations_router, prefix="/api/v1")
-    app.include_router(api_keys_router, prefix="/api/v1")
-    app.include_router(projects_router, prefix="/api/v1")
-    app.include_router(ai_runtime.router, prefix="/api/v1")
-    app.include_router(rag.router, prefix="/api/v1")
-    app.include_router(hitl.router, prefix="/api/v1")
-    app.include_router(workflows.router, prefix="/api/v1")
-    app.include_router(evaluation.router, prefix="/api/v1")
-    app.include_router(knowledge_sync.router, prefix="/api/v1")
-    from src.api.routers.monitoring import router as monitoring_router
-    app.include_router(monitoring_router, prefix="/api/v1")
-    from src.api.routers.knowledge import router as phase3_knowledge_router
-    app.include_router(phase3_knowledge_router, prefix="/api/v1")
+    # app.include_router(auth_router, prefix="/api/v1")
+    # app.include_router(agent_runs_router, prefix="/api/v1")
+    # app.include_router(tasks_router, prefix="/api/v1")
+    # app.include_router(memory_router, prefix="/api/v1")
+    # app.include_router(audit_router, prefix="/api/v1")
+    # app.include_router(knowledge_router, prefix="/api/v1")
+    # app.include_router(payments_router, prefix="/api/v1")
+    # app.include_router(organizations_router, prefix="/api/v1")
+    # app.include_router(api_keys_router, prefix="/api/v1")
+    # app.include_router(projects_router, prefix="/api/v1")
+    # app.include_router(ai_runtime.router, prefix="/api/v1")
+    # app.include_router(rag.router, prefix="/api/v1")
+    # app.include_router(hitl.router, prefix="/api/v1")
+    # app.include_router(workflows.router, prefix="/api/v1")
+    # app.include_router(evaluation.router, prefix="/api/v1")
+    # app.include_router(knowledge_sync.router, prefix="/api/v1")
+    # from src.api.routers.monitoring import router as monitoring_router
+    # app.include_router(monitoring_router, prefix="/api/v1")
+    # from src.api.routers.knowledge import router as phase3_knowledge_router
+    # app.include_router(phase3_knowledge_router, prefix="/api/v1")
+
 
 
 
