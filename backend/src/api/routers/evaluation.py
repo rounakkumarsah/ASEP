@@ -114,7 +114,7 @@ async def run_evaluation(req: EvaluationRunRequest) -> Dict[str, Any]:
 
 
 @router.get("/report/{dataset_name}")
-async def get_report(dataset_name: str, format: str = Query("json", regex="^(json|markdown|html)$")) -> Any:
+async def get_report(dataset_name: str, format: str = Query("json", pattern="^(json|markdown|html)$")) -> Any:
     """Retrieve formatted report for the given dataset/run."""
     report = next((r for r in _evaluation_history if r.summary.dataset_name == dataset_name), None)
     if not report:
