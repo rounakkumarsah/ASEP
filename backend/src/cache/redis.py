@@ -5,6 +5,7 @@ ASEP — Redis Client & Connection Pool
 import asyncio
 import logging
 from typing import AsyncGenerator
+from urllib.parse import urlparse
 
 from redis.asyncio import Redis, from_url
 
@@ -16,29 +17,68 @@ logger = logging.getLogger(__name__)
 _redis_client: Redis | None = None
 
 
+def _safe_redis_host(url: str) -> str:
+    """Return '<host>:<port>' from a Redis URL, never exposing credentials."""
+    try:
+        parsed = urlparse(url)
+        host = parsed.hostname or "<unknown>"
+        port = parsed.port or 6379
+        return f"{host}:{port}"
+    except Exception:
+        return "<redis>"
+
+
 async def init_redis() -> None:
     """Initialise the global Redis connection pool."""
     global _redis_client
     if _redis_client is None:
         settings = get_settings()
-        logger.info(f"Connecting to Redis at {settings.REDIS_URL}")
+        logger.info("Connecting to Redis at %s", _safe_redis_host(settings.REDIS_URL))
         
         # 'decode_responses=True' parses strings directly instead of returning bytes.
         # This is generally more convenient for standard caching.
-        _redis_client = from_url(
-            settings.REDIS_URL,
-            encoding="utf-8",
-            decode_responses=True,
-            health_check_interval=30
-        )
+        kwargs = {
+            "encoding": "utf-8",
+            "decode_responses": True,
+            "health_check_interval": 30,
+        }
+        if settings.REDIS_URL.startswith("rediss://"):
+            import ssl
+            kwargs["ssl_cert_reqs"] = ssl.CERT_NONE
+
+        _redis_client = from_url(settings.REDIS_URL, **kwargs)
         
         # Test connection
         try:
             await _redis_client.ping()
             logger.info("Successfully connected to Redis.")
         except Exception as e:
-            logger.error(f"Failed to connect to Redis: {e}")
-            raise
+            # Fallback for plain redis connection if TLS fails on cloud proxy
+            if settings.REDIS_URL.startswith("rediss://"):
+                plain_url = settings.REDIS_URL.replace("rediss://", "redis://", 1)
+                logger.warning("Retrying Redis connection over plain TCP: %s", _safe_redis_host(plain_url))
+                try:
+                    _redis_client = from_url(plain_url, encoding="utf-8", decode_responses=True, health_check_interval=30)
+                    await _redis_client.ping()
+                    logger.info("Successfully connected to Redis over plain TCP.")
+                    return
+                except Exception as inner_e:
+                    logger.error("Failed to connect to Redis over plain TCP: %s", inner_e)
+
+            # Try local Docker compose redis container as final fallback
+            try:
+                logger.warning("Connecting to fallback local container Redis at redis://redis:6379...")
+                _redis_client = from_url("redis://redis:6379", encoding="utf-8", decode_responses=True, health_check_interval=30)
+                await _redis_client.ping()
+                logger.info("Successfully connected to local container Redis.")
+                return
+            except Exception as local_e:
+                logger.error("Failed to connect to local container Redis: %s", local_e)
+                _redis_client = None
+                raise RuntimeError(
+                    f"Redis connection failed. Redis is mandatory for core security "
+                    f"(token blacklisting, verification, OAuth). Error: {local_e}"
+                ) from local_e
 
 
 async def close_redis() -> None:
