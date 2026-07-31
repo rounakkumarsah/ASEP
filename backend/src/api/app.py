@@ -26,16 +26,22 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.exceptions import register_exception_handlers
-from src.api.routers import health, metrics, diagnostics, ai_runtime, rag, hitl, workflows, evaluation, knowledge_sync
-from src.api.routers import (
-    agent_runs_router,
-    tasks_router,
-    memory_router,
-    audit_router,
-    auth_router,
-    knowledge_router,
-    payments_router,
-)
+from src.api.routers import health
+from src.api.routers import metrics
+from src.api.routers import diagnostics
+from src.api.routers import ai_runtime
+from src.api.routers import rag
+from src.api.routers import hitl
+from src.api.routers import workflows
+from src.api.routers import evaluation
+from src.api.routers import knowledge_sync
+from src.api.routers.agent_runs import router as agent_runs_router
+from src.api.routers.tasks import router as tasks_router
+from src.api.routers.memory import router as memory_router
+from src.api.routers.audit import router as audit_router
+from src.api.routers.auth import router as auth_router
+from src.api.routers.knowledge import router as knowledge_router
+from src.api.routers.payments import router as payments_router
 from src.api.routers.organizations import router as organizations_router
 from src.api.routers.api_keys import router as api_keys_router
 from src.api.routers.projects import router as projects_router
