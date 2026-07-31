@@ -240,9 +240,6 @@ class Settings(BaseSettings):
             v = v.replace("postgres://", "postgresql+asyncpg://", 1)
         elif v.startswith("postgresql://"):
             v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
-        elif not (v.startswith("postgresql+asyncpg://") or v.startswith("postgresql+psycopg://")):
-            if v.startswith("postgresql+"):
-                v = "postgresql+asyncpg://" + v.split("://", 1)[1]
             
         # Strip query parameters like sslmode=require that asyncpg rejects as unsupported kwargs
         if "?" in v:
