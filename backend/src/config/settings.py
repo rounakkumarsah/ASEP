@@ -235,11 +235,14 @@ class Settings(BaseSettings):
                 "Local fallback database credentials are not permitted in production."
             )
             
-        # Standardize connection scheme to AsyncPG async engine format
-        if "://" in v:
-            scheme_prefix = v.split("://", 1)[0]
-            if scheme_prefix != "postgresql+asyncpg":
-                v = v.replace(f"{scheme_prefix}://", "postgresql+asyncpg://", 1)
+        # Standardize connection scheme to AsyncPG or Psycopg async engine format
+        if v.startswith("postgres://"):
+            v = v.replace("postgres://", "postgresql+asyncpg://", 1)
+        elif v.startswith("postgresql://"):
+            v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        elif not (v.startswith("postgresql+asyncpg://") or v.startswith("postgresql+psycopg://")):
+            if v.startswith("postgresql+"):
+                v = "postgresql+asyncpg://" + v.split("://", 1)[1]
             
         # Strip query parameters like sslmode=require that asyncpg rejects as unsupported kwargs
         if "?" in v:
