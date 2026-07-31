@@ -63,10 +63,21 @@ def _get_engine() -> AsyncEngine:
         return _engine
 
     settings = get_settings()
-    logger.info("Creating PostgreSQL async engine", extra={"database_url": settings.DATABASE_URL})
+    logger.info("Creating PostgreSQL async engine")
+
+    db_url = settings.DATABASE_URL
+    # Ensure correct asyncpg scheme for create_async_engine
+    if "://" in db_url:
+        scheme_prefix = db_url.split("://", 1)[0]
+        if scheme_prefix != "postgresql+asyncpg":
+            db_url = db_url.replace(f"{scheme_prefix}://", "postgresql+asyncpg://", 1)
+
+    # Strip query parameters like sslmode=require that cause asyncpg kwargs errors
+    if "?" in db_url:
+        db_url = db_url.split("?")[0]
 
     _engine = create_async_engine(
-        settings.DATABASE_URL,
+        db_url,
         echo=settings.APP_ENV == "development",
         # Connection pool settings
         pool_size=20,

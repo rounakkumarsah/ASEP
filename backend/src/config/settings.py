@@ -62,21 +62,35 @@ class Settings(BaseSettings):
     JWT_ACCESS_EXPIRE_MINUTES: int = 30
     JWT_REFRESH_EXPIRE_DAYS: int = 7
 
-    # Redis Settings
+    # -----------------------------------------------------------------------
+    # Redis
+    # -----------------------------------------------------------------------
     REDIS_URL: str = Field(
         default="redis://localhost:6379/0",
-        description="Redis connection URL for caching and distributed locks."
+        description="Redis connection URL. Use rediss:// for TLS (production)."
     )
 
-    # Neo4j Settings
-    NEO4J_URI: str = Field(default="bolt://localhost:7687", description="Neo4j connection URI")
-    NEO4J_USER: str = Field(default="neo4j", description="Neo4j user")
-    NEO4J_PASSWORD: str = Field(default="password", description="Neo4j password")
-    NEO4J_DATABASE: str = Field(default="neo4j", description="Neo4j database name")
 
-    # Qdrant Settings
-    QDRANT_URL: str = Field(default="http://localhost:6333", description="Qdrant API URL")
-    QDRANT_API_KEY: str | None = Field(default=None, description="Qdrant API Key")
+    # -----------------------------------------------------------------------
+
+    # Qdrant
+    # -----------------------------------------------------------------------
+    QDRANT_URL: str = Field(
+        default="http://localhost:6333",
+        description="Qdrant REST API URL. Use the Qdrant Cloud cluster URL for production.",
+    )
+    QDRANT_API_KEY: str | None = Field(
+        default=None,
+        description="Qdrant API key. Required for Qdrant Cloud.",
+    )
+    QDRANT_COLLECTION: str = Field(
+        default="asep_documents",
+        description="Default Qdrant collection name for document vectors.",
+    )
+    QDRANT_VECTOR_SIZE: int = Field(
+        default=1536,
+        description="Embedding vector dimension. Must match the embedding model output size.",
+    )
 
     # Embedding Provider Settings
     EMBEDDING_API_URL: str = Field(
@@ -94,28 +108,30 @@ class Settings(BaseSettings):
     LLM_API_KEY: str | None = Field(default=None, description="API Key for the LLM service")
     LLM_MODEL: str = Field(default="qwen2.5-coder:7b", description="Name of the LLM model to use")
 
+    # Gemini AI
+    GEMINI_API_KEY: str | None = Field(default=None, description="Google AI Studio Gemini API key")
+
     # -----------------------------------------------------------------------
     # PostgreSQL
     # -----------------------------------------------------------------------
     DATABASE_URL: str = "postgresql+asyncpg://asep:changeme@localhost:5432/asep"
 
-    # -----------------------------------------------------------------------
-    # Redis
-    # -----------------------------------------------------------------------
-    REDIS_URL: str = "redis://localhost:6379/0"
 
     # -----------------------------------------------------------------------
     # Neo4j
     # -----------------------------------------------------------------------
-    NEO4J_URI: str = "bolt://localhost:7687"
-    NEO4J_USER: str = "neo4j"
-    NEO4J_PASSWORD: str = "changeme"
+    NEO4J_URI: str = Field(default="bolt://localhost:7687", description="Neo4j connection URI")
+    NEO4J_USER: str = Field(default="neo4j", validation_alias="NEO4J_USERNAME", description="Neo4j username")
+    NEO4J_PASSWORD: str = Field(default="changeme", description="Neo4j password")
+    NEO4J_DATABASE: str | None = Field(default=None, description="Neo4j database name (None = driver default, use None for Aura)")
 
     # -----------------------------------------------------------------------
     # Qdrant
     # -----------------------------------------------------------------------
     QDRANT_HOST: str = "localhost"
     QDRANT_PORT: int = Field(default=6333, ge=1, le=65535)
+    # Note: QDRANT_URL and QDRANT_API_KEY are defined above in the primary Qdrant block.
+    # QDRANT_HOST / QDRANT_PORT are retained for Docker-internal routing compatibility.
 
     # -----------------------------------------------------------------------
     # Ollama
@@ -129,7 +145,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:8000"
 
     # Turnstile
-    TURNSTILE_SECRET: str | None = None
+    TURNSTILE_SECRET_KEY: str | None = None
 
     # SMTP / Email
     SMTP_HOST: str = "localhost"
@@ -137,10 +153,66 @@ class Settings(BaseSettings):
     SMTP_USERNAME: str | None = None
     SMTP_PASSWORD: str | None = None
     EMAIL_FROM: str = "noreply@asep.local"
+    RESEND_API_KEY: str | None = Field(default=None, description="Resend API Key for production emails")
+    FRONTEND_URL: str = Field(default="http://localhost:3000", description="Frontend URL for email links")
 
     # -----------------------------------------------------------------------
-    # Computed helpers
+    # Razorpay
     # -----------------------------------------------------------------------
+    RAZORPAY_KEY_ID: str | None = Field(
+        default=None,
+        description="Razorpay Key ID (rzp_test_* for test mode, rzp_live_* for live mode).",
+    )
+    RAZORPAY_KEY_SECRET: str | None = Field(
+        default=None,
+        description="Razorpay Key Secret — NEVER expose to frontend.",
+    )
+    RAZORPAY_WEBHOOK_SECRET: str | None = Field(
+        default=None,
+        description="Razorpay Webhook Secret for verifying webhook signatures.",
+    )
+
+    # -----------------------------------------------------------------------
+    # GitHub OAuth
+    # -----------------------------------------------------------------------
+    GITHUB_CLIENT_ID: str | None = Field(
+        default=None,
+        description="GitHub OAuth App Client ID.",
+    )
+    GITHUB_CLIENT_SECRET: str | None = Field(
+        default=None,
+        description="GitHub OAuth App Client Secret — NEVER expose to frontend.",
+    )
+    GITHUB_REDIRECT_URI: str = Field(
+        default="http://localhost:8000/api/v1/auth/oauth/github/callback",
+        description="GitHub OAuth callback URI (must match GitHub App settings).",
+    )
+
+    # -----------------------------------------------------------------------
+    # Google OAuth
+    # -----------------------------------------------------------------------
+    GOOGLE_CLIENT_ID: str | None = Field(
+        default=None,
+        description="Google OAuth 2.0 Client ID.",
+    )
+    GOOGLE_CLIENT_SECRET: str | None = Field(
+        default=None,
+        description="Google OAuth 2.0 Client Secret — NEVER expose to frontend.",
+    )
+    GOOGLE_REDIRECT_URI: str = Field(
+        default="http://localhost:8000/api/v1/auth/oauth/google/callback",
+        description="Google OAuth callback URI (must match Google Cloud Console settings).",
+    )
+
+    # -----------------------------------------------------------------------
+    # Frontend
+    # -----------------------------------------------------------------------
+    FRONTEND_OAUTH_CALLBACK_URL: str = Field(
+        default="http://localhost:3000/auth/callback",
+        description="Frontend URL that the backend redirects to after OAuth callback.",
+    )
+
+
     @property
     def cors_origins_list(self) -> list[str]:
         """Parse comma-separated CORS origins into a list. Rejects wildcards in production."""
@@ -148,6 +220,31 @@ class Settings(BaseSettings):
         if self.APP_ENV == "production" and "*" in origins:
             raise ValueError("Wildcard CORS origins are forbidden in production when credentials are allowed.")
         return origins
+
+    @field_validator("DATABASE_URL")
+    @classmethod
+    def validate_database_url(cls, v: str) -> str:
+        import os
+        is_prod = os.getenv("APP_ENV", "development") == "production"
+        
+        # Enforce that in production a production-grade database URL is provided
+        default_indicators = ["localhost", "postgres:5432", "changeme", "asep:changeme"]
+        if is_prod and any(ind in v for ind in default_indicators):
+            raise ValueError(
+                "CRITICAL: A production DATABASE_URL environment variable is required when APP_ENV=production. "
+                "Local fallback database credentials are not permitted in production."
+            )
+            
+        # Standardize connection scheme to AsyncPG async engine format
+        if "://" in v:
+            scheme_prefix = v.split("://", 1)[0]
+            if scheme_prefix != "postgresql+asyncpg":
+                v = v.replace(f"{scheme_prefix}://", "postgresql+asyncpg://", 1)
+            
+        # Strip query parameters like sslmode=require that asyncpg rejects as unsupported kwargs
+        if "?" in v:
+            v = v.split("?")[0]
+        return v
 
     @field_validator("SECRET_KEY", "JWT_SECRET_KEY", "JWT_REFRESH_SECRET_KEY")
     @classmethod
@@ -167,6 +264,16 @@ class Settings(BaseSettings):
         if is_prod and v in defaults:
             raise ValueError(f"CRITICAL: {info.field_name} must be properly configured in production environment.")
         return v
+
+    @field_validator("GEMINI_API_KEY", "REDIS_URL")
+    @classmethod
+    def validate_production_services(cls, v: str | None, info: object) -> str | None:
+        import os
+        is_prod = os.getenv("APP_ENV", "development") == "production"
+        if is_prod and not v:
+            raise ValueError(f"CRITICAL: {info.field_name} must be explicitly configured when APP_ENV=production.")
+        return v
+
 
 
 @lru_cache(maxsize=1)
