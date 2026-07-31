@@ -146,6 +146,12 @@ class Settings(BaseSettings):
 
     # Turnstile
     TURNSTILE_SECRET_KEY: str | None = None
+    TURNSTILE_SECRET: str | None = None
+
+    @property
+    def turnstile_secret(self) -> str | None:
+        """Return TURNSTILE_SECRET_KEY or TURNSTILE_SECRET fallback."""
+        return self.TURNSTILE_SECRET_KEY or self.TURNSTILE_SECRET
 
     # SMTP / Email
     SMTP_HOST: str = "localhost"

@@ -26,7 +26,7 @@ async def verify_turnstile_token(token: str, remote_ip: str | None = None) -> bo
             logger.warning("Turnstile verification failed: Missing token.")
             return False
 
-        secret_key = settings.TURNSTILE_SECRET_KEY or "1x0000000000000000000000000000000AA"
+        secret_key = settings.turnstile_secret or "1x0000000000000000000000000000000AA"
         
         # In production, reject any dummy/mock token values
         if token in ("mock-turnstile-token", "dummy-turnstile-token", "mock-cloudflare-turnstile-token"):
