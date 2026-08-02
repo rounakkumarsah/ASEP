@@ -54,22 +54,20 @@ import os
 
 logger = logging.getLogger(__name__)
 
-# Initialize Sentry backend error tracking if DSN configured
-settings = get_settings()
-sentry_dsn = settings.SENTRY_DSN_BACKEND or os.getenv("SENTRY_DSN_BACKEND")
-if sentry_dsn:
-    try:
-        import sentry_sdk
-        from sentry_sdk.integrations.fastapi import FastApiIntegration
-        sentry_sdk.init(
-            dsn=sentry_dsn,
-            traces_sample_rate=1.0,
-            send_default_pii=True,
-            integrations=[FastApiIntegration()],
-        )
-        logger.info("Sentry backend error tracking initialized.")
-    except Exception as exc:
-        logger.warning("Failed to initialize Sentry SDK: %s", exc)
+# Initialize Sentry SDK before FastAPI app initialization
+try:
+    import sentry_sdk
+    from sentry_sdk.integrations.fastapi import FastApiIntegration
+
+    sentry_sdk.init(
+        dsn="https://5c21de97f08fe501ade2875fc00e3678@o4511818217226240.ingest.us.sentry.io/4511818269065216",
+        send_default_pii=True,
+        traces_sample_rate=1.0,
+        integrations=[FastApiIntegration()],
+    )
+    logger.info("Sentry SDK initialized with FastAPI integration.")
+except Exception as exc:
+    logger.warning("Failed to initialize Sentry SDK: %s", exc)
 
 
 
