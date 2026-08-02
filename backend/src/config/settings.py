@@ -252,6 +252,16 @@ class Settings(BaseSettings):
             v = v.split("?")[0]
         return v
 
+    @field_validator("QDRANT_URL")
+    @classmethod
+    def validate_qdrant_url(cls, v: str) -> str:
+        v = v.rstrip("/")
+        # Qdrant Cloud HTTPS endpoints run on port 443 (HTTPS REST) or 6334 (gRPC).
+        # Appending port :6333 to an https:// cloud cluster URL results in 404 page not found.
+        if v.startswith("https://") and ":6333" in v:
+            v = v.replace(":6333", "")
+        return v
+
     @field_validator("SECRET_KEY", "JWT_SECRET_KEY", "JWT_REFRESH_SECRET_KEY")
     @classmethod
     def secret_key_must_not_be_default_in_production(cls, v: str, info: object) -> str:
