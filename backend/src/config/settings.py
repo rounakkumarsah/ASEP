@@ -217,6 +217,10 @@ class Settings(BaseSettings):
         default="http://localhost:3000/auth/callback",
         description="Frontend URL that the backend redirects to after OAuth callback.",
     )
+    SENTRY_DSN_BACKEND: str | None = Field(
+        default=None,
+        description="Sentry DSN for backend error tracking.",
+    )
     CORS_ORIGINS: str = Field(
         default="http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,https://asep-ai.vercel.app",
         description="Comma-separated list of allowed CORS origins.",
