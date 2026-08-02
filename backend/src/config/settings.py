@@ -228,7 +228,13 @@ class Settings(BaseSettings):
         origins = [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
         if self.APP_ENV == "production" and "*" in origins:
             raise ValueError("Wildcard CORS origins are forbidden in production when credentials are allowed.")
-        return origins
+        if self.APP_ENV == "development":
+            # Allow common local network IPs (e.g. 172.x.x.x, 192.168.x.x, 10.x.x.x) during dev
+            origins.extend([
+                "http://172.22.160.1:3000", "http://172.22.160.1:3001",
+                "http://192.168.1.1:3000", "http://192.168.1.1:3001"
+            ])
+        return list(set(origins))
 
     @field_validator("DATABASE_URL")
     @classmethod
