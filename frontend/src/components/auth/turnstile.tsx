@@ -75,12 +75,20 @@ export function Turnstile({ onVerify }: TurnstileProps) {
     const renderWidget = () => {
       if (!active || !containerRef.current || !window.turnstile) return;
 
+      // Don't re-render if container already has a Turnstile iframe child
+      if (containerRef.current.children.length > 0 && widgetIdRef.current) return;
+
       if (widgetIdRef.current) {
         try {
-          window.turnstile.remove(widgetIdRef.current);
-        } catch (err) {
-          console.error("Error removing old Turnstile widget:", err);
-        }
+          const wId = widgetIdRef.current;
+          widgetIdRef.current = null;
+          window.turnstile.remove(wId);
+        } catch {}
+      }
+
+      // Ensure container is empty before rendering
+      if (containerRef.current) {
+        containerRef.current.innerHTML = "";
       }
 
       try {
@@ -96,7 +104,9 @@ export function Turnstile({ onVerify }: TurnstileProps) {
             if (active) {
               onVerifyRef.current(null);
               if (window.turnstile && widgetIdRef.current) {
-                window.turnstile.reset(widgetIdRef.current);
+                try {
+                  window.turnstile.reset(widgetIdRef.current);
+                } catch {}
               }
             }
           },
@@ -119,43 +129,28 @@ export function Turnstile({ onVerify }: TurnstileProps) {
     if (!script) {
       script = document.createElement("script");
       script.id = scriptId;
-      script.src =
-        "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
       script.async = true;
       script.defer = true;
       document.body.appendChild(script);
     }
 
+    const onLoad = () => renderWidget();
+
     if (window.turnstile) {
       renderWidget();
     } else {
-      const checkInterval = setInterval(() => {
-        if (window.turnstile) {
-          clearInterval(checkInterval);
-          script?.removeEventListener("load", renderWidget);
-          renderWidget();
-        }
-      }, 100);
-
-      script.addEventListener("load", renderWidget);
-
-      return () => {
-        active = false;
-        clearInterval(checkInterval);
-        script?.removeEventListener("load", renderWidget);
-        if (widgetIdRef.current && window.turnstile) {
-          try {
-            window.turnstile.remove(widgetIdRef.current);
-          } catch {}
-        }
-      };
+      script.addEventListener("load", onLoad);
     }
 
     return () => {
       active = false;
+      script?.removeEventListener("load", onLoad);
       if (widgetIdRef.current && window.turnstile) {
         try {
-          window.turnstile.remove(widgetIdRef.current);
+          const wId = widgetIdRef.current;
+          widgetIdRef.current = null;
+          window.turnstile.remove(wId);
         } catch {}
       }
     };
