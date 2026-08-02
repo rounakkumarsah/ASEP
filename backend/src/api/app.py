@@ -55,7 +55,8 @@ import os
 logger = logging.getLogger(__name__)
 
 # Initialize Sentry backend error tracking if DSN configured
-sentry_dsn = os.getenv("SENTRY_DSN_BACKEND")
+settings = get_settings()
+sentry_dsn = settings.SENTRY_DSN_BACKEND or os.getenv("SENTRY_DSN_BACKEND")
 if sentry_dsn:
     try:
         import sentry_sdk
@@ -252,10 +253,6 @@ def create_app() -> FastAPI:
     app.include_router(workflows_router, prefix="/api/v1")
     app.include_router(evaluation_router, prefix="/api/v1")
     app.include_router(knowledge_sync_router, prefix="/api/v1")
-    from src.api.routers.monitoring import router as monitoring_router
-    app.include_router(monitoring_router, prefix="/api/v1")
-    from src.api.routers.knowledge import router as phase3_knowledge_router
-    app.include_router(phase3_knowledge_router, prefix="/api/v1")
 
 
 
