@@ -37,10 +37,5 @@ async def get_diagnostics():
 @router.get("/sentry-debug")
 async def trigger_sentry_error():
     """Trigger a test exception to verify Sentry error logging."""
-    settings = get_settings()
-    has_dsn = bool(settings.SENTRY_DSN_BACKEND or os.getenv("SENTRY_DSN_BACKEND"))
-    if not has_dsn:
-        return {"status": "SENTRY_DSN_BACKEND is not configured on this server.", "working": False}
-    # Intentional test exception to verify Sentry capture
     division_by_zero = 1 / 0
     return {"result": division_by_zero}
