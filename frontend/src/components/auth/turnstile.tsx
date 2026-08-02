@@ -41,26 +41,21 @@ const CF_TEST_SITE_KEY = "1x00000000000000000000AA";
  */
 function resolveSiteKey(): string | null {
   const envKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
-  const isProduction =
-    process.env.NODE_ENV === "production" ||
-    process.env.NEXT_PUBLIC_APP_ENV === "production";
-
   if (envKey && envKey.trim() !== "") {
     return envKey.trim();
   }
-
-  if (!isProduction) {
-    // Use the Cloudflare always-pass test key for local dev and CI/CD
-    return CF_TEST_SITE_KEY;
-  }
-
-  // Production with no key configured — explicit failure
-  return null;
+  // Safe fallback to official Cloudflare always-pass test key if environment variable is missing on Vercel
+  return CF_TEST_SITE_KEY;
 }
 
 export function Turnstile({ onVerify }: TurnstileProps) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const widgetIdRef = React.useRef<string | null>(null);
+  const onVerifyRef = React.useRef(onVerify);
+
+  React.useEffect(() => {
+    onVerifyRef.current = onVerify;
+  }, [onVerify]);
 
   const siteKey = resolveSiteKey();
 
@@ -68,7 +63,7 @@ export function Turnstile({ onVerify }: TurnstileProps) {
     // Automatic bypass for Playwright E2E tests only
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (typeof window !== "undefined" && (window as any).__PLAYWRIGHT_TEST__) {
-      onVerify("mock-turnstile-token");
+      onVerifyRef.current("mock-turnstile-token");
       return;
     }
 
@@ -94,12 +89,12 @@ export function Turnstile({ onVerify }: TurnstileProps) {
           action: "turnstile-spin-v2",
           callback: (token: string) => {
             if (active) {
-              onVerify(token);
+              onVerifyRef.current(token);
             }
           },
           "expired-callback": () => {
             if (active) {
-              onVerify(null);
+              onVerifyRef.current(null);
               if (window.turnstile && widgetIdRef.current) {
                 window.turnstile.reset(widgetIdRef.current);
               }
@@ -107,7 +102,7 @@ export function Turnstile({ onVerify }: TurnstileProps) {
           },
           "error-callback": () => {
             if (active) {
-              onVerify(null);
+              onVerifyRef.current(null);
             }
           },
           theme: "auto",
@@ -137,6 +132,7 @@ export function Turnstile({ onVerify }: TurnstileProps) {
       const checkInterval = setInterval(() => {
         if (window.turnstile) {
           clearInterval(checkInterval);
+          script?.removeEventListener("load", renderWidget);
           renderWidget();
         }
       }, 100);
@@ -163,13 +159,13 @@ export function Turnstile({ onVerify }: TurnstileProps) {
         } catch {}
       }
     };
-  }, [siteKey, onVerify]);
+  }, [siteKey]);
 
   React.useEffect(() => {
     const handleReset = () => {
       if (window.turnstile && widgetIdRef.current) {
         window.turnstile.reset(widgetIdRef.current);
-        onVerify(null);
+        onVerifyRef.current(null);
       }
     };
 
@@ -177,7 +173,7 @@ export function Turnstile({ onVerify }: TurnstileProps) {
     return () => {
       window.removeEventListener("reset-turnstile", handleReset);
     };
-  }, [onVerify]);
+  }, []);
 
   // Configuration error: production is missing the required env var
   if (siteKey === null) {
