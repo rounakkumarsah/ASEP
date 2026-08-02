@@ -218,7 +218,7 @@ class Settings(BaseSettings):
         description="Frontend URL that the backend redirects to after OAuth callback.",
     )
     SENTRY_DSN_BACKEND: str | None = Field(
-        default=None,
+        default="https://5c21de97f08fe501ade2875fc00e3678@o4511818217226240.ingest.us.sentry.io/4511818269065216",
         description="Sentry DSN for backend error tracking.",
     )
     CORS_ORIGINS: str = Field(
