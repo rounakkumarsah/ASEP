@@ -8,13 +8,15 @@ from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 import jwt
 
-from src.api.dependencies import get_uow_factory
+from src.api.dependencies import get_uow_factory, get_audit_service
 from src.auth.jwt import decode_token
 from src.auth.schemas import TokenPayload
 from src.auth.service import AuthService
 from src.config.settings import get_settings
 from src.db.models.user import User
 from src.services.user_service import UserService
+from src.services.email_service import EmailService
+from src.services.audit_service import AuditService
 from src.cache.redis import get_redis_client
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
@@ -27,11 +29,19 @@ def get_user_service(
     return UserService(uow)
 
 
+def get_email_service(
+    audit_service: Annotated[AuditService, Depends(get_audit_service)]
+) -> EmailService:
+    """Provide a configured EmailService."""
+    return EmailService(audit_service)
+
+
 def get_auth_service(
-    user_service: Annotated[UserService, Depends(get_user_service)]
+    user_service: Annotated[UserService, Depends(get_user_service)],
+    email_service: Annotated[EmailService, Depends(get_email_service)]
 ) -> AuthService:
     """Provide a configured AuthService."""
-    return AuthService(user_service)
+    return AuthService(user_service, email_service)
 
 
 async def get_current_user(
