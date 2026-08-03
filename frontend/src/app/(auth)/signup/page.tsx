@@ -221,7 +221,11 @@ export default function SignupPage() {
       if (!res.ok) {
         const errorData = await res.json();
         
-        if (errorData.detail === "Email address already registered") {
+        const detailStr = (errorData && typeof errorData.detail === "string")
+          ? errorData.detail.toLowerCase().trim()
+          : "";
+
+        if (detailStr.includes("already registered")) {
           setDuplicateEmailToast({ show: true, email: values.email });
           setTimeout(() => {
             router.push(`/login?email=${encodeURIComponent(values.email)}`);
