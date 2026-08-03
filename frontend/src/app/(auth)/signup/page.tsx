@@ -27,6 +27,7 @@ import {
 import { Turnstile, TurnstileRef } from "@/components/auth/turnstile";
 import { GuestRoute } from "@/components/auth/guest-route";
 import { Loader2 } from "lucide-react";
+import { env } from "@/lib/config/env";
 
 const signupSchema = z
   .object({
@@ -174,6 +175,12 @@ export default function SignupPage() {
     // Store form values — handleToken() will use them when Cloudflare responds
     pendingValuesRef.current = values;
     setIsSubmitting(true);
+
+    if (!env.NEXT_PUBLIC_ENABLE_TURNSTILE) {
+      // Instant bypass
+      handleToken("mock-turnstile-token");
+      return;
+    }
 
     // Trigger Turnstile manual execution — NO token exists yet
     // Cloudflare will verify silently or show a challenge, then fire handleToken()
@@ -496,15 +503,17 @@ export default function SignupPage() {
                 />
 
                 {/* Turnstile — hidden until Register is clicked */}
-                <div className="space-y-1">
-                  <Turnstile
-                    ref={turnstileRef}
-                    onToken={handleToken}
-                    onExpire={handleTurnstileExpire}
-                    onError={handleTurnstileError}
-                  />
-                  {captchaError && <p className="text-xs text-destructive">{captchaError}</p>}
-                </div>
+                {env.NEXT_PUBLIC_ENABLE_TURNSTILE && (
+                  <div className="space-y-1">
+                    <Turnstile
+                      ref={turnstileRef}
+                      onToken={handleToken}
+                      onExpire={handleTurnstileExpire}
+                      onError={handleTurnstileError}
+                    />
+                    {captchaError && <p className="text-xs text-destructive">{captchaError}</p>}
+                  </div>
+                )}
 
                 {/* Accept Terms */}
                 <FormField

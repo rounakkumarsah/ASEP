@@ -145,7 +145,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:8000"
 
     # Turnstile
-    ENABLE_TURNSTILE: bool = True
+    ENABLE_TURNSTILE: bool = False
     TURNSTILE_SECRET_KEY: str | None = None
     TURNSTILE_SECRET: str | None = None
 

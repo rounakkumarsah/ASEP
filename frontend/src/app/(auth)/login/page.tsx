@@ -26,6 +26,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Turnstile, TurnstileRef } from "@/components/auth/turnstile";
+import { env } from "@/lib/config/env";
 
 const loginSchema = z.object({
   username: z.string().min(3, "Username or email must be at least 3 characters"),
@@ -84,6 +85,12 @@ export default function LoginPage() {
 
     pendingValuesRef.current = values;
     setIsSubmitting(true);
+
+    if (!env.NEXT_PUBLIC_ENABLE_TURNSTILE) {
+      // Instant bypass
+      handleToken("mock-turnstile-token");
+      return;
+    }
 
     // Trigger Turnstile manual execution
     turnstileRef.current?.execute();
@@ -293,17 +300,19 @@ export default function LoginPage() {
                 />
 
                 {/* Turnstile Human Verification — Hidden until Sign In is clicked */}
-                <div className="space-y-1">
-                  <Turnstile
-                    ref={turnstileRef}
-                    onToken={handleToken}
-                    onExpire={handleTurnstileExpire}
-                    onError={handleTurnstileError}
-                  />
-                  {captchaError && (
-                    <p className="text-xs text-destructive">{captchaError}</p>
-                  )}
-                </div>
+                {env.NEXT_PUBLIC_ENABLE_TURNSTILE && (
+                  <div className="space-y-1">
+                    <Turnstile
+                      ref={turnstileRef}
+                      onToken={handleToken}
+                      onExpire={handleTurnstileExpire}
+                      onError={handleTurnstileError}
+                    />
+                    {captchaError && (
+                      <p className="text-xs text-destructive">{captchaError}</p>
+                    )}
+                  </div>
+                )}
 
                 {error && (
                   <div className="text-sm text-destructive font-medium">{error}</div>

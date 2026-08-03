@@ -1,4 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { env } from "@/lib/config/env";
 
 export default function LoginLoadingSkeleton() {
   return (
@@ -39,7 +40,9 @@ export default function LoginLoadingSkeleton() {
           </div>
 
           {/* Turnstile */}
-          <Skeleton className="h-16 w-full rounded-lg" />
+          {env.NEXT_PUBLIC_ENABLE_TURNSTILE && (
+            <Skeleton className="h-16 w-full rounded-lg" />
+          )}
 
           {/* Submit */}
           <Skeleton className="h-11 w-full rounded-lg" />

@@ -15,13 +15,13 @@ const envSchema = z.object({
   NEXT_PUBLIC_ENABLE_TURNSTILE: z
     .preprocess(
       (val) => {
-        if (typeof val === "string") return val.toLowerCase() !== "false";
+        if (typeof val === "string") return val.toLowerCase() === "true";
         if (typeof val === "boolean") return val;
-        return true;
+        return false;
       },
       z.boolean()
     )
-    .default(true),
+    .default(false),
 
   // Cloudflare Turnstile — site key for the human verification widget.
   // Required in production. In development/CI, Cloudflare test keys are used

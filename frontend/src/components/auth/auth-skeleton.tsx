@@ -1,4 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { env } from "@/lib/config/env";
 
 export default function AuthLoadingSkeleton() {
   return (
@@ -54,7 +55,9 @@ export default function AuthLoadingSkeleton() {
           </div>
 
           {/* Turnstile placeholder */}
-          <Skeleton className="h-16 w-full rounded-lg" />
+          {env.NEXT_PUBLIC_ENABLE_TURNSTILE && (
+            <Skeleton className="h-16 w-full rounded-lg" />
+          )}
 
           {/* Submit button */}
           <Skeleton className="h-11 w-full rounded-lg" />
