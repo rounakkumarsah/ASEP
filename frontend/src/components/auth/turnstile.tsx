@@ -30,6 +30,7 @@
  */
 
 import * as React from "react";
+import { env } from "@/lib/config/env";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -130,10 +131,16 @@ export const Turnstile = React.forwardRef<TurnstileRef, TurnstileProps>(
     React.useEffect(() => { onErrorRef.current = onError; }, [onError]);
 
     const siteKey = resolveSiteKey();
+    const isEnabled = env.NEXT_PUBLIC_ENABLE_TURNSTILE;
 
     // ── Imperative API exposed to parent ──────────────────────────────────────
     React.useImperativeHandle(ref, () => ({
       execute: () => {
+        if (!isEnabled) {
+          // Instantly bypass verification and supply a mock token
+          onTokenRef.current("mock-turnstile-token");
+          return;
+        }
         if (!window.turnstile || !widgetIdRef.current) {
           console.warn("[Turnstile] execute() called before widget is ready.");
           return;
@@ -154,7 +161,7 @@ export const Turnstile = React.forwardRef<TurnstileRef, TurnstileProps>(
 
       reset: () => {
         executingRef.current = false;
-        if (window.turnstile && widgetIdRef.current) {
+        if (isEnabled && window.turnstile && widgetIdRef.current) {
           try {
             window.turnstile.reset(widgetIdRef.current);
           } catch {}
@@ -166,6 +173,7 @@ export const Turnstile = React.forwardRef<TurnstileRef, TurnstileProps>(
 
     // ── Render widget on mount ─────────────────────────────────────────────────
     React.useEffect(() => {
+      if (!isEnabled) return;
       mountedRef.current = true;
 
       // E2E test bypass
@@ -252,6 +260,10 @@ export const Turnstile = React.forwardRef<TurnstileRef, TurnstileProps>(
       };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [siteKey]);
+
+    if (!isEnabled) {
+      return null;
+    }
 
     // Render an invisible container — widget lives here but shows nothing until executed
     return (

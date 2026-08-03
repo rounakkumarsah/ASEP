@@ -4,9 +4,14 @@ from src.config.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
-async def verify_turnstile_token(token: str, remote_ip: str | None = None) -> bool:
+async def verify_turnstile_token(token: str | None, remote_ip: str | None = None) -> bool:
     """Verify Cloudflare Turnstile token with Cloudflare API."""
     settings = get_settings()
+
+    # Feature flag check
+    if not settings.ENABLE_TURNSTILE:
+        logger.info("Turnstile verification skipped: ENABLE_TURNSTILE is False")
+        return True
 
     if not token:
         logger.warning("Turnstile verification failed: Missing token.")

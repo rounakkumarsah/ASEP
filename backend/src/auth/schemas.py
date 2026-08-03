@@ -63,7 +63,7 @@ class SignupRequest(BaseModel):
     email: str
     password: str = Field(..., min_length=12)
     acceptTerms: bool = Field(..., Literal=True)
-    captchaToken: str
+    captchaToken: Optional[str] = None
 
 
 class LoginRequest(BaseModel):
@@ -73,14 +73,25 @@ class LoginRequest(BaseModel):
 
 
 class VerifyEmailRequest(BaseModel):
-    email: str
-    code: str
+    email: Optional[str] = None
+    code: Optional[str] = None
+    token: Optional[str] = None
 
 
 class ForgotPasswordRequest(BaseModel):
     email: str
 
 
+class ResendVerificationRequest(BaseModel):
+    email: str
+
+
 class ResetPasswordRequest(BaseModel):
     token: str
     password: str = Field(..., min_length=12)
+
+class ProfileUpdateRequest(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    username: Optional[str] = None
+    avatar: Optional[str] = None
