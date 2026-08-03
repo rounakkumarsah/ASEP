@@ -1,5 +1,7 @@
-import httpx
 import logging
+
+import httpx
+
 from src.config.settings import get_settings
 
 logger = logging.getLogger(__name__)
@@ -20,10 +22,14 @@ async def verify_turnstile_token(token: str | None, remote_ip: str | None = None
     is_localhost = remote_ip in ("127.0.0.1", "localhost", "::1")
 
     # Non-production or local bypass
-    if settings.APP_ENV != "production" or is_localhost:
-        if token in ("", "mock-turnstile-token", "dummy-turnstile-token", "mock-cloudflare-turnstile-token"):
-            logger.debug("Turnstile bypassed (dev mode, mock token)")
-            return True
+    if (settings.APP_ENV != "production" or is_localhost) and token in (
+        "",
+        "mock-turnstile-token",
+        "dummy-turnstile-token",
+        "mock-cloudflare-turnstile-token",
+    ):
+        logger.debug("Turnstile bypassed (dev mode, mock token)")
+        return True
 
     # Use backend environment secret key, or Cloudflare's always-pass test secret key (1x00...)
     secret_key = settings.turnstile_secret or "1x0000000000000000000000000000000AA"
