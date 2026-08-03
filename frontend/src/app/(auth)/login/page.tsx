@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import Link from "next/link";
-import { Hexagon, Eye, EyeOff } from "lucide-react";
+import { Hexagon, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/providers/auth-provider";
 import { GuestRoute } from "@/components/auth/guest-route";
 import { Button } from "@/components/ui/button";
@@ -39,13 +39,10 @@ export default function LoginPage() {
   const { login } = useAuth();
   const [error, setError] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
-  const [captchaToken, setCaptchaToken] = React.useState<string | null>(null);
   const [captchaError, setCaptchaError] = React.useState("");
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
   const turnstileRef = React.useRef<TurnstileRef>(null);
-
-  const handleVerify = React.useCallback((token: string | null) => {
-    setCaptchaToken(token);
-  }, []);
+  const pendingValuesRef = React.useRef<LoginValues | null>(null);
   const [oauthLoading, setOauthLoading] = React.useState(false);
 
   const handleOAuthLogin = async (provider: "github" | "google") => {
@@ -81,14 +78,22 @@ export default function LoginPage() {
   });
 
   async function onSubmit(values: LoginValues) {
+    if (isSubmitting) return;
     setError("");
     setCaptchaError("");
 
-    // Read freshest token from widget at submit time to avoid expired-token errors
-    const freshToken = turnstileRef.current?.getToken() ?? captchaToken;
+    pendingValuesRef.current = values;
+    setIsSubmitting(true);
 
-    if (!freshToken) {
-      setCaptchaError("Please complete the human verification step.");
+    // Trigger Turnstile manual execution
+    turnstileRef.current?.execute();
+  }
+
+  const handleToken = React.useCallback(async (freshToken: string) => {
+    const values = pendingValuesRef.current;
+    if (!values) {
+      setIsSubmitting(false);
+      turnstileRef.current?.reset();
       return;
     }
 
@@ -111,9 +116,8 @@ export default function LoginPage() {
       if (!res.ok) {
         const errorData = await res.json();
         setError(errorData.detail || "Invalid email or password");
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new Event("reset-turnstile"));
-        }
+        turnstileRef.current?.reset();
+        setIsSubmitting(false);
         return;
       }
 
@@ -129,18 +133,31 @@ export default function LoginPage() {
 
       if (!userRes.ok) {
         setError("Failed to fetch user profile after login.");
+        turnstileRef.current?.reset();
+        setIsSubmitting(false);
         return;
       }
 
       const userData = await userRes.json();
+      pendingValuesRef.current = null;
       login(tokenData.access_token, userData);
     } catch {
       setError("Unable to connect to the authentication server.");
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new Event("reset-turnstile"));
-      }
+      turnstileRef.current?.reset();
+      setIsSubmitting(false);
     }
-  }
+  }, [login]);
+
+  const handleTurnstileError = React.useCallback(() => {
+    setCaptchaError("Human verification failed. Please try again.");
+    turnstileRef.current?.reset();
+    setIsSubmitting(false);
+  }, []);
+
+  const handleTurnstileExpire = React.useCallback(() => {
+    setCaptchaError("Verification expired. Please click Sign In again.");
+    setIsSubmitting(false);
+  }, []);
 
   return (
     <GuestRoute>
@@ -275,9 +292,14 @@ export default function LoginPage() {
                   )}
                 />
 
-                {/* Turnstile Human Verification */}
+                {/* Turnstile Human Verification — Hidden until Sign In is clicked */}
                 <div className="space-y-1">
-                  <Turnstile ref={turnstileRef} onVerify={handleVerify} />
+                  <Turnstile
+                    ref={turnstileRef}
+                    onToken={handleToken}
+                    onExpire={handleTurnstileExpire}
+                    onError={handleTurnstileError}
+                  />
                   {captchaError && (
                     <p className="text-xs text-destructive">{captchaError}</p>
                   )}
@@ -287,8 +309,16 @@ export default function LoginPage() {
                   <div className="text-sm text-destructive font-medium">{error}</div>
                 )}
 
-                <Button type="submit" className="w-full font-semibold">
-                  Sign In
+                <Button
+                  type="submit"
+                  className="w-full font-semibold"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Verifying…</>
+                  ) : (
+                    "Sign In"
+                  )}
                 </Button>
               </form>
             </Form>

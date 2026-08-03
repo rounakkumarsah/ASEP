@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/form";
 import { Turnstile, TurnstileRef } from "@/components/auth/turnstile";
 import { GuestRoute } from "@/components/auth/guest-route";
+import { Loader2 } from "lucide-react";
 
 const signupSchema = z
   .object({
@@ -56,13 +57,11 @@ export default function SignupPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = React.useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
-  const [captchaToken, setCaptchaToken] = React.useState<string | null>(null);
   const [captchaError, setCaptchaError] = React.useState("");
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
   const turnstileRef = React.useRef<TurnstileRef>(null);
-
-  const handleVerify = React.useCallback((token: string | null) => {
-    setCaptchaToken(token);
-  }, []);
+  // Store form values between Register click and Turnstile callback
+  const pendingValuesRef = React.useRef<SignupValues | null>(null);
   const [oauthLoading, setOauthLoading] = React.useState(false);
   const [error, setError] = React.useState("");
 
@@ -162,38 +161,44 @@ export default function SignupPage() {
     form.setValue("confirmPassword", newPassword, { shouldValidate: true });
   };
 
+  /**
+   * STEP 1 — Register button clicked.
+   * Validate form, then trigger Turnstile execution.
+   * API submission happens ONLY in handleToken() after Cloudflare responds.
+   */
   const onSubmit = async (values: SignupValues) => {
-    // Always read the freshest token from the widget at submit time.
-    // This avoids sending an expired token if the user took > 5 min to fill the form.
-    const freshToken = turnstileRef.current?.getToken() ?? captchaToken;
+    if (isSubmitting) return; // Prevent duplicate submissions
+    setCaptchaError("");
+    setError("");
 
-    if (!freshToken) {
-      setCaptchaError("Please complete the human verification step.");
+    // Store form values — handleToken() will use them when Cloudflare responds
+    pendingValuesRef.current = values;
+    setIsSubmitting(true);
+
+    // Trigger Turnstile manual execution — NO token exists yet
+    // Cloudflare will verify silently or show a challenge, then fire handleToken()
+    turnstileRef.current?.execute();
+  };
+
+  /**
+   * STEP 2 — Cloudflare issued a fresh token.
+   * This is called by the Turnstile widget callback, NEVER on page load.
+   * Immediately submit the API request with the brand-new token.
+   */
+  const handleToken = React.useCallback(async (freshToken: string) => {
+    const values = pendingValuesRef.current;
+    if (!values) {
+      // Defensive: no pending submission
+      setIsSubmitting(false);
+      turnstileRef.current?.reset();
       return;
     }
-    setCaptchaError("");
+
     const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-    if (process.env.NODE_ENV === "development") {
-      const logSafePayload = {
-        firstName: values.firstName,
-        lastName: values.lastName,
-        company: values.company,
-        email: values.email,
-        acceptTerms: values.acceptTerms,
-      };
-      console.log("[Signup] Payload:", {
-        ...logSafePayload,
-        captchaToken,
-      });
-    }
-
     try {
       const res = await fetch(`${API_URL}/api/v1/auth/signup`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           firstName: values.firstName,
           lastName: values.lastName,
@@ -201,30 +206,42 @@ export default function SignupPage() {
           email: values.email,
           password: values.password,
           acceptTerms: values.acceptTerms,
-          captchaToken: freshToken,
+          captchaToken: freshToken,        // ← always fresh, issued seconds ago
         }),
       });
 
       if (!res.ok) {
         const errorData = await res.json();
         setCaptchaError(errorData.detail || "Registration failed. Please verify your entries.");
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new Event("reset-turnstile"));
-        }
+        // Reset Turnstile so next attempt generates a NEW token
+        turnstileRef.current?.reset();
+        setIsSubmitting(false);
         return;
       }
 
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new Event("reset-turnstile"));
-      }
+      // Success — navigate away
+      pendingValuesRef.current = null;
       router.push(`/verify-email?email=${encodeURIComponent(values.email)}`);
     } catch {
       setCaptchaError("Unable to connect to the authentication server.");
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new Event("reset-turnstile"));
-      }
+      // Always reset Turnstile on failure — never reuse a token
+      turnstileRef.current?.reset();
+      setIsSubmitting(false);
     }
-  };
+  }, [router]);
+
+  /** Cloudflare returned an error — re-enable submission */
+  const handleTurnstileError = React.useCallback(() => {
+    setCaptchaError("Human verification failed. Please try again.");
+    turnstileRef.current?.reset();
+    setIsSubmitting(false);
+  }, []);
+
+  /** Token expired mid-challenge — re-enable submission */
+  const handleTurnstileExpire = React.useCallback(() => {
+    setCaptchaError("Verification expired. Please click Register again.");
+    setIsSubmitting(false);
+  }, []);
 
   return (
     <GuestRoute>
@@ -478,9 +495,14 @@ export default function SignupPage() {
                   )}
                 />
 
-                {/* Turnstile */}
+                {/* Turnstile — hidden until Register is clicked */}
                 <div className="space-y-1">
-                  <Turnstile ref={turnstileRef} onVerify={handleVerify} />
+                  <Turnstile
+                    ref={turnstileRef}
+                    onToken={handleToken}
+                    onExpire={handleTurnstileExpire}
+                    onError={handleTurnstileError}
+                  />
                   {captchaError && <p className="text-xs text-destructive">{captchaError}</p>}
                 </div>
 
@@ -516,8 +538,16 @@ export default function SignupPage() {
                   )}
                 />
 
-                <Button type="submit" className="w-full font-semibold">
-                  Register Account
+                <Button
+                  type="submit"
+                  className="w-full font-semibold"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Verifying…</>
+                  ) : (
+                    "Register Account"
+                  )}
                 </Button>
               </form>
             </Form>
