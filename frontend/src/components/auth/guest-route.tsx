@@ -3,11 +3,14 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/providers/auth-provider";
-import { Loader2 } from "lucide-react";
+import { usePathname } from "next/navigation";
+import AuthLoadingSkeleton from "@/components/auth/auth-skeleton";
+import LoginLoadingSkeleton from "@/components/auth/login-skeleton";
 
 export function GuestRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   React.useEffect(() => {
     if (!isLoading && isAuthenticated) {
@@ -16,11 +19,10 @@ export function GuestRoute({ children }: { children: React.ReactNode }) {
   }, [isLoading, isAuthenticated, router]);
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    if (pathname === "/login") {
+      return <LoginLoadingSkeleton />;
+    }
+    return <AuthLoadingSkeleton />;
   }
 
   // If authenticated, we render nothing while the useEffect redirects
