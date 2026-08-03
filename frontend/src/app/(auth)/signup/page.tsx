@@ -65,6 +65,7 @@ export default function SignupPage() {
   const pendingValuesRef = React.useRef<SignupValues | null>(null);
   const [oauthLoading, setOauthLoading] = React.useState(false);
   const [error, setError] = React.useState("");
+  const [duplicateEmailToast, setDuplicateEmailToast] = React.useState<{ show: boolean; email: string } | null>(null);
 
   const handleOAuthLogin = async (provider: "github" | "google") => {
     setOauthLoading(true);
@@ -219,6 +220,15 @@ export default function SignupPage() {
 
       if (!res.ok) {
         const errorData = await res.json();
+        
+        if (errorData.detail === "Email address already registered") {
+          setDuplicateEmailToast({ show: true, email: values.email });
+          setTimeout(() => {
+            router.push(`/login?email=${encodeURIComponent(values.email)}`);
+          }, 2000);
+          return;
+        }
+
         setCaptchaError(errorData.detail || "Registration failed. Please verify your entries.");
         // Reset Turnstile so next attempt generates a NEW token
         turnstileRef.current?.reset();
@@ -570,6 +580,36 @@ export default function SignupPage() {
           </CardContent>
         </Card>
       </div>
+
+      {duplicateEmailToast?.show && (
+        <div className="fixed bottom-5 right-5 z-50 animate-in fade-in slide-in-from-bottom-5 duration-300">
+          <div className="flex flex-col gap-3 p-4 rounded-xl border border-border/50 bg-card/95 backdrop-blur-md shadow-2xl max-w-sm">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-full bg-primary/10 text-primary shrink-0">
+                <Loader2 className="h-4 w-4 animate-spin" />
+              </div>
+              <div className="flex-1 space-y-1">
+                <p className="text-sm font-semibold text-foreground leading-none">
+                  This email is already registered.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Please sign in instead. Redirecting in 2s...
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                size="sm"
+                variant="default"
+                onClick={() => router.push(`/login?email=${encodeURIComponent(duplicateEmailToast.email)}`)}
+                className="text-xs font-semibold px-3 py-1.5 h-auto"
+              >
+                Go to Sign In
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </GuestRoute>
   );
 }

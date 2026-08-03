@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Hexagon, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/providers/auth-provider";
 import { GuestRoute } from "@/components/auth/guest-route";
@@ -38,12 +39,16 @@ type LoginValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const searchParams = useSearchParams();
+  const emailParam = searchParams.get("email");
+
   const [error, setError] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
   const [captchaError, setCaptchaError] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const turnstileRef = React.useRef<TurnstileRef>(null);
   const pendingValuesRef = React.useRef<LoginValues | null>(null);
+  const passwordRef = React.useRef<HTMLInputElement | null>(null);
   const [oauthLoading, setOauthLoading] = React.useState(false);
 
   const handleOAuthLogin = async (provider: "github" | "google") => {
@@ -72,11 +77,21 @@ export default function LoginPage() {
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      username: "",
+      username: emailParam || "",
       password: "",
       rememberMe: false,
     },
   });
+
+  React.useEffect(() => {
+    if (emailParam) {
+      form.setValue("username", emailParam, { shouldValidate: true });
+      // Autofocus password field
+      setTimeout(() => {
+        passwordRef.current?.focus();
+      }, 150);
+    }
+  }, [emailParam, form]);
 
   async function onSubmit(values: LoginValues) {
     if (isSubmitting) return;
@@ -261,6 +276,10 @@ export default function LoginPage() {
                             placeholder="••••••"
                             autoComplete="current-password"
                             {...field}
+                            ref={(e) => {
+                              field.ref(e);
+                              passwordRef.current = e;
+                            }}
                           />
                         </FormControl>
                         <button
