@@ -220,13 +220,18 @@ export default function SignupPage() {
 
       if (!res.ok) {
         const errorData = await res.json();
+        console.log("Signup response status:", res.status);
+        console.log("Signup response:", errorData);
         
         const detailStr = (errorData && typeof errorData.detail === "string")
           ? errorData.detail.toLowerCase().trim()
           : "";
 
         if (detailStr.includes("already registered")) {
+          console.log("Duplicate branch entered");
           setDuplicateEmailToast({ show: true, email: values.email });
+          console.log("Toast state updated");
+          console.log("Redirecting to login");
           setTimeout(() => {
             router.push(`/login?email=${encodeURIComponent(values.email)}`);
           }, 2000);
