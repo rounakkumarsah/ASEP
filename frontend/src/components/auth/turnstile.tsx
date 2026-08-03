@@ -2,6 +2,13 @@
 
 import * as React from "react";
 
+export interface TurnstileRef {
+  /** Returns the current valid token, or null if expired/not-yet-verified */
+  getToken: () => string | null;
+  /** Force-reset the widget so Cloudflare issues a brand-new challenge */
+  reset: () => void;
+}
+
 interface TurnstileProps {
   onVerify: (token: string | null) => void;
 }
@@ -23,6 +30,7 @@ declare global {
       ) => string;
       reset: (widgetId?: string) => void;
       remove: (widgetId?: string) => void;
+      getResponse: (widgetId?: string) => string | undefined;
     };
   }
 }
@@ -48,10 +56,24 @@ function resolveSiteKey(): string | null {
   return CF_TEST_SITE_KEY;
 }
 
-export function Turnstile({ onVerify }: TurnstileProps) {
+export const Turnstile = React.forwardRef<TurnstileRef, TurnstileProps>(
+  function Turnstile({ onVerify }: TurnstileProps, ref) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const widgetIdRef = React.useRef<string | null>(null);
+  const tokenRef = React.useRef<string | null>(null);
   const onVerifyRef = React.useRef(onVerify);
+
+  // Expose imperative API to parent via ref
+  React.useImperativeHandle(ref, () => ({
+    getToken: () => tokenRef.current,
+    reset: () => {
+      tokenRef.current = null;
+      onVerifyRef.current(null);
+      if (window.turnstile && widgetIdRef.current) {
+        try { window.turnstile.reset(widgetIdRef.current); } catch {}
+      }
+    },
+  }));
 
   React.useEffect(() => {
     onVerifyRef.current = onVerify;
@@ -97,14 +119,19 @@ export function Turnstile({ onVerify }: TurnstileProps) {
           action: "turnstile-spin-v2",
           callback: (token: string) => {
             if (active) {
+              // Store token in ref so it can be retrieved at submit time
+              tokenRef.current = token;
               onVerifyRef.current(token);
             }
           },
           "expired-callback": () => {
             if (active) {
+              // Token expired — clear stored token and auto-reset for fresh challenge
+              tokenRef.current = null;
               onVerifyRef.current(null);
               if (window.turnstile && widgetIdRef.current) {
                 try {
+                  // Reset triggers a new Cloudflare challenge immediately
                   window.turnstile.reset(widgetIdRef.current);
                 } catch {}
               }
@@ -112,6 +139,7 @@ export function Turnstile({ onVerify }: TurnstileProps) {
           },
           "error-callback": () => {
             if (active) {
+              tokenRef.current = null;
               onVerifyRef.current(null);
             }
           },
@@ -158,9 +186,10 @@ export function Turnstile({ onVerify }: TurnstileProps) {
 
   React.useEffect(() => {
     const handleReset = () => {
+      tokenRef.current = null;
+      onVerifyRef.current(null);
       if (window.turnstile && widgetIdRef.current) {
-        window.turnstile.reset(widgetIdRef.current);
-        onVerifyRef.current(null);
+        try { window.turnstile.reset(widgetIdRef.current); } catch {}
       }
     };
 
@@ -188,4 +217,6 @@ export function Turnstile({ onVerify }: TurnstileProps) {
       <div ref={containerRef} className="cf-turnstile" data-action="turnstile-spin-v2" />
     </div>
   );
-}
+});
+
+Turnstile.displayName = "Turnstile";
