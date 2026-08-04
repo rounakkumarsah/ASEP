@@ -3,7 +3,6 @@ ASEP — Email Service (Resend SDK Implementation)
 """
 
 import logging
-import resend
 from src.config.settings import get_settings
 from src.services.audit_service import AuditService
 from src.db.models.audit_log import ActorType, AuditOutcome, AuditSeverity
@@ -103,7 +102,12 @@ class EmailService:
         
         # Configure the Resend SDK
         if self.api_key and self.api_key not in ("mock", "", "None"):
-            resend.api_key = self.api_key
+            try:
+                import resend
+                resend.api_key = self.api_key
+            except ImportError:
+                logger.warning("Resend SDK not installed. Falling back to mock email delivery.")
+                self.api_key = "mock"
 
     async def _send_email(self, to_email: str, subject: str, html_content: str, email_type: str) -> bool:
         """Deliver email using Resend SDK or mock delivery locally with robust retry logic."""
@@ -141,6 +145,7 @@ class EmailService:
         for attempt in range(1, max_retries + 1):
             try:
                 # Send email via Resend SDK in thread pool to avoid blocking
+                import resend
                 response = await asyncio.to_thread(resend.Emails.send, params)
                 
                 logger.info(f"Email sent: SDK Email {email_type} successfully sent to {to_email} on attempt {attempt}")
