@@ -45,8 +45,8 @@ class CheckpointPolicy(BaseModel):
 
 class WorkflowStep(BaseModel):
     node_id: str
-    description: str
-    target_agent: str
+    description: str = ""
+    target_agent: str = "default_agent"
     target_tool: Optional[str] = None
     next_node: Optional[str] = None  # None indicates execution graph ending
     conditional_routes: Optional[Dict[str, str]] = None  # outcome -> node_id mapping
@@ -54,11 +54,13 @@ class WorkflowStep(BaseModel):
     join_node: Optional[str] = None  # fan-in node id
 
 
+
 class WorkflowDefinition(BaseModel):
     workflow_id: str
     version: str = "1.0.0"
-    description: str
+    description: str = ""
     input_schema: Dict[str, Any] = Field(default_factory=dict)
+
     output_schema: Dict[str, Any] = Field(default_factory=dict)
     required_agents: List[str] = Field(default_factory=list)
     required_tools: List[str] = Field(default_factory=list)
@@ -73,9 +75,10 @@ class WorkflowDefinition(BaseModel):
 class WorkflowContext(BaseModel):
     workflow_id: str
     execution_id: str
-    correlation_id: str
-    session_id: str
+    correlation_id: str = "default_corr"
+    session_id: str = "default_session"
     project_id: str = "default_project"
+
     memory_ids: List[str] = Field(default_factory=list)
     retrieved_documents: List[str] = Field(default_factory=list)
 

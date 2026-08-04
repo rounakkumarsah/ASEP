@@ -21,7 +21,10 @@ async def neo4j_health_check() -> bool:
         driver = get_neo4j_driver()
         settings = get_settings()
         
-        async with driver.session(database=settings.NEO4J_DATABASE) as session:
+        # Use None for database on Aura (lets driver use default routing).
+        # Named-database routing is not available on Aura Free tier.
+        db = settings.NEO4J_DATABASE or None
+        async with driver.session(database=db) as session:
             result = await session.run(PING_QUERY)
             records = await result.data()
             return len(records) > 0 and records[0].get("ping") == 1

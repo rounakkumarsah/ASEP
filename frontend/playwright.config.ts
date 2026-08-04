@@ -12,7 +12,14 @@ export default defineConfig({
   reporter: 'list',
   use: {
     baseURL: 'http://localhost:3000',
-    trace: 'on-first-retry',
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
+    contextOptions: {
+      // Inject global flag so the app knows it's being driven by Playwright
+      // We use this to bypass Captcha
+    },
+    actionTimeout: 10000,
   },
   projects: [
     // Setup project
@@ -42,9 +49,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run start', // We can run after npm run build for clean tests
+    command: 'npm run dev',
     url: 'http://localhost:3000',
-    reuseExistingServer: true,
+    reuseExistingServer: !process.env.CI,
     timeout: 120000,
   },
 });

@@ -58,14 +58,32 @@ export default function GovernanceWorkspacePage() {
   const auditsQuery = useAudits();
 
   const renderContent = () => {
-    if (activeTab === "overview" || activeTab === "authorization") {
+    if (activeTab === "overview") {
       return (
-        <div className="h-full w-full flex flex-col items-center justify-center text-muted-foreground border border-dashed rounded-lg py-20">
-          <ShieldCheck className="h-10 w-10 text-muted-foreground mb-4" />
-          <h3 className="font-semibold text-foreground text-lg">Coming Soon</h3>
-          <p className="text-sm mt-1 max-w-sm text-center">
-            The {activeTab} panel is scheduled for a future architectural phase.
+        <div className="h-full w-full flex flex-col items-center justify-center text-muted-foreground border border-dashed rounded-lg py-20 bg-card/10">
+          <ShieldCheck className="h-10 w-10 text-primary mb-4" />
+          <h3 className="font-bold text-foreground text-lg">Activate Governance Telemetry</h3>
+          <p className="text-sm mt-2 mb-6 max-w-sm text-center text-muted-foreground">
+            Monitor active security policy compliance, pending human review queues, and system privilege elevations in one place.
           </p>
+          <Button onClick={() => alert("Governance telemetry will automatically start logging when agent workspaces execute workflows.")} className="font-semibold">
+            Configure Governance
+          </Button>
+        </div>
+      );
+    }
+
+    if (activeTab === "authorization") {
+      return (
+        <div className="h-full w-full flex flex-col items-center justify-center text-muted-foreground border border-dashed rounded-lg py-20 bg-card/10">
+          <ShieldCheck className="h-10 w-10 text-primary mb-4" />
+          <h3 className="font-bold text-foreground text-lg">Define Access Policies</h3>
+          <p className="text-sm mt-2 mb-6 max-w-sm text-center text-muted-foreground">
+            Restrict agent operations using granular policy rule-sets. Set up default safety rails for autonomous actions.
+          </p>
+          <Button onClick={() => alert("Default role-based access policies are currently active. Add custom policy models to backend settings.")} className="font-semibold">
+            Create Policy Rule
+          </Button>
         </div>
       );
     }

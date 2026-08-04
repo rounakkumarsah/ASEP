@@ -100,7 +100,7 @@ export default function MemoryWorkspacePage() {
                 <BrainCircuit className="h-6 w-6 text-muted-foreground" />
               </div>
               <h3 className="font-semibold text-foreground">
-                No memories found
+                No memories stored yet
               </h3>
               <p className="text-sm mt-1 max-w-sm text-center">
                 {searchQuery

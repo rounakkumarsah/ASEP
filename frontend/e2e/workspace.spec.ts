@@ -36,6 +36,6 @@ test.describe('Specialized Workspaces E2E Tests', () => {
     await page.goto('/sessions');
     
     // Check main title
-    await expect(page.getByRole('heading', { name: 'Active Sessions' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Active Sessions', exact: true })).toBeVisible();
   });
 });

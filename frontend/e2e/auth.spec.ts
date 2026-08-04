@@ -34,7 +34,7 @@ test.describe('Authentication Flow', () => {
     const dashboardPage = new DashboardPage(page);
     
     await loginPage.goto();
-    await loginPage.login('admin', 'password');
+    await loginPage.login('admin@example.com', 'SecurePass123!');
     await expect(page).toHaveURL(/\/overview/);
     
     // Verify user can log out

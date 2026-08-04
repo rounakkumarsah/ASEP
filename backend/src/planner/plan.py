@@ -1,60 +1,204 @@
 """
-ASEP — Plan Manager
+ASEP — AI Planner & Task Decomposition Engine
+=============================================
+Provides high-level goal decomposition, DAG dependency graph resolution,
+execution plan generation, and dynamic runtime replanning.
 """
 
-import logging
+from __future__ import annotations
 
-from src.planner.models import DecomposedPlan, SubTask
+import enum
+import logging
+import uuid
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional, Set
+
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
 
 class PlanManager:
-    """Manages plans, including topological sorting of execution ordering."""
-
+    """Legacy wrapper around PlanGenerator & DynamicReplanner."""
     def __init__(self) -> None:
-        pass
+        self.generator = PlanGenerator()
+        self.replanner = DynamicReplanner()
 
-    def get_execution_order(self, plan: DecomposedPlan) -> list[str]:
-        """Resolve a topologically sorted execution order where dependencies run first.
-        
-        Kahn's Algorithm is used to construct a safe sequential list of task IDs.
-        """
-        # Map in-degrees (number of dependencies each node has)
-        in_degree = {t.id: len(t.depends_on) for t in plan.tasks}
-        
-        # Build children mapping: parent_id -> list of child_ids
-        children = {t.id: [] for t in plan.tasks}
-        for task in plan.tasks:
-            for parent in task.depends_on:
-                if parent in children:
-                    children[parent].append(task.id)
+    def create_plan(self, goal: str) -> ExecutionPlan:
+        return self.generator.create_plan(goal)
 
-        # Start queue with nodes that have 0 dependencies
-        queue = [tid for tid, degree in in_degree.items() if degree == 0]
-        # Sort to keep selection order deterministic
-        queue.sort()
-        
-        order = []
-        while queue:
-            curr = queue.pop(0)
-            order.append(curr)
-            
-            for child in children[curr]:
-                in_degree[child] -= 1
-                if in_degree[child] == 0:
-                    queue.append(child)
-                    
-        return order
 
-    def reorder_plan_tasks(self, plan: DecomposedPlan) -> DecomposedPlan:
-        """Return a new DecomposedPlan where tasks are sorted topologically."""
-        order = self.get_execution_order(plan)
-        task_map = {t.id: t for t in plan.tasks}
+class TaskStatus(str, enum.Enum):
+    PENDING = "pending"
+    READY = "ready"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+
+
+class PlanTask(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str
+    description: str
+    dependencies: List[str] = Field(default_factory=list, description="IDs of prerequisite tasks")
+    assigned_agent: Optional[str] = Field(default=None, description="Suggested agent role/name")
+    status: TaskStatus = Field(default=TaskStatus.PENDING)
+    result: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+
+class ExecutionPlan(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    goal: str
+    tasks: List[PlanTask] = Field(default_factory=list)
+    version: int = 1
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+    def get_task(self, task_id: str) -> Optional[PlanTask]:
+        for t in self.tasks:
+            if t.id == task_id:
+                return t
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Dependency Graph (DAG Engine)
+# ---------------------------------------------------------------------------
+
+class DependencyGraph:
+    """DAG engine for validating prerequisites and topological task ordering."""
+
+    def __init__(self, tasks: List[PlanTask]) -> None:
+        self.tasks = {t.id: t for t in tasks}
+
+    def validate_dag(self) -> bool:
+        """Verifies no circular dependencies exist."""
+        visited: Set[str] = set()
+        rec_stack: Set[str] = set()
+
+        def _dfs(node_id: str) -> bool:
+            visited.add(node_id)
+            rec_stack.add(node_id)
+
+            task = self.tasks.get(node_id)
+            if task:
+                for dep in task.dependencies:
+                    if dep not in visited:
+                        if not _dfs(dep):
+                            return False
+                    elif dep in rec_stack:
+                        return False
+
+            rec_stack.remove(node_id)
+            return True
+
+        for task_id in self.tasks:
+            if task_id not in visited:
+                if not _dfs(task_id):
+                    return False
+        return True
+
+    def get_executable_batches(self) -> List[List[PlanTask]]:
+        """Returns batches of tasks that can be run concurrently in topological sequence."""
+        if not self.validate_dag():
+            raise ValueError("Invalid dependency graph: Cycle detected.")
+
+        completed: Set[str] = set()
+        remaining = set(self.tasks.keys())
+        batches: List[List[PlanTask]] = []
+
+        while remaining:
+            # Tasks whose dependencies are all completed
+            ready = [
+                tid for tid in remaining
+                if all(dep in completed for dep in self.tasks[tid].dependencies)
+            ]
+            if not ready:
+                raise ValueError("Dependency resolution deadlock detected.")
+
+            batch = [self.tasks[tid] for tid in ready]
+            batches.append(batch)
+            for tid in ready:
+                completed.add(tid)
+                remaining.remove(tid)
+
+        return batches
+
+
+# ---------------------------------------------------------------------------
+# Task Decomposer & Plan Generator
+# ---------------------------------------------------------------------------
+
+class TaskDecomposer:
+    """Decomposes goals into logical task structures."""
+
+    def decompose(self, goal: str) -> List[PlanTask]:
+        """Rule-based / heuristic task decomposition."""
+        goal_lower = goal.lower()
+
+        if "rag" in goal_lower or "knowledge" in goal_lower:
+            t1 = PlanTask(title="Fetch Relevant Context", description="Search vector database for documents", assigned_agent="research")
+            t2 = PlanTask(title="Analyze Documents", description="Extract key facts from context", dependencies=[t1.id], assigned_agent="research")
+            t3 = PlanTask(title="Generate Final Answer", description="Synthesize answer from facts", dependencies=[t2.id], assigned_agent="supervisor")
+            return [t1, t2, t3]
         
-        sorted_tasks = [task_map[tid] for tid in order if tid in task_map]
-        
-        return DecomposedPlan(
-            tasks=sorted_tasks,
-            rationale=plan.rationale
+        # Generic multi-step fallback
+        t1 = PlanTask(title="Requirement Analysis", description=f"Analyze goal: {goal}", assigned_agent="planner")
+        t2 = PlanTask(title="Execution Step", description="Execute core task logic", dependencies=[t1.id], assigned_agent="executor")
+        t3 = PlanTask(title="Verification & Synthesis", description="Verify output quality", dependencies=[t2.id], assigned_agent="governance")
+        return [t1, t2, t3]
+
+
+class PlanGenerator:
+    """Generates and validates an ExecutionPlan from a user goal."""
+
+    def __init__(self, decomposer: Optional[TaskDecomposer] = None) -> None:
+        self.decomposer = decomposer or TaskDecomposer()
+
+    def create_plan(self, goal: str) -> ExecutionPlan:
+        tasks = self.decomposer.decompose(goal)
+        plan = ExecutionPlan(goal=goal, tasks=tasks)
+        graph = DependencyGraph(plan.tasks)
+        if not graph.validate_dag():
+            raise ValueError("Generated plan contains invalid cyclic dependencies.")
+        return plan
+
+
+# ---------------------------------------------------------------------------
+# Dynamic Replanner
+# ---------------------------------------------------------------------------
+
+class DynamicReplanner:
+    """Modifies active execution plans dynamically based on runtime feedback."""
+
+    def handle_task_failure(self, plan: ExecutionPlan, failed_task_id: str, error_msg: str) -> ExecutionPlan:
+        task = plan.get_task(failed_task_id)
+        if not task:
+            return plan
+
+        task.status = TaskStatus.FAILED
+        task.error = error_msg
+
+        # Add a recovery task
+        recovery_task = PlanTask(
+            title=f"Recover from: {task.title}",
+            description=f"Fix failure in task {failed_task_id}: {error_msg}",
+            dependencies=[dep for dep in task.dependencies if dep != task.id],
+            assigned_agent="executor",
         )
+        
+        # Re-route downstream dependencies to wait for recovery task
+        for t in plan.tasks:
+            if failed_task_id in t.dependencies:
+                t.dependencies.remove(failed_task_id)
+                t.dependencies.append(recovery_task.id)
+
+        plan.tasks.append(recovery_task)
+        plan.version += 1
+        plan.updated_at = datetime.now(timezone.utc).isoformat()
+        logger.info("Dynamic replan applied for failed task '%s' (Plan v%d)", failed_task_id, plan.version)
+        return plan

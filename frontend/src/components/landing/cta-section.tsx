@@ -55,7 +55,7 @@ export function CtaSection() {
               </Button>
             </Link>
 
-            <Link href="/docs" className="w-full sm:w-auto">
+            <Link href="/documentation" className="w-full sm:w-auto">
               <Button
                 size="lg"
                 variant="outline"

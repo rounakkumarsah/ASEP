@@ -80,7 +80,7 @@ class GeminiProvider(BaseAIProvider):
             text = ""
             try:
                 text = data["candidates"][0]["content"]["parts"][0]["text"]
-            except (KeyError, IndexDown):
+            except (KeyError, IndexError):
                 pass
                 
             meta = data.get("usageMetadata", {})

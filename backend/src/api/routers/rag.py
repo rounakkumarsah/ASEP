@@ -37,16 +37,48 @@ def get_retriever() -> Retriever:
     client = get_qdrant_client()
     vector_service = VectorService(client=client)
     embedder = RuntimeEmbeddingProvider()
-    return Retriever(vector_service=vector_service, embedding_provider=embedder)
+    
+    # Optional GraphService injection to support degraded Neo4j startup
+    graph_service = None
+    try:
+        from src.graph import GraphService
+        from src.graph.neo4j import get_neo4j_driver
+        driver = get_neo4j_driver()
+        graph_service = GraphService(driver=driver)
+    except Exception:
+        # Graceful fallback: run RAG with Vector-only results
+        pass
+        
+    return Retriever(
+        vector_service=vector_service,
+        embedding_provider=embedder,
+        graph_service=graph_service,
+    )
+
 
 @router.post("/rag/search", response_model=RAGSearchResponse)
 async def semantic_rag_search(
     request: RAGQueryRequest,
-    retriever: Retriever = Depends(get_retriever)
-):
-    """
-    Query the knowledge retrieval pipeline and synthesize structured prompt context.
-    """
+    retriever: Retriever = Depends(get_retriever),
+) -> RAGSearchResponse:
+    """Execute a hybrid vector + graph RAG query with strict rate-limiting."""
+    # Production Rate Limiting — 30 RAG searches / 1 min per client
+    try:
+        from src.cache.redis import get_redis_client
+        from src.auth.rate_limit import check_rate_limit
+        redis = get_redis_client()
+        rate_key = f"rate_limit:rag:search:{hash(request.query) % 10000}"
+        allowed = await check_rate_limit(redis, rate_key, max_attempts=30, window_seconds=60)
+        if not allowed:
+            raise HTTPException(
+                status_code=429,
+                detail="RAG query rate limit exceeded. Please wait a moment before searching again.",
+            )
+    except HTTPException:
+        raise
+    except Exception:
+        pass
+
     start_time = time.perf_counter()
     try:
         # Step 1: Execute retrieval

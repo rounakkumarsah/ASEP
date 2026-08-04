@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 from typing import Annotated
+from urllib.parse import urlparse
 
 import redis.asyncio as aioredis
 from fastapi import Depends
@@ -25,6 +26,17 @@ from fastapi import Depends
 from src.config.settings import get_settings
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_redis_host(url: str) -> str:
+    """Return '<host>:<port>' from a Redis URL, never exposing credentials."""
+    try:
+        parsed = urlparse(url)
+        host = parsed.hostname or "<unknown>"
+        port = parsed.port or 6379
+        return f"{host}:{port}"
+    except Exception:
+        return "<redis>"
 
 # Module-level singleton
 _redis_client: aioredis.Redis | None = None
@@ -39,7 +51,7 @@ def _get_client() -> aioredis.Redis:
             encoding="utf-8",
             decode_responses=True,
         )
-        logger.info("Redis client created", extra={"url": settings.REDIS_URL})
+        logger.info("Redis client created", extra={"host": _safe_redis_host(settings.REDIS_URL)})
     return _redis_client
 
 

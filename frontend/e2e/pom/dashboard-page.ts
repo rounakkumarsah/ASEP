@@ -10,7 +10,7 @@ export class DashboardPage {
     this.page = page;
     this.mobileMenuButton = page.getByRole('button', { name: 'Open sidebar' });
     this.themeToggle = page.getByRole('button', { name: 'Toggle theme' });
-    this.profileMenuButton = page.getByRole('button', { name: 'User profile / Logout' });
+    this.profileMenuButton = page.getByRole('button', { name: 'User profile' });
   }
 
   async clickSidebarLink(name: string) {
@@ -34,6 +34,7 @@ export class DashboardPage {
       await dialog.accept();
     });
     await this.profileMenuButton.click();
+    await this.page.getByRole('button', { name: 'Logout' }).click();
   }
 
   async toggleTheme() {

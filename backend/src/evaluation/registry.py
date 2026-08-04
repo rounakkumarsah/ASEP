@@ -59,6 +59,28 @@ def get_evaluation_registry() -> EvaluationRegistry:
     global _global_evaluation_registry
     if _global_evaluation_registry is None:
         _global_evaluation_registry = EvaluationRegistry()
-        from src.evaluation.datasets import SAMPLE_DATASET
-        _global_evaluation_registry.register(SAMPLE_DATASET)
+        from src.evaluation.datasets import EvaluationDataset, EvaluationCase
+        default_ds = EvaluationDataset(
+            name="golden_rag_suite",
+            version="1.1",
+            description="Golden evaluation suite asserting GraphRAG extraction precision and response relevance thresholds.",
+            dataset_type="golden",
+            cases=[
+                EvaluationCase(
+                    id="case_1",
+                    goal="Find all organizations in Mumbai that operate in fintech or digital payments.",
+                    tags=["fintech", "mumbai"],
+                    expected_min_tasks=2,
+                    expected_tool_names=["execute_graph_query", "search_embeddings"]
+                ),
+                EvaluationCase(
+                    id="case_2",
+                    goal="Synthesize financial projections for Q3 based on the uploaded corporate knowledge base.",
+                    tags=["financial", "synthesis"],
+                    expected_min_tasks=3,
+                    expected_tool_names=["retrieve_document_context"]
+                )
+            ]
+        )
+        _global_evaluation_registry.register(default_ds)
     return _global_evaluation_registry

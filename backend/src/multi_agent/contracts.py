@@ -13,6 +13,11 @@ class AgentRole(str, Enum):
     REFLECTOR = "reflector"
     EVALUATOR = "evaluator"
     GOVERNANCE = "governance"
+    CODING = "coding"
+    REVIEW = "review"
+    TESTING = "testing"
+    DEBUG = "debug"
+
 
 class AgentState(str, Enum):
     IDLE = "Idle"

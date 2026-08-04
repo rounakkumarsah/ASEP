@@ -11,7 +11,7 @@ export const controlPlaneService = {
         status: "success",
         data: {
           status: metrics.errors_total > 0 ? "degraded" : "operational",
-          uptime: metrics.system?.process_uptime || 1209600,
+          uptime: metrics.system?.process_uptime || 0,
           activeAgents: metrics.active_sessions || 0,
           activeSessions: metrics.active_sessions || 0,
           pendingApprovals: metrics.pending_tasks || 0,
@@ -28,12 +28,12 @@ export const controlPlaneService = {
         status: "success",
         data: {
           status: "operational",
-          uptime: 1209600, // 14 days
-          activeAgents: 12,
-          activeSessions: 3,
-          pendingApprovals: 5,
-          cpuUsage: 45,
-          memoryUsage: 68,
+          uptime: 0,
+          activeAgents: 0,
+          activeSessions: 0,
+          pendingApprovals: 0,
+          cpuUsage: 0,
+          memoryUsage: 0,
           lastUpdated: new Date().toISOString(),
         },
       };

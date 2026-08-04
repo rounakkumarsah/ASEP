@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, Search, Bell, User } from "lucide-react";
 
@@ -17,6 +18,7 @@ import { useAuth } from "@/lib/providers/auth-provider";
 
 export function DashboardHeader() {
   const [isOpen, setIsOpen] = React.useState(false);
+  const [isProfileOpen, setIsProfileOpen] = React.useState(false);
   const pathname = usePathname();
   const { logout } = useAuth();
 
@@ -88,20 +90,50 @@ export function DashboardHeader() {
 
           <ThemeToggle />
 
-          {/* Profile Menu Placeholder - Hooked up to logout for Phase 3C.2 */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full bg-secondary/50"
-            aria-label="User profile / Logout"
-            onClick={() => {
-              if (window.confirm("Are you sure you want to log out?")) {
-                logout();
-              }
-            }}
-          >
-            <User className="h-4 w-4 text-muted-foreground" />
-          </Button>
+          {/* Profile Menu */}
+          <div className="relative">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full bg-secondary/50"
+              aria-label="User profile"
+              onClick={() => setIsProfileOpen(!isProfileOpen)}
+            >
+              <User className="h-4 w-4 text-muted-foreground" />
+            </Button>
+
+            {isProfileOpen && (
+              <>
+                <div 
+                  className="fixed inset-0 z-40" 
+                  onClick={() => setIsProfileOpen(false)} 
+                />
+                <div className="absolute right-0 mt-2 w-48 rounded-md border border-border bg-popover text-popover-foreground shadow-md z-50 overflow-hidden flex flex-col py-1">
+                  <div className="px-4 py-2 border-b border-border/50 text-xs font-semibold uppercase text-muted-foreground">
+                    Account
+                  </div>
+                  <Link href="/settings" onClick={() => setIsProfileOpen(false)} className="px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer">
+                    Profile
+                  </Link>
+                  <Link href="/settings" onClick={() => setIsProfileOpen(false)} className="px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer">
+                    Settings
+                  </Link>
+                  <div className="border-t border-border/50 my-1" />
+                  <button
+                    className="px-4 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground cursor-pointer w-full"
+                    onClick={() => {
+                      setIsProfileOpen(false);
+                      if (window.confirm("Are you sure you want to log out?")) {
+                        logout();
+                      }
+                    }}
+                  >
+                    Logout
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </header>

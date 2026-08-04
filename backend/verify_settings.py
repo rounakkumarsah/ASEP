@@ -11,7 +11,18 @@ from src.config.settings import get_settings
 def verify():
     settings = get_settings()
     print(f"CWD: {os.getcwd()}")
-    print(f"Loaded DATABASE_URL: {settings.DATABASE_URL}")
+    url = settings.DATABASE_URL
+    if "@" in url:
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(url)
+            masked_netloc = f"{parsed.username}:*****@{parsed.hostname}"
+            if parsed.port:
+                masked_netloc += f":{parsed.port}"
+            url = parsed._replace(netloc=masked_netloc).geturl()
+        except Exception:
+            url = "[MASKED]"
+    print(f"Loaded DATABASE_URL: {url}")
 
 if __name__ == "__main__":
     verify()

@@ -63,9 +63,9 @@ export function LandingFooter() {
                   href: "https://github.com/rounakkumarsah/ASEP",
                   external: true,
                 },
-                { name: "API Documentation", href: "/documentation" },
-                { name: "Roadmap", href: "/platform" },
-                { name: "Changelog", href: "/platform" },
+                { name: "API Documentation", href: "/api-docs" },
+                { name: "Roadmap", href: "/roadmap" },
+                { name: "Changelog", href: "/changelog" },
               ].map((item) => (
                 <li key={item.name}>
                   <Link
@@ -91,8 +91,8 @@ export function LandingFooter() {
               {[
                 { name: "About", href: "/about" },
                 { name: "Contact", href: "/contact" },
-                { name: "Privacy Policy", href: "/about" },
-                { name: "Terms of Service", href: "/about" },
+                { name: "Privacy Policy", href: "/privacy" },
+                { name: "Terms of Service", href: "/terms" },
               ].map((item) => (
                 <li key={item.name}>
                   <Link

@@ -33,22 +33,6 @@ def upgrade() -> None:
     op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)
     op.create_index(op.f('ix_users_username'), 'users', ['username'], unique=True)
     
-    # Seed default admin user
-    import uuid
-    # Hash for 'admin123' using argon2
-    default_hash = "$argon2id$v=19$m=65536,t=3,p=4$q+n9D5y2O0f8e9F+w7v3$u1O/3b5P2j2v5N/Y5k+Q6Q"
-    op.bulk_insert(
-        users_table,
-        [
-            {
-                "id": uuid.uuid4(),
-                "username": "admin",
-                "email": "admin@example.com",
-                "hashed_password": default_hash,
-                "is_active": True,
-            }
-        ]
-    )
     # ### end Alembic commands ###
 
 

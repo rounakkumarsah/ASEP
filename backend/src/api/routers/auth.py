@@ -15,8 +15,10 @@ from src.auth.schemas import (
     SignupRequest,
     LoginRequest,
     VerifyEmailRequest,
+    ResendVerificationRequest,
     ForgotPasswordRequest,
     ResetPasswordRequest,
+    ProfileUpdateRequest,
 )
 from src.auth.turnstile import verify_turnstile_token
 from src.auth.rate_limit import check_rate_limit
@@ -159,7 +161,7 @@ async def login(
 
     client_ip = request.client.host if request.client else "unknown"
     user = await auth_service.authenticate_user(data.email, data.password)
-    
+
     if not user:
         await audit_service.log_event(
             actor_type=ActorType.SYSTEM,
@@ -175,6 +177,9 @@ async def login(
             detail="Invalid username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # Correct password resets the rate limit counter
+    await redis.delete(rate_limit_key)
 
     tokens = auth_service.create_login_tokens(user)
     _set_auth_cookies(response, tokens, settings.APP_ENV)
@@ -285,12 +290,14 @@ async def verify_email(
     audit_service: Annotated[AuditService, Depends(get_audit_service)],
     request: Request,
 ) -> dict[str, str]:
-    """Verify email verification activation code."""
+    """Verify email verification activation code or token."""
     redis = get_redis_client()
     client_ip = request.client.host if request.client else "unknown"
 
-    # Rate limiting: 5 verification attempts per email per 10 minutes
-    rate_limit_key = f"rate_limit:verify_email:{data.email}"
+    settings = get_settings()
+    # Rate limiting: 5 verification attempts per email/token per 10 minutes
+    rate_limit_target = data.email or data.token or "unknown"
+    rate_limit_key = f"rate_limit:verify_email:{rate_limit_target}"
     if settings.APP_ENV == "production":
         if not await check_rate_limit(redis, rate_limit_key, max_attempts=5, window_seconds=600):
             raise HTTPException(
@@ -298,11 +305,11 @@ async def verify_email(
                 detail="Too many verification attempts. Please try again later.",
             )
 
-    ok = await auth_service.verify_email_code(data.email, data.code)
+    ok = await auth_service.verify_email_code(email=data.email, code=data.code, token=data.token)
     if not ok:
         await audit_service.log_event(
             actor_type=ActorType.SYSTEM,
-            actor_id=data.email,
+            actor_id=rate_limit_target,
             action="user.email_verification_failed",
             resource_type="user",
             outcome=AuditOutcome.FAILURE,
@@ -311,12 +318,12 @@ async def verify_email(
         )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired verification code",
+            detail="Invalid or expired verification token or code",
         )
 
     await audit_service.log_event(
         actor_type=ActorType.SYSTEM,
-        actor_id=data.email,
+        actor_id=rate_limit_target,
         action="user.email_verified",
         resource_type="user",
         outcome=AuditOutcome.SUCCESS,
@@ -325,6 +332,53 @@ async def verify_email(
     )
 
     return {"detail": "Email verified successfully"}
+
+
+@router.post("/resend-verification")
+async def resend_verification(
+    data: ResendVerificationRequest,
+    auth_service: AuthServiceDep,
+    audit_service: Annotated[AuditService, Depends(get_audit_service)],
+    request: Request,
+) -> dict[str, str]:
+    """Resend email verification activation code."""
+    redis = get_redis_client()
+    client_ip = request.client.host if request.client else "unknown"
+
+    settings = get_settings()
+    # Rate limiting: 3 resend attempts per email per 10 minutes
+    rate_limit_key = f"rate_limit:resend_verification:{data.email}"
+    if settings.APP_ENV == "production":
+        if not await check_rate_limit(redis, rate_limit_key, max_attempts=3, window_seconds=600):
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many resend attempts. Please try again later.",
+            )
+
+    ok = await auth_service.resend_verification_code(data.email)
+    if not ok:
+        await audit_service.log_event(
+            actor_type=ActorType.SYSTEM,
+            actor_id=data.email,
+            action="user.resend_verification_failed",
+            resource_type="user",
+            outcome=AuditOutcome.FAILURE,
+            severity=AuditSeverity.WARNING,
+            ip_address=client_ip,
+        )
+        # Still return success response structure to prevent enumeration attacks
+        return {"detail": "Verification email has been resent if the account exists."}
+
+    await audit_service.log_event(
+        actor_type=ActorType.SYSTEM,
+        actor_id=data.email,
+        action="user.resend_verification_success",
+        resource_type="user",
+        outcome=AuditOutcome.SUCCESS,
+        severity=AuditSeverity.INFO,
+        ip_address=client_ip,
+    )
+    return {"detail": "Verification email has been resent."}
 
 
 @router.post("/forgot-password")
@@ -337,6 +391,7 @@ async def forgot_password(
     """Initiate password recovery flow."""
     redis = get_redis_client()
     client_ip = request.client.host if request.client else "unknown"
+    settings = get_settings()
 
     # Rate limiting: 3 recovery requests per email per hour
     rate_limit_key = f"rate_limit:forgot_password:{data.email}"
@@ -403,3 +458,149 @@ async def reset_password(
     )
 
     return {"detail": "Password has been updated successfully"}
+
+
+@router.put("/profile", response_model=UserResponse)
+async def update_profile(
+    data: ProfileUpdateRequest,
+    current_user: CurrentUser,
+    auth_service: AuthServiceDep,
+) -> UserResponse:
+    """Update authenticated user's profile."""
+    try:
+        updated = await auth_service.update_user(current_user.id, data)
+        return UserResponse.model_validate(updated)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e),
+        )
+
+
+@router.get("/oauth/github")
+async def github_oauth_initiate(request: Request) -> dict:
+    """Initiate GitHub OAuth flow - returns the authorization URL."""
+    from src.auth.oauth import build_github_auth_url
+    import uuid
+    redis = get_redis_client()
+    settings = get_settings()
+
+    if not settings.GITHUB_CLIENT_ID:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="GitHub OAuth is not configured on this server.",
+        )
+
+    # CSRF state - stored in Redis for 10 minutes
+    state = str(uuid.uuid4())
+    await redis.setex(f"oauth_state:{state}", 600, "github")
+
+    try:
+        url = build_github_auth_url(state)
+    except RuntimeError as e:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
+
+    return {"url": url}
+
+
+@router.get("/oauth/github/callback")
+async def github_oauth_callback(
+    request: Request,
+    response: Response,
+    auth_service: AuthServiceDep,
+    code: str = "",
+    state: str = "",
+    error: str = "",
+) -> None:
+    """Handle GitHub OAuth callback - validates state, exchanges code, issues JWT cookies."""
+    from fastapi.responses import RedirectResponse
+    from src.auth.oauth import exchange_github_code
+    redis = get_redis_client()
+    settings = get_settings()
+    frontend_callback = settings.FRONTEND_OAUTH_CALLBACK_URL
+
+    # Handle provider errors
+    if error:
+        logger.warning("GitHub OAuth error: %s", error)
+        return RedirectResponse(f"{frontend_callback}?error={error}&provider=github")
+
+    # Validate CSRF state
+    stored = await redis.get(f"oauth_state:{state}")
+    if not stored:
+        return RedirectResponse(f"{frontend_callback}?error=invalid_state&provider=github")
+    await redis.delete(f"oauth_state:{state}")
+
+    try:
+        profile = await exchange_github_code(code)
+        user = await auth_service.get_or_create_oauth_user(profile)
+    except Exception as exc:
+        logger.error("GitHub OAuth exchange failed: %s", str(exc))
+        return RedirectResponse(f"{frontend_callback}?error=oauth_failed&provider=github")
+
+    tokens = auth_service.create_login_tokens(user)
+    redirect = RedirectResponse(f"{frontend_callback}?success=true&provider=github")
+    _set_auth_cookies(redirect, tokens, settings.APP_ENV)
+    return redirect
+
+
+@router.get("/oauth/google")
+async def google_oauth_initiate(request: Request) -> dict:
+    """Initiate Google OAuth flow - returns the authorization URL."""
+    from src.auth.oauth import build_google_auth_url
+    import uuid
+    redis = get_redis_client()
+    settings = get_settings()
+
+    if not settings.GOOGLE_CLIENT_ID:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Google OAuth is not configured on this server.",
+        )
+
+    state = str(uuid.uuid4())
+    await redis.setex(f"oauth_state:{state}", 600, "google")
+
+    try:
+        url = build_google_auth_url(state)
+    except RuntimeError as e:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
+
+    return {"url": url}
+
+
+@router.get("/oauth/google/callback")
+async def google_oauth_callback(
+    request: Request,
+    response: Response,
+    auth_service: AuthServiceDep,
+    code: str = "",
+    state: str = "",
+    error: str = "",
+) -> None:
+    """Handle Google OAuth callback - validates state, exchanges code, issues JWT cookies."""
+    from fastapi.responses import RedirectResponse
+    from src.auth.oauth import exchange_google_code
+    redis = get_redis_client()
+    settings = get_settings()
+    frontend_callback = settings.FRONTEND_OAUTH_CALLBACK_URL
+
+    if error:
+        logger.warning("Google OAuth error: %s", error)
+        return RedirectResponse(f"{frontend_callback}?error={error}&provider=google")
+
+    stored = await redis.get(f"oauth_state:{state}")
+    if not stored:
+        return RedirectResponse(f"{frontend_callback}?error=invalid_state&provider=google")
+    await redis.delete(f"oauth_state:{state}")
+
+    try:
+        profile = await exchange_google_code(code)
+        user = await auth_service.get_or_create_oauth_user(profile)
+    except Exception as exc:
+        logger.error("Google OAuth exchange failed: %s", str(exc))
+        return RedirectResponse(f"{frontend_callback}?error=oauth_failed&provider=google")
+
+    tokens = auth_service.create_login_tokens(user)
+    redirect = RedirectResponse(f"{frontend_callback}?success=true&provider=google")
+    _set_auth_cookies(redirect, tokens, settings.APP_ENV)
+    return redirect

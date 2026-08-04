@@ -5,7 +5,6 @@ ASEP — Evaluation Package
 from src.evaluation.datasets import (
     EvaluationCase,
     EvaluationDataset,
-    SAMPLE_DATASET,
 )
 from src.evaluation.evaluator import (
     AgentRunner,
@@ -49,7 +48,7 @@ from src.evaluation.trajectory import (
 )
 
 __all__ = [
-    "EvaluationCase", "EvaluationDataset", "SAMPLE_DATASET",
+    "EvaluationCase", "EvaluationDataset",
     "AgentRunner", "EvaluationResult", "Evaluator",
     "evaluation_health_check",
     "LatencyMetrics", "MemoryMetrics", "MetricsCollector", "SessionMetrics", "TaskMetrics",

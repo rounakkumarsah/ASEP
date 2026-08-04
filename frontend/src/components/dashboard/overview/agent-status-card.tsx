@@ -14,12 +14,13 @@ export function AgentStatusCard({ activeCount }: { activeCount: number }) {
       <CardContent className="flex-1 flex flex-col justify-center">
         <div className="text-4xl font-bold tabular-nums">{activeCount}</div>
         <div className="mt-4 flex items-center text-xs text-muted-foreground gap-2">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
-          </span>
-          Routing across{" "}
-          <span className="font-semibold text-foreground">3</span> clusters
+          {activeCount > 0 && (
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+            </span>
+          )}
+          {activeCount > 0 ? "Routing across active agent clusters" : "No active agent routing sessions"}
         </div>
       </CardContent>
     </Card>

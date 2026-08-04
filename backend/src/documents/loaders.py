@@ -6,9 +6,6 @@ import os
 from abc import ABC, abstractmethod
 from typing import Any
 
-import fitz  # PyMuPDF
-import docx
-
 class BaseLoader(ABC):
     """Abstract base class for document loaders."""
 
@@ -24,12 +21,14 @@ class PDFLoader(BaseLoader):
     def load(self, file_path: str) -> str:
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"File not found: {file_path}")
-        
-        text_parts = []
+
+        import fitz  # PyMuPDF
+        text_content = []
         with fitz.open(file_path) as doc:
             for page in doc:
-                text_parts.append(page.get_text())
-        return "\n".join(text_parts)
+                text_content.append(page.get_text())
+
+        return "\n".join(text_content)
 
 
 class DOCXLoader(BaseLoader):
@@ -38,10 +37,10 @@ class DOCXLoader(BaseLoader):
     def load(self, file_path: str) -> str:
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"File not found: {file_path}")
-        
+
+        import docx
         doc = docx.Document(file_path)
-        text_parts = [p.text for p in doc.paragraphs]
-        return "\n".join(text_parts)
+        return "\n".join([paragraph.text for paragraph in doc.paragraphs])
 
 
 class TextLoader(BaseLoader):

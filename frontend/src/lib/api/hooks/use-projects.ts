@@ -13,10 +13,8 @@ export function useProjects() {
   return useQuery({
     queryKey: projectKeys.lists(),
     queryFn: async () => {
-      // For now we use the scaffolded getStatus method as a placeholder
-      // In reality, this would map to a getProjects API call.
-      const response = await projectsService.getStatus();
-      return response.data;
+      const response = await projectsService.getProjects();
+      return response.data || [];
     },
   });
 }

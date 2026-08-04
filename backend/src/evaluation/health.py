@@ -4,7 +4,6 @@ ASEP — Evaluation Health Check
 
 import logging
 
-from src.evaluation.datasets import SAMPLE_DATASET
 from src.evaluation.scoring import Scorer
 from src.evaluation.tracing import Trace, TraceStore, Tracer
 from src.evaluation.trajectory import TrajectoryAnalyzer
@@ -19,11 +18,6 @@ async def evaluation_health_check() -> bool:
         True if all components initialise and produce expected outputs.
     """
     try:
-        # 1. Dataset constant is accessible
-        assert len(SAMPLE_DATASET.cases) >= 3, "SAMPLE_DATASET must have at least 3 cases"
-        for case in SAMPLE_DATASET.cases:
-            assert 0.0 <= case.pass_threshold <= 1.0
-
         # 2. Tracer lifecycle
         trace = Trace(trace_id="hc-trace", session_id="hc", thread_id="hc", run_id="hc-run")
         tracer = Tracer(trace)

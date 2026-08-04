@@ -16,14 +16,8 @@ services:
     restart: unless-stopped
     env_file:
       - ./backend/.env
-    environment:
-      POSTGRES_HOST: postgres
-      REDIS_HOST: redis
-      QDRANT_HOST: qdrant
-      DATABASE_URL: postgresql+asyncpg://asep:changeme@postgres:5432/asep
-      REDIS_URL: redis://redis:6379/0
-      # Force production fail-fast checks
-      APP_ENV: production
+    command: >
+      sh -c "python -m alembic upgrade head && uvicorn src.main:app --host 0.0.0.0 --port 8000"
     ports:
       - "8000:8000"
     depends_on:
@@ -33,6 +27,11 @@ services:
         condition: service_healthy
       qdrant:
         condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
     networks:
       - asep-network
 
@@ -45,6 +44,8 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: http://localhost:8000
+        NEXT_PUBLIC_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
+        NEXT_PUBLIC_APP_ENV: development
     container_name: asep-frontend
     restart: unless-stopped
     env_file:
@@ -52,6 +53,8 @@ services:
     environment:
       # This is injected via args for build time, and at runtime
       NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
+      NEXT_PUBLIC_APP_ENV: development
       NODE_ENV: production
     ports:
       - "3000:3000"

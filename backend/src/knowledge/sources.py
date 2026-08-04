@@ -77,12 +77,4 @@ def get_source_registry() -> SourceRegistry:
     global _global_source_registry
     if _global_source_registry is None:
         _global_source_registry = SourceRegistry()
-        # Seed basic default source
-        _global_source_registry.register_source(KnowledgeSource(
-            source_id="default_docs",
-            name="ASEP Core Architecture Docs",
-            source_type="Documentation",
-            source_url="https://asep.internal/docs",
-            version="1.2.0"
-        ))
     return _global_source_registry

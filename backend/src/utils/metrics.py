@@ -34,6 +34,7 @@ class MetricsStore:
             "process_memory_rss_bytes": mem_info.rss,
             "process_memory_vms_bytes": mem_info.vms,
             "process_cpu_percent": process.cpu_percent(),
+            "process_uptime": time.time() - process.create_time(),
         }
 
 metrics_store = MetricsStore()

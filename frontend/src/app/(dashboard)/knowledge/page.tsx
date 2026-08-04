@@ -62,18 +62,27 @@ export default function KnowledgeExplorerPage() {
               </Button>
             </div>
           ) : documents.length === 0 ? (
-            <div className="h-full w-full flex flex-col items-center justify-center text-muted-foreground border border-dashed rounded-lg py-20">
-              <div className="bg-muted h-12 w-12 rounded-full flex items-center justify-center mb-4">
-                <Database className="h-6 w-6 text-muted-foreground" />
+            <div className="h-full w-full flex flex-col items-center justify-center text-muted-foreground border border-dashed rounded-lg py-20 bg-card/10">
+              <div className="bg-primary/10 h-12 w-12 rounded-full flex items-center justify-center mb-4 text-primary">
+                <Database className="h-6 w-6" />
               </div>
-              <h3 className="font-semibold text-foreground">
-                No documents found
+              <h3 className="font-bold text-foreground text-lg">
+                {searchQuery ? "No results found" : "Upload your first documents"}
               </h3>
-              <p className="text-sm mt-1 max-w-sm text-center">
+              <p className="text-sm mt-2 mb-6 max-w-sm text-center text-muted-foreground">
                 {searchQuery
-                  ? `No results match your search query.`
-                  : `The knowledge base is currently empty.`}
+                  ? `No results match your search query "${searchQuery}". Try adjusting your filters.`
+                  : `The universal knowledge base parses and indexes document files for multi-agent RAG memory pools. Upload your first source to start.`}
               </p>
+              {!searchQuery && (
+                <Button className="font-semibold" onClick={() => {
+                  const uploadBtn = document.querySelector('button:has-text("Upload Document")') as HTMLButtonElement;
+                  if (uploadBtn) uploadBtn.click();
+                  else alert("Click the 'Upload Document' button at the top-right to start.");
+                }}>
+                  Upload Document
+                </Button>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pb-10">

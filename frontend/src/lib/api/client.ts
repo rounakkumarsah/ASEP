@@ -42,8 +42,14 @@ apiClient.interceptors.response.use(
         return Promise.reject(new UnauthorizedError(message, data));
       case 403:
         return Promise.reject(new ForbiddenError(message, data));
+      case 429:
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("auth:rate_limit"));
+        }
+        return Promise.reject(new ApiError(429, message, data));
       case 404:
         return Promise.reject(new NotFoundError(message, data));
+
       case 422:
         return Promise.reject(new ValidationError(message, data));
       case 500:

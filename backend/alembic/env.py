@@ -35,14 +35,17 @@ target_metadata = Base.metadata
 def get_database_url() -> str:
     """Get database URL from environment settings.
     
-    For Alembic migrations, we convert asyncpg:// to psycopg:// for synchronous
-    operations. Alembic runs migrations synchronously.
+    For Alembic migrations, we convert asyncpg:// to pg8000:// for synchronous
+    operations. Alembic runs migrations synchronously to bypass AppLocker DLL blocks.
     """
     settings = get_settings()
-    # Convert asyncpg URL to psycopg URL for sync Alembic migrations
     url = settings.DATABASE_URL
     if "postgresql+asyncpg://" in url:
-        url = url.replace("postgresql+asyncpg://", "postgresql+psycopg://")
+        url = url.replace("postgresql+asyncpg://", "postgresql+pg8000://")
+    # Strip sslmode query parameter since pg8000 expects ssl_context parameter instead
+    if "sslmode=" in url:
+        import re
+        url = re.sub(r'[&?]sslmode=[^&]+', '', url)
     return url
 
 
@@ -118,10 +121,19 @@ def run_migrations_online() -> None:
         "sqlalchemy.poolclass": "sqlalchemy.pool.NullPool",
     }
     
+    import ssl
+    is_remote = "localhost" not in url and "127.0.0.1" not in url and "postgres" not in url
+    ssl_ctx = None
+    if is_remote:
+        ssl_ctx = ssl.create_default_context()
+        ssl_ctx.check_hostname = False
+        ssl_ctx.verify_mode = ssl.CERT_NONE
+
     connectable = engine_from_config(
         configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args={"ssl_context": ssl_ctx} if ("pg8000" in url and ssl_ctx is not None) else {}
     )
 
     with connectable.connect() as connection:

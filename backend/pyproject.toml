@@ -29,17 +29,6 @@ dependencies = [
     # Caching / messaging
     "redis[asyncio]>=5.2.0",
 
-    # Vector database
-    "qdrant-client[async]>=1.12.0",
-
-    # Graph database
-    "neo4j>=5.27.0",
-
-    # LangGraph / LangChain
-    "langgraph>=0.2.0",
-    "langchain-core>=0.3.0",
-    "langchain-ollama>=0.2.0",
-
     # Observability
     "structlog>=24.4.0",
     "python-json-logger>=3.2.0",
@@ -54,19 +43,10 @@ dependencies = [
     "PyJWT>=2.8.0",
     "passlib[argon2]>=1.7.4",
     "argon2-cffi>=23.1.0",
-    "redis[hiredis]>=5.2.0",
-    "neo4j>=5.14.0",
-    "qdrant-client>=1.7.0",
-    "PyMuPDF>=1.24.0",
-    "resend>=2.34.0",
-    "pg8000>=1.31.5",
-    "python-docx>=1.1.0",
-    "cloudinary>=1.36.0",
-    "sentry-sdk[fastapi]>=1.40.0",
-    "langgraph>=0.1.0",
-    "psutil",
+
     # Payments
     "razorpay>=2.0.1",
+    "sentry-sdk>=2.0.0",
 ]
 
 

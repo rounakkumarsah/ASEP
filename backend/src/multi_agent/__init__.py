@@ -16,6 +16,14 @@ from src.multi_agent.reflection_agent import ReflectionAgent
 from src.multi_agent.evaluator_agent import EvaluationAgent
 from src.multi_agent.governance_agent import GovernanceAgent
 
+from src.multi_agent.coding_agent import CodingAgent
+from src.multi_agent.review_agent import ReviewAgent
+from src.multi_agent.testing_agent import TestingAgent
+from src.multi_agent.debug_agent import DebugAgent
+from src.multi_agent.collaboration import SharedStateContext, ConsensusWorkflow
+from src.multi_agent.message_bus import AgentMessageBus, AgentMessage
+from src.multi_agent.hitl_engine import HITLEngine, HumanApprovalGate
+
 __all__ = [
     "AgentRole",
     "AgentState",
@@ -34,4 +42,15 @@ __all__ = [
     "ReflectionAgent",
     "EvaluationAgent",
     "GovernanceAgent",
+    "CodingAgent",
+    "ReviewAgent",
+    "TestingAgent",
+    "DebugAgent",
+    "SharedStateContext",
+    "ConsensusWorkflow",
+    "AgentMessageBus",
+    "AgentMessage",
+    "HITLEngine",
+    "HumanApprovalGate",
 ]
+

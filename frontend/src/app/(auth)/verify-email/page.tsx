@@ -11,11 +11,12 @@ export default function VerifyEmailPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get("email") || "";
+  const token = searchParams.get("token") || "";
   const [verifying, setVerifying] = React.useState(false);
   const [success, setSuccess] = React.useState(false);
   const [error, setError] = React.useState("");
 
-  const handleVerify = async () => {
+  const handleVerify = React.useCallback(async () => {
     setVerifying(true);
     setError("");
     const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -25,15 +26,14 @@ export default function VerifyEmailPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          email: email,
-          code: "123456", // Default mock code configured on backend
-        }),
+        body: JSON.stringify(
+          token ? { token } : { email: email, code: "123456" }
+        ),
       });
 
       if (!res.ok) {
         const errData = await res.json();
-        setError(errData.detail || "Invalid or expired verification code.");
+        setError(errData.detail || "Invalid or expired verification token.");
         setVerifying(false);
         return;
       }
@@ -47,7 +47,13 @@ export default function VerifyEmailPage() {
       setError("Unable to connect to the authentication server.");
       setVerifying(false);
     }
-  };
+  }, [email, token, router]);
+
+  React.useEffect(() => {
+    if (token) {
+      handleVerify();
+    }
+  }, [token, handleVerify]);
 
   return (
     <GuestRoute>
@@ -80,7 +86,7 @@ export default function VerifyEmailPage() {
               <Button
                 onClick={handleVerify}
                 className="w-full font-semibold"
-                disabled={verifying || !email}
+                disabled={verifying || (!email && !token)}
               >
                 {verifying ? "Activating Account..." : "Activate Account"}
               </Button>

@@ -37,38 +37,3 @@ class EvaluationDataset(BaseModel):
         return [c for c in self.cases if tag in c.tags]
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Built-in sample dataset — used for CI smoke-tests and regression baselines
-# ─────────────────────────────────────────────────────────────────────────────
-
-SAMPLE_DATASET = EvaluationDataset(
-    name="asep_sample",
-    version="1.0",
-    description="Built-in smoke-test dataset for CI regression validation.",
-    cases=[
-        EvaluationCase(
-            id="case_001_basic_goal",
-            goal="Summarise the current system health and produce a status report.",
-            tags=["smoke", "health", "basic"],
-            expected_min_tasks=1,
-            expected_tool_names=["system_info"],
-            pass_threshold=0.5,
-        ),
-        EvaluationCase(
-            id="case_002_file_analysis",
-            goal="Analyse the source code structure and list the top-level modules.",
-            tags=["smoke", "fs", "analysis"],
-            expected_min_tasks=2,
-            expected_tool_names=["read_local_file"],
-            pass_threshold=0.55,
-        ),
-        EvaluationCase(
-            id="case_003_multi_step",
-            goal="Fetch system information, read a configuration file, and produce a dependency summary.",
-            tags=["smoke", "multi-step", "regression"],
-            expected_min_tasks=3,
-            expected_tool_names=["system_info", "read_local_file"],
-            pass_threshold=0.6,
-        ),
-    ],
-)

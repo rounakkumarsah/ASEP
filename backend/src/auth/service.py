@@ -9,6 +9,7 @@ from typing import Optional
 from collections.abc import Callable
 import jwt
 
+from fastapi import HTTPException
 from src.auth.jwt import create_access_token, create_refresh_token, decode_token
 from src.auth.password import verify_password, get_password_hash
 from src.auth.schemas import RefreshTokenResponse, TokenPayload, SignupRequest
@@ -19,6 +20,16 @@ from src.services.email_service import EmailService
 from src.cache.redis import get_redis_client
 
 logger = logging.getLogger(__name__)
+
+
+def _write_debug(lines: list) -> None:
+    """Write AUTH_DEBUG lines to /tmp/auth_debug.txt for docker cp retrieval."""
+    try:
+        with open("/tmp/auth_debug.txt", "w") as f:
+            f.write("\n".join(lines) + "\n")
+    except Exception as e:
+        print(f"[AUTH_DEBUG] Failed to write debug file: {e}", flush=True)
+
 
 class AuthService:
     """Authentication, token lifecycle, and account management."""

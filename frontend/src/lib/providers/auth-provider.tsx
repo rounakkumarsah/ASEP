@@ -8,6 +8,11 @@ export type User = {
   username: string;
   email?: string;
   role: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  company?: string | null;
+  avatar_url?: string | null;
+  email_verified?: boolean;
 };
 
 export type AuthContextType = {

@@ -5,12 +5,14 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Hexagon, KeyRound } from "lucide-react";
+import { Hexagon, KeyRound, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { GuestRoute } from "@/components/auth/guest-route";
+import { Turnstile, TurnstileRef } from "@/components/auth/turnstile";
+import { env } from "@/lib/config/env";
 
 const forgotSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -21,13 +23,39 @@ type ForgotValues = z.infer<typeof forgotSchema>;
 export default function ForgotPasswordPage() {
   const [success, setSuccess] = React.useState(false);
   const [error, setError] = React.useState("");
+  const [captchaError, setCaptchaError] = React.useState("");
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const turnstileRef = React.useRef<TurnstileRef>(null);
+  const pendingValuesRef = React.useRef<ForgotValues | null>(null);
   const form = useForm<ForgotValues>({
     resolver: zodResolver(forgotSchema),
     defaultValues: { email: "" },
   });
 
   const onSubmit = async (values: ForgotValues) => {
+    if (isSubmitting) return;
     setError("");
+    setCaptchaError("");
+
+    pendingValuesRef.current = values;
+    setIsSubmitting(true);
+
+    if (!env.NEXT_PUBLIC_ENABLE_TURNSTILE) {
+      handleToken("mock-turnstile-token");
+      return;
+    }
+
+    turnstileRef.current?.execute();
+  };
+
+  const handleToken = React.useCallback(async (freshToken: string) => {
+    const values = pendingValuesRef.current;
+    if (!values) {
+      setIsSubmitting(false);
+      turnstileRef.current?.reset();
+      return;
+    }
+
     const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
     try {
       const res = await fetch(`${API_URL}/api/v1/auth/forgot-password`, {
@@ -37,20 +65,37 @@ export default function ForgotPasswordPage() {
         },
         body: JSON.stringify({
           email: values.email,
+          captchaToken: freshToken,
         }),
       });
 
       if (!res.ok) {
         const errorData = await res.json();
         setError(errorData.detail || "Unable to process password reset request.");
+        turnstileRef.current?.reset();
+        setIsSubmitting(false);
         return;
       }
 
       setSuccess(true);
+      pendingValuesRef.current = null;
     } catch {
       setError("Unable to connect to the authentication server.");
+      turnstileRef.current?.reset();
+      setIsSubmitting(false);
     }
-  };
+  }, []);
+
+  const handleTurnstileError = React.useCallback(() => {
+    setCaptchaError("Human verification failed. Please try again.");
+    turnstileRef.current?.reset();
+    setIsSubmitting(false);
+  }, []);
+
+  const handleTurnstileExpire = React.useCallback(() => {
+    setCaptchaError("Verification expired. Please click Send Reset Link again.");
+    setIsSubmitting(false);
+  }, []);
 
   return (
     <GuestRoute>
@@ -102,8 +147,25 @@ export default function ForgotPasswordPage() {
                       </FormItem>
                     )}
                   />
-                  <Button type="submit" className="w-full font-semibold">
-                    Send Reset Link
+                  {env.NEXT_PUBLIC_ENABLE_TURNSTILE && (
+                    <div className="space-y-1">
+                      <Turnstile
+                        ref={turnstileRef}
+                        onToken={handleToken}
+                        onExpire={handleTurnstileExpire}
+                        onError={handleTurnstileError}
+                      />
+                      {captchaError && (
+                        <p className="text-xs text-destructive">{captchaError}</p>
+                      )}
+                    </div>
+                  )}
+                  <Button type="submit" className="w-full font-semibold" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing…</>
+                    ) : (
+                      "Send Reset Link"
+                    )}
                   </Button>
                 </form>
               </Form>

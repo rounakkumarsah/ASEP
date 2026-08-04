@@ -38,6 +38,7 @@ from src.api.routers.knowledge_sync import router as knowledge_sync_router
 from src.api.routers.agent_runs import router as agent_runs_router
 from src.api.routers.tasks import router as tasks_router
 from src.api.routers.memory import router as memory_router
+from src.api.routers.monitoring import router as monitoring_router
 from src.api.routers.audit import router as audit_router
 from src.api.routers.auth import router as auth_router
 from src.api.routers.knowledge import router as knowledge_router
@@ -236,6 +237,7 @@ def create_app() -> FastAPI:
     app.include_router(diagnostics_router, tags=["Observability"])
 
     app.include_router(auth_router, prefix="/api/v1")
+    app.include_router(monitoring_router, prefix="/api/v1")
     app.include_router(agent_runs_router, prefix="/api/v1")
     app.include_router(tasks_router, prefix="/api/v1")
     app.include_router(memory_router, prefix="/api/v1")

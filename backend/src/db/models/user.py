@@ -8,13 +8,13 @@ operator interacting with the platform.
 from __future__ import annotations
 
 import uuid
-from typing import Any
 
 from sqlalchemy import (
     Boolean,
     String,
     Uuid,
     DateTime,
+    ForeignKey,
 )
 import datetime
 from sqlalchemy.orm import Mapped, mapped_column
@@ -85,10 +85,10 @@ class User(TimestampMixin, Base):
         doc="Unique email address.",
     )
 
-    hashed_password: Mapped[str] = mapped_column(
+    hashed_password: Mapped[str | None] = mapped_column(
         String(1024),
-        nullable=False,
-        doc="Argon2 hashed password string.",
+        nullable=True,
+        doc="Argon2 hashed password string. NULL for OAuth-only users.",
     )
 
     email_verified: Mapped[bool] = mapped_column(
@@ -129,6 +129,33 @@ class User(TimestampMixin, Base):
         default=True,
         nullable=False,
         doc="Flag indicating if the account is active.",
+    )
+
+    # -----------------------------------------------------------------------
+    # OAuth / Social Login
+    # -----------------------------------------------------------------------
+    oauth_provider: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+        doc="OAuth provider name ('github' or 'google'). NULL for email/password users.",
+    )
+
+    oauth_id: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        index=True,
+        doc="Provider-specific user ID for OAuth users. NULL for email/password users.",
+    )
+
+    # -----------------------------------------------------------------------
+    # Multi-tenancy
+    # -----------------------------------------------------------------------
+    org_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        doc="FK to the Organization this user belongs to. NULL until assigned.",
     )
 
     def __repr__(self) -> str:
