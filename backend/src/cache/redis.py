@@ -73,12 +73,12 @@ async def init_redis() -> None:
                 logger.info("Successfully connected to local container Redis.")
                 return
             except Exception as local_e:
-                logger.error("Failed to connect to local container Redis: %s", local_e)
+                logger.warning(
+                    "Redis is unavailable at startup. "
+                    "The application will start in degraded mode — rate-limiting, "
+                    "blacklisting, and session tokens will fail until Redis becomes reachable."
+                )
                 _redis_client = None
-                raise RuntimeError(
-                    f"Redis connection failed. Redis is mandatory for core security "
-                    f"(token blacklisting, verification, OAuth). Error: {local_e}"
-                ) from local_e
 
 
 async def close_redis() -> None:
