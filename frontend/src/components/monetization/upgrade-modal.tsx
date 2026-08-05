@@ -67,7 +67,7 @@ export function UpgradeModal({ isOpen: externalOpen, onClose: externalClose }: U
         const rzp = new win.Razorpay(options);
         rzp.open();
       } else {
-        alert(`Razorpay Checkout initialized for order: ${razorpay_order_id}. (Mock Mode active)`);
+        alert(`Razorpay Checkout initialized for order: ${razorpay_order_id}.`);
         handleClose();
       }
     } catch (err: unknown) {

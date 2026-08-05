@@ -13,7 +13,7 @@ export default function CopilotPage() {
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
 
-  const sampleTemplates = [
+  const quickTemplates = [
     {
       label: "TypeError",
       text: "TypeError: Cannot read properties of undefined (reading 'valid_key')\n    at Object.processData (main.js:42:15)\n    at Runner.execute (runner.js:108:8)",
@@ -87,7 +87,7 @@ export default function CopilotPage() {
               </label>
               <div className="flex items-center space-x-2">
                 <span className="text-[10px] text-zinc-500 font-medium">Quick Templates:</span>
-                {sampleTemplates.map((tmpl) => (
+                {quickTemplates.map((tmpl) => (
                   <button
                     key={tmpl.label}
                     type="button"

@@ -138,8 +138,11 @@ export default function PlaygroundPage() {
                     className="text-sm p-2 rounded border bg-background"
                   >
                     <option value="gemini-1.5-pro">Google Gemini 1.5 Pro</option>
+                    <option value="claude-3-5-sonnet">Anthropic Claude 3.5 Sonnet</option>
                     <option value="gpt-4o">OpenAI GPT-4o</option>
-                    <option value="qwen2.5-coder:7b">Ollama (qwen2.5-coder)</option>
+                    <option value="deepseek-r1">OpenRouter (DeepSeek R1)</option>
+                    <option value="llama-3.3-70b">Groq (Llama 3.3 70B)</option>
+                    <option value="command-r-plus">Cohere Command R+</option>
                   </select>
                 </div>
 

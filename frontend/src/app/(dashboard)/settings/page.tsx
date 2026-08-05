@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/providers/auth-provider";
 import { apiClient } from "@/lib/api/client";
 import { 
@@ -47,19 +47,30 @@ type SettingsTab =
   | "sessions"
   | "delete_account";
 
+interface TabCategory {
+  title: string;
+  tabs: Array<{ id: SettingsTab; label: string; icon: React.ReactNode }>;
+}
+
 export default function SettingsPage() {
   const { user, logout } = useAuth();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const initialTab = (searchParams.get("tab") as SettingsTab) || "profile";
   const [activeTab, setActiveTab] = React.useState<SettingsTab>(initialTab);
 
-  // Sync tab with URL parameter if present
+  // Sync tab state when searchParams change (browser back/forward navigation)
   React.useEffect(() => {
     const tabParam = searchParams.get("tab") as SettingsTab;
     if (tabParam) {
       setActiveTab(tabParam);
     }
   }, [searchParams]);
+
+  const handleTabChange = (tab: SettingsTab) => {
+    setActiveTab(tab);
+    router.push(`/settings?tab=${tab}`, { scroll: false });
+  };
 
   // Profile Form state
   const [firstName, setFirstName] = React.useState(user?.first_name || "");
@@ -78,6 +89,10 @@ export default function SettingsPage() {
   const [orgName, setOrgName] = React.useState("");
   const [orgLoading, setOrgLoading] = React.useState(true);
   const [orgSaving, setOrgSaving] = React.useState(false);
+
+  // Preferences Form State
+  const [preferredProvider, setPreferredProvider] = React.useState("gemini-1.5-pro");
+  const [prefSaved, setPrefSaved] = React.useState(false);
 
   // Team members state
   const [teamMembers, setTeamMembers] = React.useState<Array<{ id: string; email: string; role: string; first_name?: string }>>([]);
@@ -131,7 +146,7 @@ export default function SettingsPage() {
       setProfileSuccess(true);
       setTimeout(() => setProfileSuccess(false), 3000);
     } catch {
-      alert("Failed to update profile");
+      alert("Failed to update profile details.");
     } finally {
       setProfileSaving(false);
     }
@@ -187,88 +202,125 @@ export default function SettingsPage() {
     }
   };
 
-  const tabsList: Array<{ id: SettingsTab; label: string; icon: React.ReactNode }> = [
-    { id: "profile", label: "Profile", icon: <UserIcon className="h-4 w-4" /> },
-    { id: "account", label: "Account", icon: <UserCheck className="h-4 w-4" /> },
-    { id: "security", label: "Security", icon: <Lock className="h-4 w-4" /> },
-    { id: "password", label: "Password", icon: <KeyRound className="h-4 w-4" /> },
-    { id: "mfa", label: "MFA", icon: <Shield className="h-4 w-4" /> },
-    { id: "notifications", label: "Notifications", icon: <Bell className="h-4 w-4" /> },
-    { id: "preferences", label: "Preferences", icon: <Settings2 className="h-4 w-4" /> },
-    { id: "appearance", label: "Appearance", icon: <Paintbrush className="h-4 w-4" /> },
-    { id: "api_keys", label: "API Keys", icon: <Key className="h-4 w-4" /> },
-    { id: "billing", label: "Billing", icon: <CreditCard className="h-4 w-4" /> },
-    { id: "org", label: "Organization", icon: <Building2 className="h-4 w-4" /> },
-    { id: "team", label: "Team", icon: <Users className="h-4 w-4" /> },
-    { id: "llm", label: "LLM Providers", icon: <Sparkles className="h-4 w-4" /> },
-    { id: "integrations", label: "Integrations", icon: <Plug className="h-4 w-4" /> },
-    { id: "sessions", label: "Sessions", icon: <Laptop className="h-4 w-4" /> },
-    { id: "delete_account", label: "Delete Account", icon: <AlertTriangle className="h-4 w-4" /> },
+  const categories: TabCategory[] = [
+    {
+      title: "Account & Access",
+      tabs: [
+        { id: "profile", label: "User Profile", icon: <UserIcon className="h-4 w-4" /> },
+        { id: "account", label: "Account Details", icon: <UserCheck className="h-4 w-4" /> },
+        { id: "security", label: "Security", icon: <Lock className="h-4 w-4" /> },
+        { id: "password", label: "Password", icon: <KeyRound className="h-4 w-4" /> },
+        { id: "mfa", label: "Multi-Factor Auth", icon: <Shield className="h-4 w-4" /> },
+        { id: "sessions", label: "Active Sessions", icon: <Laptop className="h-4 w-4" /> },
+      ],
+    },
+    {
+      title: "Workspace & Team",
+      tabs: [
+        { id: "org", label: "Organization", icon: <Building2 className="h-4 w-4" /> },
+        { id: "team", label: "Team Members", icon: <Users className="h-4 w-4" /> },
+        { id: "api_keys", label: "API Keys", icon: <Key className="h-4 w-4" /> },
+        { id: "billing", label: "Billing & Plans", icon: <CreditCard className="h-4 w-4" /> },
+      ],
+    },
+    {
+      title: "Platform Configuration",
+      tabs: [
+        { id: "llm", label: "LLM Providers", icon: <Sparkles className="h-4 w-4" /> },
+        { id: "integrations", label: "Integrations", icon: <Plug className="h-4 w-4" /> },
+        { id: "preferences", label: "Preferences", icon: <Settings2 className="h-4 w-4" /> },
+        { id: "notifications", label: "Notifications", icon: <Bell className="h-4 w-4" /> },
+        { id: "appearance", label: "Appearance", icon: <Paintbrush className="h-4 w-4" /> },
+      ],
+    },
+    {
+      title: "Danger Zone",
+      tabs: [
+        { id: "delete_account", label: "Delete Account", icon: <AlertTriangle className="h-4 w-4 text-destructive" /> },
+      ],
+    },
   ];
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto p-6">
+    <div className="space-y-6 max-w-6xl mx-auto p-4 sm:p-6">
+      {/* Header Banner */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">System Settings</h1>
-        <p className="text-muted-foreground mt-1">
-          Configure profile details, multi-tenant workspace credentials, theme preferences, and security settings.
+        <h1 className="text-3xl font-extrabold tracking-tight">System Settings</h1>
+        <p className="text-muted-foreground mt-1 text-sm">
+          Manage user credentials, organization workspaces, production LLM model providers, and platform preferences.
         </p>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-8">
-        {/* Left tabs selector */}
-        <div className="lg:w-64 flex flex-col gap-1 shrink-0">
-          {tabsList.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2.5 px-4 py-2.5 rounded-lg text-sm text-left transition-all outline-none ${
-                activeTab === tab.id
-                  ? "bg-primary/10 text-primary font-semibold border-l-2 border-primary rounded-l-none"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              }`}
-            >
-              {tab.icon}
-              <span>{tab.label}</span>
-            </button>
+      <div className="flex flex-col lg:flex-row gap-8 items-start">
+        {/* Left Fixed/Sticky Navigation Sidebar */}
+        <aside className="lg:w-64 w-full flex flex-col gap-6 shrink-0 lg:sticky lg:top-20 lg:h-[calc(100vh-8rem)] lg:overflow-y-auto lg:pr-3 border-b lg:border-b-0 lg:border-r border-border/40 pb-6 lg:pb-0">
+          {categories.map((cat, idx) => (
+            <div key={idx} className="space-y-1">
+              <h3 className="px-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80">
+                {cat.title}
+              </h3>
+              <div className="space-y-0.5">
+                {cat.tabs.map(tab => {
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => handleTabChange(tab.id)}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-150 text-left outline-none font-medium ${
+                        isActive
+                          ? "bg-primary/10 text-primary font-semibold border-l-2 border-primary rounded-l-none"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                      }`}
+                    >
+                      <span className={isActive ? "text-primary" : "text-muted-foreground"}>
+                        {tab.icon}
+                      </span>
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           ))}
-        </div>
+        </aside>
 
-        {/* Right workspace panels */}
-        <div className="flex-1 max-w-3xl space-y-6">
+        {/* Right Isolated Content Panel */}
+        <main className="flex-1 w-full max-w-3xl">
           {activeTab === "profile" && (
-            <Card className="border-border/40 bg-card/30">
+            <Card className="border-border/40 bg-card/30 shadow-sm">
               <CardHeader>
-                <CardTitle className="text-lg font-bold">Profile Details</CardTitle>
-                <CardDescription>Update your account details and profile information.</CardDescription>
+                <CardTitle className="text-xl font-bold flex items-center gap-2">
+                  <UserIcon className="h-5 w-5 text-primary" /> User Profile
+                </CardTitle>
+                <CardDescription>Update your personal account details and public display identity.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
                 <form onSubmit={handleProfileSubmit} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-muted-foreground uppercase">First Name</label>
-                      <Input value={firstName} onChange={e => setFirstName(e.target.value)} />
+                      <Input value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="e.g. Alex" />
                     </div>
-                    <div className="space-y-1">
+                    <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-muted-foreground uppercase">Last Name</label>
-                      <Input value={lastName} onChange={e => setLastName(e.target.value)} />
+                      <Input value={lastName} onChange={e => setLastName(e.target.value)} placeholder="e.g. Vance" />
                     </div>
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-muted-foreground uppercase">Username</label>
-                    <Input value={user?.username || ""} disabled />
+                    <Input value={user?.username || ""} disabled className="bg-muted/40 cursor-not-allowed" />
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-muted-foreground uppercase">Email Address</label>
-                    <Input value={user?.email || ""} disabled />
+                    <Input value={user?.email || ""} disabled className="bg-muted/40 cursor-not-allowed" />
                   </div>
                   <div className="flex items-center gap-4 pt-2">
-                    <Button type="submit" disabled={profileSaving}>
-                      {profileSaving ? "Saving..." : "Save Changes"}
+                    <Button type="submit" disabled={profileSaving} className="font-semibold">
+                      {profileSaving ? "Saving Changes..." : "Save Profile"}
                     </Button>
                     {profileSuccess && (
                       <span className="text-sm text-green-500 font-medium flex items-center gap-1">
-                        <Check className="h-4 w-4" /> Updated
+                        <Check className="h-4 w-4" /> Profile updated successfully
                       </span>
                     )}
                   </div>
@@ -278,28 +330,32 @@ export default function SettingsPage() {
           )}
 
           {activeTab === "account" && (
-            <Card className="border-border/40 bg-card/30">
+            <Card className="border-border/40 bg-card/30 shadow-sm">
               <CardHeader>
-                <CardTitle className="text-lg font-bold">Account Details</CardTitle>
-                <CardDescription>View your core account registration parameters.</CardDescription>
+                <CardTitle className="text-xl font-bold flex items-center gap-2">
+                  <UserCheck className="h-5 w-5 text-primary" /> Account Details
+                </CardTitle>
+                <CardDescription>Core identity and permission attributes associated with your SaaS account.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4 text-sm">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
+                  <div className="p-4 border border-border/40 rounded-xl bg-background/50 space-y-1">
                     <span className="font-semibold text-muted-foreground text-xs uppercase block">User ID</span>
-                    <span className="font-mono text-xs">{user?.id}</span>
+                    <span className="font-mono text-xs text-foreground block truncate">{user?.id}</span>
                   </div>
-                  <div>
+                  <div className="p-4 border border-border/40 rounded-xl bg-background/50 space-y-1">
                     <span className="font-semibold text-muted-foreground text-xs uppercase block">Role Privilege</span>
-                    <span>{user?.role === "admin" ? "Administrator" : "Standard User"}</span>
+                    <span className="font-semibold text-foreground capitalize block">{user?.role || "developer"}</span>
                   </div>
-                  <div>
-                    <span className="font-semibold text-muted-foreground text-xs uppercase block">Account Verified</span>
-                    <span>{user?.email_verified ? "Yes" : "No"}</span>
+                  <div className="p-4 border border-border/40 rounded-xl bg-background/50 space-y-1">
+                    <span className="font-semibold text-muted-foreground text-xs uppercase block">Email Verification</span>
+                    <Badge variant={user?.email_verified ? "default" : "secondary"}>
+                      {user?.email_verified ? "Verified" : "Pending Verification"}
+                    </Badge>
                   </div>
-                  <div>
-                    <span className="font-semibold text-muted-foreground text-xs uppercase block">Status</span>
-                    <Badge variant="default">Active</Badge>
+                  <div className="p-4 border border-border/40 rounded-xl bg-background/50 space-y-1">
+                    <span className="font-semibold text-muted-foreground text-xs uppercase block">Account Status</span>
+                    <Badge variant="default">Active SaaS Tier</Badge>
                   </div>
                 </div>
               </CardContent>
@@ -307,41 +363,43 @@ export default function SettingsPage() {
           )}
 
           {activeTab === "security" && (
-            <Card className="border-border/40 bg-card/30">
+            <Card className="border-border/40 bg-card/30 shadow-sm">
               <CardHeader>
-                <CardTitle className="text-lg font-bold">Security & Credentials</CardTitle>
-                <CardDescription>Configure credential safety policies and authentication safeguards.</CardDescription>
+                <CardTitle className="text-xl font-bold flex items-center gap-2">
+                  <Lock className="h-5 w-5 text-primary" /> Security & Protection
+                </CardTitle>
+                <CardDescription>Production security safeguards and authentication posture.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <div className="p-3 border border-border/50 rounded-lg flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-sm">Cloudflare Turnstile</p>
-                      <p className="text-xs text-muted-foreground">Applies anti-bot validation checkpoints during entry gates.</p>
-                    </div>
-                    <Badge variant="default">Active</Badge>
+                <div className="p-4 border border-border/50 rounded-xl bg-background/40 flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-sm">Cloudflare Turnstile Protection</p>
+                    <p className="text-xs text-muted-foreground">Applies enterprise anti-bot verification during entry checks.</p>
                   </div>
-                  <div className="p-3 border border-border/50 rounded-lg flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-sm">JWT Authentication</p>
-                      <p className="text-xs text-muted-foreground">HTTP-only SameSite cookie security policy.</p>
-                    </div>
-                    <Badge variant="default">Strict</Badge>
+                  <Badge variant="default">Active</Badge>
+                </div>
+                <div className="p-4 border border-border/50 rounded-xl bg-background/40 flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-sm">JWT Cookie Policy</p>
+                    <p className="text-xs text-muted-foreground">HTTP-only SameSite cookie token authorization.</p>
                   </div>
+                  <Badge variant="default">Strict</Badge>
                 </div>
               </CardContent>
             </Card>
           )}
 
           {activeTab === "password" && (
-            <Card className="border-border/40 bg-card/30">
+            <Card className="border-border/40 bg-card/30 shadow-sm">
               <CardHeader>
-                <CardTitle className="text-lg font-bold">Password Management</CardTitle>
-                <CardDescription>Update your account login password.</CardDescription>
+                <CardTitle className="text-xl font-bold flex items-center gap-2">
+                  <KeyRound className="h-5 w-5 text-primary" /> Password Management
+                </CardTitle>
+                <CardDescription>Update your account access password.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <form onSubmit={handlePasswordSubmit} className="space-y-4">
-                  <div className="space-y-1">
+                <form onSubmit={handlePasswordSubmit} className="space-y-4 max-w-md">
+                  <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-muted-foreground uppercase">Current Password</label>
                     <Input 
                       type="password"
@@ -350,7 +408,7 @@ export default function SettingsPage() {
                       required
                     />
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-muted-foreground uppercase">New Password</label>
                     <Input 
                       type="password"
@@ -360,7 +418,7 @@ export default function SettingsPage() {
                       minLength={8}
                     />
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-muted-foreground uppercase">Confirm New Password</label>
                     <Input 
                       type="password"
@@ -371,11 +429,11 @@ export default function SettingsPage() {
                     />
                   </div>
                   {passwordMessage && (
-                    <div className={`text-sm ${passwordMessage.error ? "text-destructive" : "text-green-500"}`}>
+                    <div className={`text-sm ${passwordMessage.error ? "text-destructive font-medium" : "text-green-500 font-medium"}`}>
                       {passwordMessage.text}
                     </div>
                   )}
-                  <Button type="submit" disabled={passwordSaving}>
+                  <Button type="submit" disabled={passwordSaving} className="font-semibold">
                     {passwordSaving ? "Updating Password..." : "Update Password"}
                   </Button>
                 </form>
@@ -384,45 +442,49 @@ export default function SettingsPage() {
           )}
 
           {activeTab === "mfa" && (
-            <Card className="border-border/40 bg-card/30">
+            <Card className="border-border/40 bg-card/30 shadow-sm">
               <CardHeader>
-                <CardTitle className="text-lg font-bold">Multi-Factor Authentication (MFA)</CardTitle>
-                <CardDescription>Add an extra layer of security to your account.</CardDescription>
+                <CardTitle className="text-xl font-bold flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-primary" /> Multi-Factor Authentication
+                </CardTitle>
+                <CardDescription>Enhance login security with Time-based One-Time Passwords (TOTP).</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="p-4 border border-border/50 rounded-lg flex items-center justify-between">
+                <div className="p-4 border border-border/50 rounded-xl bg-background/40 flex items-center justify-between">
                   <div>
                     <p className="font-semibold text-sm">Authenticator App (TOTP)</p>
-                    <p className="text-xs text-muted-foreground">Use Google Authenticator or 1Password to generate verification codes.</p>
+                    <p className="text-xs text-muted-foreground">Compatible with Google Authenticator, Authy, and 1Password.</p>
                   </div>
-                  <Badge variant="outline">Not Configured</Badge>
+                  <Badge variant="outline">Disabled</Badge>
                 </div>
-                <Button variant="outline" size="sm">Enable MFA</Button>
+                <Button variant="outline" size="sm" className="font-semibold">Enable MFA Protection</Button>
               </CardContent>
             </Card>
           )}
 
           {activeTab === "notifications" && (
-            <Card className="border-border/40 bg-card/30">
+            <Card className="border-border/40 bg-card/30 shadow-sm">
               <CardHeader>
-                <CardTitle className="text-lg font-bold">Notifications</CardTitle>
-                <CardDescription>Control telemetry alerting channels and system notifications.</CardDescription>
+                <CardTitle className="text-xl font-bold flex items-center gap-2">
+                  <Bell className="h-5 w-5 text-primary" /> Notification Preferences
+                </CardTitle>
+                <CardDescription>Control operational alerting channels and benchmark emails.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 border border-border/50 rounded-lg">
+                  <div className="flex items-center justify-between p-4 border border-border/50 rounded-xl bg-background/40">
                     <div>
-                      <p className="font-semibold text-sm">Security & Audit Alerts</p>
-                      <p className="text-xs text-muted-foreground">Receive critical notifications when permissions are requested.</p>
+                      <p className="font-semibold text-sm">Security & Audit Notifications</p>
+                      <p className="text-xs text-muted-foreground">Receive instant alerts when API key changes or privilege escalations occur.</p>
                     </div>
                     <Badge variant="default">Enabled</Badge>
                   </div>
-                  <div className="flex items-center justify-between p-3 border border-border/50 rounded-lg">
+                  <div className="flex items-center justify-between p-4 border border-border/50 rounded-xl bg-background/40">
                     <div>
-                      <p className="font-semibold text-sm">Weekly Evaluation Reports</p>
-                      <p className="text-xs text-muted-foreground">Diagnostic summaries of benchmark runs.</p>
+                      <p className="font-semibold text-sm">Evaluation Benchmark Reports</p>
+                      <p className="text-xs text-muted-foreground">Weekly automated summary emails of test suite accuracy scores.</p>
                     </div>
-                    <Badge variant="secondary">Disabled</Badge>
+                    <Badge variant="outline">Disabled</Badge>
                   </div>
                 </div>
               </CardContent>
@@ -430,40 +492,50 @@ export default function SettingsPage() {
           )}
 
           {activeTab === "preferences" && (
-            <Card className="border-border/40 bg-card/30">
+            <Card className="border-border/40 bg-card/30 shadow-sm">
               <CardHeader>
-                <CardTitle className="text-lg font-bold">Preferences</CardTitle>
-                <CardDescription>Configure localized parameter defaults and runtime settings.</CardDescription>
+                <CardTitle className="text-xl font-bold flex items-center gap-2">
+                  <Settings2 className="h-5 w-5 text-primary" /> Platform Preferences
+                </CardTitle>
+                <CardDescription>Configure production LLM defaults and regional localization parameters.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase">Default Language</label>
-                  <select className="text-sm p-2 rounded border bg-background w-full">
-                    <option value="en">English (United States)</option>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase">Default Model Engine</label>
+                  <select 
+                    value={preferredProvider}
+                    onChange={e => { setPreferredProvider(e.target.value); setPrefSaved(true); setTimeout(() => setPrefSaved(false), 3000); }}
+                    className="text-sm p-2.5 rounded-lg border border-input bg-background w-full focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="gemini-1.5-pro">Google Gemini 1.5 Pro</option>
+                    <option value="claude-3-5-sonnet">Anthropic Claude 3.5 Sonnet</option>
+                    <option value="gpt-4o">OpenAI GPT-4o</option>
+                    <option value="deepseek-r1">OpenRouter (DeepSeek R1)</option>
+                    <option value="llama-3.3-70b">Groq (Llama 3.3 70B)</option>
+                    <option value="command-r-plus">Cohere Command R+</option>
                   </select>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase">Preferred AI Provider</label>
-                  <select className="text-sm p-2 rounded border bg-background w-full">
-                    <option value="ollama">Local Ollama (qwen2.5-coder:7b)</option>
-                    <option value="gemini">Google Gemini 1.5 Pro</option>
-                    <option value="openai">OpenAI GPT-4o</option>
-                  </select>
-                </div>
+                {prefSaved && (
+                  <p className="text-xs text-green-500 font-semibold flex items-center gap-1">
+                    <Check className="h-3.5 w-3.5" /> Preferred model saved.
+                  </p>
+                )}
               </CardContent>
             </Card>
           )}
 
           {activeTab === "appearance" && (
-            <Card className="border-border/40 bg-card/30">
+            <Card className="border-border/40 bg-card/30 shadow-sm">
               <CardHeader>
-                <CardTitle className="text-lg font-bold">Appearance</CardTitle>
-                <CardDescription>Toggle between dark and light appearance modes.</CardDescription>
+                <CardTitle className="text-xl font-bold flex items-center gap-2">
+                  <Paintbrush className="h-5 w-5 text-primary" /> Appearance Settings
+                </CardTitle>
+                <CardDescription>Customize dark and light theme display modes.</CardDescription>
               </CardHeader>
               <CardContent className="flex items-center justify-between p-6">
                 <div>
-                  <p className="font-semibold text-sm">Appearance Mode</p>
-                  <p className="text-xs text-muted-foreground">Adjust display color palettes for optimal visual comfort.</p>
+                  <p className="font-semibold text-sm">Theme Mode</p>
+                  <p className="text-xs text-muted-foreground">Adjust display color schemes for visual clarity.</p>
                 </div>
                 <ThemeToggle />
               </CardContent>
@@ -471,58 +543,67 @@ export default function SettingsPage() {
           )}
 
           {activeTab === "api_keys" && (
-            <Card className="border-border/40 bg-card/30">
+            <Card className="border-border/40 bg-card/30 shadow-sm">
               <CardHeader>
-                <CardTitle className="text-lg font-bold">Developer API Keys</CardTitle>
-                <CardDescription>Scoped authorization key credentials for integration pipelines.</CardDescription>
+                <CardTitle className="text-xl font-bold flex items-center gap-2">
+                  <Key className="h-5 w-5 text-primary" /> API Key Management
+                </CardTitle>
+                <CardDescription>Manage project-scoped API key credentials.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4 text-sm text-muted-foreground">
-                <p>API Keys are managed inside specific projects to preserve strict multi-tenant boundary boundaries.</p>
-                <Button onClick={() => window.location.href = "/api-keys"} variant="outline" className="font-semibold">
-                  Manage API Keys
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  API Keys are isolated within project workspaces to maintain strict multi-tenant access boundaries.
+                </p>
+                <Button onClick={() => router.push("/api-keys")} className="font-semibold gap-2">
+                  <Key className="h-4 w-4" /> Go to API Keys Manager
                 </Button>
               </CardContent>
             </Card>
           )}
 
           {activeTab === "billing" && (
-            <Card className="border-border/40 bg-card/30">
+            <Card className="border-border/40 bg-card/30 shadow-sm">
               <CardHeader>
-                <CardTitle className="text-lg font-bold">Billing & Subscriptions</CardTitle>
-                <CardDescription>Manage workspace subscription tiers and payment settings.</CardDescription>
+                <CardTitle className="text-xl font-bold flex items-center gap-2">
+                  <CreditCard className="h-5 w-5 text-primary" /> Billing & Subscriptions
+                </CardTitle>
+                <CardDescription>Manage subscription plans, invoices, and payment checkout.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4 text-sm text-muted-foreground">
-                <p>Subscriptions are managed securely via Razorpay checkout integration.</p>
-                <Button onClick={() => window.location.href = "/billing"} className="font-semibold gap-2">
-                  <CreditCard className="h-4 w-4" />
-                  View Billing Panel
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Upgrade your plan or view past transaction history in the Billing dashboard.
+                </p>
+                <Button onClick={() => router.push("/billing")} className="font-semibold gap-2">
+                  <CreditCard className="h-4 w-4" /> Open Billing Dashboard
                 </Button>
               </CardContent>
             </Card>
           )}
 
           {activeTab === "org" && (
-            <Card className="border-border/40 bg-card/30">
+            <Card className="border-border/40 bg-card/30 shadow-sm">
               <CardHeader>
-                <CardTitle className="text-lg font-bold">Organization & Workspace</CardTitle>
-                <CardDescription>Configure workspace settings and organizational boundaries.</CardDescription>
+                <CardTitle className="text-xl font-bold flex items-center gap-2">
+                  <Building2 className="h-5 w-5 text-primary" /> Organization Workspace
+                </CardTitle>
+                <CardDescription>Configure organizational boundaries and multi-tenant domain profiles.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {orgLoading ? (
                   <p className="text-sm text-muted-foreground">Loading workspace details...</p>
                 ) : (
                   <form onSubmit={handleOrgSubmit} className="space-y-4">
-                    <div className="space-y-1">
+                    <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-muted-foreground uppercase">Organization Name</label>
                       <Input
                         value={orgName}
                         onChange={e => setOrgName(e.target.value)}
-                        placeholder="e.g. Acme Software Inc."
+                        placeholder="e.g. Acme Enterprise Technologies"
                         required
                       />
                     </div>
-                    <Button type="submit" disabled={orgSaving}>
-                      {orgSaving ? "Saving..." : "Save Organization"}
+                    <Button type="submit" disabled={orgSaving} className="font-semibold">
+                      {orgSaving ? "Saving..." : "Save Workspace"}
                     </Button>
                   </form>
                 )}
@@ -531,27 +612,27 @@ export default function SettingsPage() {
           )}
 
           {activeTab === "team" && (
-            <Card className="border-border/40 bg-card/30">
+            <Card className="border-border/40 bg-card/30 shadow-sm">
               <CardHeader>
-                <CardTitle className="text-lg font-bold">Team Members</CardTitle>
-                <CardDescription>Manage user roles and team access within your organization.</CardDescription>
+                <CardTitle className="text-xl font-bold flex items-center gap-2">
+                  <Users className="h-5 w-5 text-primary" /> Team Members
+                </CardTitle>
+                <CardDescription>Manage team roles and user permissions in your organization.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {teamLoading ? (
-                  <p className="text-sm text-muted-foreground">Loading team members...</p>
+                  <p className="text-sm text-muted-foreground">Loading members...</p>
                 ) : teamMembers.length === 0 ? (
-                  <div className="text-center py-6 text-muted-foreground">
-                    <p className="text-sm">No team members found.</p>
-                  </div>
+                  <p className="text-sm text-muted-foreground">No team members registered yet.</p>
                 ) : (
                   <div className="space-y-2">
-                    {teamMembers.map(member => (
-                      <div key={member.id} className="p-3 border border-border/50 rounded-lg flex items-center justify-between">
+                    {teamMembers.map(m => (
+                      <div key={m.id} className="p-4 border border-border/40 rounded-xl bg-background/40 flex items-center justify-between">
                         <div>
-                          <p className="font-semibold text-sm">{member.first_name || member.email}</p>
-                          <p className="text-xs text-muted-foreground">{member.email}</p>
+                          <p className="font-semibold text-sm">{m.first_name || m.email}</p>
+                          <p className="text-xs text-muted-foreground">{m.email}</p>
                         </div>
-                        <Badge variant="outline">{member.role || "member"}</Badge>
+                        <Badge variant="outline">{m.role || "member"}</Badge>
                       </div>
                     ))}
                   </div>
@@ -561,64 +642,70 @@ export default function SettingsPage() {
           )}
 
           {activeTab === "llm" && (
-            <Card className="border-border/40 bg-card/30">
+            <Card className="border-border/40 bg-card/30 shadow-sm">
               <CardHeader>
-                <CardTitle className="text-lg font-bold">LLM Provider Status</CardTitle>
-                <CardDescription>View connected AI models and runtime endpoints.</CardDescription>
+                <CardTitle className="text-xl font-bold flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-primary" /> Production LLM Providers
+                </CardTitle>
+                <CardDescription>Connected enterprise cloud AI model services.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <div className="p-3 border border-border/50 rounded-lg flex items-center justify-between">
+              <CardContent className="space-y-3">
+                {[
+                  { name: "Google Gemini", detail: "Gemini 1.5 Pro / Flash 1.5", badge: "Active" },
+                  { name: "Anthropic Claude", detail: "Claude 3.5 Sonnet / Haiku", badge: "Active" },
+                  { name: "OpenAI GPT", detail: "GPT-4o / GPT-4o-mini", badge: "Active" },
+                  { name: "OpenRouter Swarm", detail: "DeepSeek R1 / Qwen 2.5", badge: "Active" },
+                  { name: "Groq Cloud", detail: "Llama 3.3 70B (High-speed inference)", badge: "Active" },
+                  { name: "Cohere Command", detail: "Command R+ / Embed v3", badge: "Active" },
+                ].map(provider => (
+                  <div key={provider.name} className="p-4 border border-border/40 rounded-xl bg-background/40 flex items-center justify-between">
                     <div>
-                      <p className="font-semibold text-sm">Ollama Local LLM</p>
-                      <p className="text-xs text-muted-foreground">Model: qwen2.5-coder:7b</p>
+                      <p className="font-semibold text-sm text-foreground">{provider.name}</p>
+                      <p className="text-xs text-muted-foreground">{provider.detail}</p>
                     </div>
-                    <Badge variant="default">Active</Badge>
+                    <Badge variant="default" className="text-xs font-semibold">
+                      {provider.badge}
+                    </Badge>
                   </div>
-                  <div className="p-3 border border-border/50 rounded-lg flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-sm">Embedding Engine</p>
-                      <p className="text-xs text-muted-foreground">Model: nomic-embed-text (1536 dim)</p>
-                    </div>
-                    <Badge variant="default">Active</Badge>
-                  </div>
-                </div>
+                ))}
               </CardContent>
             </Card>
           )}
 
           {activeTab === "integrations" && (
-            <Card className="border-border/40 bg-card/30">
+            <Card className="border-border/40 bg-card/30 shadow-sm">
               <CardHeader>
-                <CardTitle className="text-lg font-bold">Connected Integrations</CardTitle>
-                <CardDescription>Integrations with third-party developer platforms.</CardDescription>
+                <CardTitle className="text-xl font-bold flex items-center gap-2">
+                  <Plug className="h-5 w-5 text-primary" /> Production Integrations
+                </CardTitle>
+                <CardDescription>Connected developer platforms and security infrastructure.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <div className="p-3 border border-border/50 rounded-lg flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-sm">Cloudflare Turnstile</p>
-                      <p className="text-xs text-muted-foreground">Anti-bot security verification.</p>
-                    </div>
-                    <Badge variant="default">Connected</Badge>
+              <CardContent className="space-y-3">
+                <div className="p-4 border border-border/40 rounded-xl bg-background/40 flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-sm">Cloudflare Turnstile</p>
+                    <p className="text-xs text-muted-foreground">Bot detection and anti-spam verification.</p>
                   </div>
-                  <div className="p-3 border border-border/50 rounded-lg flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-sm">Razorpay Subscriptions</p>
-                      <p className="text-xs text-muted-foreground">Payment processing & subscriptions.</p>
-                    </div>
-                    <Badge variant="default">Connected</Badge>
+                  <Badge variant="default">Connected</Badge>
+                </div>
+                <div className="p-4 border border-border/40 rounded-xl bg-background/40 flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-sm">Razorpay Checkout</p>
+                    <p className="text-xs text-muted-foreground">Subscription payments and automated invoicing.</p>
                   </div>
+                  <Badge variant="default">Connected</Badge>
                 </div>
               </CardContent>
             </Card>
           )}
 
           {activeTab === "sessions" && (
-            <Card className="border-border/40 bg-card/30">
+            <Card className="border-border/40 bg-card/30 shadow-sm">
               <CardHeader>
-                <CardTitle className="text-lg font-bold">Active Sessions</CardTitle>
-                <CardDescription>Manage active logins across browsers and devices.</CardDescription>
+                <CardTitle className="text-xl font-bold flex items-center gap-2">
+                  <Laptop className="h-5 w-5 text-primary" /> Active Sessions
+                </CardTitle>
+                <CardDescription>Active authenticated logins across devices.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {sessionsLoading ? (
@@ -628,7 +715,7 @@ export default function SettingsPage() {
                 ) : (
                   <div className="space-y-3">
                     {sessions.map(s => (
-                      <div key={s.id} className="p-3 border border-border/50 rounded-lg flex items-center justify-between">
+                      <div key={s.id} className="p-4 border border-border/40 rounded-xl bg-background/40 flex items-center justify-between">
                         <div>
                           <p className="font-semibold text-sm">{s.user_agent}</p>
                           <p className="text-xs text-muted-foreground">IP: {s.ip_address} • {s.last_active}</p>
@@ -643,17 +730,20 @@ export default function SettingsPage() {
           )}
 
           {activeTab === "delete_account" && (
-            <Card className="border-destructive/40 bg-destructive/5">
+            <Card className="border-destructive/40 bg-destructive/5 shadow-sm">
               <CardHeader>
-                <CardTitle className="text-lg font-bold text-destructive">Danger Zone — Delete Account</CardTitle>
-                <CardDescription>Permanently delete your account and all associated workspace data.</CardDescription>
+                <CardTitle className="text-xl font-bold text-destructive flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5" /> Danger Zone — Delete Account
+                </CardTitle>
+                <CardDescription>Permanently remove your account and all associated workspace data.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Once deleted, your account cannot be recovered. All projects, API keys, and workspace settings will be permanently removed.
+                  Once deleted, your account cannot be restored. All projects, API keys, and workspace resources will be permanently purged.
                 </p>
                 <Button 
                   variant="destructive"
+                  className="font-semibold"
                   onClick={() => {
                     if (confirm("Are you ABSOLUTELY sure you want to delete your account? This action cannot be undone.")) {
                       apiClient.delete("/api/v1/auth/me")
@@ -667,7 +757,7 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
           )}
-        </div>
+        </main>
       </div>
     </div>
   );

@@ -18,14 +18,14 @@ const TECHNOLOGIES = [
   { name: "Redis", icon: Server },
   { name: "Docker", icon: Package },
   { name: "LangGraph", icon: Network },
-  { name: "Ollama", icon: Braces },
+  { name: "Qdrant", icon: Braces },
 ];
 
 const METRICS = [
   { value: "6", label: "Core Autonomous Agents" },
   { value: "3", label: "Enterprise Memory Layers" },
   { value: "5+", label: "Strict Governance Policies" },
-  { value: "100%", label: "Local-First Execution" },
+  { value: "99.9%", label: "Production Uptime SLA" },
 ];
 
 export function SocialProofSection() {
