@@ -81,6 +81,18 @@ class ReadinessResponse(BaseModel):
     summary="Liveness probe",
     description="Returns 200 if the service process is alive.",
 )
+@router.get(
+    "/api/health",
+    response_model=HealthResponse,
+    status_code=status.HTTP_200_OK,
+    include_in_schema=False,
+)
+@router.get(
+    "/",
+    response_model=HealthResponse,
+    status_code=status.HTTP_200_OK,
+    include_in_schema=False,
+)
 async def health_check() -> HealthResponse:
     """
     Liveness probe — always returns 200 while the process is running.
