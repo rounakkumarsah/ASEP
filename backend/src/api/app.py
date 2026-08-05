@@ -241,6 +241,7 @@ def create_app() -> FastAPI:
     # Routers
     # -----------------------------------------------------------------------
     app.include_router(health_router, tags=["Observability"])
+    app.include_router(health_router, prefix="/api", tags=["Observability"])
     app.include_router(health_router, prefix="/v1", tags=["Observability"])
     app.include_router(health_router, prefix="/api/v1", tags=["Observability"])
     app.include_router(metrics_router, tags=["Observability"])
