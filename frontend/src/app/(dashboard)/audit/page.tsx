@@ -172,7 +172,7 @@ export default function AuditPage() {
       {filteredLogs.length === 0 ? (
         <Card className="border border-dashed p-10 text-center flex flex-col items-center justify-center text-muted-foreground">
           <ShieldCheck className="h-10 w-10 text-emerald-500 mb-2" />
-          <CardTitle className="text-base font-bold text-foreground">No audit records</CardTitle>
+          <CardTitle className="text-base font-bold text-foreground">No audit events recorded</CardTitle>
           <CardDescription className="max-w-xs mt-1">
             No critical audit log trails or failure telemetry are registered in the tracking logs system.
           </CardDescription>

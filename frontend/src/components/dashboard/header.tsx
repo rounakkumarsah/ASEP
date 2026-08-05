@@ -112,10 +112,10 @@ export function DashboardHeader() {
                   <div className="px-4 py-2 border-b border-border/50 text-xs font-semibold uppercase text-muted-foreground">
                     Account
                   </div>
-                  <Link href="/settings" onClick={() => setIsProfileOpen(false)} className="px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer">
+                  <Link href="/settings?tab=profile" onClick={() => setIsProfileOpen(false)} className="px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer">
                     Profile
                   </Link>
-                  <Link href="/settings" onClick={() => setIsProfileOpen(false)} className="px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer">
+                  <Link href="/settings?tab=account" onClick={() => setIsProfileOpen(false)} className="px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer">
                     Settings
                   </Link>
                   <div className="border-t border-border/50 my-1" />

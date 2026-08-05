@@ -8,241 +8,210 @@ import {
   Plus, 
   Search, 
   Trash2, 
-  Play, 
-  AlertTriangle,
-  Clock,
-  CheckCircle2
+  FolderPlus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { motion, AnimatePresence } from "framer-motion";
+import { Badge } from "@/components/ui/badge";
 
-interface AgentRun {
+interface Project {
   id: string;
-  goal: string;
-  plan: string[];
-  status: string;
-  created_at: string;
-  updated_at: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  is_active: boolean;
 }
 
 export default function ProjectsPage() {
-  const [runs, setRuns] = React.useState<AgentRun[]>([]);
+  const [projects, setProjects] = React.useState<Project[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
   const [search, setSearch] = React.useState("");
   
   // Create project fields
   const [showCreate, setShowCreate] = React.useState(false);
-  const [newGoal, setNewGoal] = React.useState("");
-  const [newPlan, setNewPlan] = React.useState("");
+  const [newName, setNewName] = React.useState("");
+  const [newDesc, setNewDesc] = React.useState("");
   const [creating, setCreating] = React.useState(false);
 
-  const fetchRuns = async () => {
+  const fetchProjects = async () => {
     setLoading(true);
     setError("");
     try {
-      const res = await apiClient.get("/api/v1/agent-runs/");
-      // The API returns PaginatedResponse[AgentRunResponse]
-      const items = res.data.items || [];
-      setRuns(items);
+      const res = await apiClient.get("/api/v1/projects");
+      setProjects(res.data || []);
     } catch (err: unknown) {
-      setError((err as Error).message || "Failed to load agent runs from server.");
+      setError((err as Error).message || "Failed to load projects from server.");
     } finally {
       setLoading(false);
     }
   };
 
   React.useEffect(() => {
-    fetchRuns();
+    fetchProjects();
   }, []);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newGoal) return;
+    if (!newName) return;
     setCreating(true);
     setError("");
     try {
-      const planArray = newPlan ? newPlan.split("\n").filter(line => line.trim()) : ["Initialize workspace", "Scan code architecture", "Produce solution plan"];
-      const res = await apiClient.post("/api/v1/agent-runs/", {
-        goal: newGoal,
-        plan: planArray
+      const res = await apiClient.post("/api/v1/projects", {
+        name: newName,
+        description: newDesc || undefined,
       });
-      setRuns(prev => [res.data, ...prev]);
-      setNewGoal("");
-      setNewPlan("");
+      setProjects(prev => [res.data, ...prev]);
+      setNewName("");
+      setNewDesc("");
       setShowCreate(false);
     } catch (err: unknown) {
-      setError((err as Error).message || "Failed to create agent run.");
+      const detail = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail;
+      setError(detail || (err as Error).message || "Failed to create project.");
     } finally {
       setCreating(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this agent run?")) return;
+    if (!confirm("Are you sure you want to delete this project?")) return;
     try {
-      // Delete client side & hit API if route exists
-      setRuns(prev => prev.filter(r => r.id !== id));
-      // Try calling endpoint
-      await apiClient.delete(`/api/v1/agent-runs/${id}`).catch(() => {});
+      await apiClient.delete(`/api/v1/projects/${id}`);
+      setProjects(prev => prev.filter(p => p.id !== id));
     } catch (err: unknown) {
-      setError((err as Error).message || "Failed to delete agent run.");
+      setError((err as Error).message || "Failed to delete project.");
     }
   };
 
-  const filteredRuns = runs.filter(run => 
-    run.goal.toLowerCase().includes(search.toLowerCase()) ||
-    run.id.toLowerCase().includes(search.toLowerCase())
+  const filteredProjects = projects.filter(p => 
+    p.name.toLowerCase().includes(search.toLowerCase()) ||
+    (p.description && p.description.toLowerCase().includes(search.toLowerCase()))
   );
 
   if (loading) {
     return (
-      <div className="h-[400px] w-full flex flex-col items-center justify-center text-muted-foreground">
+      <div className="h-full w-full flex flex-col items-center justify-center text-muted-foreground py-24">
         <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-        <p>Loading projects & agent sessions...</p>
+        <p>Loading projects...</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 flex flex-col min-h-full pb-10">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Active Workspaces & Projects</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Projects</h1>
           <p className="text-muted-foreground mt-1">
-            Create and manage autonomous software engineering tasks under organization context.
+            Manage your autonomous software engineering workspaces.
           </p>
         </div>
-        <Button onClick={() => setShowCreate(!showCreate)} className="font-semibold gap-2">
+        <Button onClick={() => setShowCreate(!showCreate)} className="gap-2">
           <Plus className="h-4 w-4" />
-          <span>New Workspace Goal</span>
+          Create Project
         </Button>
       </div>
 
       {error && (
-        <div className="p-4 border border-destructive/20 bg-destructive/10 text-destructive text-sm rounded-lg flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4" />
-          <span>{error}</span>
+        <div className="p-4 border border-destructive/30 bg-destructive/10 text-destructive text-sm rounded-lg">
+          {error}
         </div>
       )}
 
-      {/* Slide down creation block */}
-      <AnimatePresence>
-        {showCreate && (
-          <motion.form
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            onSubmit={handleCreate}
-            className="overflow-hidden border border-border/60 bg-card/40 backdrop-blur-sm p-6 rounded-xl space-y-4"
-          >
-            <h3 className="text-lg font-bold">Launch Agentic Workspace</h3>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground uppercase">Goal Description</label>
-              <Input
-                value={newGoal}
-                onChange={e => setNewGoal(e.target.value)}
-                placeholder="e.g. Write a python script to pull weather telemetry and save to local Postgres pool."
-                required
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground uppercase">Solution Plan Instructions (One step per line)</label>
-              <textarea
-                value={newPlan}
-                onChange={e => setNewPlan(e.target.value)}
-                placeholder="e.g.&#10;Initialize databases&#10;Configure endpoint handlers&#10;Verify unit tests"
-                className="w-full text-sm p-3 rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary min-h-[100px]"
-              />
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
-              <Button type="submit" disabled={creating} className="gap-2 font-semibold">
-                {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-                <span>Start Agent Run</span>
-              </Button>
-            </div>
-          </motion.form>
-        )}
-      </AnimatePresence>
-
-      {/* Main filter container */}
-      <div className="flex items-center gap-2 max-w-md">
-        <Search className="h-4 w-4 text-muted-foreground ml-2 absolute" />
-        <Input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search workspace goals..."
-          className="pl-9"
-        />
-      </div>
-
-      {filteredRuns.length === 0 ? (
-        <Card className="border border-dashed p-12 text-center flex flex-col items-center justify-center">
-          <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-4">
-            <Folder className="h-6 w-6" />
-          </div>
-          <CardTitle className="text-xl font-bold">No Active Agent Workspaces</CardTitle>
-          <CardDescription className="max-w-md mt-2 mb-6">
-            There are no ongoing agent runs assigned to your organization yet. Define a workspace goal to deploy an agent.
-          </CardDescription>
-          <Button onClick={() => setShowCreate(true)} className="font-semibold">
-            Define First Goal
-          </Button>
+      {showCreate && (
+        <Card className="border-primary/30 bg-card/40">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">New Workspace Project</CardTitle>
+            <CardDescription>Enter project details to scope multi-tenant API keys and AI agent runs.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleCreate} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold uppercase text-muted-foreground">Project Name</label>
+                <Input 
+                  placeholder="e.g. Next.js SaaS Microservice" 
+                  value={newName} 
+                  onChange={e => setNewName(e.target.value)} 
+                  required
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold uppercase text-muted-foreground">Description (Optional)</label>
+                <Input 
+                  placeholder="e.g. Autonomous refactoring & test generation pipeline" 
+                  value={newDesc} 
+                  onChange={e => setNewDesc(e.target.value)} 
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="ghost" onClick={() => setShowCreate(false)}>Cancel</Button>
+                <Button type="submit" disabled={creating}>
+                  {creating ? "Creating..." : "Initialize Project"}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
         </Card>
+      )}
+
+      {projects.length > 0 && (
+        <div className="flex items-center gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Search projects..." 
+              value={search} 
+              onChange={e => setSearch(e.target.value)}
+              className="pl-9 bg-card/30"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Projects Grid or Empty State */}
+      {filteredProjects.length === 0 ? (
+        <div className="border border-dashed border-border/60 bg-card/20 rounded-xl p-12 text-center flex flex-col items-center justify-center space-y-4 my-8">
+          <div className="p-4 rounded-full bg-primary/10 text-primary">
+            <FolderPlus className="h-10 w-10" />
+          </div>
+          <div className="space-y-1 max-w-sm">
+            <h3 className="text-xl font-bold text-foreground">Create your first project</h3>
+            <p className="text-sm text-muted-foreground">
+              Projects isolate agent runs, API key boundaries, and codebase telemetry.
+            </p>
+          </div>
+          <Button onClick={() => setShowCreate(true)} className="gap-2 mt-2">
+            <Plus className="h-4 w-4" />
+            Create Project
+          </Button>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredRuns.map(run => (
-            <Card key={run.id} className="border border-border/40 hover:border-border/70 transition-all bg-card/25 shadow-sm">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-mono text-muted-foreground">{run.id}</span>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                    run.status === "completed" ? "bg-green-500/10 text-green-500" :
-                    run.status === "running" ? "bg-primary/10 text-primary animate-pulse" : "bg-muted text-muted-foreground"
-                  }`}>
-                    {run.status.toUpperCase()}
-                  </span>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredProjects.map(project => (
+            <Card key={project.id} className="hover:border-primary/40 transition-all bg-card/40 flex flex-col justify-between">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2">
+                    <Folder className="h-5 w-5 text-primary" />
+                    <CardTitle className="text-base font-bold">{project.name}</CardTitle>
+                  </div>
+                  <Badge variant="outline" className="text-xs">Active</Badge>
                 </div>
-                <CardTitle className="text-base font-bold line-clamp-2 pt-2">{run.goal}</CardTitle>
+                <CardDescription className="text-xs line-clamp-2 mt-1">
+                  {project.description || "Autonomous workspace project."}
+                </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {run.plan && run.plan.length > 0 && (
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Solution Steps</p>
-                    <div className="text-xs text-muted-foreground space-y-1">
-                      {run.plan.slice(0, 3).map((p, idx) => (
-                        <div key={idx} className="flex items-center gap-1.5">
-                          <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground/60" />
-                          <span className="truncate">{p}</span>
-                        </div>
-                      ))}
-                      {run.plan.length > 3 && (
-                        <p className="text-[10px] font-semibold text-primary">+{run.plan.length - 3} more steps</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-                
-                <div className="flex items-center justify-between gap-4 border-t border-border/20 pt-3 text-[10px] text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {new Date(run.created_at).toLocaleDateString()}
-                  </span>
-                  
-                  <div className="flex gap-1">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => handleDelete(run.id)}
-                      className="h-7 w-7 text-destructive hover:bg-destructive/10"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </div>
+              <CardContent className="pt-0 flex items-center justify-between border-t border-border/30 mt-4 py-3 text-xs text-muted-foreground">
+                <span className="font-mono">{project.slug}</span>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                  onClick={() => handleDelete(project.id)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </CardContent>
             </Card>
           ))}

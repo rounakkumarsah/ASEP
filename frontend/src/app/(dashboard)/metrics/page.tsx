@@ -111,7 +111,7 @@ export default function MetricsPage() {
       {!metrics ? (
         <Card className="border border-dashed p-12 text-center flex flex-col items-center justify-center text-muted-foreground min-h-[400px]">
           <Activity className="h-10 w-10 text-primary/50 mb-4" />
-          <CardTitle className="text-xl font-bold text-foreground">No telemetry available</CardTitle>
+          <CardTitle className="text-xl font-bold text-foreground">No telemetry available yet</CardTitle>
           <CardDescription className="max-w-sm mt-2">
             System operational metrics are not currently being recorded or the monitoring endpoint is inactive.
           </CardDescription>

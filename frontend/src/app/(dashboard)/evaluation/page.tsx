@@ -108,9 +108,9 @@ export default function EvaluationPage() {
         {datasets.length === 0 ? (
           <Card className="border-dashed p-10 text-center flex flex-col items-center justify-center bg-card/10">
             <Award className="h-10 w-10 text-primary mb-3" />
-            <CardTitle className="text-lg font-bold text-foreground">Create First Benchmark</CardTitle>
+            <CardTitle className="text-lg font-bold text-foreground">Run your first evaluation</CardTitle>
             <CardDescription className="max-w-md mx-auto mt-2 mb-6">
-              Establish validation benchmarks to assert model output accuracies, latency limits, and agent execution paths. Create your first evaluation suite to start tracking metrics.
+              Establish validation benchmarks to assert model output accuracies, latency limits, and agent execution paths. Launch an evaluation suite to start tracking metrics.
             </CardDescription>
             <Button className="font-semibold" onClick={() => alert("To register custom benchmarks, add EvaluationDataset schemas to backend src/evaluation/registry.py or upload a validation JSON suite.")}>
               Register Evaluation Suite

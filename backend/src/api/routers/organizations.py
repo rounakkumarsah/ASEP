@@ -168,3 +168,37 @@ async def update_organization(
     await db.flush()
     await db.refresh(org)
     return OrgResponse.model_validate(org)
+
+
+class MemberResponse(BaseModel):
+    id: uuid.UUID
+    email: str
+    first_name: str | None = None
+    last_name: str | None = None
+    role: str = "developer"
+    model_config = {"from_attributes": True}
+
+
+@router.get("/members", response_model=list[MemberResponse])
+async def list_organization_members(
+    current_user: CurrentUser,
+    db: DbSession,
+) -> list[MemberResponse]:
+    """List all members belonging to the current user's organization."""
+    if not current_user.org_id:
+        return [
+            MemberResponse(
+                id=current_user.id,
+                email=current_user.email,
+                first_name=current_user.first_name,
+                last_name=current_user.last_name,
+                role=current_user.role or "developer",
+            )
+        ]
+
+    result = await db.execute(
+        select(User).where(User.org_id == current_user.org_id)
+    )
+    users = result.scalars().all()
+    return [MemberResponse.model_validate(u) for u in users]
+

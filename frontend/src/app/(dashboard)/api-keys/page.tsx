@@ -194,7 +194,10 @@ export default function ApiKeysPage() {
           ) : keys.length === 0 ? (
             <div className="text-center py-8 space-y-3">
               <Terminal className="h-8 w-8 mx-auto text-muted-foreground/60" />
-              <p className="text-sm text-muted-foreground">No API keys generated yet.</p>
+              <p className="text-sm font-semibold text-foreground">Generate your first API Key</p>
+              <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+                Project-scoped API keys allow programmatic CLI and SDK access to the platform.
+              </p>
             </div>
           ) : (
             <div className="divide-y divide-border/40">

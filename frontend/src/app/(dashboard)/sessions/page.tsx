@@ -66,9 +66,9 @@ export default function SessionsPage() {
           <div className="bg-muted h-12 w-12 rounded-full flex items-center justify-center mb-4">
             <Bot className="h-6 w-6 text-muted-foreground" />
           </div>
-          <h3 className="font-semibold text-foreground">No active sessions</h3>
-          <p className="text-sm mt-1 mb-4">
-            Start a new agent execution to see it here.
+          <h3 className="font-bold text-foreground text-lg">No active sessions</h3>
+          <p className="text-sm mt-1 mb-4 text-muted-foreground">
+            Start a new agent execution to monitor live runtime telemetry.
           </p>
           <Button>
             <Plus className="mr-2 h-4 w-4" />
