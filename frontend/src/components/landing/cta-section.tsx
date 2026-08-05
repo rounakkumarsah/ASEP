@@ -7,51 +7,44 @@ import { Button } from "@/components/ui/button";
 
 export function CtaSection() {
   return (
-    <section className="relative py-32 overflow-hidden bg-background">
-      {/* Background Spotlight Glow */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-gradient-to-t from-primary/15 to-transparent blur-3xl opacity-50 transition-opacity duration-1000" />
-      </div>
-
+    <section className="relative py-28 overflow-hidden bg-[#090B0F] border-b border-[#202833]">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="mx-auto max-w-3xl text-center">
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
-            className="text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl"
+            transition={{ duration: 0.5 }}
+            className="text-3xl font-extrabold tracking-tight text-[#F5F7FA] sm:text-4xl font-sans"
           >
-            Build Enterprise AI Systems,
-            <br className="hidden sm:block" /> Not Just AI Workflows.
+            Build Enterprise Engineering Systems,
+            <br className="hidden sm:block" /> Not Just AI Chatbots.
           </motion.h2>
 
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
-            className="mt-6 text-xl leading-relaxed text-muted-foreground"
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="mt-4 text-base leading-relaxed text-[#9CA6B5] font-sans"
           >
-            Deploy autonomous AI agents with planning, execution, memory,
-            governance, evaluation, and production-ready architecture — all in
-            one platform.
+            Deploy autonomous agents with planning, execution, memory, governance, evaluation, and production-ready architecture.
           </motion.p>
 
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
-            className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4"
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4"
           >
             <Link href="/signup" className="w-full sm:w-auto">
               <Button
                 size="lg"
-                className="w-full sm:w-auto text-base font-semibold group h-12 px-8"
+                className="w-full sm:w-auto text-xs font-mono font-semibold bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9] group h-11 px-6"
               >
-                Start Building
-                <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                <span>Start Building</span>
+                <ArrowRight className="ml-2 h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
               </Button>
             </Link>
 
@@ -59,10 +52,10 @@ export function CtaSection() {
               <Button
                 size="lg"
                 variant="outline"
-                className="w-full sm:w-auto text-base font-medium h-12 px-8 border-border/60 hover:bg-muted/50"
+                className="w-full sm:w-auto text-xs font-mono font-medium h-11 px-6 border-[#202833] bg-[#0D1117] text-[#F5F7FA] hover:bg-[#111720]"
               >
-                <BookOpen className="mr-2 h-4 w-4 text-muted-foreground" />
-                View Documentation
+                <BookOpen className="mr-2 h-3.5 w-3.5 text-[#9CA6B5]" />
+                <span>View Documentation</span>
               </Button>
             </Link>
           </motion.div>

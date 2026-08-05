@@ -17,72 +17,60 @@ export const metadata: Metadata = {
 
 export default function PlatformPage() {
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
+    <div className="flex min-h-screen flex-col bg-[#090B0F] text-[#F5F7FA]">
       <LandingNavbar />
       
       <main className="flex-1 pt-32 pb-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           {/* Header */}
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl bg-gradient-to-r from-primary to-purple-400 bg-clip-text text-transparent">
+          <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
+            <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl text-[#F5F7FA] font-sans">
               The ASEP Platform
             </h1>
-            <p className="mt-4 text-xl text-muted-foreground">
-              Production-grade execution runtime and workspace environments designed specifically for autonomous AI engineering.
+            <p className="text-base text-[#9CA6B5] font-sans">
+              Production-grade execution runtime and workspace environments engineered for autonomous AI software engineering.
             </p>
           </div>
 
           {/* Core Blocks */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20">
-            <div className="rounded-xl border border-border/50 bg-card p-8 shadow-sm">
-              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary mb-6">
-                <Cpu className="h-6 w-6" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-20">
+            <div className="rounded-xl border border-[#202833] bg-[#0D1117] p-6 shadow-xs">
+              <div className="h-10 w-10 rounded-md bg-[#111720] border border-[#202833] flex items-center justify-center text-[#22D3EE] mb-4">
+                <Cpu className="h-5 w-5" />
               </div>
-              <h2 className="text-xl font-bold mb-3">Agent Runtime Sandbox</h2>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                Secure, isolated sandboxes designed to execute complex shell commands, git workflows, and local software builds safely under strict resource limitations.
+              <h2 className="text-lg font-bold mb-2 text-[#F5F7FA] font-sans">Agent Runtime Sandbox</h2>
+              <p className="text-xs text-[#9CA6B5] leading-relaxed font-sans">
+                Secure, isolated execution sandboxes designed to process complex commands, git operations, and code compilation safely.
               </p>
             </div>
 
-            <div className="rounded-xl border border-border/50 bg-card p-8 shadow-sm">
-              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary mb-6">
-                <Layers className="h-6 w-6" />
+            <div className="rounded-xl border border-[#202833] bg-[#0D1117] p-6 shadow-xs">
+              <div className="h-10 w-10 rounded-md bg-[#111720] border border-[#202833] flex items-center justify-center text-[#22D3EE] mb-4">
+                <Layers className="h-5 w-5" />
               </div>
-              <h2 className="text-xl font-bold mb-3">Multi-Agent Orchestrator</h2>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                Coordinate specialized planner, executor, and governance agents with defined handoffs, memory contexts, and structured collaboration pathways.
+              <h2 className="text-lg font-bold mb-2 text-[#F5F7FA] font-sans">Multi-Agent Orchestrator</h2>
+              <p className="text-xs text-[#9CA6B5] leading-relaxed font-sans">
+                Coordinates specialized planner, executor, and reviewer agents with structured memory contexts and verification routines.
               </p>
             </div>
 
-            <div className="rounded-xl border border-border/50 bg-card p-8 shadow-sm">
-              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary mb-6">
-                <Shield className="h-6 w-6" />
+            <div className="rounded-xl border border-[#202833] bg-[#0D1117] p-6 shadow-xs">
+              <div className="h-10 w-10 rounded-md bg-[#111720] border border-[#202833] flex items-center justify-center text-[#22D3EE] mb-4">
+                <Shield className="h-5 w-5" />
               </div>
-              <h2 className="text-xl font-bold mb-3">Enterprise Governance</h2>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                Real-time policy auditing, human-in-the-loop validation checkpoints, and precise token budget caps to prevent runaway executions.
+              <h2 className="text-lg font-bold mb-2 text-[#F5F7FA] font-sans">Enterprise Governance</h2>
+              <p className="text-xs text-[#9CA6B5] leading-relaxed font-sans">
+                Enforces strict policy checks, human-in-the-loop approval gates, and multi-tenant security isolation across all workspaces.
               </p>
             </div>
           </div>
 
-          {/* Details Section */}
-          <div className="border border-border/50 rounded-2xl bg-card/50 overflow-hidden mb-20 p-8 sm:p-12">
-            <div className="max-w-3xl">
-              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-4">
-                Designed for Absolute Engineering Control
-              </h2>
-              <p className="text-muted-foreground leading-relaxed mb-6">
-                ASEP doesn&apos;t write scripts. It installs dependencies, verifies build compilation, runs pytest/vitest tests, resolves compilation errors, and manages Git commits and pushes completely autonomously. If a build fails, the platform reflector agent captures stdout/stderr and fixes it.
-              </p>
-              <div className="flex flex-wrap gap-4">
-                <Link href="/login">
-                  <Button className="font-semibold">Launch Control Plane</Button>
-                </Link>
-                <Link href="/architecture">
-                  <Button variant="outline" className="font-semibold">Explore System Architecture</Button>
-                </Link>
-              </div>
-            </div>
+          <div className="text-center">
+            <Link href="/signup">
+              <Button size="lg" className="h-11 px-6 text-xs font-mono font-semibold bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9]">
+                Deploy ASEP Control Plane
+              </Button>
+            </Link>
           </div>
         </div>
       </main>

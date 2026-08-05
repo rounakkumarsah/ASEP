@@ -16,56 +16,56 @@ export const metadata: Metadata = {
 
 export default function ContactPage() {
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
+    <div className="flex min-h-screen flex-col bg-[#090B0F] text-[#F5F7FA]">
       <LandingNavbar />
       
       <main className="flex-1 pt-32 pb-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           {/* Header */}
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl bg-gradient-to-r from-primary to-purple-400 bg-clip-text text-transparent">
-              Contact Our Team
+          <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
+            <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl text-[#F5F7FA] font-sans">
+              Contact Engineering
             </h1>
-            <p className="mt-4 text-xl text-muted-foreground">
-              Have security, architecture, or license questions? We&apos;re here to help.
+            <p className="text-base text-[#9CA6B5] font-sans">
+              Have security, architecture, or enterprise license questions? Contact our core team.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 max-w-5xl mx-auto mb-20">
             {/* Contact details */}
-            <div className="space-y-8">
+            <div className="space-y-6">
               <div>
-                <h2 className="text-2xl font-bold tracking-tight mb-4">Get in Touch</h2>
-                <p className="text-muted-foreground leading-relaxed">
-                  For bug reports, security disclosures, or enterprise license queries, drop us a line and an engineer will reply shortly.
+                <h2 className="text-xl font-bold tracking-tight mb-2 text-[#F5F7FA] font-sans">Get in Touch</h2>
+                <p className="text-xs text-[#9CA6B5] leading-relaxed font-sans">
+                  For bug disclosures, infrastructure security reports, or enterprise SLA queries, our engineering team responds promptly.
                 </p>
               </div>
 
-              <div className="space-y-6">
-                <div className="flex items-center space-x-4">
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                    <Mail className="h-5 w-5" />
+              <div className="space-y-4">
+                <div className="flex items-center space-x-3 p-4 border border-[#202833] bg-[#0D1117] rounded-xl">
+                  <div className="h-9 w-9 rounded-md bg-[#111720] border border-[#202833] flex items-center justify-center text-[#22D3EE]">
+                    <Mail className="h-4 w-4" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-semibold">Email</h3>
-                    <p className="text-sm text-muted-foreground">support@asep.internal</p>
+                    <h3 className="text-xs font-bold font-mono text-[#F5F7FA]">Email Engineering</h3>
+                    <p className="text-xs font-mono text-[#9CA6B5]">support@asep-ai.vercel.app</p>
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-4">
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                    <MessageSquare className="h-5 w-5" />
+                <div className="flex items-center space-x-3 p-4 border border-[#202833] bg-[#0D1117] rounded-xl">
+                  <div className="h-9 w-9 rounded-md bg-[#111720] border border-[#202833] flex items-center justify-center text-[#22D3EE]">
+                    <MessageSquare className="h-4 w-4" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-semibold">Community Support</h3>
-                    <p className="text-sm text-muted-foreground">github.com/rounakkumarsah/ASEP/issues</p>
+                    <h3 className="text-xs font-bold font-mono text-[#F5F7FA]">Developer Community</h3>
+                    <p className="text-xs font-mono text-[#9CA6B5]">github.com/rounakkumarsah/ASEP</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Simple Contact Form */}
-            <div className="rounded-2xl border border-border/50 bg-card p-8 shadow-sm">
+            {/* Contact Form */}
+            <div className="border border-[#202833] bg-[#0D1117] p-6 rounded-xl shadow-xs">
               <ContactForm />
             </div>
           </div>

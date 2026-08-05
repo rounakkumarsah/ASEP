@@ -15,60 +15,60 @@ export const metadata: Metadata = {
 
 export default function ArchitecturePage() {
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
+    <div className="flex min-h-screen flex-col bg-[#090B0F] text-[#F5F7FA]">
       <LandingNavbar />
       
       <main className="flex-1 pt-32 pb-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           {/* Header */}
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl bg-gradient-to-r from-primary to-purple-400 bg-clip-text text-transparent">
+          <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
+            <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl text-[#F5F7FA] font-sans">
               System Architecture
             </h1>
-            <p className="mt-4 text-xl text-muted-foreground">
-              A highly parallelized agent topology integrated with vector search databases and live telemetry log systems.
+            <p className="text-base text-[#9CA6B5] font-sans">
+              A decoupled multi-agent topology integrated with vector search databases and live execution telemetry.
             </p>
           </div>
 
           {/* Architecture Blocks */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-20">
-            <div className="rounded-xl border border-border/50 bg-card p-8 shadow-sm">
-              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary mb-6">
-                <Network className="h-6 w-6" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-20">
+            <div className="rounded-xl border border-[#202833] bg-[#0D1117] p-6 shadow-xs">
+              <div className="h-10 w-10 rounded-md bg-[#111720] border border-[#202833] flex items-center justify-center text-[#22D3EE] mb-4">
+                <Network className="h-5 w-5" />
               </div>
-              <h2 className="text-xl font-bold mb-3">Multi-Agent Orchestrator</h2>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                Uses a decoupled Supervisor-Worker configuration. The planner agent decomposes user objectives into logical verification phases, dispatching specific subtasks to execute, test, and reflect agents.
+              <h2 className="text-lg font-bold mb-2 text-[#F5F7FA] font-sans">Multi-Agent Orchestrator</h2>
+              <p className="text-xs text-[#9CA6B5] leading-relaxed font-sans">
+                Uses a decoupled Supervisor-Worker topology. The planner agent decomposes user objectives into logical verification phases, dispatching subtasks to execute, test, and reflect agents.
               </p>
             </div>
 
-            <div className="rounded-xl border border-border/50 bg-card p-8 shadow-sm">
-              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary mb-6">
-                <Database className="h-6 w-6" />
+            <div className="rounded-xl border border-[#202833] bg-[#0D1117] p-6 shadow-xs">
+              <div className="h-10 w-10 rounded-md bg-[#111720] border border-[#202833] flex items-center justify-center text-[#22D3EE] mb-4">
+                <Database className="h-5 w-5" />
               </div>
-              <h2 className="text-xl font-bold mb-3">Knowledge Graph RAG</h2>
-              <p className="text-sm text-muted-foreground leading-relaxed">
+              <h2 className="text-lg font-bold mb-2 text-[#F5F7FA] font-sans">Knowledge & Graph RAG</h2>
+              <p className="text-xs text-[#9CA6B5] leading-relaxed font-sans">
                 Indexes code hierarchies, dependency graphs, and workspace configurations in Neo4j databases combined with semantic vector embeddings in Qdrant collections.
               </p>
             </div>
 
-            <div className="rounded-xl border border-border/50 bg-card p-8 shadow-sm">
-              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary mb-6">
-                <Compass className="h-6 w-6" />
+            <div className="rounded-xl border border-[#202833] bg-[#0D1117] p-6 shadow-xs">
+              <div className="h-10 w-10 rounded-md bg-[#111720] border border-[#202833] flex items-center justify-center text-[#22D3EE] mb-4">
+                <Compass className="h-5 w-5" />
               </div>
-              <h2 className="text-xl font-bold mb-3">Knowledge Sync Engine</h2>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                Incrementally crawls Git repository updates, documentation directories, and local configurations. Uses file checksum hashes to prevent redundant model embedding updates.
+              <h2 className="text-lg font-bold mb-2 text-[#F5F7FA] font-sans">Knowledge Sync Engine</h2>
+              <p className="text-xs text-[#9CA6B5] leading-relaxed font-sans">
+                Automates incremental repository indexing with real-time vector chunking, maintaining up-to-date workspace context.
               </p>
             </div>
 
-            <div className="rounded-xl border border-border/50 bg-card p-8 shadow-sm">
-              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary mb-6">
-                <Eye className="h-6 w-6" />
+            <div className="rounded-xl border border-[#202833] bg-[#0D1117] p-6 shadow-xs">
+              <div className="h-10 w-10 rounded-md bg-[#111720] border border-[#202833] flex items-center justify-center text-[#22D3EE] mb-4">
+                <Eye className="h-5 w-5" />
               </div>
-              <h2 className="text-xl font-bold mb-3">Structured Telemetry</h2>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                Every single agent call, prompt invocation, token dispatch, and shell execution is tracked via structured JSON streams, aggregated into live dashboard metrics.
+              <h2 className="text-lg font-bold mb-2 text-[#F5F7FA] font-sans">Telemetry & Observability</h2>
+              <p className="text-xs text-[#9CA6B5] leading-relaxed font-sans">
+                Provides end-to-end OpenTelemetry spans, audit trail logging, and performance benchmark tracking across all agent executions.
               </p>
             </div>
           </div>

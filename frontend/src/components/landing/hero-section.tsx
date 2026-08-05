@@ -3,7 +3,7 @@
 import { motion, Variants } from "framer-motion";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Github } from "lucide-react";
+import { ArrowRight, Github, Terminal, Cpu } from "lucide-react";
 
 export function HeroSection() {
   const containerVariants: Variants = {
@@ -27,10 +27,7 @@ export function HeroSection() {
   };
 
   return (
-    <section className="relative overflow-hidden bg-background pt-24 pb-32 md:pt-32 md:pb-40">
-      {/* Subtle Background Elements */}
-      <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-background to-background" />
-
+    <section className="relative overflow-hidden bg-[#090B0F] pt-24 pb-32 md:pt-32 md:pb-40 border-b border-[#202833]">
       <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <motion.div
           className="text-center"
@@ -43,16 +40,16 @@ export function HeroSection() {
             variants={itemVariants}
             className="mb-8 flex justify-center"
           >
-            <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-sm font-medium text-primary shadow-sm backdrop-blur-sm">
-              <span className="mr-2 flex h-2 w-2 rounded-full bg-primary" />
-              v2.4 Released — Production Ready
+            <span className="inline-flex items-center rounded-md border border-[#202833] bg-[#0D1117] px-3 py-1 text-xs font-mono font-medium text-[#22D3EE] shadow-xs">
+              <span className="mr-2 flex h-1.5 w-1.5 rounded-full bg-[#2DD4A3] animate-pulse" />
+              v0.1.0 • Autonomous Software Engineering Platform
             </span>
           </motion.div>
 
           {/* Headline */}
           <motion.h1
             variants={itemVariants}
-            className="mx-auto max-w-4xl text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl md:text-6xl lg:text-7xl"
+            className="mx-auto max-w-4xl text-4xl font-extrabold tracking-tight text-[#F5F7FA] sm:text-5xl md:text-6xl lg:text-7xl font-sans"
           >
             Autonomous Software Engineering at Enterprise Scale
           </motion.h1>
@@ -60,11 +57,9 @@ export function HeroSection() {
           {/* Subheadline */}
           <motion.p
             variants={itemVariants}
-            className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-muted-foreground sm:text-xl"
+            className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-[#9CA6B5] sm:text-lg font-sans"
           >
-            Unify Planning, Execution, Memory, and Governance. ASEP is the
-            open-source control plane for production-grade AI agents, built for
-            absolute reliability and scale.
+            Unify Planning, Execution, Memory, and Governance. ASEP is the production-grade control plane for autonomous software agents built for absolute reliability and scale.
           </motion.p>
 
           {/* CTAs */}
@@ -73,8 +68,8 @@ export function HeroSection() {
             className="mt-10 flex flex-col items-center justify-center space-y-4 sm:flex-row sm:space-x-4 sm:space-y-0"
           >
             <Link href="/signup">
-              <Button size="lg" className="h-12 px-8 text-base group">
-                Deploy Control Plane
+              <Button size="lg" className="h-11 px-6 text-sm font-mono font-semibold bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9] group">
+                <span>Deploy Control Plane</span>
                 <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
               </Button>
             </Link>
@@ -82,7 +77,7 @@ export function HeroSection() {
               <Button
                 size="lg"
                 variant="outline"
-                className="h-12 px-8 text-base"
+                className="h-11 px-6 text-sm font-mono font-medium border-[#202833] bg-[#0D1117] text-[#F5F7FA] hover:bg-[#111720]"
               >
                 <Github className="mr-2 h-4 w-4" />
                 View Source
@@ -91,39 +86,52 @@ export function HeroSection() {
           </motion.div>
         </motion.div>
 
-        {/* Dashboard Preview Mockup */}
+        {/* Control Plane Visual Mockup */}
         <motion.div
-          initial={{ opacity: 0, y: 40, scale: 0.95 }}
+          initial={{ opacity: 0, y: 40, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.8, delay: 0.6, ease: "easeOut" }}
-          className="mx-auto mt-20 max-w-5xl"
+          transition={{ duration: 0.8, delay: 0.5, ease: "easeOut" }}
+          className="mx-auto mt-16 max-w-5xl"
         >
-          <div className="relative rounded-xl border border-white/10 bg-black/40 p-2 shadow-2xl shadow-primary/20 backdrop-blur-md sm:p-4">
-            <div className="flex h-[400px] sm:h-[500px] w-full flex-col overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm md:flex-row">
+          <div className="relative rounded-xl border border-[#202833] bg-[#0D1117] p-2 shadow-xl">
+            <div className="flex h-[380px] sm:h-[450px] w-full flex-col overflow-hidden rounded-lg border border-[#202833] bg-[#090B0F] md:flex-row font-mono text-xs">
               {/* Mock Sidebar */}
-              <div className="hidden w-48 border-r bg-muted/20 p-4 md:block">
-                <div className="mb-6 h-6 w-24 rounded bg-primary/20" />
-                <div className="space-y-2">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="h-8 w-full rounded bg-muted/50" />
+              <div className="hidden w-52 border-r border-[#202833] bg-[#0D1117] p-4 md:block space-y-4">
+                <div className="flex items-center space-x-2 text-[#22D3EE] font-bold">
+                  <Cpu className="h-4 w-4" />
+                  <span>ASEP CONTROL</span>
+                </div>
+                <div className="space-y-1">
+                  {["Overview", "Projects", "Playground", "Evaluation", "Settings"].map((item, idx) => (
+                    <div key={item} className={`px-2.5 py-1.5 rounded flex items-center justify-between ${idx === 0 ? "bg-[#111720] text-[#F5F7FA] border-l-2 border-[#22D3EE]" : "text-[#667085]"}`}>
+                      <span>{item}</span>
+                    </div>
                   ))}
                 </div>
               </div>
               {/* Mock Main Area */}
-              <div className="flex-1 p-6">
-                <div className="mb-6 h-8 w-48 rounded bg-muted" />
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="h-24 rounded-lg border bg-card p-4">
-                      <div className="mb-2 h-4 w-16 rounded bg-muted" />
-                      <div className="h-8 w-12 rounded bg-primary/20" />
+              <div className="flex-1 p-6 space-y-4">
+                <div className="flex items-center justify-between border-b border-[#202833] pb-3">
+                  <div className="flex items-center space-x-2 text-[#F5F7FA] font-bold">
+                    <Terminal className="h-4 w-4 text-[#22D3EE]" />
+                    <span>System Telemetry</span>
+                  </div>
+                  <span className="text-[10px] text-[#2DD4A3] bg-[#2DD4A3]/10 px-2 py-0.5 rounded border border-[#2DD4A3]/20">STATUS: OPERATIONAL</span>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {[
+                    { label: "CPU Load", val: "14%" },
+                    { label: "Memory", val: "38%" },
+                    { label: "Active Agents", val: "6" },
+                  ].map((stat) => (
+                    <div key={stat.label} className="p-3 rounded-lg border border-[#202833] bg-[#0D1117]">
+                      <span className="text-[10px] text-[#667085] uppercase block">{stat.label}</span>
+                      <span className="text-lg font-bold text-[#F5F7FA] mt-1 block">{stat.val}</span>
                     </div>
                   ))}
                 </div>
-                <div className="mt-4 h-48 w-full rounded-lg border bg-card p-4">
-                  <div className="flex items-center justify-center h-full border border-dashed border-muted-foreground/30 text-muted-foreground rounded text-sm">
-                    Live Session Feed
-                  </div>
+                <div className="h-36 w-full rounded-lg border border-[#202833] bg-[#0D1117] p-4 flex flex-col justify-center items-center text-[#667085]">
+                  <span>Execution Stream Idle • Ready for Orchestration</span>
                 </div>
               </div>
             </div>

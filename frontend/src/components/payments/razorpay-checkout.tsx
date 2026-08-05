@@ -164,7 +164,7 @@ export function RazorpayCheckout({
       order_id: orderData.order_id,
       prefill,
       notes,
-      theme: { color: "#6366f1" },     // Indigo — matches ASEP brand
+      theme: { color: "#22D3EE" },     // ASEP Cyan Accent
       handler: async (response) => {
         // 4. Verify payment signature on the backend
         try {

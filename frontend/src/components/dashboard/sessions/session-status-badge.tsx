@@ -14,25 +14,24 @@ import {
 } from "lucide-react";
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold font-mono transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/80",
+        default: "bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9]",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          "bg-[#111720] text-[#F5F7FA] border border-[#202833] hover:bg-[#111720]/80",
         destructive:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/80",
+          "bg-[#F05252]/15 text-[#F05252] border border-[#F05252]/20 hover:bg-[#F05252]/25",
         outline:
-          "text-foreground border border-input hover:bg-accent hover:text-accent-foreground",
+          "text-[#F5F7FA] border border-[#202833] hover:bg-[#111720] hover:text-[#22D3EE]",
         success:
-          "bg-green-500/15 text-green-700 dark:text-green-400 hover:bg-green-500/25",
+          "bg-[#2DD4A3]/15 text-[#2DD4A3] border border-[#2DD4A3]/20 hover:bg-[#2DD4A3]/25",
         warning:
-          "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 hover:bg-yellow-500/25",
-        info: "bg-blue-500/15 text-blue-700 dark:text-blue-400 hover:bg-blue-500/25",
-        purple:
-          "bg-purple-500/15 text-purple-700 dark:text-purple-400 hover:bg-purple-500/25",
-        gray: "bg-muted text-muted-foreground hover:bg-muted/80",
+          "bg-[#F5B942]/15 text-[#F5B942] border border-[#F5B942]/20 hover:bg-[#F5B942]/25",
+        info: "bg-[#22D3EE]/15 text-[#22D3EE] border border-[#22D3EE]/20 hover:bg-[#22D3EE]/25",
+        cyan: "bg-[#22D3EE]/15 text-[#22D3EE] border border-[#22D3EE]/20 hover:bg-[#22D3EE]/25",
+        gray: "bg-[#111720] text-[#9CA6B5] border border-[#202833] hover:bg-[#111720]/80",
       },
     },
     defaultVariants: {
@@ -69,7 +68,7 @@ export function SessionStatusBadge({
       Icon = Clock;
       break;
     case SessionStatus.Planning:
-      variant = "purple";
+      variant = "cyan";
       Icon = BrainCircuit;
       animate = true;
       break;
@@ -84,7 +83,7 @@ export function SessionStatusBadge({
       animate = true;
       break;
     case SessionStatus.Reflecting:
-      variant = "purple";
+      variant = "cyan";
       Icon = Eye;
       animate = true;
       break;

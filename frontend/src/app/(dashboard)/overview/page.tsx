@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useSystemOverview } from "@/lib/api/hooks/use-control-plane";
 import { useProjects } from "@/lib/api/hooks/use-projects";
 import { useKnowledge } from "@/lib/api/hooks/use-knowledge";
@@ -21,7 +22,9 @@ import {
   Circle,
   ArrowRight,
   ShieldCheck,
-  Terminal
+  Terminal,
+  Cpu,
+  RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -33,30 +36,31 @@ export default function OverviewPage() {
 
   if (isLoading) {
     return (
-      <div className="h-full w-full flex flex-col items-center justify-center text-muted-foreground">
-        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-        <p>Initializing Control Plane telemetry...</p>
+      <div className="h-96 w-full flex flex-col items-center justify-center text-[#9CA6B5] space-y-3 font-mono text-xs">
+        <Loader2 className="h-6 w-6 animate-spin text-[#22D3EE]" />
+        <p>Connecting to ASEP Control Plane telemetry...</p>
       </div>
     );
   }
 
   if (isError || !health) {
     return (
-      <div className="h-full w-full flex flex-col items-center justify-center text-destructive border border-destructive/20 bg-destructive/5 rounded-lg py-20">
-        <p className="font-medium mb-4">Lost connection to Control Plane.</p>
-        <Button variant="outline" size="sm" onClick={() => refetch()}>
-          Reconnect
+      <div className="w-full flex flex-col items-center justify-center border border-[#F05252]/30 bg-[#F05252]/5 rounded-xl py-16 text-center space-y-4">
+        <p className="font-mono text-sm font-semibold text-[#F05252]">Control Plane Connection Interrupted</p>
+        <p className="text-xs text-[#9CA6B5] max-w-md">Unable to establish telemetry stream with the execution orchestrator.</p>
+        <Button variant="outline" size="sm" onClick={() => refetch()} className="font-mono text-xs gap-2">
+          <RefreshCw className="h-3.5 w-3.5" /> Reconnect Telemetry
         </Button>
       </div>
     );
   }
 
-  // Auto-updating checklist criteria
+  // Checklist verification
   const hasProject = (projects?.length || 0) > 0;
   const hasAgent = (health?.activeAgents || 0) > 0;
   const hasKnowledge = (knowledge?.items?.length || 0) > 0;
   const hasChat = (health?.activeSessions || 0) > 0;
-  const hasEvaluation = false; // Fresh install default
+  const hasEvaluation = false;
   const hasMonitoring = (health?.activeSessions || 0) > 0;
 
   const checklist = [
@@ -65,7 +69,7 @@ export default function OverviewPage() {
     { label: "Upload Knowledge", checked: hasKnowledge, link: "/knowledge" },
     { label: "Start Playground Chat", checked: hasChat, link: "/playground" },
     { label: "Run Evaluation", checked: hasEvaluation, link: "/evaluation" },
-    { label: "View Monitoring", checked: hasMonitoring, link: "/metrics" },
+    { label: "View Telemetry Metrics", checked: hasMonitoring, link: "/metrics" },
   ];
 
   const completedCount = checklist.filter(item => item.checked).length;
@@ -74,121 +78,124 @@ export default function OverviewPage() {
   const isBrandNew = !projects || projects.length === 0;
 
   return (
-    <div className="space-y-6 flex flex-col min-h-full pb-10">
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+    <div className="space-y-6 flex flex-col min-h-full pb-10 w-full">
+      {/* Header Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b border-[#202833] pb-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Control Plane</h1>
-          <p className="text-muted-foreground mt-1">
-            Global operational state, runtime telemetry, and active agent orchestration.
+          <div className="flex items-center space-x-2">
+            <Cpu className="h-5 w-5 text-[#22D3EE]" />
+            <h1 className="text-2xl font-bold tracking-tight text-[#F5F7FA] font-mono">Control Plane</h1>
+          </div>
+          <p className="text-[#9CA6B5] mt-1 text-xs font-mono">
+            Autonomous software engineering platform telemetry, operational topology, and agent orchestration.
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-card px-3 py-1.5 rounded-full border">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          Live connection secured
+        <div className="flex items-center gap-2 text-xs font-mono text-[#9CA6B5] bg-[#0D1117] px-3 py-1.5 rounded-lg border border-[#202833]">
+          <span className="h-2 w-2 rounded-full bg-[#2DD4A3] animate-pulse" />
+          <span>Telemetry Stream Active</span>
         </div>
       </div>
 
       {isBrandNew ? (
         <div className="space-y-6">
-          {/* Welcome Message & Account Status */}
-          <div className="p-6 border border-border/40 bg-card/25 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          {/* Welcome Panel */}
+          <div className="p-6 border border-[#202833] bg-[#0D1117] rounded-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="space-y-1">
-              <h2 className="text-2xl font-bold text-foreground">
-                Welcome back, {user?.first_name || user?.username || "Developer"}!
+              <h2 className="text-xl font-bold text-[#F5F7FA]">
+                Developer Workspace: {user?.first_name || user?.username || "Operator"}
               </h2>
-              <p className="text-sm text-muted-foreground">
-                Get started by initializing your workspace and running your first autonomous developer agent.
+              <p className="text-xs text-[#9CA6B5]">
+                Initialize your engineering pipeline by creating a project and orchestrating autonomous code agents.
               </p>
             </div>
-            <div className="flex items-center gap-2 bg-emerald-500/10 text-emerald-500 px-3 py-1 rounded-full text-xs font-semibold border border-emerald-500/25">
+            <div className="flex items-center gap-2 bg-[#2DD4A3]/10 text-[#2DD4A3] px-3 py-1 rounded-md text-xs font-mono font-semibold border border-[#2DD4A3]/20">
               <ShieldCheck className="h-3.5 w-3.5" />
-              <span>Active Account</span>
+              <span>Workspace Ready</span>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Progress Checklist */}
-            <Card className="lg:col-span-2 border-border/40 bg-card/30">
-              <CardHeader className="pb-3">
+            {/* Onboarding Checklist */}
+            <Card className="lg:col-span-2 border-[#202833] bg-[#0D1117] shadow-xs">
+              <CardHeader className="pb-3 border-b border-[#202833]">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-lg font-bold">Onboarding Checklist</CardTitle>
-                    <CardDescription>Follow these steps to configure your developer suite</CardDescription>
+                    <CardTitle className="text-sm font-bold font-mono text-[#F5F7FA]">Pipeline Onboarding</CardTitle>
+                    <CardDescription className="text-xs text-[#9CA6B5]">Configure developer suite parameters</CardDescription>
                   </div>
-                  <Badge variant="secondary" className="font-semibold text-xs py-0.5">
-                    {progressPercent}% Complete
+                  <Badge variant="outline" className="font-mono text-xs py-0.5 border-[#202833] text-[#22D3EE] bg-[#111720]">
+                    {progressPercent}% Initialized
                   </Badge>
                 </div>
                 {/* Progress bar */}
-                <div className="w-full bg-muted h-2 rounded-full mt-3 overflow-hidden">
+                <div className="w-full bg-[#111720] h-1.5 rounded-full mt-3 overflow-hidden border border-[#202833]">
                   <div 
-                    className="bg-primary h-full rounded-full transition-all duration-500" 
+                    className="bg-[#22D3EE] h-full rounded-full transition-all duration-500" 
                     style={{ width: `${progressPercent}%` }} 
                   />
                 </div>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-4">
                 {checklist.map((item, index) => (
-                  <div 
+                  <Link 
                     key={index}
-                    onClick={() => window.location.href = item.link}
-                    className="flex items-center gap-3 p-3 border border-border/50 rounded-xl hover:bg-accent/40 cursor-pointer transition-colors"
+                    href={item.link}
+                    className="flex items-center gap-3 p-3 border border-[#202833] rounded-lg bg-[#111720]/40 hover:bg-[#111720] transition-colors"
                   >
                     {item.checked ? (
-                      <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
+                      <CheckCircle2 className="h-4 w-4 text-[#2DD4A3] shrink-0" />
                     ) : (
-                      <Circle className="h-5 w-5 text-muted-foreground/60 shrink-0" />
+                      <Circle className="h-4 w-4 text-[#667085] shrink-0" />
                     )}
-                    <span className={`text-sm font-medium ${item.checked ? "text-muted-foreground line-through decoration-muted-foreground/40" : "text-foreground"}`}>
+                    <span className={`text-xs font-mono ${item.checked ? "text-[#667085] line-through" : "text-[#F5F7FA]"}`}>
                       {item.label}
                     </span>
-                  </div>
+                  </Link>
                 ))}
               </CardContent>
             </Card>
 
             {/* Quick Start Card */}
-            <Card className="border-border/40 bg-card/30 flex flex-col justify-between">
-              <CardHeader>
-                <CardTitle className="text-lg font-bold">Quick Start Guide</CardTitle>
-                <CardDescription>Deploy your first RAG-augmented workspace agent</CardDescription>
+            <Card className="border-[#202833] bg-[#0D1117] shadow-xs flex flex-col justify-between">
+              <CardHeader className="border-b border-[#202833]">
+                <CardTitle className="text-sm font-bold font-mono text-[#F5F7FA]">Quick Start Guide</CardTitle>
+                <CardDescription className="text-xs text-[#9CA6B5]">Deploy your first autonomous project</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4 flex-1 flex flex-col justify-between pt-0">
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  ASEP coordinates coding tasks, runs evaluations against benchmark suites, and logs all network and file system executions securely.
+              <CardContent className="space-y-4 flex-1 flex flex-col justify-between pt-4">
+                <p className="text-xs text-[#9CA6B5] leading-relaxed font-sans">
+                  ASEP orchestrates coding tasks, runs evaluations against benchmark suites, and logs all execution traces securely.
                 </p>
-                <Button onClick={() => window.location.href = "/projects"} className="w-full font-semibold gap-1.5 mt-4">
-                  <span>Create First Project</span>
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
+                <Link href="/projects" className="w-full">
+                  <Button className="w-full font-mono text-xs font-semibold gap-1.5 bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9]">
+                    <span>Create First Project</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
           </div>
 
-          {/* Recent Activity (Empty state) */}
-          <Card className="border-border/40 bg-card/30">
-            <CardHeader>
-              <CardTitle className="text-lg font-bold">Recent Workspace Activity</CardTitle>
-              <CardDescription>Real-time log of agent tasks and access credentials audit trail</CardDescription>
+          {/* Recent Activity (Empty State) */}
+          <Card className="border-[#202833] bg-[#0D1117] shadow-xs">
+            <CardHeader className="border-b border-[#202833]">
+              <CardTitle className="text-sm font-bold font-mono text-[#F5F7FA]">System Activity Stream</CardTitle>
+              <CardDescription className="text-xs text-[#9CA6B5]">Real-time execution log audit trail</CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col items-center justify-center py-10 text-muted-foreground text-center">
-              <Terminal className="h-10 w-10 text-muted-foreground/50 mb-3" />
-              <p className="font-semibold text-foreground text-sm">No activity recorded yet</p>
-              <p className="text-xs text-muted-foreground mt-1 max-w-sm">
-                Activity event records will automatically populate here once agent tasks are executed.
+            <CardContent className="flex flex-col items-center justify-center py-10 text-[#9CA6B5] text-center space-y-2 font-mono">
+              <Terminal className="h-8 w-8 text-[#667085]" />
+              <p className="font-semibold text-[#F5F7FA] text-xs">No execution logs recorded yet</p>
+              <p className="text-[11px] text-[#667085] max-w-sm">
+                Activity traces will automatically populate here as agent runs execute.
               </p>
             </CardContent>
           </Card>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Row 1: System Overview and Critical Stats */}
           <SystemOverviewCard health={health} />
-
           <AgentStatusCard activeCount={health.activeAgents} />
           <QueueCard pendingCount={health.pendingApprovals} />
 
-          {/* Row 2: Detailed Metrics */}
           <MetricCard
             title="Projects"
             value={projects?.length?.toString() || "0"}
@@ -217,11 +224,10 @@ export default function OverviewPage() {
             trend={{ value: "0", isPositive: true }}
           />
 
-          {/* Row 3: Feeds & Diagnostics */}
-          <div className="col-span-full border rounded-lg bg-card text-card-foreground shadow-sm p-6">
-            <h3 className="font-semibold text-lg mb-4">Recent Activity</h3>
-            <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-              <p>No recent activity</p>
+          <div className="col-span-full border border-[#202833] rounded-xl bg-[#0D1117] shadow-xs p-5">
+            <h3 className="font-mono text-xs font-bold uppercase tracking-wider text-[#F5F7FA] mb-4">Execution Log Stream</h3>
+            <div className="flex flex-col items-center justify-center py-8 text-[#9CA6B5] font-mono text-xs">
+              <p>No recent activity traces</p>
             </div>
           </div>
         </div>

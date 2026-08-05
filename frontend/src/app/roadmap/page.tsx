@@ -329,7 +329,7 @@ export default function RoadmapPage() {
                             <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${
                               item.status === "completed" ? "bg-green-500/10 text-green-500" :
                               item.status === "in-progress" ? "bg-primary/10 text-primary animate-pulse" :
-                              item.status === "planned" ? "bg-blue-500/10 text-blue-500" : "bg-purple-500/10 text-purple-500"
+                              item.status === "planned" ? "bg-[#38BDF8]/10 text-[#38BDF8]" : "bg-[#22D3EE]/10 text-[#22D3EE]"
                             }`}>
                               {item.status.toUpperCase().replace("-", " ")}
                             </span>
