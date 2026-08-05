@@ -24,7 +24,6 @@ import json
 import logging
 import uuid
 
-import razorpay
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -101,7 +100,7 @@ class PaymentRecord(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-def _get_razorpay_client() -> razorpay.Client:
+def _get_razorpay_client():
     """
     Return an authenticated Razorpay client.
 
@@ -115,6 +114,7 @@ def _get_razorpay_client() -> razorpay.Client:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Payment service is not configured. Contact the platform administrator.",
         )
+    import razorpay  # lazy-loaded — optional payment dependency
     return razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
 
 

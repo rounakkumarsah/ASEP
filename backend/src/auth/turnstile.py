@@ -1,7 +1,5 @@
 import logging
 
-import httpx
-
 from src.config.settings import get_settings
 
 logger = logging.getLogger(__name__)

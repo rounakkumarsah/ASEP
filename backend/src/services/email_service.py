@@ -235,13 +235,14 @@ class EmailService:
         html = HTML_TEMPLATE_WRAPPER.format(CONTENT=content)
         return await self._send_email(to_email, "Reset your password", html, "forgot_password")
     
-    async def send_resend_verification_email(self, email: str, code: str) -> bool:
+    async def send_resend_verification_email(self, email: str, username_or_code: str, code: str | None = None) -> bool:
         """Resend verification code email."""
+        actual_code = code if code is not None else username_or_code
         content = f"""
         <div class="title">Your verification code</div>
         <div class="content">
           Here is your new verification code:<br><br>
-          <strong style="font-size: 24px; letter-spacing: 4px;">{code}</strong>
+          <strong style="font-size: 24px; letter-spacing: 4px;">{actual_code}</strong>
         </div>
         """
         html = HTML_TEMPLATE_WRAPPER.format(CONTENT=content)

@@ -10,9 +10,11 @@ variables (QDRANT_COLLECTION and QDRANT_VECTOR_SIZE in settings).
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
-from qdrant_client import AsyncQdrantClient
-from qdrant_client.http.models import Distance, VectorParams
+if TYPE_CHECKING:
+    from qdrant_client import AsyncQdrantClient
+    from qdrant_client.http.models import Distance
 
 from src.config.settings import get_settings
 
@@ -23,14 +25,13 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 DEFAULT_COLLECTION = "asep_documents"
-DEFAULT_DISTANCE = Distance.COSINE
 
 
 async def create_collection_if_not_exists(
-    client: AsyncQdrantClient,
+    client: "AsyncQdrantClient",
     collection_name: str | None = None,
     vector_size: int | None = None,
-    distance_metric: Distance = DEFAULT_DISTANCE,
+    distance_metric: "Distance | None" = None,
 ) -> None:
     """
     Ensure a Qdrant collection exists with the correct schema.
@@ -44,6 +45,12 @@ async def create_collection_if_not_exists(
         vector_size:     Embedding dimension (default: ``settings.QDRANT_VECTOR_SIZE``).
         distance_metric: Similarity metric (default: Cosine).
     """
+    # Lazy import — qdrant_client is an optional heavy dependency
+    from qdrant_client.http.models import Distance, VectorParams  # noqa: PLC0415
+
+    if distance_metric is None:
+        distance_metric = Distance.COSINE
+
     settings = get_settings()
     name = collection_name or settings.QDRANT_COLLECTION
     size = vector_size or settings.QDRANT_VECTOR_SIZE
@@ -66,7 +73,7 @@ async def create_collection_if_not_exists(
 
 
 async def delete_collection(
-    client: AsyncQdrantClient,
+    client: "AsyncQdrantClient",
     collection_name: str,
 ) -> bool:
     """

@@ -12,7 +12,6 @@ Usage::
 
 from src.vector.collections import (
     DEFAULT_COLLECTION,
-    DEFAULT_DISTANCE,
     create_collection_if_not_exists,
     delete_collection,
 )
@@ -29,9 +28,7 @@ from src.vector.qdrant import (
 from src.vector.vector_service import VectorService
 
 __all__ = [
-    # Collections
     "DEFAULT_COLLECTION",
-    "DEFAULT_DISTANCE",
     "create_collection_if_not_exists",
     "delete_collection",
     # Embeddings

@@ -22,17 +22,18 @@ Public API
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from qdrant_client import AsyncQdrantClient
-from qdrant_client.http.models import (
-    Distance,
-    FieldCondition,
-    Filter,
-    MatchValue,
-    PointStruct,
-    VectorParams,
-)
+if TYPE_CHECKING:
+    from qdrant_client import AsyncQdrantClient
+    from qdrant_client.http.models import (
+        Distance,
+        FieldCondition,
+        Filter,
+        MatchValue,
+        PointStruct,
+        VectorParams,
+    )
 from tenacity import (
     before_sleep_log,
     retry,
@@ -68,7 +69,7 @@ class VectorService:
         service = VectorService(client=get_qdrant_client())
     """
 
-    def __init__(self, client: AsyncQdrantClient) -> None:
+    def __init__(self, client: "AsyncQdrantClient") -> None:
         """Initialise with a shared Qdrant async client."""
         self._client = client
 
@@ -81,7 +82,7 @@ class VectorService:
         self,
         collection_name: str | None = None,
         vector_size: int | None = None,
-        distance: Distance = Distance.COSINE,
+        distance: "Distance | None" = None,
     ) -> bool:
         """
         Create a Qdrant collection if it does not already exist.
@@ -97,6 +98,12 @@ class VectorService:
         settings = get_settings()
         name = collection_name or settings.QDRANT_COLLECTION
         size = vector_size or settings.QDRANT_VECTOR_SIZE
+
+        # Lazy import — qdrant_client is an optional heavy dependency
+        from qdrant_client.http.models import Distance, VectorParams  # noqa: PLC0415
+
+        if distance is None:
+            distance = Distance.COSINE
 
         exists = await self._client.collection_exists(collection_name=name)
         if exists:
@@ -162,7 +169,10 @@ class VectorService:
             return True
 
         points = [
-            PointStruct(id=r.id, vector=r.vector, payload=r.payload)
+            # Lazy import — qdrant_client is an optional heavy dependency
+            __import__('qdrant_client.http.models', fromlist=['PointStruct']).PointStruct(
+                id=r.id, vector=r.vector, payload=r.payload
+            )
             for r in records
         ]
 
@@ -229,7 +239,9 @@ class VectorService:
         Returns:
             List of ``VectorSearchResult`` ordered by descending score.
         """
-        query_filter: Filter | None = None
+        # Lazy import — qdrant_client is an optional heavy dependency
+        from qdrant_client.http.models import FieldCondition, Filter, MatchValue  # noqa: PLC0415
+        query_filter: "Filter | None" = None
         if payload_filters:
             conditions = [
                 FieldCondition(key=k, match=MatchValue(value=v))

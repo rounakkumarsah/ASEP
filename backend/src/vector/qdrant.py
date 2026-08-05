@@ -15,19 +15,21 @@ No source code modifications needed.
 from __future__ import annotations
 
 import logging
-from typing import Annotated, AsyncGenerator
+from typing import TYPE_CHECKING, Annotated, AsyncGenerator
 from urllib.parse import urlparse
 
 from fastapi import Depends
-from qdrant_client import AsyncQdrantClient
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.config.settings import get_settings
 
+if TYPE_CHECKING:
+    from qdrant_client import AsyncQdrantClient
+
 logger = logging.getLogger(__name__)
 
-# Module-level singleton
-_qdrant_client: AsyncQdrantClient | None = None
+# Module-level singleton — typed via string annotation to avoid eager import
+_qdrant_client: "AsyncQdrantClient | None" = None
 
 
 def _safe_qdrant_host(url: str) -> str:
@@ -59,6 +61,9 @@ async def init_qdrant() -> None:
     global _qdrant_client
     if _qdrant_client is not None:
         return  # Already initialised
+
+    # Lazy import — qdrant_client is an optional heavy dependency
+    from qdrant_client import AsyncQdrantClient  # noqa: PLC0415
 
     settings = get_settings()
     url = settings.QDRANT_URL.rstrip("/")
@@ -106,7 +111,7 @@ async def close_qdrant() -> None:
         _qdrant_client = None
 
 
-def get_qdrant_client() -> AsyncQdrantClient:
+def get_qdrant_client() -> "AsyncQdrantClient":
     """
     Return the initialised Qdrant client singleton.
 
@@ -120,11 +125,11 @@ def get_qdrant_client() -> AsyncQdrantClient:
     return _qdrant_client
 
 
-async def qdrant_dependency() -> AsyncGenerator[AsyncQdrantClient, None]:
+async def qdrant_dependency() -> AsyncGenerator["AsyncQdrantClient", None]:
     """FastAPI dependency generator that yields the shared Qdrant client."""
     yield get_qdrant_client()
 
 
 # Annotated alias for clean FastAPI route signatures:
 #   async def my_route(qdrant: QdrantClientDep) -> ...:
-QdrantClientDep = Annotated[AsyncQdrantClient, Depends(qdrant_dependency)]
+QdrantClientDep = Annotated["AsyncQdrantClient", Depends(qdrant_dependency)]

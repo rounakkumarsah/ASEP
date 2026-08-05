@@ -17,9 +17,10 @@ All operations run inside automatic retry contexts and include structured loggin
 from __future__ import annotations
 
 import logging
-from typing import Any, Mapping
+from typing import TYPE_CHECKING, Any, Mapping
 
-from neo4j import AsyncDriver
+if TYPE_CHECKING:
+    from neo4j import AsyncDriver
 from tenacity import (
     before_sleep_log,
     retry,
@@ -56,7 +57,7 @@ class GraphService:
         await service.create_nodes([GraphNode(id="x", labels=["User"])])
     """
 
-    def __init__(self, driver: AsyncDriver) -> None:
+    def __init__(self, driver: "AsyncDriver") -> None:
         """Initialise with an async Neo4j driver."""
         self._driver = driver
         # None = use driver's default routing (required for Neo4j Aura Free)

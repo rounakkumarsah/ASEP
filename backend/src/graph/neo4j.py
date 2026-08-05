@@ -15,19 +15,21 @@ Credentials and URLs are read exclusively from settings/environment.
 from __future__ import annotations
 
 import logging
-from typing import Annotated, AsyncGenerator
+from typing import TYPE_CHECKING, Annotated, Any, AsyncGenerator
 from urllib.parse import urlparse
 
 from fastapi import Depends
-from neo4j import AsyncDriver, AsyncGraphDatabase
 from tenacity import retry, stop_after_attempt, wait_exponential
+
+if TYPE_CHECKING:
+    from neo4j import AsyncDriver
 
 from src.config.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
-# Module-level singleton
-_neo4j_driver: AsyncDriver | None = None
+# Module-level singleton (typed as Any to avoid eager neo4j import)
+_neo4j_driver: Any = None
 
 
 def _safe_neo4j_host(url: str) -> str:
@@ -62,6 +64,9 @@ async def init_neo4j() -> None:
     logger.info("Connecting to Neo4j at %s", host_label)
 
     try:
+        # Lazy import — neo4j is an optional heavy dependency
+        from neo4j import AsyncGraphDatabase  # noqa: PLC0415
+
         # AsyncGraphDatabase.driver is thread-safe and acts as a connection pool
         driver = AsyncGraphDatabase.driver(
             settings.NEO4J_URI,
@@ -84,7 +89,7 @@ async def close_neo4j() -> None:
         _neo4j_driver = None
 
 
-def get_neo4j_driver() -> AsyncDriver:
+def get_neo4j_driver() -> Any:
     """
     Return the active Neo4j driver singleton.
 
@@ -98,11 +103,11 @@ def get_neo4j_driver() -> AsyncDriver:
     return _neo4j_driver
 
 
-async def neo4j_driver_dependency() -> AsyncGenerator[AsyncDriver, None]:
+async def neo4j_driver_dependency() -> AsyncGenerator[Any, None]:
     """FastAPI dependency to inject the Neo4j driver."""
     yield get_neo4j_driver()
 
 
 # Annotated alias for clean FastAPI dependency injection:
 #   async def my_route(driver: Neo4jDriverDep) -> ...:
-Neo4jDriverDep = Annotated[AsyncDriver, Depends(neo4j_driver_dependency)]
+Neo4jDriverDep = Annotated[Any, Depends(neo4j_driver_dependency)]
