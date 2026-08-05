@@ -102,17 +102,24 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     )
     logger.info("ASEP backend starting", extra={"version": settings.APP_VERSION, "env": settings.APP_ENV})
 
+    import asyncio
+
     # Initialize database connection pool
-    await init_db()
+    try:
+        await asyncio.wait_for(init_db(), timeout=5.0)
+    except Exception as db_exc:
+        logger.warning("Database pool initialization failed or timed out: %s", str(db_exc))
 
-    # Initialize redis pool
-    await init_redis()
-
-    from src.graph.neo4j import close_neo4j, init_neo4j
+    # Initialize redis pool — short timeout so cold start is non-blocking if Redis is unreachable
+    try:
+        await asyncio.wait_for(init_redis(), timeout=2.0)
+    except Exception as redis_exc:
+        logger.warning("Redis initialization failed or timed out: %s", str(redis_exc))
 
     # Initialize Neo4j driver — graceful degradation if unavailable at startup
     try:
-        await init_neo4j()
+        from src.graph.neo4j import close_neo4j, init_neo4j
+        await asyncio.wait_for(init_neo4j(), timeout=2.0)
         logger.info("Neo4j driver ready.")
     except Exception as neo4j_exc:
         logger.warning(
@@ -122,14 +129,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             str(neo4j_exc),
         )
 
-
-    from src.vector.qdrant import close_qdrant, init_qdrant
-    from src.vector.collections import create_collection_if_not_exists
-
     # Initialize Qdrant client — graceful degradation if unavailable at startup.
-    # RAG endpoints will fail with a clear error rather than crashing the whole app.
     try:
-        await init_qdrant()
+        from src.vector.qdrant import close_qdrant, init_qdrant
+        await asyncio.wait_for(init_qdrant(), timeout=2.0)
+        from src.vector.collections import create_collection_if_not_exists
         from src.vector.qdrant import get_qdrant_client
         from src.config.settings import get_settings as _get_settings
         _settings = _get_settings()
@@ -150,9 +154,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             str(qdrant_exc),
         )
 
-
-    # TODO (Phase 0.2): await supervisor.start()
-
     yield
 
     logger.info("ASEP backend shutting down")
@@ -163,11 +164,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await close_redis()
     
     # Close neo4j driver
-    await close_neo4j()
+    try:
+        from src.graph.neo4j import close_neo4j
+        await close_neo4j()
+    except Exception:
+        pass
 
-    
     # Close qdrant client
-    await close_qdrant()
+    try:
+        from src.vector.qdrant import close_qdrant
+        await close_qdrant()
+    except Exception:
+        pass
 
 
 def create_app() -> FastAPI:
@@ -233,6 +241,7 @@ def create_app() -> FastAPI:
     # Routers
     # -----------------------------------------------------------------------
     app.include_router(health_router, tags=["Observability"])
+    app.include_router(health_router, prefix="/api/v1", tags=["Observability"])
     app.include_router(metrics_router, tags=["Observability"])
     app.include_router(diagnostics_router, tags=["Observability"])
 

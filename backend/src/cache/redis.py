@@ -41,6 +41,8 @@ async def init_redis() -> None:
             "encoding": "utf-8",
             "decode_responses": True,
             "health_check_interval": 30,
+            "socket_timeout": 2.0,
+            "socket_connect_timeout": 2.0,
         }
         if settings.REDIS_URL.startswith("rediss://"):
             import ssl

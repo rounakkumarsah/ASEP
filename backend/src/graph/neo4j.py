@@ -43,9 +43,11 @@ def _safe_neo4j_host(url: str) -> str:
         return "<neo4j>"
 
 
+import os
+
 @retry(
-    stop=stop_after_attempt(5),
-    wait=wait_exponential(multiplier=1, min=2, max=10),
+    stop=stop_after_attempt(1 if (os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV")) else 2),
+    wait=wait_exponential(multiplier=1, min=1, max=2),
     reraise=True,
 )
 async def init_neo4j() -> None:
