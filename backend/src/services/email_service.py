@@ -235,14 +235,23 @@ class EmailService:
         html = HTML_TEMPLATE_WRAPPER.format(CONTENT=content)
         return await self._send_email(to_email, "Reset your password", html, "forgot_password")
     
-    async def send_resend_verification_email(self, email: str, username_or_code: str, code: str | None = None) -> bool:
-        """Resend verification code email."""
-        actual_code = code if code is not None else username_or_code
+    async def send_resend_verification_email(self, email: str, username: str, code: str, token: str) -> bool:
+        """Resend verification code and link email."""
+        verify_link = f"{self.settings.FRONTEND_URL}/verify-email?token={token}"
         content = f"""
         <div class="title">Your verification code</div>
         <div class="content">
+          Hi {username},<br><br>
           Here is your new verification code:<br><br>
-          <strong style="font-size: 24px; letter-spacing: 4px;">{actual_code}</strong>
+          <strong style="font-size: 24px; letter-spacing: 4px;">{code}</strong><br><br>
+          Or click the button below to verify your email address:
+        </div>
+        <div style="text-align: center; margin: 20px 0;">
+          <a href="{verify_link}" class="btn">Verify Account</a>
+        </div>
+        <div class="content" style="font-size: 14px; color: #9ca3af; margin-top: 16px;">
+          Or copy and paste this link in your browser:<br>
+          <a href="{verify_link}" style="color: #22D3EE;">{verify_link}</a>
         </div>
         """
         html = HTML_TEMPLATE_WRAPPER.format(CONTENT=content)

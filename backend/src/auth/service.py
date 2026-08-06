@@ -206,17 +206,22 @@ class AuthService:
         """Regenerate verification code, store in Redis, and send resend email."""
         async with self.user_service._uow_factory() as uow:
             user = await uow.users.get_by_email(email)
-            if not user:
+            if not user or user.email_verified:
                 return False
 
         import random
+        import uuid
         redis = get_redis_client()
         settings = get_settings()
         code = str(random.randint(100000, 999999)) if settings.APP_ENV == "production" else "123456"
         await redis.setex(f"email_verify_code:{email}", 900, code)  # 15 mins expiry
 
-        # Send resend verification email
-        await self.email_service.send_resend_verification_email(email, user.username, code)
+        # Also generate and store token for link-based verification
+        token = str(uuid.uuid4())
+        await redis.setex(f"email_verify_token:{token}", 900, email)
+
+        # Send resend verification email with both code and token
+        await self.email_service.send_resend_verification_email(email, user.username, code, token)
         return True
 
     async def generate_password_reset_token(self, email: str) -> Optional[str]:
