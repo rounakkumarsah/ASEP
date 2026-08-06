@@ -1,48 +1,45 @@
 "use client";
 
 import Link from "next/link";
-import { Hexagon } from "lucide-react";
+import { Cpu } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export function LandingFooter() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="bg-background border-t border-border/50">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-16 pb-8">
+    <footer className="bg-[#0D1117] border-t border-[#202833] text-[#9CA6B5]">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-12 pb-6">
         {/* Main Footer Content */}
-        <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-12 lg:gap-8 mb-16">
-          {/* Column 1: Brand (Spans 2 on LG) */}
-          <div className="lg:col-span-2">
-            <Link href="/" className="flex items-center space-x-2 w-fit group">
-              <div className="p-1.5 rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary/20">
-                <Hexagon className="h-6 w-6" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-10">
+          {/* Brand Info */}
+          <div className="space-y-4">
+            <Link href="/" className="flex items-center space-x-2.5 group">
+              <div className="p-1 rounded bg-[#111720] border border-[#202833] text-[#22D3EE] group-hover:border-[#22D3EE]/50 transition-colors">
+                <Cpu className="h-4 w-4" />
               </div>
-              <span className="text-xl font-bold tracking-tight text-foreground">
-                ASEP
-              </span>
+              <span className="font-mono font-bold tracking-wider text-sm text-[#F5F7FA]">ASEP</span>
             </Link>
-            <p className="mt-6 text-sm leading-relaxed text-muted-foreground max-w-sm">
-              Autonomous Software Engineering Platform. Deploy, monitor, and
-              scale enterprise AI agents locally.
+            <p className="text-xs leading-relaxed text-[#9CA6B5] max-w-xs font-sans">
+              Autonomous Software Engineering Platform. Production-grade multi-agent runtime and workspace sandbox for secure, compliant automation.
             </p>
           </div>
 
           {/* Column 2: Product */}
           <div>
-            <h3 className="text-sm font-semibold text-foreground mb-6">
+            <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-[#F5F7FA] mb-4">
               Product
             </h3>
-            <ul className="space-y-4">
+            <ul className="space-y-2.5 text-xs font-mono">
               {[
-                { name: "Platform", href: "/platform" },
-                { name: "Architecture", href: "/architecture" },
-                { name: "Documentation", href: "/documentation" },
+                { name: "Platform Runtime", href: "/platform" },
+                { name: "System Architecture", href: "/architecture" },
+                { name: "Pricing Tiers", href: "/pricing" },
               ].map((item) => (
                 <li key={item.name}>
                   <Link
                     href={item.href}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    className="text-[#9CA6B5] hover:text-[#F5F7FA] transition-colors"
                   >
                     {item.name}
                   </Link>
@@ -53,24 +50,24 @@ export function LandingFooter() {
 
           {/* Column 3: Resources */}
           <div>
-            <h3 className="text-sm font-semibold text-foreground mb-6">
+            <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-[#F5F7FA] mb-4">
               Resources
             </h3>
-            <ul className="space-y-4">
+            <ul className="space-y-2.5 text-xs font-mono">
               {[
                 {
-                  name: "GitHub",
+                  name: "GitHub Repository",
                   href: "https://github.com/rounakkumarsah/ASEP",
                   external: true,
                 },
-                { name: "API Documentation", href: "/api-docs" },
-                { name: "Roadmap", href: "/roadmap" },
-                { name: "Changelog", href: "/changelog" },
+                { name: "API Reference Docs", href: "/api-docs" },
+                { name: "Documentation Hub", href: "/documentation" },
+                { name: "Product Roadmap", href: "/roadmap" },
               ].map((item) => (
                 <li key={item.name}>
                   <Link
                     href={item.href}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    className="text-[#9CA6B5] hover:text-[#F5F7FA] transition-colors"
                     {...(item.external
                       ? { target: "_blank", rel: "noopener noreferrer" }
                       : {})}
@@ -82,22 +79,22 @@ export function LandingFooter() {
             </ul>
           </div>
 
-          {/* Column 4: Company */}
+          {/* Column 4: Trust & Legal */}
           <div>
-            <h3 className="text-sm font-semibold text-foreground mb-6">
+            <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-[#F5F7FA] mb-4">
               Company
             </h3>
-            <ul className="space-y-4">
+            <ul className="space-y-2.5 text-xs font-mono">
               {[
-                { name: "About", href: "/about" },
-                { name: "Contact", href: "/contact" },
+                { name: "About ASEP", href: "/about" },
+                { name: "Contact Support", href: "/contact" },
                 { name: "Privacy Policy", href: "/privacy" },
                 { name: "Terms of Service", href: "/terms" },
               ].map((item) => (
                 <li key={item.name}>
                   <Link
                     href={item.href}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    className="text-[#9CA6B5] hover:text-[#F5F7FA] transition-colors"
                   >
                     {item.name}
                   </Link>
@@ -108,11 +105,11 @@ export function LandingFooter() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="pt-8 border-t border-border/50 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex flex-col md:flex-row items-center gap-4 text-xs text-muted-foreground">
+        <div className="pt-6 border-t border-[#202833] flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-[10px] font-mono text-[#667085]">
             <span>&copy; {currentYear} ASEP. All rights reserved.</span>
-            <span className="hidden md:inline-block h-1 w-1 rounded-full bg-border" />
-            <span>Built with &hearts; using open-source technologies</span>
+            <span>•</span>
+            <span>Enterprise SLA Active</span>
           </div>
           <div className="flex items-center">
             <ThemeToggle />
