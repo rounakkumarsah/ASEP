@@ -110,7 +110,7 @@ export default function PricingPage() {
                     ))}
                   </ul>
                 </div>
-                <Link href="/login" className="w-full">
+                <Link href={plan.name === "Enterprise" ? "/contact" : "/signup"} className="w-full">
                   <Button 
                     className={`w-full font-mono text-xs font-semibold h-10 ${
                       plan.popular 

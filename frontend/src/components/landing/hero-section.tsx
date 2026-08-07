@@ -51,7 +51,7 @@ export function HeroSection() {
             variants={itemVariants}
             className="mx-auto max-w-4xl text-4xl font-extrabold tracking-tight text-[#F5F7FA] sm:text-5xl md:text-6xl lg:text-7xl font-sans"
           >
-            Autonomous Software Engineering at Enterprise Scale
+            Build Enterprise AI Software with Autonomous Engineering Agents
           </motion.h1>
 
           {/* Subheadline */}
