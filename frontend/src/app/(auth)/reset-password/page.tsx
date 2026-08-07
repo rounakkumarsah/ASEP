@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Hexagon, Eye, EyeOff, Check, X, Loader2 } from "lucide-react";
+import { Cpu, Eye, EyeOff, Check, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -200,15 +200,17 @@ export default function ResetPasswordPage() {
 
   return (
     <GuestRoute>
-      <div className="flex w-full items-center justify-center px-4">
-        <Card className="w-full max-w-md border border-border/50 bg-card shadow-lg">
+      <div className="flex h-screen w-full items-center justify-center bg-[#090B0F] px-4 text-[#F5F7FA]">
+        <Card className="w-full max-w-md border border-[#202833] bg-[#0D1117] shadow-xl">
           <CardHeader className="text-center pb-4">
-            <Link href="/" className="flex items-center justify-center space-x-2 mb-2 group">
-              <Hexagon className="h-8 w-8 text-primary" />
-              <span className="text-2xl font-bold tracking-tight">ASEP</span>
+            <Link href="/" className="flex items-center justify-center space-x-2.5 mb-2 group">
+              <div className="p-1.5 rounded bg-[#111720] border border-[#202833] text-[#22D3EE] group-hover:border-[#22D3EE]/50 transition-colors">
+                <Cpu className="h-5 w-5" />
+              </div>
+              <span className="font-mono font-bold tracking-wider text-lg text-[#F5F7FA]">ASEP</span>
             </Link>
-            <CardTitle className="text-2xl font-extrabold tracking-tight">Reset Password</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-xl font-bold font-mono text-[#F5F7FA]">Reset Password</CardTitle>
+            <CardDescription className="text-xs text-[#9CA6B5] font-sans">
               Set a strong, secure new password for your account.
             </CardDescription>
           </CardHeader>
@@ -216,19 +218,19 @@ export default function ResetPasswordPage() {
             {success ? (
               <div className="text-center space-y-4 py-4">
                 <div className="flex justify-center">
-                  <div className="p-3 bg-green-500/10 text-green-500 rounded-full">
-                    <Check className="h-8 w-8" />
+                  <div className="p-3 bg-[#2DD4A3]/10 text-[#2DD4A3] rounded-full border border-[#2DD4A3]/20">
+                    <Check className="h-6 w-6" />
                   </div>
                 </div>
-                <p className="text-sm font-medium text-green-500">
-                  Password updated successfully! Redirecting you to login...
+                <p className="text-xs font-mono text-[#2DD4A3]">
+                  Password updated successfully! Redirecting to login...
                 </p>
               </div>
             ) : (
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                   {error && (
-                    <div className="p-3 rounded-lg bg-red-500/10 text-red-500 text-xs font-medium border border-red-500/20">
+                    <div className="p-3 rounded border border-[#F05252]/20 bg-[#F05252]/10 text-xs font-mono text-[#F05252] text-center">
                       {error}
                     </div>
                   )}
@@ -240,13 +242,13 @@ export default function ResetPasswordPage() {
                     render={({ field }) => (
                       <FormItem>
                         <div className="flex justify-between items-center">
-                          <FormLabel>New Password</FormLabel>
+                          <FormLabel className="text-xs font-mono font-semibold uppercase text-[#9CA6B5]">New Password</FormLabel>
                           <button
                             type="button"
                             onClick={generatePassword}
-                            className="text-xs text-primary hover:underline font-medium focus:outline-none"
+                            className="text-[10px] font-mono text-[#22D3EE] hover:underline"
                           >
-                            Generate Strong Password
+                            Generate Password
                           </button>
                         </div>
                         <FormControl>
@@ -255,13 +257,13 @@ export default function ResetPasswordPage() {
                               type={showPassword ? "text" : "password"}
                               placeholder="••••••••••••"
                               autoComplete="new-password"
-                              className="pr-10"
+                              className="border-[#202833] bg-[#090B0F] text-[#F5F7FA] pr-10"
                               {...field}
                             />
                             <button
                               type="button"
                               onClick={() => setShowPassword(!showPassword)}
-                              className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
+                              className="absolute inset-y-0 right-0 flex items-center pr-3 text-[#667085] hover:text-[#F5F7FA]"
                               aria-label={showPassword ? "Hide password" : "Show password"}
                             >
                               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -279,20 +281,20 @@ export default function ResetPasswordPage() {
                     name="confirmPassword"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Confirm Password</FormLabel>
+                        <FormLabel className="text-xs font-mono font-semibold uppercase text-[#9CA6B5]">Confirm Password</FormLabel>
                         <FormControl>
                           <div className="relative">
                             <Input
                               type={showConfirmPassword ? "text" : "password"}
                               placeholder="••••••••••••"
                               autoComplete="new-password"
-                              className="pr-10"
+                              className="border-[#202833] bg-[#090B0F] text-[#F5F7FA] pr-10"
                               {...field}
                             />
                             <button
                               type="button"
                               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                              className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
+                              className="absolute inset-y-0 right-0 flex items-center pr-3 text-[#667085] hover:text-[#F5F7FA]"
                               aria-label={showConfirmPassword ? "Hide password" : "Show password"}
                             >
                               {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -306,12 +308,12 @@ export default function ResetPasswordPage() {
 
                   {/* Password Strength Meter */}
                   {watchPassword && (
-                    <div className="space-y-2 pt-2">
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-muted-foreground">Password Strength:</span>
-                        <span className="font-semibold text-foreground">{strength.label}</span>
+                    <div className="space-y-2 pt-2 font-mono text-[10px]">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[#9CA6B5]">Strength:</span>
+                        <span className="font-semibold text-[#F5F7FA]">{strength.label}</span>
                       </div>
-                      <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                      <div className="h-1.5 w-full bg-[#111720] border border-[#202833] rounded-full overflow-hidden">
                         <div
                           className={`h-full ${strength.color} transition-all duration-300`}
                           style={{ width: `${strength.score}%` }}
@@ -321,33 +323,32 @@ export default function ResetPasswordPage() {
                   )}
 
                   {/* Password Checklist */}
-                  <div className="p-3 bg-muted/40 border border-border/50 rounded-lg space-y-2 text-xs">
-                    <p className="font-semibold text-muted-foreground">Password Requirements:</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="p-3 bg-[#111720]/40 border border-[#202833] rounded-lg space-y-2 text-[10px] font-mono">
+                    <p className="font-semibold text-[#9CA6B5]">Requirements:</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                       <div className="flex items-center gap-2">
-                        {rules.length ? <Check className="h-3.5 w-3.5 text-green-500" /> : <X className="h-3.5 w-3.5 text-red-500" />}
-                        <span className={rules.length ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}>12+ Characters</span>
+                        {rules.length ? <Check className="h-3.5 w-3.5 text-[#2DD4A3]" /> : <X className="h-3.5 w-3.5 text-[#667085]/50" />}
+                        <span className={rules.length ? "text-[#2DD4A3]" : "text-[#667085]"}>12+ Characters</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        {rules.uppercase ? <Check className="h-3.5 w-3.5 text-green-500" /> : <X className="h-3.5 w-3.5 text-red-500" />}
-                        <span className={rules.uppercase ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}>Uppercase Letter</span>
+                        {rules.uppercase ? <Check className="h-3.5 w-3.5 text-[#2DD4A3]" /> : <X className="h-3.5 w-3.5 text-[#667085]/50" />}
+                        <span className={rules.uppercase ? "text-[#2DD4A3]" : "text-[#667085]"}>Uppercase Letter</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        {rules.lowercase ? <Check className="h-3.5 w-3.5 text-green-500" /> : <X className="h-3.5 w-3.5 text-red-500" />}
-                        <span className={rules.lowercase ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}>Lowercase Letter</span>
+                        {rules.lowercase ? <Check className="h-3.5 w-3.5 text-[#2DD4A3]" /> : <X className="h-3.5 w-3.5 text-[#667085]/50" />}
+                        <span className={rules.lowercase ? "text-[#2DD4A3]" : "text-[#667085]"}>Lowercase Letter</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        {rules.number ? <Check className="h-3.5 w-3.5 text-green-500" /> : <X className="h-3.5 w-3.5 text-red-500" />}
-                        <span className={rules.number ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}>One Number</span>
+                        {rules.number ? <Check className="h-3.5 w-3.5 text-[#2DD4A3]" /> : <X className="h-3.5 w-3.5 text-[#667085]/50" />}
+                        <span className={rules.number ? "text-[#2DD4A3]" : "text-[#667085]"}>One Number</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        {rules.special ? <Check className="h-3.5 w-3.5 text-green-500" /> : <X className="h-3.5 w-3.5 text-red-500" />}
-                        <span className={rules.special ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}>Special Character</span>
+                        {rules.special ? <Check className="h-3.5 w-3.5 text-[#2DD4A3]" /> : <X className="h-3.5 w-3.5 text-[#667085]/50" />}
+                        <span className={rules.special ? "text-[#2DD4A3]" : "text-[#667085]"}>Special Character</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Turnstile Human Verification — Hidden until submit */}
                   {env.NEXT_PUBLIC_ENABLE_TURNSTILE && (
                     <div className="space-y-1">
                       <Turnstile
@@ -357,14 +358,14 @@ export default function ResetPasswordPage() {
                         onError={handleTurnstileError}
                       />
                       {captchaError && (
-                        <p className="text-xs text-destructive">{captchaError}</p>
+                        <p className="text-xs text-[#F05252] font-mono">{captchaError}</p>
                       )}
                     </div>
                   )}
 
                   <Button
                     type="submit"
-                    className="w-full font-semibold h-11 mt-4"
+                    className="w-full text-xs font-mono font-semibold bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9] h-10 mt-4"
                     disabled={isSubmitting}
                   >
                     {isSubmitting ? (

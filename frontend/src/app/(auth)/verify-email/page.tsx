@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Hexagon, MailCheck } from "lucide-react";
+import { Cpu, MailCheck, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { GuestRoute } from "@/components/auth/guest-route";
@@ -57,49 +57,46 @@ export default function VerifyEmailPage() {
 
   return (
     <GuestRoute>
-      <div className="flex h-screen w-full items-center justify-center bg-background px-4">
-        <Card className="w-full max-w-md border border-border/50 bg-card shadow-lg text-center">
+      <div className="flex h-screen w-full items-center justify-center bg-[#090B0F] px-4 text-[#F5F7FA]">
+        <Card className="w-full max-w-md border border-[#202833] bg-[#0D1117] shadow-xl text-center">
           <CardHeader className="pb-4">
-            <div className="flex items-center justify-center space-x-2 mb-4">
-              <Hexagon className="h-10 w-10 text-primary animate-pulse" />
-              <span className="text-2xl font-bold tracking-tight">ASEP</span>
+            <div className="flex items-center justify-center space-x-2.5 mb-4">
+              <div className="p-1.5 rounded bg-[#111720] border border-[#202833] text-[#22D3EE]">
+                <Cpu className="h-5 w-5" />
+              </div>
+              <span className="font-mono font-bold tracking-wider text-lg text-[#F5F7FA]">ASEP</span>
             </div>
-            <div className="mx-auto h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-4">
-              <MailCheck className="h-6 w-6" />
+            <div className="mx-auto h-11 w-11 rounded-md bg-[#111720] border border-[#202833] flex items-center justify-center text-[#22D3EE] mb-4">
+              <MailCheck className="h-5 w-5" />
             </div>
-            <CardTitle className="text-2xl font-bold">Verify Your Email</CardTitle>
-            <CardDescription className="pt-2">
-              We sent a verification link to <span className="font-semibold text-foreground">{email || "your email address"}</span>.
+            <CardTitle className="text-xl font-bold font-mono text-[#F5F7FA]">Verify Your Email</CardTitle>
+            <CardDescription className="text-xs text-[#9CA6B5] font-sans pt-2">
+              Verification details sent to <span className="font-semibold text-[#F5F7FA]">{email || "your registered email"}</span>.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {error && (
-              <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-lg border border-destructive/20 font-semibold">
+              <div className="p-3 text-xs font-mono text-[#F05252] bg-[#F05252]/10 rounded border border-[#F05252]/20">
                 {error}
               </div>
             )}
             {success ? (
-              <div className="p-3 text-sm text-green-600 bg-green-500/10 rounded-lg border border-green-500/20 font-semibold">
+              <div className="p-3 text-xs font-mono text-[#2DD4A3] bg-[#2DD4A3]/10 rounded border border-[#2DD4A3]/20">
                 Account activated! Redirecting to sign in...
               </div>
             ) : (
               <Button
                 onClick={handleVerify}
-                className="w-full font-semibold"
+                className="w-full text-xs font-mono font-semibold bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9] h-10"
                 disabled={verifying || (!email && !token)}
               >
-                {verifying ? "Activating Account..." : "Activate Account"}
+                {verifying ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Activating Account...</>
+                ) : (
+                  "Activate Account"
+                )}
               </Button>
             )}
-            <div className="text-xs text-muted-foreground pt-4">
-              Didn&apos;t receive the email?{" "}
-              <button
-                onClick={() => alert("Verification code is '123456'. Click Activate Account.")}
-                className="font-semibold text-primary hover:underline"
-              >
-                Show validation code
-              </button>
-            </div>
           </CardContent>
         </Card>
       </div>

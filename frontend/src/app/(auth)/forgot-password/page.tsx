@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Hexagon, KeyRound, Loader2 } from "lucide-react";
+import { Cpu, KeyRound, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -99,34 +99,36 @@ export default function ForgotPasswordPage() {
 
   return (
     <GuestRoute>
-      <div className="flex h-screen w-full items-center justify-center bg-background px-4">
-        <Card className="w-full max-w-md border border-border/50 bg-card shadow-lg">
+      <div className="flex h-screen w-full items-center justify-center bg-[#090B0F] px-4 text-[#F5F7FA]">
+        <Card className="w-full max-w-md border border-[#202833] bg-[#0D1117] shadow-xl">
           <CardHeader className="text-center pb-4">
-            <Link href="/" className="flex items-center justify-center space-x-2 mb-4">
-              <Hexagon className="h-10 w-10 text-primary animate-pulse" />
-              <span className="text-2xl font-bold tracking-tight">ASEP</span>
+            <Link href="/" className="flex items-center justify-center space-x-2.5 mb-4 group">
+              <div className="p-1.5 rounded bg-[#111720] border border-[#202833] text-[#22D3EE] group-hover:border-[#22D3EE]/50 transition-colors">
+                <Cpu className="h-5 w-5" />
+              </div>
+              <span className="font-mono font-bold tracking-wider text-lg text-[#F5F7FA]">ASEP</span>
             </Link>
-            <div className="mx-auto h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-4">
-              <KeyRound className="h-6 w-6" />
+            <div className="mx-auto h-11 w-11 rounded-md bg-[#111720] border border-[#202833] flex items-center justify-center text-[#22D3EE] mb-4">
+              <KeyRound className="h-5 w-5" />
             </div>
-            <CardTitle className="text-2xl font-bold">Forgot Password?</CardTitle>
-            <CardDescription>
-              Enter your email and we&apos;ll send you instructions to reset your password.
+            <CardTitle className="text-xl font-bold font-mono text-[#F5F7FA]">Forgot Password?</CardTitle>
+            <CardDescription className="text-xs text-[#9CA6B5] font-sans">
+              Enter your email to receive password reset instructions.
             </CardDescription>
           </CardHeader>
           <CardContent>
             {error && (
-              <div className="p-3 mb-4 text-sm text-destructive bg-destructive/10 rounded-lg border border-destructive/20 font-semibold text-center">
+              <div className="p-3 mb-4 text-xs font-mono text-[#F05252] bg-[#F05252]/10 rounded border border-[#F05252]/20 text-center">
                 {error}
               </div>
             )}
             {success ? (
               <div className="space-y-4 text-center">
-                <div className="p-3 text-sm text-green-600 bg-green-500/10 rounded-lg border border-green-500/20 font-semibold">
-                  Password reset link sent successfully! Check your server logs or inbox.
+                <div className="p-3 text-xs font-mono text-[#2DD4A3] bg-[#2DD4A3]/10 rounded border border-[#2DD4A3]/20">
+                  Password reset link sent successfully!
                 </div>
                 <Link href="/login">
-                  <Button variant="outline" className="w-full font-semibold">
+                  <Button variant="outline" className="w-full text-xs font-mono font-semibold border-[#202833] bg-[#111720] text-[#F5F7FA]">
                     Return to Sign In
                   </Button>
                 </Link>
@@ -139,9 +141,9 @@ export default function ForgotPasswordPage() {
                     name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Email Address</FormLabel>
+                        <FormLabel className="text-xs font-mono font-semibold uppercase text-[#9CA6B5]">Email Address</FormLabel>
                         <FormControl>
-                          <Input type="email" placeholder="jane@company.com" {...field} />
+                          <Input type="email" placeholder="jane@company.com" className="border-[#202833] bg-[#090B0F] text-[#F5F7FA]" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -156,11 +158,11 @@ export default function ForgotPasswordPage() {
                         onError={handleTurnstileError}
                       />
                       {captchaError && (
-                        <p className="text-xs text-destructive">{captchaError}</p>
+                        <p className="text-xs text-[#F05252] font-mono">{captchaError}</p>
                       )}
                     </div>
                   )}
-                  <Button type="submit" className="w-full font-semibold" disabled={isSubmitting}>
+                  <Button type="submit" className="w-full text-xs font-mono font-semibold bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9] h-10" disabled={isSubmitting}>
                     {isSubmitting ? (
                       <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing…</>
                     ) : (
@@ -171,9 +173,9 @@ export default function ForgotPasswordPage() {
               </Form>
             )}
             {!success && (
-              <div className="mt-6 text-center text-sm text-muted-foreground">
+              <div className="mt-6 text-center text-xs font-mono text-[#9CA6B5]">
                 Remember your password?{" "}
-                <Link href="/login" className="font-semibold text-primary hover:underline">
+                <Link href="/login" className="font-bold text-[#22D3EE] hover:underline">
                   Sign In
                 </Link>
               </div>
