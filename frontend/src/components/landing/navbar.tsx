@@ -123,14 +123,14 @@ export function LandingNavbar() {
             })}
           </nav>
 
-          {/* Right Side: GitHub -> Login -> Get Started -> ThemeToggle -> Mobile Menu */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* GitHub Star button (Desktop) */}
+          {/* Right: Login -> Get Started -> Theme Toggle -> Hamburger */}
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            {/* GitHub (Desktop large only) */}
             <Link
               href="https://github.com/rounakkumarsah/ASEP"
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden xl:flex items-center gap-2 h-9 px-3 rounded-lg bg-muted/40 hover:bg-muted border border-border/60 text-muted-foreground hover:text-foreground transition-colors text-xs font-mono font-medium"
+              className="hidden xl:flex items-center gap-2 h-9 px-3 rounded-lg bg-muted/40 hover:bg-muted border border-border/60 text-muted-foreground hover:text-foreground transition-colors text-xs font-mono font-medium mr-1"
             >
               <Github className="w-3.5 h-3.5" />
               <span>Star</span>
@@ -138,31 +138,31 @@ export function LandingNavbar() {
               <span className="text-foreground font-bold">128</span>
             </Link>
 
-            {/* Login CTA */}
-            <Link href="/login" className="hidden sm:inline-flex">
+            {/* 1. Login */}
+            <Link href="/login">
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-xs font-mono font-medium text-muted-foreground hover:text-foreground hover:bg-accent/60 h-9 px-3.5 rounded-lg"
+                className="text-xs font-mono font-medium text-muted-foreground hover:text-foreground hover:bg-accent/60 h-9 px-3 sm:px-3.5 rounded-lg"
               >
                 Login
               </Button>
             </Link>
 
-            {/* Primary Get Started CTA */}
+            {/* 2. Get Started */}
             <Link href="/signup">
               <Button
                 size="sm"
-                className="h-9 px-4 text-xs font-mono font-bold bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9] shadow-[0_0_20px_rgba(34,211,238,0.25)] hover:shadow-[0_0_30px_rgba(34,211,238,0.45)] transition-all duration-200 rounded-lg"
+                className="h-9 px-3.5 sm:px-4 text-xs font-mono font-bold bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9] shadow-[0_0_18px_rgba(34,211,238,0.25)] hover:shadow-[0_0_28px_rgba(34,211,238,0.45)] transition-all duration-200 rounded-lg"
               >
                 Get Started
               </Button>
             </Link>
 
-            {/* Theme Toggle - beside CTA buttons on desktop & mobile */}
-            <ThemeToggle className="ml-0.5" />
+            {/* 3. Theme Toggle (Beside CTAs and before Hamburger) */}
+            <ThemeToggle />
 
-            {/* Mobile Drawer Trigger */}
+            {/* 4. Hamburger Mobile Menu */}
             <Sheet>
               <SheetTrigger asChild>
                 <Button
