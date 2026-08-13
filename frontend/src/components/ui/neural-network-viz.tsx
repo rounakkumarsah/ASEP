@@ -680,7 +680,7 @@ export function NeuralNetworkViz({ className }: { className?: string }) {
     <div
       ref={containerRef}
       className={cn(
-        "relative w-full h-full min-h-[420px] sm:min-h-[500px] flex items-center justify-center select-none overflow-hidden",
+        "relative w-full h-full min-h-[280px] sm:min-h-[360px] md:min-h-[420px] flex items-center justify-center select-none overflow-hidden",
         className
       )}
     >
