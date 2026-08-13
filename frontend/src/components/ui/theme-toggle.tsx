@@ -31,7 +31,7 @@ export function ThemeToggle({
         variant={variant}
         size={size}
         className={cn(
-          "h-9 w-9 rounded-xl border border-border/40 bg-background/50 text-muted-foreground",
+          "h-10 w-10 min-h-[44px] min-w-[44px] rounded-xl border border-border/40 bg-background/50 text-muted-foreground",
           className
         )}
         aria-label="Toggle theme"
@@ -61,10 +61,10 @@ export function ThemeToggle({
       size={size}
       onClick={handleToggle}
       className={cn(
-        "relative h-9 w-9 rounded-xl border border-border/60 bg-background/70 hover:bg-accent hover:border-primary/40 text-foreground transition-all duration-200 overflow-hidden shadow-sm",
+        "relative h-10 w-10 min-h-[44px] min-w-[44px] rounded-xl border border-border/60 bg-background/70 hover:bg-accent hover:border-primary/40 text-foreground transition-all duration-200 overflow-hidden shadow-sm focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
         className
       )}
-      aria-label={`Current theme: ${theme}. Click to switch theme.`}
+      aria-label={`Current theme: ${theme}. Click to cycle Light / Dark / System.`}
       title={`Theme: ${theme ?? "system"} (Click to cycle Light / Dark / System)`}
     >
       <AnimatePresence mode="wait" initial={false}>
@@ -74,7 +74,7 @@ export function ThemeToggle({
             initial={{ opacity: 0, scale: 0.5, rotate: -90 }}
             animate={{ opacity: 1, scale: 1, rotate: 0 }}
             exit={{ opacity: 0, scale: 0.5, rotate: 90 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.18 }}
             className="flex items-center justify-center"
           >
             <Laptop className="h-4 w-4 text-cyan-500" />
@@ -85,7 +85,7 @@ export function ThemeToggle({
             initial={{ opacity: 0, scale: 0.5, rotate: -90 }}
             animate={{ opacity: 1, scale: 1, rotate: 0 }}
             exit={{ opacity: 0, scale: 0.5, rotate: 90 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.18 }}
             className="flex items-center justify-center"
           >
             <Moon className="h-4 w-4 text-cyan-400" />
@@ -96,7 +96,7 @@ export function ThemeToggle({
             initial={{ opacity: 0, scale: 0.5, rotate: -90 }}
             animate={{ opacity: 1, scale: 1, rotate: 0 }}
             exit={{ opacity: 0, scale: 0.5, rotate: 90 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.18 }}
             className="flex items-center justify-center"
           >
             <Sun className="h-4 w-4 text-amber-500" />

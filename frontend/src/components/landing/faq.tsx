@@ -55,7 +55,7 @@ export function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
-    <section className="relative py-24 bg-[#090B0F] overflow-hidden">
+    <section className="relative py-20 sm:py-28 bg-background dark:bg-[#090B0F] border-b border-border overflow-hidden transition-colors duration-300">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         
         {/* Section Header */}

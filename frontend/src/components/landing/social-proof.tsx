@@ -96,16 +96,16 @@ function Counter({ from = 0, to, decimals = 0, suffix = "", prefix = "" }: { fro
 
 export function SocialProofSection() {
   return (
-    <section className="relative overflow-hidden bg-[#090B0F] py-24 sm:py-32 border-b border-[#202833]">
+    <section className="relative overflow-hidden bg-background dark:bg-[#090B0F] py-20 sm:py-28 md:py-32 border-b border-border transition-colors duration-300">
       {/* Background elements */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-[#22D3EE]/5 rounded-full blur-[120px] pointer-events-none" />
 
       {/* TOP: Technology Marquee */}
-      <div className="flex flex-col items-center space-y-8 mb-32 z-10 relative">
-        <span className="text-xs font-mono font-medium text-[#667085] tracking-[0.2em] uppercase">Trusted Stack</span>
+      <div className="flex flex-col items-center space-y-6 sm:space-y-8 mb-20 sm:mb-28 z-10 relative">
+        <span className="text-xs font-mono font-medium text-muted-foreground tracking-[0.2em] uppercase">Trusted Stack</span>
         <div className="relative w-full overflow-hidden flex flex-col items-center">
-          <div className="pointer-events-none absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-[#090B0F] z-10"></div>
-          <div className="pointer-events-none absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-[#090B0F] z-10"></div>
+          <div className="pointer-events-none absolute inset-y-0 left-0 w-24 sm:w-32 bg-gradient-to-r from-background z-10" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-24 sm:w-32 bg-gradient-to-l from-background z-10" />
           <Marquee className="[--duration:40s]" pauseOnHover>
             {TECHNOLOGIES.map((tech) => (
               <div 
@@ -182,8 +182,8 @@ export function SocialProofSection() {
             className="relative overflow-hidden -mx-4 sm:mx-0 py-4"
           >
             {/* Fade overlays for the marquee borders */}
-            <div className="pointer-events-none absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-[#090B0F] z-10"></div>
-            <div className="pointer-events-none absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-[#090B0F] z-10"></div>
+            <div className="pointer-events-none absolute inset-y-0 left-0 w-16 sm:w-24 bg-gradient-to-r from-background z-10" />
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-16 sm:w-24 bg-gradient-to-l from-background z-10" />
 
             <div className="flex flex-col gap-6">
               {/* Marquee Row 1 */}

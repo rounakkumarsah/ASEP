@@ -16,7 +16,7 @@ export function CTASection() {
   };
 
   return (
-    <section className="relative w-full overflow-hidden bg-[#090B0F] py-32 border-t border-[#202833]">
+    <section className="relative w-full overflow-hidden bg-background dark:bg-[#090B0F] py-24 sm:py-32 border-t border-border transition-colors duration-300">
       {/* Background Effects */}
       <div className="absolute inset-0 z-0">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-[1000px] h-[500px] bg-[#22D3EE]/20 blur-[120px] rounded-full pointer-events-none opacity-50 mix-blend-screen" />
@@ -26,7 +26,7 @@ export function CTASection() {
           style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.65%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }}
         />
         {/* Grid pattern */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#202833_1px,transparent_1px),linear-gradient(to_bottom,#202833_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-20" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--border)/0.4)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--border)/0.4)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-20" />
       </div>
 
       <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
@@ -38,10 +38,10 @@ export function CTASection() {
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
           >
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-[#F5F7FA] mb-6">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-foreground mb-6">
               Deploy Autonomous Engineering Agents <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#22D3EE] to-[#2DD4A3]">Into Production</span>
             </h2>
-            <p className="text-lg md:text-xl text-[#9CA6B5] mb-12 max-w-2xl mx-auto">
+            <p className="text-base sm:text-lg md:text-xl text-muted-foreground mb-10 sm:mb-12 max-w-2xl mx-auto leading-relaxed">
               Enterprise-grade. Secure by design. Built for the teams that ship.
             </p>
           </motion.div>

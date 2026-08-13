@@ -52,22 +52,22 @@ export function LandingNavbar() {
       <header
         className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ease-out ${
           isScrolled
-            ? "mt-3 mx-3 md:mx-auto max-w-6xl"
+            ? "mt-2 sm:mt-3 mx-2 sm:mx-4 md:mx-auto max-w-6xl"
             : "w-full border-b border-border/40"
         }`}
       >
         <div
           className={`flex items-center justify-between transition-all duration-300 ${
             isScrolled
-              ? "h-14 px-4 sm:px-6 rounded-2xl bg-background/80 dark:bg-[#0D1117]/80 backdrop-blur-xl border border-border/80 shadow-[0_8px_32px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
-              : "h-16 px-4 sm:px-6 lg:px-8 bg-background/70 dark:bg-[#090B0F]/70 backdrop-blur-md"
+              ? "h-14 px-3.5 sm:px-6 rounded-2xl bg-background/85 dark:bg-[#0D1117]/85 backdrop-blur-xl border border-border/80 shadow-[0_8px_32px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
+              : "h-16 px-4 sm:px-6 lg:px-8 bg-background/75 dark:bg-[#090B0F]/75 backdrop-blur-md"
           }`}
         >
           {/* Left: Logo & Version */}
           <div className="flex items-center gap-3">
             <Link
               href="/"
-              className="flex items-center gap-2.5 group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg"
+              className="flex items-center gap-2.5 group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg min-h-[44px]"
             >
               <motion.div
                 whileHover={{ scale: 1.08, rotate: 5 }}
@@ -87,9 +87,9 @@ export function LandingNavbar() {
             </span>
           </div>
 
-          {/* Center: Desktop Navigation Links */}
+          {/* Center: Desktop Navigation Links (Visible on lg+) */}
           <nav
-            className="hidden md:flex items-center gap-1 relative"
+            className="hidden lg:flex items-center gap-1 relative"
             onMouseLeave={() => setHoveredIndex(null)}
           >
             {NAV_LINKS.map((link, idx) => {
@@ -101,7 +101,7 @@ export function LandingNavbar() {
                   key={link.name}
                   href={link.href}
                   onMouseEnter={() => setHoveredIndex(idx)}
-                  className={`relative px-3.5 py-1.5 text-sm font-medium transition-colors rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                  className={`relative px-3.5 py-2 text-sm font-medium transition-colors rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary min-h-[40px] flex items-center ${
                     isActive
                       ? "text-foreground font-semibold"
                       : "text-muted-foreground hover:text-foreground"
@@ -123,14 +123,14 @@ export function LandingNavbar() {
             })}
           </nav>
 
-          {/* Right: Login -> Get Started -> Theme Toggle -> Hamburger */}
-          <div className="flex items-center gap-2 sm:gap-2.5">
-            {/* GitHub (Desktop large only) */}
+          {/* Desktop Right Side: GitHub -> Login -> Get Started -> Theme Toggle */}
+          <div className="hidden lg:flex items-center gap-2.5">
+            {/* GitHub Star */}
             <Link
               href="https://github.com/rounakkumarsah/ASEP"
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden xl:flex items-center gap-2 h-9 px-3 rounded-lg bg-muted/40 hover:bg-muted border border-border/60 text-muted-foreground hover:text-foreground transition-colors text-xs font-mono font-medium mr-1"
+              className="flex items-center gap-2 h-10 px-3 rounded-xl bg-muted/40 hover:bg-muted border border-border/60 text-muted-foreground hover:text-foreground transition-all text-xs font-mono font-medium min-h-[44px]"
             >
               <Github className="w-3.5 h-3.5" />
               <span>Star</span>
@@ -138,37 +138,43 @@ export function LandingNavbar() {
               <span className="text-foreground font-bold">128</span>
             </Link>
 
-            {/* 1. Login */}
+            {/* Login */}
             <Link href="/login">
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-xs font-mono font-medium text-muted-foreground hover:text-foreground hover:bg-accent/60 h-9 px-3 sm:px-3.5 rounded-lg"
+                className="text-xs font-mono font-medium text-muted-foreground hover:text-foreground hover:bg-accent/60 h-10 px-3.5 rounded-xl min-h-[44px]"
               >
                 Login
               </Button>
             </Link>
 
-            {/* 2. Get Started */}
+            {/* Get Started */}
             <Link href="/signup">
               <Button
                 size="sm"
-                className="h-9 px-3.5 sm:px-4 text-xs font-mono font-bold bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9] shadow-[0_0_18px_rgba(34,211,238,0.25)] hover:shadow-[0_0_28px_rgba(34,211,238,0.45)] transition-all duration-200 rounded-lg"
+                className="h-10 px-4 text-xs font-mono font-bold bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9] shadow-[0_0_18px_rgba(34,211,238,0.25)] hover:shadow-[0_0_28px_rgba(34,211,238,0.45)] hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 rounded-xl min-h-[44px]"
               >
                 Get Started
               </Button>
             </Link>
 
-            {/* 3. Theme Toggle (Beside CTAs and before Hamburger) */}
+            {/* Theme Toggle */}
+            <ThemeToggle />
+          </div>
+
+          {/* Mobile & Tablet Right Side: Theme Toggle -> Hamburger Menu */}
+          <div className="flex lg:hidden items-center gap-2">
+            {/* Theme Toggle always accessible on mobile/tablet */}
             <ThemeToggle />
 
-            {/* 4. Hamburger Mobile Menu */}
+            {/* Mobile Drawer Trigger */}
             <Sheet>
               <SheetTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="md:hidden h-9 w-9 rounded-lg text-foreground hover:bg-accent focus-visible:ring-2 focus-visible:ring-primary"
+                  className="h-10 w-10 min-h-[44px] min-w-[44px] rounded-xl text-foreground hover:bg-accent focus-visible:ring-2 focus-visible:ring-primary border border-border/40"
                   aria-label="Open Navigation Menu"
                 >
                   <Menu className="w-5 h-5" />
@@ -176,12 +182,12 @@ export function LandingNavbar() {
               </SheetTrigger>
               <SheetContent
                 side="right"
-                className="w-full sm:max-w-sm bg-background border-l border-border p-0 flex flex-col"
+                className="w-full sm:max-w-sm bg-background border-l border-border p-0 flex flex-col z-[110]"
               >
                 <SheetHeader className="p-5 border-b border-border flex flex-row items-center justify-between space-y-0 text-left">
                   <SheetTitle asChild>
-                    <Link href="/" className="flex items-center gap-2">
-                      <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-[#22D3EE] to-[#2DD4A3] p-1 shadow-[0_0_10px_rgba(34,211,238,0.3)]">
+                    <Link href="/" className="flex items-center gap-2.5">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-[#22D3EE] to-[#2DD4A3] p-1.5 shadow-[0_0_10px_rgba(34,211,238,0.3)]">
                         <Cpu className="w-full h-full text-[#090B0F]" />
                       </div>
                       <span className="font-bold text-lg tracking-tight text-foreground">
@@ -193,7 +199,7 @@ export function LandingNavbar() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                      className="h-9 w-9 min-h-[44px] min-w-[44px] rounded-xl text-muted-foreground hover:text-foreground"
                     >
                       <X className="w-4 h-4" />
                       <span className="sr-only">Close menu</span>
@@ -209,7 +215,7 @@ export function LandingNavbar() {
                         <SheetClose asChild key={link.name}>
                           <Link
                             href={link.href}
-                            className={`flex items-center justify-between p-3.5 rounded-xl transition-colors ${
+                            className={`flex items-center justify-between p-3.5 rounded-xl transition-colors min-h-[44px] ${
                               isActive
                                 ? "bg-accent text-primary font-semibold border border-border"
                                 : "text-foreground hover:bg-accent hover:text-primary"
@@ -226,7 +232,7 @@ export function LandingNavbar() {
                   <div className="mt-8 pt-6 border-t border-border space-y-3">
                     <SheetClose asChild>
                       <Link href="/signup" className="block w-full">
-                        <Button className="w-full h-11 bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9] font-mono font-bold text-xs shadow-[0_0_20px_rgba(34,211,238,0.3)]">
+                        <Button className="w-full h-11 min-h-[44px] bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9] font-mono font-bold text-xs shadow-[0_0_20px_rgba(34,211,238,0.3)] rounded-xl">
                           Get Started Free
                         </Button>
                       </Link>
@@ -235,7 +241,7 @@ export function LandingNavbar() {
                       <Link href="/login" className="block w-full">
                         <Button
                           variant="outline"
-                          className="w-full h-11 border-border text-foreground hover:bg-accent font-mono text-xs"
+                          className="w-full h-11 min-h-[44px] border-border text-foreground hover:bg-accent font-mono text-xs rounded-xl"
                         >
                           Sign In
                         </Button>
