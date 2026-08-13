@@ -603,6 +603,8 @@ export function NeuralNetworkViz({ className }: { className?: string }) {
       const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
       lastPointerX = clientX;
       lastPointerY = clientY;
+      dragVelocityX = 0;
+      dragVelocityY = 0;
       targetCanvas.style.cursor = "grabbing";
     }
 
@@ -615,6 +617,9 @@ export function NeuralNetworkViz({ className }: { className?: string }) {
       mouseY = clientY - rect.top;
 
       if (isDragging) {
+        if ("touches" in e && e.cancelable) {
+          e.preventDefault();
+        }
         const dx = clientX - lastPointerX;
         const dy = clientY - lastPointerY;
         lastPointerX = clientX;
@@ -655,7 +660,7 @@ export function NeuralNetworkViz({ className }: { className?: string }) {
     targetCanvas.addEventListener("mouseleave", onMouseLeave);
 
     targetCanvas.addEventListener("touchstart", onPointerDown, { passive: true });
-    targetCanvas.addEventListener("touchmove", onPointerMove, { passive: true });
+    targetCanvas.addEventListener("touchmove", onPointerMove, { passive: false });
     window.addEventListener("touchend", onPointerUp);
 
     const resizeObserver = new ResizeObserver(() => {
@@ -684,7 +689,13 @@ export function NeuralNetworkViz({ className }: { className?: string }) {
         className
       )}
     >
-      <canvas ref={canvasRef} className="w-full h-full block" />
+      <canvas
+        ref={canvasRef}
+        className="w-full h-full block"
+        style={{ touchAction: "none" }}
+        aria-label="Interactive 3D Neural Matrix Autonomous Agent Visualization"
+        role="img"
+      />
     </div>
   );
 }

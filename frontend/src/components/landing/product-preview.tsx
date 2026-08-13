@@ -48,7 +48,7 @@ const TASKS = [
     icon: BrainCircuit,
     color: "text-[#F5B942]",
     bgColor: "bg-[#F5B942]/10",
-    borderColor: "border-[#F5B942]/20",
+    borderColor: "border-[#F5B942]/30",
     progress: 22,
   },
   {
@@ -57,7 +57,7 @@ const TASKS = [
     icon: Terminal,
     color: "text-[#22D3EE]",
     bgColor: "bg-[#22D3EE]/10",
-    borderColor: "border-[#22D3EE]/20",
+    borderColor: "border-[#22D3EE]/30",
     progress: 65,
   },
 ];
@@ -94,18 +94,18 @@ function MetricGauge({
   }, [value, shouldAnimate]);
 
   return (
-    <div className="flex flex-col gap-2 p-4 rounded-xl border border-[#202833] bg-[#0D1117] group hover:border-[#22D3EE]/20 transition-colors">
+    <div className="flex flex-col gap-2 p-3 sm:p-4 rounded-xl border border-border/80 dark:border-[#202833] bg-card dark:bg-[#0D1117] group hover:border-primary/30 transition-colors shadow-sm">
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-[#9CA6B5]">
+        <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-muted-foreground">
           {label}
         </span>
         <Icon className={`h-3.5 w-3.5 ${color}`} />
       </div>
-      <div className={`text-2xl font-mono font-bold ${color}`}>
+      <div className={`text-xl sm:text-2xl font-mono font-bold ${color}`}>
         {shouldAnimate ? displayVal : value}
-        <span className="text-sm font-normal text-[#667085]">{unit}</span>
+        <span className="text-xs sm:text-sm font-normal text-muted-foreground">{unit}</span>
       </div>
-      <div className="h-1 w-full rounded-full bg-[#111720] overflow-hidden">
+      <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: shouldAnimate ? `${value}%` : "0%" }}
@@ -160,7 +160,7 @@ export function ProductPreviewSection() {
     <section
       id="product"
       ref={sectionRef}
-      className="relative py-24 sm:py-32 bg-[#090B0F] overflow-hidden border-b border-[#202833]"
+      className="relative py-20 sm:py-28 md:py-32 bg-background dark:bg-[#090B0F] overflow-hidden border-b border-border transition-colors duration-300"
     >
       {/* Background effects */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-[#22D3EE]/3 rounded-full blur-[120px] pointer-events-none" />
@@ -168,7 +168,7 @@ export function ProductPreviewSection() {
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Header */}
-        <div className="mx-auto max-w-3xl text-center mb-16 space-y-4">
+        <div className="mx-auto max-w-3xl text-center mb-14 sm:mb-16 space-y-3 sm:space-y-4">
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -176,7 +176,7 @@ export function ProductPreviewSection() {
             transition={{ duration: 0.4 }}
             className="flex justify-center"
           >
-            <span className="inline-flex items-center gap-2 rounded-full border border-[#202833] bg-[#0D1117]/80 px-3 py-1 text-xs font-mono font-medium text-[#22D3EE]">
+            <span className="inline-flex items-center gap-2 rounded-full border border-border/80 dark:border-[#202833] bg-card dark:bg-[#0D1117]/80 px-3 py-1 text-xs font-mono font-medium text-primary shadow-sm">
               <LayoutDashboard className="h-3.5 w-3.5" />
               CONTROL PLANE
             </span>
@@ -187,10 +187,10 @@ export function ProductPreviewSection() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="text-3xl font-extrabold tracking-tight text-[#F5F7FA] sm:text-4xl md:text-5xl font-sans"
+            className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-foreground font-sans"
           >
             Full Observability.{" "}
-            <span className="text-[#22D3EE]">Zero Blind Spots.</span>
+            <span className="text-primary">Zero Blind Spots.</span>
           </motion.h2>
 
           <motion.p
@@ -198,7 +198,7 @@ export function ProductPreviewSection() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-base text-[#9CA6B5] font-sans max-w-2xl mx-auto"
+            className="text-base sm:text-lg text-muted-foreground font-sans max-w-2xl mx-auto leading-relaxed"
           >
             Real-time telemetry, agent task queues, governance gates, and memory
             diagnostics — all in a unified control plane built for production workloads.
@@ -217,39 +217,39 @@ export function ProductPreviewSection() {
           <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-b from-[#22D3EE]/20 via-transparent to-[#2DD4A3]/10 pointer-events-none" />
 
           {/* Browser chrome */}
-          <div className="relative rounded-2xl border border-[#202833] bg-[#090B0F] shadow-[0_40px_120px_rgba(0,0,0,0.8)] overflow-hidden">
+          <div className="relative rounded-2xl border border-border/80 dark:border-[#202833] bg-card dark:bg-[#090B0F] shadow-[0_20px_60px_rgba(0,0,0,0.12)] dark:shadow-[0_40px_120px_rgba(0,0,0,0.8)] overflow-hidden">
 
             {/* Browser title bar */}
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-[#202833] bg-[#0D1117]">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-border/80 dark:border-[#202833] bg-muted/40 dark:bg-[#0D1117]">
               <div className="flex gap-1.5">
                 <div className="h-3 w-3 rounded-full bg-red-500/70" />
                 <div className="h-3 w-3 rounded-full bg-yellow-500/70" />
                 <div className="h-3 w-3 rounded-full bg-green-500/70" />
               </div>
               <div className="flex-1 mx-4">
-                <div className="max-w-xs mx-auto bg-[#111720] rounded-md px-3 py-1 text-[10px] font-mono text-[#667085] flex items-center gap-2">
+                <div className="max-w-xs mx-auto bg-background/80 dark:bg-[#111720] border border-border/60 rounded-md px-3 py-1 text-[10px] font-mono text-muted-foreground flex items-center gap-2">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#2DD4A3] animate-pulse" />
                   asep.local/control-plane/overview
                 </div>
               </div>
-              <div className="flex items-center gap-2 text-[10px] font-mono text-[#667085]">
+              <div className="flex items-center gap-2 text-[10px] font-mono text-muted-foreground">
                 <span>ASEP v0.1.0</span>
               </div>
             </div>
 
             {/* App layout */}
-            <div className="flex min-h-[600px]">
+            <div className="flex min-h-[540px]">
 
               {/* Sidebar */}
-              <div className="hidden md:flex w-56 border-r border-[#202833] bg-[#0D1117] flex-col">
-                <div className="flex items-center gap-2 px-4 py-4 border-b border-[#202833]">
-                  <div className="p-1 rounded bg-[#111720] border border-[#202833] text-[#22D3EE]">
+              <div className="hidden md:flex w-52 lg:w-56 border-r border-border/80 dark:border-[#202833] bg-muted/20 dark:bg-[#0D1117] flex-col">
+                <div className="flex items-center gap-2 px-4 py-4 border-b border-border/80 dark:border-[#202833]">
+                  <div className="p-1 rounded-lg bg-primary/10 border border-primary/20 text-primary">
                     <Cpu className="h-3.5 w-3.5" />
                   </div>
-                  <span className="text-xs font-mono font-bold text-[#F5F7FA] tracking-wider">ASEP CONTROL</span>
+                  <span className="text-xs font-mono font-bold text-foreground tracking-wider">ASEP CONTROL</span>
                 </div>
 
-                <nav className="flex-1 p-3 space-y-0.5 font-mono text-xs">
+                <nav className="flex-1 p-3 space-y-1 font-mono text-xs">
                   {[
                     { name: "Overview", icon: LayoutDashboard, active: true },
                     { name: "Active Agents", icon: BrainCircuit, badge: "6" },
@@ -259,18 +259,18 @@ export function ProductPreviewSection() {
                   ].map((item) => (
                     <div
                       key={item.name}
-                      className={`flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors cursor-pointer ${
+                      className={`flex items-center justify-between px-3 py-2 rounded-lg transition-colors cursor-pointer ${
                         item.active
-                          ? "bg-[#111720] text-[#F5F7FA] border border-[#22D3EE]/20"
-                          : "text-[#667085] hover:bg-[#111720]/60 hover:text-[#9CA6B5]"
+                          ? "bg-accent text-foreground font-semibold border border-border"
+                          : "text-muted-foreground hover:bg-accent hover:text-foreground"
                       }`}
                     >
                       <div className="flex items-center gap-2.5">
-                        <item.icon className={`h-3.5 w-3.5 ${item.active ? "text-[#22D3EE]" : ""}`} />
+                        <item.icon className={`h-3.5 w-3.5 ${item.active ? "text-primary" : ""}`} />
                         <span>{item.name}</span>
                       </div>
                       {item.badge && (
-                        <span className={`text-[9px] px-1.5 py-0.5 rounded-full border font-bold ${item.badgeColor || "text-[#22D3EE] bg-[#22D3EE]/10 border-[#22D3EE]/20"}`}>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded-full border font-bold ${item.badgeColor || "text-primary bg-primary/10 border-primary/20"}`}>
                           {item.badge}
                         </span>
                       )}
@@ -278,29 +278,29 @@ export function ProductPreviewSection() {
                   ))}
                 </nav>
 
-                <div className="p-3 border-t border-[#202833]">
-                  <div className="p-3 rounded-lg bg-[#111720] border border-[#202833] text-xs font-mono space-y-1">
+                <div className="p-3 border-t border-border/80 dark:border-[#202833]">
+                  <div className="p-3 rounded-lg bg-card dark:bg-[#111720] border border-border/80 dark:border-[#202833] text-xs font-mono space-y-1">
                     <div className="flex items-center gap-1.5 text-[#2DD4A3]">
                       <span className="h-1.5 w-1.5 rounded-full bg-[#2DD4A3] animate-pulse" />
                       <span className="font-bold text-[10px]">SYSTEM HEALTHY</span>
                     </div>
-                    <div className="text-[#667085] text-[10px]">Uptime: 99.98%</div>
+                    <div className="text-muted-foreground text-[10px]">Uptime: 99.98%</div>
                   </div>
                 </div>
               </div>
 
               {/* Main content */}
-              <div className="flex-1 flex flex-col bg-[#090B0F] overflow-hidden">
+              <div className="flex-1 flex flex-col bg-card/60 dark:bg-[#090B0F] overflow-hidden">
 
                 {/* Top bar */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-[#202833]">
-                  <div className="flex items-center gap-3">
-                    <Terminal className="h-4 w-4 text-[#22D3EE]" />
-                    <h3 className="font-mono text-sm font-bold text-[#F5F7FA]">System Overview</h3>
+                <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 border-b border-border/80 dark:border-[#202833]">
+                  <div className="flex items-center gap-2.5">
+                    <Terminal className="h-4 w-4 text-primary" />
+                    <h3 className="font-mono text-sm font-bold text-foreground">System Overview</h3>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-[10px] font-mono text-[#667085]">Log #{logCounter}</span>
-                    <div className="flex items-center gap-1.5 text-[10px] font-mono text-[#2DD4A3] bg-[#2DD4A3]/10 border border-[#2DD4A3]/20 px-2 py-1 rounded-full">
+                    <span className="text-[10px] font-mono text-muted-foreground">Log #{logCounter}</span>
+                    <div className="flex items-center gap-1.5 text-[10px] font-mono text-[#2DD4A3] bg-[#2DD4A3]/10 border border-[#2DD4A3]/20 px-2 py-0.5 rounded-full font-bold">
                       <span className="h-1.5 w-1.5 rounded-full bg-[#2DD4A3] animate-pulse" />
                       OPERATIONAL
                     </div>
@@ -308,7 +308,7 @@ export function ProductPreviewSection() {
                 </div>
 
                 {/* Metrics row */}
-                <div className="grid grid-cols-3 gap-4 p-6 border-b border-[#202833]">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 p-4 sm:p-6 border-b border-border/80 dark:border-[#202833]">
                   <MetricGauge
                     label="CPU Load"
                     value={cpuUsage}
@@ -325,18 +325,18 @@ export function ProductPreviewSection() {
                     icon={Database}
                     animate={isInView}
                   />
-                  <div className="flex flex-col gap-2 p-4 rounded-xl border border-[#202833] bg-[#0D1117] hover:border-[#22D3EE]/20 transition-colors">
+                  <div className="flex flex-col gap-2 p-3 sm:p-4 rounded-xl border border-border/80 dark:border-[#202833] bg-card dark:bg-[#0D1117] hover:border-primary/30 transition-colors shadow-sm">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-[#9CA6B5]">
+                      <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-muted-foreground">
                         Agents Active
                       </span>
                       <Zap className="h-3.5 w-3.5 text-[#F5B942]" />
                     </div>
-                    <div className="text-2xl font-mono font-bold text-[#F5B942]">
+                    <div className="text-xl sm:text-2xl font-mono font-bold text-[#F5B942]">
                       6
-                      <span className="text-sm font-normal text-[#667085] ml-1">nodes</span>
+                      <span className="text-xs sm:text-sm font-normal text-muted-foreground ml-1">nodes</span>
                     </div>
-                    <div className="text-[10px] font-mono text-[#667085] flex items-center gap-1.5">
+                    <div className="text-[10px] font-mono text-muted-foreground flex items-center gap-1.5">
                       <CheckCircle2 className="h-3 w-3 text-[#2DD4A3]" />
                       3 Planners · 3 Executors
                     </div>
@@ -344,15 +344,15 @@ export function ProductPreviewSection() {
                 </div>
 
                 {/* Task queue + Governance row */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-6 border-b border-[#202833]">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-4 sm:p-6 border-b border-border/80 dark:border-[#202833]">
                   {/* Task queue */}
-                  <div className="rounded-xl border border-[#202833] bg-[#0D1117] overflow-hidden">
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-[#202833]">
+                  <div className="rounded-xl border border-border/80 dark:border-[#202833] bg-card dark:bg-[#0D1117] overflow-hidden shadow-sm">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-border/80 dark:border-[#202833]">
                       <div className="flex items-center gap-2">
-                        <ListTodo className="h-3.5 w-3.5 text-[#22D3EE]" />
-                        <h4 className="font-mono text-xs font-bold text-[#F5F7FA]">Active Task Queue</h4>
+                        <ListTodo className="h-3.5 w-3.5 text-primary" />
+                        <h4 className="font-mono text-xs font-bold text-foreground">Active Task Queue</h4>
                       </div>
-                      <div className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-[#22D3EE]/10 text-[#22D3EE] border border-[#22D3EE]/20 font-bold">
+                      <div className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-bold">
                         {TASKS.length} RUNNING
                       </div>
                     </div>
@@ -365,14 +365,14 @@ export function ProductPreviewSection() {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <task.icon className={`h-3.5 w-3.5 ${task.color}`} />
-                              <span className="text-xs font-mono text-[#F5F7FA]">{task.title}</span>
+                              <span className="text-xs font-mono text-foreground font-medium">{task.title}</span>
                             </div>
                             <div className="flex items-center gap-1.5">
-                              <Clock className="h-3 w-3 text-[#667085]" />
+                              <Clock className="h-3 w-3 text-muted-foreground" />
                               <span className={`text-[10px] font-mono ${task.color}`}>{task.status}</span>
                             </div>
                           </div>
-                          <div className="h-1 w-full rounded-full bg-[#111720] overflow-hidden">
+                          <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
                             <motion.div
                               initial={{ width: 0 }}
                               whileInView={{ width: `${task.progress}%` }}
@@ -387,37 +387,37 @@ export function ProductPreviewSection() {
                   </div>
 
                   {/* Governance */}
-                  <div className="rounded-xl border border-[#202833] bg-[#0D1117] overflow-hidden">
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-[#202833]">
+                  <div className="rounded-xl border border-border/80 dark:border-[#202833] bg-card dark:bg-[#0D1117] overflow-hidden shadow-sm">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-border/80 dark:border-[#202833]">
                       <div className="flex items-center gap-2">
                         <ShieldCheck className="h-3.5 w-3.5 text-[#2DD4A3]" />
-                        <h4 className="font-mono text-xs font-bold text-[#F5F7FA]">Governance Gates</h4>
+                        <h4 className="font-mono text-xs font-bold text-foreground">Governance Gates</h4>
                       </div>
                       <div className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-[#F5B942]/10 text-[#F5B942] border border-[#F5B942]/20 font-bold">
                         1 PENDING
                       </div>
                     </div>
-                    <div className="p-4">
-                      <div className="p-4 rounded-xl border border-[#F5B942]/30 bg-[#F5B942]/5 space-y-3">
+                    <div className="p-3.5">
+                      <div className="p-3.5 rounded-xl border border-[#F5B942]/30 bg-[#F5B942]/5 space-y-2.5">
                         <div className="flex items-center gap-2">
                           <ShieldAlert className="h-4 w-4 text-[#F5B942]" />
                           <span className="text-xs font-mono font-bold text-[#F5B942]">
                             Production Deployment Gate
                           </span>
                         </div>
-                        <p className="text-[11px] font-mono text-[#9CA6B5] leading-relaxed">
+                        <p className="text-[11px] font-mono text-muted-foreground leading-relaxed">
                           Executor requesting authorization to run production DB migration.
                           Awaiting HITL approval from authorized operator.
                         </p>
-                        <div className="flex items-center gap-2 text-[10px] font-mono text-[#667085]">
+                        <div className="flex items-center gap-2 text-[10px] font-mono text-muted-foreground">
                           <Activity className="h-3 w-3" />
                           <span>Cryptographic signature required</span>
                         </div>
                         <div className="flex gap-2 pt-1">
-                          <div className="flex-1 text-center py-1.5 rounded-lg bg-[#22D3EE] text-[#090B0F] text-[11px] font-mono font-bold cursor-default">
+                          <div className="flex-1 text-center py-1.5 rounded-lg bg-[#22D3EE] text-[#090B0F] text-[11px] font-mono font-bold cursor-default shadow-sm">
                             Approve
                           </div>
-                          <div className="flex-1 text-center py-1.5 rounded-lg border border-[#202833] bg-[#111720] text-[#9CA6B5] text-[11px] font-mono cursor-default">
+                          <div className="flex-1 text-center py-1.5 rounded-lg border border-border bg-muted/60 text-muted-foreground text-[11px] font-mono cursor-default">
                             Reject
                           </div>
                         </div>
@@ -427,39 +427,39 @@ export function ProductPreviewSection() {
                 </div>
 
                 {/* Telemetry log */}
-                <div className="flex-1 p-6">
-                  <div className="rounded-xl border border-[#202833] bg-[#080A0E] overflow-hidden h-full min-h-[140px]">
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-[#202833]">
+                <div className="flex-1 p-4 sm:p-6">
+                  <div className="rounded-xl border border-border/80 dark:border-[#202833] bg-card/90 dark:bg-[#080A0E] overflow-hidden h-full min-h-[140px] shadow-sm">
+                    <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/80 dark:border-[#202833] bg-muted/30">
                       <div className="flex items-center gap-2">
-                        <Activity className="h-3.5 w-3.5 text-[#22D3EE]" />
-                        <h4 className="font-mono text-xs font-bold text-[#F5F7FA]">Telemetry Stream</h4>
+                        <Activity className="h-3.5 w-3.5 text-primary" />
+                        <h4 className="font-mono text-xs font-bold text-foreground">Telemetry Stream</h4>
                       </div>
-                      <div className="flex items-center gap-2 text-[10px] font-mono text-[#9CA6B5]">
+                      <div className="flex items-center gap-2 text-[10px] font-mono text-muted-foreground">
                         <span className="h-1.5 w-1.5 rounded-full bg-[#2DD4A3] animate-pulse" />
-                        <span>Live</span>
+                        <span className="text-[#2DD4A3] font-bold">LIVE</span>
                       </div>
                     </div>
-                    <div className="p-4 font-mono text-[11px] space-y-2 overflow-hidden">
+                    <div className="p-3.5 font-mono text-[11px] space-y-1.5 overflow-hidden">
                       {logs.map((log) => (
                         <motion.div
                           key={log.id}
-                          initial={{ opacity: 0, x: -8 }}
+                          initial={{ opacity: 0, x: -6 }}
                           animate={{ opacity: 1, x: 0 }}
-                          transition={{ duration: 0.3 }}
+                          transition={{ duration: 0.2 }}
                           className="flex gap-2 items-start"
                         >
-                          <span className="text-[#667085] select-none">›</span>
-                          <span className={`${prefixColors[log.type] || "text-[#22D3EE]"} font-bold shrink-0`}>
+                          <span className="text-muted-foreground/50 select-none">&gt;</span>
+                          <span className={`${prefixColors[log.type] || "text-primary"} font-bold shrink-0`}>
                             {log.prefix}
                           </span>
-                          <span className={`${logColors[log.type] || "text-[#9CA6B5]"} break-all`}>
+                          <span className={`${logColors[log.type] || "text-muted-foreground"} break-all`}>
                             {log.message}
                           </span>
                         </motion.div>
                       ))}
-                      <div className="flex items-center gap-1 text-[#22D3EE]/60">
-                        <span>›</span>
-                        <span className="animate-pulse">▋</span>
+                      <div className="flex items-center gap-1 text-primary/70 pt-0.5">
+                        <span>&gt;</span>
+                        <span className="w-1.5 h-3 bg-primary animate-pulse inline-block" />
                       </div>
                     </div>
                   </div>

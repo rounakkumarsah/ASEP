@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Minus, ExternalLink, ArrowRight, BookOpen, Github, MessageSquare, Mail } from "lucide-react";
@@ -48,32 +49,32 @@ const faqs = [
     answer:
       "The MCP Tool Registry is ASEP's dynamic tool exposure layer. It allows agents to access file system operations, terminal commands, Git operations, Slack notifications, and custom tooling through a standardized protocol, enabling flexible enterprise workflows without code changes.",
     category: "Platform",
-  }
+  },
 ];
 
 export function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
-    <section className="relative py-20 sm:py-28 bg-background dark:bg-[#090B0F] border-b border-border overflow-hidden transition-colors duration-300">
+    <section className="relative py-20 sm:py-28 md:py-32 bg-background dark:bg-[#090B0F] border-b border-border overflow-hidden transition-colors duration-300">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         
         {/* Section Header */}
-        <div className="mb-16 max-w-2xl">
-          <div className="inline-flex items-center rounded-full border border-[#202833] bg-[#0D1117] px-3 py-1 mb-6">
-            <span className="text-xs font-semibold tracking-wide text-[#22D3EE]">FREQUENTLY ASKED</span>
+        <div className="mb-14 sm:mb-16 max-w-2xl">
+          <div className="inline-flex items-center rounded-full border border-border/80 dark:border-[#202833] bg-card dark:bg-[#0D1117] px-3 py-1 mb-5 sm:mb-6 shadow-sm">
+            <span className="text-xs font-semibold tracking-wide text-primary">FREQUENTLY ASKED</span>
           </div>
-          <h2 className="text-4xl font-bold tracking-tight text-[#F5F7FA] sm:text-5xl mb-4">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-foreground mb-3 sm:mb-4">
             Everything about ASEP, answered
           </h2>
-          <p className="text-lg text-[#9CA6B5]">
+          <p className="text-base sm:text-lg text-muted-foreground leading-relaxed">
             Explore our most common questions about security, technical capabilities, and platform features.
           </p>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-12 lg:gap-8 xl:gap-16">
+        <div className="flex flex-col lg:flex-row gap-10 lg:gap-8 xl:gap-14 items-start">
           {/* LEFT: FAQ Accordion (70%) */}
-          <div className="lg:w-[70%] space-y-4">
+          <div className="lg:w-[70%] space-y-3.5 w-full">
             {faqs.map((faq, index) => {
               const isOpen = openIndex === index;
               const numStr = (index + 1).toString().padStart(2, '0');
@@ -82,29 +83,31 @@ export function FAQSection() {
                 <motion.div
                   key={index}
                   className={cn(
-                    "border rounded-2xl overflow-hidden transition-all duration-300",
+                    "border rounded-2xl overflow-hidden transition-all duration-200 shadow-sm",
                     isOpen 
-                      ? "bg-[#111720] border-[#22D3EE] shadow-[0_0_15px_rgba(34,211,238,0.1)]" 
-                      : "bg-[#0D1117] border-[#202833] hover:border-[#202833]/80 hover:bg-[#111720]/50"
+                      ? "bg-card dark:bg-[#111720] border-primary/50 shadow-[0_0_20px_rgba(34,211,238,0.1)]" 
+                      : "bg-card/70 dark:bg-[#0D1117] border-border/80 dark:border-[#202833] hover:border-primary/30"
                   )}
                   initial={false}
                 >
                   <button
-                    className="flex w-full items-center text-left p-6 sm:px-8 sm:py-6 focus:outline-none"
+                    className="flex w-full items-center text-left p-5 sm:px-7 sm:py-5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-2xl"
                     onClick={() => setOpenIndex(isOpen ? null : index)}
+                    aria-expanded={isOpen}
+                    aria-controls={`faq-answer-${index}`}
                   >
-                    <div className="flex-1 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 pr-8">
+                    <div className="flex-1 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5 pr-6">
                       <span className={cn(
-                        "text-sm font-mono transition-colors",
-                        isOpen ? "text-[#22D3EE]" : "text-[#667085]"
+                        "text-xs sm:text-sm font-mono font-bold transition-colors",
+                        isOpen ? "text-primary" : "text-muted-foreground"
                       )}>
                         {numStr}
                       </span>
-                      <div className="flex flex-col gap-2">
-                        <span className="text-[#F5F7FA] font-medium text-lg leading-tight">
+                      <div className="flex flex-col gap-1.5">
+                        <span className="text-foreground font-semibold text-base sm:text-lg leading-snug">
                           {faq.question}
                         </span>
-                        <span className="inline-flex w-max items-center rounded-full border border-[#202833] bg-[#090B0F] px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-[#9CA6B5]">
+                        <span className="inline-flex w-max items-center rounded-md border border-border/80 dark:border-[#202833] bg-muted/50 dark:bg-[#090B0F] px-2 py-0.5 text-[9px] font-mono font-medium uppercase tracking-wider text-muted-foreground">
                           {faq.category}
                         </span>
                       </div>
@@ -112,26 +115,27 @@ export function FAQSection() {
                     
                     <div
                       className={cn(
-                        "flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all duration-300",
+                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all duration-200",
                         isOpen
-                          ? "bg-[#22D3EE] text-[#090B0F] rotate-180"
-                          : "bg-[#090B0F] border border-[#202833] text-[#9CA6B5] group-hover:text-[#F5F7FA]"
+                          ? "bg-primary text-[#090B0F] rotate-180 shadow-sm"
+                          : "bg-muted/60 dark:bg-[#090B0F] border border-border/80 text-muted-foreground"
                       )}
                     >
-                      {isOpen ? <Minus className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+                      {isOpen ? <Minus className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
                     </div>
                   </button>
                   
                   <AnimatePresence initial={false}>
                     {isOpen && (
                       <motion.div
+                        id={`faq-answer-${index}`}
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: "auto", opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.3, ease: "easeInOut" }}
+                        transition={{ duration: 0.25, ease: [0.04, 0.62, 0.23, 0.98] }}
                       >
-                        <div className="px-6 pb-6 pt-2 sm:px-8 sm:pb-8 sm:pt-0 sm:pl-[5.5rem]">
-                          <p className="text-[#9CA6B5] text-base leading-relaxed">
+                        <div className="px-5 pb-5 pt-1 sm:px-7 sm:pb-6 sm:pt-0 sm:pl-[4.5rem]">
+                          <p className="text-muted-foreground text-sm sm:text-base leading-relaxed">
                             {faq.answer}
                           </p>
                         </div>
@@ -143,15 +147,15 @@ export function FAQSection() {
             })}
             
             {/* Compact CTA Row */}
-            <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-6 border-t border-[#202833] mt-8">
-              <span className="text-[#F5F7FA] font-medium">Still have questions?</span>
-              <div className="flex flex-wrap items-center gap-4">
-                <Button variant="outline" className="bg-transparent border-[#202833] text-[#F5F7FA] hover:bg-[#111720] hover:text-[#F5F7FA]">
-                  <Mail className="w-4 h-4 mr-2" />
+            <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-border/80 dark:border-[#202833] mt-8">
+              <span className="text-foreground font-medium text-sm">Still have questions?</span>
+              <div className="flex flex-wrap items-center gap-3">
+                <Button variant="outline" className="border-border text-foreground hover:bg-accent rounded-xl text-xs font-mono min-h-[40px]">
+                  <Mail className="w-3.5 h-3.5 mr-2" />
                   Email Support
                 </Button>
-                <Button variant="outline" className="bg-transparent border-[#202833] text-[#F5F7FA] hover:bg-[#111720] hover:text-[#F5F7FA]">
-                  <MessageSquare className="w-4 h-4 mr-2" />
+                <Button variant="outline" className="border-border text-foreground hover:bg-accent rounded-xl text-xs font-mono min-h-[40px]">
+                  <MessageSquare className="w-3.5 h-3.5 mr-2" />
                   Community Discord
                 </Button>
               </div>
@@ -159,47 +163,49 @@ export function FAQSection() {
           </div>
 
           {/* RIGHT: Quick Links Sidebar (30%) */}
-          <div className="lg:w-[30%]">
-            <div className="sticky top-24 rounded-2xl border border-[#202833] bg-[#0D1117] p-6 lg:p-8">
-              <h3 className="text-[#F5F7FA] font-semibold text-lg mb-6">Quick Links</h3>
-              <ul className="space-y-4 mb-8">
+          <div className="lg:w-[30%] w-full">
+            <div className="sticky top-24 rounded-2xl border border-border/80 dark:border-[#202833] bg-card dark:bg-[#0D1117] p-5 sm:p-7 shadow-sm space-y-6">
+              <h3 className="text-foreground font-semibold text-base sm:text-lg tracking-tight">Quick Links</h3>
+              <ul className="space-y-2.5">
                 <li>
-                  <Link href="/documentation" className="group flex items-center justify-between p-3 rounded-lg hover:bg-[#111720] transition-colors border border-transparent hover:border-[#202833]">
+                  <Link href="/documentation" className="group flex items-center justify-between p-3 rounded-xl hover:bg-accent transition-colors border border-transparent hover:border-border min-h-[44px]">
                     <div className="flex items-center gap-3">
-                      <BookOpen className="w-5 h-5 text-[#9CA6B5] group-hover:text-[#22D3EE] transition-colors" />
-                      <span className="text-[#F5F7FA] text-sm font-medium">Documentation</span>
+                      <BookOpen className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      <span className="text-foreground text-sm font-medium">Documentation</span>
                     </div>
-                    <ArrowRight className="w-4 h-4 text-[#667085] group-hover:text-[#F5F7FA] transition-colors" />
+                    <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
                   </Link>
                 </li>
                 <li>
-                  <Link href="/architecture" className="group flex items-center justify-between p-3 rounded-lg hover:bg-[#111720] transition-colors border border-transparent hover:border-[#202833]">
+                  <Link href="/architecture" className="group flex items-center justify-between p-3 rounded-xl hover:bg-accent transition-colors border border-transparent hover:border-border min-h-[44px]">
                     <div className="flex items-center gap-3">
-                      <ExternalLink className="w-5 h-5 text-[#9CA6B5] group-hover:text-[#22D3EE] transition-colors" />
-                      <span className="text-[#F5F7FA] text-sm font-medium">Architecture</span>
+                      <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      <span className="text-foreground text-sm font-medium">Architecture</span>
                     </div>
-                    <ArrowRight className="w-4 h-4 text-[#667085] group-hover:text-[#F5F7FA] transition-colors" />
+                    <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
                   </Link>
                 </li>
                 <li>
-                  <Link href="https://github.com" target="_blank" rel="noreferrer" className="group flex items-center justify-between p-3 rounded-lg hover:bg-[#111720] transition-colors border border-transparent hover:border-[#202833]">
+                  <Link href="https://github.com/rounakkumarsah/ASEP" target="_blank" rel="noreferrer" className="group flex items-center justify-between p-3 rounded-xl hover:bg-accent transition-colors border border-transparent hover:border-border min-h-[44px]">
                     <div className="flex items-center gap-3">
-                      <Github className="w-5 h-5 text-[#9CA6B5] group-hover:text-[#22D3EE] transition-colors" />
-                      <span className="text-[#F5F7FA] text-sm font-medium">GitHub Repository</span>
+                      <Github className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      <span className="text-foreground text-sm font-medium">GitHub Repository</span>
                     </div>
-                    <ExternalLink className="w-4 h-4 text-[#667085] group-hover:text-[#F5F7FA] transition-colors" />
+                    <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
                   </Link>
                 </li>
               </ul>
               
-              <div className="bg-[#111720] rounded-xl p-5 border border-[#202833]">
-                <h4 className="text-[#F5F7FA] font-medium mb-2 text-sm">Enterprise Needs?</h4>
-                <p className="text-[#9CA6B5] text-xs mb-4 leading-relaxed">
+              <div className="bg-muted/40 dark:bg-[#111720] rounded-xl p-4 sm:p-5 border border-border/80 dark:border-[#202833]">
+                <h4 className="text-foreground font-semibold mb-1.5 text-sm">Enterprise Needs?</h4>
+                <p className="text-muted-foreground text-xs mb-3.5 leading-relaxed">
                   Discuss air-gapped deployments, custom SLA, and volume pricing.
                 </p>
-                <Button className="w-full bg-[#F5F7FA] text-[#090B0F] hover:bg-[#E2E8F0]">
-                  Contact Sales
-                </Button>
+                <Link href="/contact" className="block w-full">
+                  <Button className="w-full bg-foreground text-background hover:bg-foreground/90 font-mono font-bold text-xs rounded-xl min-h-[40px]">
+                    Contact Sales
+                  </Button>
+                </Link>
               </div>
             </div>
           </div>
