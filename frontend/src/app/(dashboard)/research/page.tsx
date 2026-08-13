@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { apiClient } from "@/lib/api/client";
+import { AnimatedCard } from "@/components/ui/animated-card";
 
 export default function ResearchPage() {
   const [topic, setTopic] = useState("");
@@ -58,104 +59,105 @@ export default function ResearchPage() {
         </div>
 
 
-        <form onSubmit={handleResearch} className="p-6 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-2">
-              Research Topic or Architecture Subject
-            </label>
-            <input
-              type="text"
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              placeholder="e.g. Microservices event-driven GraphRAG using Qdrant and Neo4j"
-              className="w-full px-4 py-3 rounded-xl bg-zinc-950 border border-zinc-800 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-blue-500 transition"
-              required
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <label className="text-xs text-zinc-400">Depth:</label>
-              <select
-                value={depth}
-                onChange={(e) => setDepth(e.target.value)}
-                className="px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-zinc-200 focus:outline-none"
-              >
-                <option value="Shallow">Shallow (Fast Summary)</option>
-                <option value="Medium">Medium (Balanced)</option>
-                <option value="Deep">Deep (Comprehensive)</option>
-              </select>
+        <AnimatedCard className="p-6">
+          <form onSubmit={handleResearch} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                Research Topic or Architecture Subject
+              </label>
+              <input
+                type="text"
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                placeholder="e.g. Microservices event-driven GraphRAG using Qdrant and Neo4j"
+                className="w-full px-4 py-3 rounded-xl bg-background/50 border border-border text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition"
+                required
+              />
             </div>
 
-            <button
-              type="submit"
-              disabled={loading || !topic.trim()}
-              className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-xs font-semibold text-white transition flex items-center space-x-2"
-            >
-              {loading ? (
-                <>
-                  <span className="animate-spin">🌀</span>
-                  <span>Searching & Synthesizing...</span>
-                </>
-              ) : (
-                <span>Run Research Swarm</span>
-              )}
-            </button>
-          </div>
-        </form>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <label className="text-xs text-muted-foreground">Depth:</label>
+                <select
+                  value={depth}
+                  onChange={(e) => setDepth(e.target.value)}
+                  className="px-3 py-1.5 rounded-lg bg-background/50 border border-border text-xs text-foreground focus:outline-none"
+                >
+                  <option value="Shallow">Shallow (Fast Summary)</option>
+                  <option value="Medium">Medium (Balanced)</option>
+                  <option value="Deep">Deep (Comprehensive)</option>
+                </select>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading || !topic.trim()}
+                className="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary/90 disabled:opacity-50 text-xs font-semibold text-primary-foreground transition flex items-center space-x-2 relative z-10"
+              >
+                {loading ? (
+                  <>
+                    <span className="animate-spin">🌀</span>
+                    <span>Searching & Synthesizing...</span>
+                  </>
+                ) : (
+                  <span>Run Research Swarm</span>
+                )}
+              </button>
+            </div>
+          </form>
+        </AnimatedCard>
 
         {error && (
-          <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-800/50 text-xs text-rose-300">
+          <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive">
             {error}
           </div>
         )}
 
         {loading && (
-          <div className="p-8 rounded-2xl bg-zinc-900/50 border border-zinc-800 text-center space-y-3">
+          <AnimatedCard className="p-8 text-center space-y-3">
             <div className="inline-block animate-spin text-3xl">🔍</div>
-            <p className="text-sm font-medium text-zinc-300">Swarms searching DuckDuckGo & scraping web documentation...</p>
-            <p className="text-xs text-zinc-500">Enforcing Gemini 15 RPM free tier queue protection</p>
-          </div>
+            <p className="text-sm font-medium text-foreground">Swarms searching DuckDuckGo & scraping web documentation...</p>
+            <p className="text-xs text-muted-foreground">Enforcing Gemini 15 RPM free tier queue protection</p>
+          </AnimatedCard>
         )}
 
         {report && (
-          <div className="p-6 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-6">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
+          <AnimatedCard className="p-6 space-y-6">
+            <div className="flex items-center justify-between border-b border-border/40 pb-4">
               <div>
-                <span className="text-xs text-zinc-400">Report Topic</span>
-                <h2 className="text-lg font-bold text-zinc-100">{String(report.topic || "")}</h2>
+                <span className="text-xs text-muted-foreground">Report Topic</span>
+                <h2 className="text-lg font-bold text-foreground">{String(report.topic || "")}</h2>
               </div>
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-3 relative z-10">
                 <button
                   onClick={handleExportMarkdown}
-                  className="px-3 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-zinc-200 transition flex items-center space-x-1"
+                  className="px-3 py-1 rounded-lg bg-muted hover:bg-muted/80 text-xs font-semibold text-foreground transition flex items-center space-x-1"
                 >
                   <span>📥 Export .md</span>
                 </button>
-                <span className="px-3 py-1 rounded-full text-xs font-mono bg-zinc-950 border border-zinc-800 text-zinc-400">
+                <span className="px-3 py-1 rounded-full text-xs font-mono bg-background border border-border text-muted-foreground">
                   {String(report.latency_ms || 0)} ms
                 </span>
               </div>
             </div>
 
-
-            <div className="prose prose-invert max-w-none text-sm text-zinc-300 space-y-4 whitespace-pre-line">
+            <div className="prose prose-invert max-w-none text-sm text-foreground/80 space-y-4 whitespace-pre-line">
               {String(report.summary || "")}
             </div>
 
             {Array.isArray(report.sources) && report.sources.length > 0 && (
-              <div className="border-t border-zinc-800 pt-4">
-                <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+              <div className="border-t border-border/40 pt-4">
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                   Citations & Sources
                 </h3>
-                <ul className="flex flex-wrap gap-2">
+                <ul className="flex flex-wrap gap-2 relative z-10">
                   {(report.sources as string[]).map((src: string, idx: number) => (
                     <li key={idx}>
                       <a
                         href={src}
                         target="_blank"
                         rel="noreferrer"
-                        className="px-3 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-blue-400 hover:underline"
+                        className="px-3 py-1 rounded-lg bg-background/50 border border-border text-xs text-primary hover:underline"
                       >
                         {src}
                       </a>
@@ -164,9 +166,7 @@ export default function ResearchPage() {
                 </ul>
               </div>
             )}
-
-
-          </div>
+          </AnimatedCard>
         )}
       </div>
     </AppLayout>

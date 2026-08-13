@@ -74,14 +74,18 @@ export function DashboardHeader() {
             <Search className="h-4 w-4" />
           </Button>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-[#9CA6B5] hover:text-[#F5F7FA] hover:bg-[#111720]"
-            aria-label="Notifications"
-          >
-            <Bell className="h-4 w-4" />
-          </Button>
+          <div className="relative">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-[#9CA6B5] hover:text-[#F5F7FA] hover:bg-[#111720] relative"
+              aria-label="Notifications"
+              onClick={() => {}} // We could toggle state, but for now we'll do a simple hover/focus group or state
+            >
+              <Bell className="h-4 w-4" />
+              <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-[#2DD4A3]" />
+            </Button>
+          </div>
 
           <div
             className="hidden lg:block h-5 w-px bg-[#202833]"

@@ -9,14 +9,20 @@ import {
   Filter, 
   Loader2, 
   AlertTriangle,
-  GitCommit,
   User,
   ShieldCheck,
   Globe
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardTitle, CardDescription } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import {
+  Timeline,
+  TimelineItem,
+  TimelineTime,
+  TimelineTitle,
+  TimelineContent
+} from "@/components/ui/timeline";
 
 interface AuditLog {
   id: string;
@@ -170,68 +176,64 @@ export default function AuditPage() {
 
       {/* Timeline List of Logs */}
       {filteredLogs.length === 0 ? (
-        <Card className="border border-dashed p-10 text-center flex flex-col items-center justify-center text-muted-foreground">
-          <ShieldCheck className="h-10 w-10 text-emerald-500 mb-2" />
-          <CardTitle className="text-base font-bold text-foreground">No audit events recorded</CardTitle>
-          <CardDescription className="max-w-xs mt-1">
-            No critical audit log trails or failure telemetry are registered in the tracking logs system.
-          </CardDescription>
-        </Card>
+        <EmptyState
+          icon={ShieldCheck}
+          title="No audit events recorded"
+          description="No critical audit log trails or failure telemetry are registered in the tracking logs system."
+        />
       ) : (
-        <div className="relative border-l border-border/40 pl-6 space-y-6 ml-4">
+        <Timeline className="mt-8 px-4">
           {filteredLogs.map(log => (
-            <div key={log.id} className="relative">
-              {/* Point on timeline */}
-              <div className="absolute -left-[31px] top-1 h-4 w-4 rounded-full border-2 border-background bg-primary flex items-center justify-center">
-                <GitCommit className="h-2 w-2 text-primary-foreground" />
+            <TimelineItem
+              key={log.id}
+              icon={<ShieldCheck className="h-5 w-5" />}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3 border-b border-border/10 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                    log.severity === "high" || log.severity === "critical" ? "bg-red-500/10 text-red-500" : "bg-blue-500/10 text-blue-500"
+                  }`}>
+                    {log.severity.toUpperCase()}
+                  </span>
+                  <TimelineTitle className="text-sm m-0">{log.action}</TimelineTitle>
+                </div>
+                <TimelineTime className="m-0">{new Date(log.timestamp).toLocaleString()}</TimelineTime>
               </div>
 
-              <div className="p-4 border border-border/30 bg-card/15 hover:border-border/65 transition-all rounded-xl space-y-2">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                      log.severity === "high" || log.severity === "critical" ? "bg-red-500/10 text-red-500" : "bg-blue-500/10 text-blue-500"
-                    }`}>
-                      {log.severity.toUpperCase()}
-                    </span>
-                    <span className="font-semibold text-sm text-foreground">{log.action}</span>
-                  </div>
-                  <span className="text-[10px] text-muted-foreground">{new Date(log.timestamp).toLocaleString()}</span>
-                </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs text-muted-foreground border-t border-border/10 pt-2">
+              <TimelineContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                   <div>
-                    <span className="block font-semibold text-[10px] uppercase text-muted-foreground/60">Actor</span>
-                    <span className="flex items-center gap-1 mt-0.5">
-                      <User className="h-3 w-3" />
+                    <span className="block font-semibold text-[10px] uppercase text-muted-foreground/60 mb-1">Actor</span>
+                    <span className="flex items-center gap-1.5 text-foreground">
+                      <User className="h-3.5 w-3.5 text-primary" />
                       {log.actor_type.toUpperCase()}: {log.actor_id}
                     </span>
                   </div>
                   <div>
-                    <span className="block font-semibold text-[10px] uppercase text-muted-foreground/60">Resource</span>
-                    <span className="flex items-center gap-1 mt-0.5">
-                      <FileText className="h-3 w-3" />
+                    <span className="block font-semibold text-[10px] uppercase text-muted-foreground/60 mb-1">Resource</span>
+                    <span className="flex items-center gap-1.5 text-foreground">
+                      <FileText className="h-3.5 w-3.5 text-primary" />
                       {log.resource_type}
                     </span>
                   </div>
                   <div>
-                    <span className="block font-semibold text-[10px] uppercase text-muted-foreground/60">Outcome</span>
-                    <span className={`font-semibold ${log.outcome === "success" ? "text-green-500" : "text-red-500"}`}>
+                    <span className="block font-semibold text-[10px] uppercase text-muted-foreground/60 mb-1">Outcome</span>
+                    <span className={`font-semibold flex items-center gap-1.5 ${log.outcome === "success" ? "text-green-500" : "text-red-500"}`}>
                       {log.outcome.toUpperCase()}
                     </span>
                   </div>
                   <div>
-                    <span className="block font-semibold text-[10px] uppercase text-muted-foreground/60">Client IP</span>
-                    <span className="flex items-center gap-1 mt-0.5">
-                      <Globe className="h-3 w-3" />
+                    <span className="block font-semibold text-[10px] uppercase text-muted-foreground/60 mb-1">Client IP</span>
+                    <span className="flex items-center gap-1.5 text-foreground">
+                      <Globe className="h-3.5 w-3.5 text-primary" />
                       {log.ip_address || "unknown"}
                     </span>
                   </div>
                 </div>
-              </div>
-            </div>
+              </TimelineContent>
+            </TimelineItem>
           ))}
-        </div>
+        </Timeline>
       )}
     </div>
   );

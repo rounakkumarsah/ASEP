@@ -2,11 +2,10 @@
 
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Cpu, Eye, EyeOff, Check, X, Loader2, Shield } from "lucide-react";
+import { Loader2, Eye, EyeOff, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -196,207 +195,179 @@ export default function ResetPasswordPage() {
 
   return (
     <GuestRoute>
-      <div className="flex h-screen w-full bg-[#090B0F] text-[#F5F7FA] overflow-hidden">
-        {/* Left Side: Auth Form */}
-        <div className="flex-1 flex items-center justify-center px-6 lg:px-12 py-10 z-10 overflow-y-auto">
-          <Card className="w-full max-w-md border border-[#202833] bg-[#0D1117] shadow-xl">
-            <CardHeader className="text-center pb-4">
-              <Link href="/" className="flex items-center justify-center space-x-2.5 mb-2 group">
-                <div className="p-1.5 rounded bg-[#111720] border border-[#202833] text-[#22D3EE] group-hover:border-[#22D3EE]/50 transition-colors">
-                  <Cpu className="h-5 w-5" />
-                </div>
-                <span className="font-mono font-bold tracking-wider text-lg text-[#F5F7FA]">ASEP</span>
-              </Link>
-              <CardTitle className="text-xl font-bold font-mono text-[#F5F7FA]">Reset Password</CardTitle>
-              <CardDescription className="text-xs text-[#9CA6B5] font-sans">
-                Set a strong, secure new password for your account.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {success ? (
-                <div className="text-center space-y-4 py-4">
-                  <div className="flex justify-center">
-                    <div className="p-3 bg-[#2DD4A3]/10 text-[#2DD4A3] rounded-full border border-[#2DD4A3]/20">
-                      <Check className="h-6 w-6" />
-                    </div>
+      <div className="w-full">
+        <Card className="w-full max-w-md border border-[#202833] bg-[#0D1117] shadow-xl">
+          <CardHeader className="text-center pb-4">
+            <CardTitle className="text-xl font-bold font-mono text-[#F5F7FA]">Reset Password</CardTitle>
+            <CardDescription className="text-xs text-[#9CA6B5] font-sans">
+              Set a strong, secure new password for your account.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {success ? (
+              <div className="text-center space-y-4 py-4">
+                <div className="flex justify-center">
+                  <div className="p-3 bg-[#2DD4A3]/10 text-[#2DD4A3] rounded-full border border-[#2DD4A3]/20">
+                    <Check className="h-6 w-6" />
                   </div>
-                  <p className="text-xs font-mono text-[#2DD4A3]">
-                    Password updated successfully! Redirecting to login...
-                  </p>
                 </div>
-              ) : (
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                    {error && (
-                      <div className="p-3 rounded border border-[#F05252]/20 bg-[#F05252]/10 text-xs font-mono text-[#F05252] text-center">
-                        {error}
-                      </div>
-                    )}
+                <p className="text-xs font-mono text-[#2DD4A3]">
+                  Password updated successfully! Redirecting to login...
+                </p>
+              </div>
+            ) : (
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  {error && (
+                    <div className="p-3 rounded border border-[#F05252]/20 bg-[#F05252]/10 text-xs font-mono text-[#F05252] text-center">
+                      {error}
+                    </div>
+                  )}
 
-                    {/* Password */}
-                    <FormField
-                      control={form.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <div className="flex justify-between items-center">
-                            <FormLabel className="text-xs font-mono font-semibold uppercase text-[#9CA6B5]">New Password</FormLabel>
+                  {/* Password */}
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <div className="flex justify-between items-center">
+                          <FormLabel className="text-xs font-mono font-semibold uppercase text-[#9CA6B5]">New Password</FormLabel>
+                          <button
+                            type="button"
+                            onClick={generatePassword}
+                            className="text-[10px] font-mono text-[#22D3EE] hover:underline"
+                          >
+                            Generate Password
+                          </button>
+                        </div>
+                        <FormControl>
+                          <div className="relative">
+                            <Input
+                              type={showPassword ? "text" : "password"}
+                              placeholder="••••••••••••"
+                              autoComplete="new-password"
+                              className="border-[#202833] bg-[#090B0F] text-[#F5F7FA] pr-10"
+                              {...field}
+                            />
                             <button
                               type="button"
-                              onClick={generatePassword}
-                              className="text-[10px] font-mono text-[#22D3EE] hover:underline"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute inset-y-0 right-0 flex items-center pr-3 text-[#667085] hover:text-[#F5F7FA]"
+                              aria-label={showPassword ? "Hide password" : "Show password"}
                             >
-                              Generate Password
+                              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                             </button>
                           </div>
-                          <FormControl>
-                            <div className="relative">
-                              <Input
-                                type={showPassword ? "text" : "password"}
-                                placeholder="••••••••••••"
-                                autoComplete="new-password"
-                                className="border-[#202833] bg-[#090B0F] text-[#F5F7FA] pr-10"
-                                {...field}
-                              />
-                              <button
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="absolute inset-y-0 right-0 flex items-center pr-3 text-[#667085] hover:text-[#F5F7FA]"
-                                aria-label={showPassword ? "Hide password" : "Show password"}
-                              >
-                                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                              </button>
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    {/* Confirm Password */}
-                    <FormField
-                      control={form.control}
-                      name="confirmPassword"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs font-mono font-semibold uppercase text-[#9CA6B5]">Confirm Password</FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <Input
-                                type={showConfirmPassword ? "text" : "password"}
-                                placeholder="••••••••••••"
-                                autoComplete="new-password"
-                                className="border-[#202833] bg-[#090B0F] text-[#F5F7FA] pr-10"
-                                {...field}
-                              />
-                              <button
-                                type="button"
-                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                className="absolute inset-y-0 right-0 flex items-center pr-3 text-[#667085] hover:text-[#F5F7FA]"
-                                aria-label={showConfirmPassword ? "Hide password" : "Show password"}
-                              >
-                                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                              </button>
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    {/* Password Strength Meter */}
-                    {watchPassword && (
-                      <div className="space-y-2 pt-2 font-mono text-[10px]">
-                        <div className="flex justify-between items-center">
-                          <span className="text-[#9CA6B5]">Strength:</span>
-                          <span className="font-semibold text-[#F5F7FA]">{strength.label}</span>
-                        </div>
-                        <div className="h-1.5 w-full bg-[#111720] border border-[#202833] rounded-full overflow-hidden">
-                          <div
-                            className={`h-full ${strength.color} transition-all duration-300`}
-                            style={{ width: `${strength.score}%` }}
-                          />
-                        </div>
-                      </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
                     )}
+                  />
 
-                    {/* Password Checklist */}
-                    <div className="p-3 bg-[#111720]/40 border border-[#202833] rounded-lg space-y-2 text-[10px] font-mono">
-                      <p className="font-semibold text-[#9CA6B5]">Requirements:</p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                        <div className="flex items-center gap-2">
-                          {rules.length ? <Check className="h-3.5 w-3.5 text-[#2DD4A3]" /> : <X className="h-3.5 w-3.5 text-[#667085]/50" />}
-                          <span className={rules.length ? "text-[#2DD4A3]" : "text-[#667085]"}>12+ Characters</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {rules.uppercase ? <Check className="h-3.5 w-3.5 text-[#2DD4A3]" /> : <X className="h-3.5 w-3.5 text-[#667085]/50" />}
-                          <span className={rules.uppercase ? "text-[#2DD4A3]" : "text-[#667085]"}>Uppercase Letter</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {rules.lowercase ? <Check className="h-3.5 w-3.5 text-[#2DD4A3]" /> : <X className="h-3.5 w-3.5 text-[#667085]/50" />}
-                          <span className={rules.lowercase ? "text-[#2DD4A3]" : "text-[#667085]"}>Lowercase Letter</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {rules.number ? <Check className="h-3.5 w-3.5 text-[#2DD4A3]" /> : <X className="h-3.5 w-3.5 text-[#667085]/50" />}
-                          <span className={rules.number ? "text-[#2DD4A3]" : "text-[#667085]"}>One Number</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {rules.special ? <Check className="h-3.5 w-3.5 text-[#2DD4A3]" /> : <X className="h-3.5 w-3.5 text-[#667085]/50" />}
-                          <span className={rules.special ? "text-[#2DD4A3]" : "text-[#667085]"}>Special Character</span>
-                        </div>
+                  {/* Confirm Password */}
+                  <FormField
+                    control={form.control}
+                    name="confirmPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs font-mono font-semibold uppercase text-[#9CA6B5]">Confirm Password</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Input
+                              type={showConfirmPassword ? "text" : "password"}
+                              placeholder="••••••••••••"
+                              autoComplete="new-password"
+                              className="border-[#202833] bg-[#090B0F] text-[#F5F7FA] pr-10"
+                              {...field}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                              className="absolute inset-y-0 right-0 flex items-center pr-3 text-[#667085] hover:text-[#F5F7FA]"
+                              aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                            >
+                              {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Password Strength Meter */}
+                  {watchPassword && (
+                    <div className="space-y-2 pt-2 font-mono text-[10px]">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[#9CA6B5]">Strength:</span>
+                        <span className="font-semibold text-[#F5F7FA]">{strength.label}</span>
+                      </div>
+                      <div className="h-1.5 w-full bg-[#111720] border border-[#202833] rounded-full overflow-hidden">
+                        <div
+                          className={`h-full ${strength.color} transition-all duration-300`}
+                          style={{ width: `${strength.score}%` }}
+                        />
                       </div>
                     </div>
+                  )}
 
-                    {env.NEXT_PUBLIC_ENABLE_TURNSTILE && (
-                      <div className="space-y-1">
-                        <Turnstile
-                          ref={turnstileRef}
-                          onToken={handleToken}
-                          onExpire={handleTurnstileExpire}
-                          onError={handleTurnstileError}
-                        />
-                        {captchaError && (
-                          <p className="text-xs text-[#F05252] font-mono">{captchaError}</p>
-                        )}
+                  {/* Password Checklist */}
+                  <div className="p-3 bg-[#111720]/40 border border-[#202833] rounded-lg space-y-2 text-[10px] font-mono">
+                    <p className="font-semibold text-[#9CA6B5]">Requirements:</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                      <div className="flex items-center gap-2">
+                        {rules.length ? <Check className="h-3.5 w-3.5 text-[#2DD4A3]" /> : <X className="h-3.5 w-3.5 text-[#667085]/50" />}
+                        <span className={rules.length ? "text-[#2DD4A3]" : "text-[#667085]"}>12+ Characters</span>
                       </div>
-                    )}
+                      <div className="flex items-center gap-2">
+                        {rules.uppercase ? <Check className="h-3.5 w-3.5 text-[#2DD4A3]" /> : <X className="h-3.5 w-3.5 text-[#667085]/50" />}
+                        <span className={rules.uppercase ? "text-[#2DD4A3]" : "text-[#667085]"}>Uppercase Letter</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {rules.lowercase ? <Check className="h-3.5 w-3.5 text-[#2DD4A3]" /> : <X className="h-3.5 w-3.5 text-[#667085]/50" />}
+                        <span className={rules.lowercase ? "text-[#2DD4A3]" : "text-[#667085]"}>Lowercase Letter</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {rules.number ? <Check className="h-3.5 w-3.5 text-[#2DD4A3]" /> : <X className="h-3.5 w-3.5 text-[#667085]/50" />}
+                        <span className={rules.number ? "text-[#2DD4A3]" : "text-[#667085]"}>One Number</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {rules.special ? <Check className="h-3.5 w-3.5 text-[#2DD4A3]" /> : <X className="h-3.5 w-3.5 text-[#667085]/50" />}
+                        <span className={rules.special ? "text-[#2DD4A3]" : "text-[#667085]"}>Special Character</span>
+                      </div>
+                    </div>
+                  </div>
 
-                    <Button
-                      type="submit"
-                      className="w-full text-xs font-mono font-semibold bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9] h-10 mt-4"
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? (
-                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Resetting…</>
-                      ) : (
-                        "Reset Password"
+                  {env.NEXT_PUBLIC_ENABLE_TURNSTILE && (
+                    <div className="space-y-1">
+                      <Turnstile
+                        ref={turnstileRef}
+                        onToken={handleToken}
+                        onExpire={handleTurnstileExpire}
+                        onError={handleTurnstileError}
+                      />
+                      {captchaError && (
+                        <p className="text-xs text-[#F05252] font-mono">{captchaError}</p>
                       )}
-                    </Button>
-                  </form>
-                </Form>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                    </div>
+                  )}
 
-        {/* Right Side: Trust & Product preview */}
-        <div className="hidden lg:flex flex-1 bg-[#0D1117] border-l border-[#202833] items-center justify-center p-12 relative overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,#111720_0%,transparent_70%)]" />
-          <div className="max-w-xl space-y-8 z-10">
-            <div className="space-y-3">
-              <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-md border border-[#202833] bg-[#111720] text-xs font-mono text-[#22D3EE]">
-                <Shield className="h-3.5 w-3.5" />
-                <span>Authorized Cryptographic Sign-in</span>
-              </div>
-              <h2 className="text-3xl font-extrabold tracking-tight text-[#F5F7FA] font-sans">
-                Secure Account Recovery
-              </h2>
-              <p className="text-[#9CA6B5] text-sm leading-relaxed">
-                Confirm your identity with a high-entropy password credential reset.
-              </p>
-            </div>
-          </div>
-        </div>
+                  <Button
+                    type="submit"
+                    className="w-full text-xs font-mono font-semibold bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9] h-10 mt-4"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Resetting…</>
+                    ) : (
+                      "Reset Password"
+                    )}
+                  </Button>
+                </form>
+              </Form>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </GuestRoute>
   );

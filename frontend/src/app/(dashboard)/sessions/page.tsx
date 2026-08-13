@@ -5,8 +5,11 @@ import { useSessions } from "@/lib/api/hooks/use-sessions";
 import { SessionCard } from "@/components/dashboard/sessions/session-card";
 import { Loader2, Plus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { AnimatedModal, ModalHeader, ModalTitle, ModalDescription, ModalContent, ModalFooter } from "@/components/ui/animated-modal";
 
 export default function SessionsPage() {
+  const [isNewSessionOpen, setIsNewSessionOpen] = React.useState(false);
   const {
     data: sessions,
     isLoading,
@@ -37,7 +40,7 @@ export default function SessionsPage() {
             />
             Refresh
           </Button>
-          <Button size="sm">
+          <Button size="sm" onClick={() => setIsNewSessionOpen(true)} className="bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9] font-bold">
             <Plus className="mr-2 h-4 w-4" />
             New Session
           </Button>
@@ -62,19 +65,17 @@ export default function SessionsPage() {
           </Button>
         </div>
       ) : !sessions || sessions.length === 0 ? (
-        <div className="h-[400px] w-full flex flex-col items-center justify-center text-muted-foreground border border-dashed rounded-lg">
-          <div className="bg-muted h-12 w-12 rounded-full flex items-center justify-center mb-4">
-            <Bot className="h-6 w-6 text-muted-foreground" />
-          </div>
-          <h3 className="font-bold text-foreground text-lg">No active sessions</h3>
-          <p className="text-sm mt-1 mb-4 text-muted-foreground">
-            Start a new agent execution to monitor live runtime telemetry.
-          </p>
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Create Session
-          </Button>
-        </div>
+        <EmptyState
+          icon={Bot}
+          title="No active sessions"
+          description="Start a new agent execution to monitor live runtime telemetry."
+          action={
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Session
+            </Button>
+          }
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {sessions.map((session) => (
@@ -82,6 +83,39 @@ export default function SessionsPage() {
           ))}
         </div>
       )}
+
+      <AnimatedModal isOpen={isNewSessionOpen} onClose={() => setIsNewSessionOpen(false)}>
+        <ModalHeader>
+          <ModalTitle>Deploy New Agent Session</ModalTitle>
+          <ModalDescription>Initialize a new autonomous execution environment with specific tooling and policies.</ModalDescription>
+        </ModalHeader>
+        <ModalContent className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-[#F5F7FA]">Objective</label>
+            <input 
+              type="text" 
+              className="w-full bg-[#090B0F] border border-[#202833] rounded-md px-3 py-2 text-sm text-[#F5F7FA] focus:outline-none focus:border-[#22D3EE] transition-colors"
+              placeholder="e.g. Refactor API endpoints"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-[#F5F7FA]">Base Image Runtime</label>
+            <select className="w-full bg-[#090B0F] border border-[#202833] rounded-md px-3 py-2 text-sm text-[#F5F7FA] focus:outline-none focus:border-[#22D3EE] transition-colors">
+              <option>Ubuntu 22.04 + Node 18</option>
+              <option>Alpine + Python 3.11</option>
+              <option>Debian + Rust 1.70</option>
+            </select>
+          </div>
+        </ModalContent>
+        <ModalFooter>
+          <Button variant="outline" onClick={() => setIsNewSessionOpen(false)} className="border-[#202833] bg-transparent text-[#F5F7FA] hover:bg-[#202833]">
+            Cancel
+          </Button>
+          <Button onClick={() => setIsNewSessionOpen(false)} className="bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9] font-semibold">
+            Deploy Session
+          </Button>
+        </ModalFooter>
+      </AnimatedModal>
     </div>
   );
 }

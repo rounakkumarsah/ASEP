@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/providers/auth-provider";
 import Link from "next/link";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Loader2, ShieldAlert } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function AuthCallbackPage() {
   const params = useSearchParams();
@@ -36,25 +39,31 @@ export default function AuthCallbackPage() {
 
   if (status === "error") {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-6 p-8">
-        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-6 max-w-md text-center">
-          <h2 className="text-lg font-semibold text-red-400 mb-2">Authentication Failed</h2>
-          <p className="text-sm text-muted-foreground">{errorMsg}</p>
-        </div>
-        <Link
-          href="/login"
-          className="text-sm text-primary hover:underline"
-        >
-          Back to Login
-        </Link>
+      <div className="flex h-screen w-full items-center justify-center bg-[#090B0F] px-4">
+        <Card className="w-full max-w-sm border border-[#202833] bg-[#0D1117] shadow-xl text-center">
+          <CardHeader className="pb-4">
+            <div className="mx-auto h-11 w-11 rounded-md bg-[#F05252]/10 border border-[#F05252]/20 flex items-center justify-center text-[#F05252] mb-4">
+              <ShieldAlert className="h-5 w-5" />
+            </div>
+            <CardTitle className="text-lg font-bold font-mono text-[#F5F7FA]">Authentication Failed</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <p className="text-xs font-mono text-[#9CA6B5]">{errorMsg}</p>
+            <Button asChild className="w-full text-xs font-mono font-semibold border-[#202833] bg-[#111720] text-[#F5F7FA] hover:bg-[#1A212D] h-10">
+              <Link href="/login">Back to Login</Link>
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      <p className="text-sm text-muted-foreground">Completing sign in...</p>
+    <div className="flex h-screen w-full items-center justify-center bg-[#090B0F]">
+      <div className="flex flex-col items-center gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-[#22D3EE]" />
+        <p className="text-xs font-mono font-bold text-[#F5F7FA] tracking-widest uppercase">Completing Sign In...</p>
+      </div>
     </div>
   );
 }

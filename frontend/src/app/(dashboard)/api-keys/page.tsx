@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface ApiKeyItem {
   id: string;
@@ -192,13 +193,11 @@ export default function ApiKeysPage() {
           {loading ? (
             <p className="text-center py-6 text-sm text-muted-foreground">Loading keys...</p>
           ) : keys.length === 0 ? (
-            <div className="text-center py-8 space-y-3">
-              <Terminal className="h-8 w-8 mx-auto text-muted-foreground/60" />
-              <p className="text-sm font-semibold text-foreground">Generate your first API Key</p>
-              <p className="text-xs text-muted-foreground max-w-xs mx-auto">
-                Project-scoped API keys allow programmatic CLI and SDK access to the platform.
-              </p>
-            </div>
+            <EmptyState
+              title="Generate your first API Key"
+              description="Project-scoped API keys allow programmatic CLI and SDK access to the platform."
+              icon={Terminal}
+            />
           ) : (
             <div className="divide-y divide-border/40">
               {keys.map((key) => (

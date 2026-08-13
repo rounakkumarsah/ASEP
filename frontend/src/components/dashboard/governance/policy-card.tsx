@@ -1,12 +1,13 @@
 import * as React from "react";
 import { GovernancePolicy } from "@/lib/api/types";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { CardContent, CardHeader } from "@/components/ui/card";
+import { AnimatedCard } from "@/components/ui/animated-card";
 import { RiskBadge } from "./risk-badge";
 import { FileWarning } from "lucide-react";
 
 export function PolicyCard({ policy }: { policy: GovernancePolicy }) {
   return (
-    <Card className="hover:border-primary/50 transition-colors">
+    <AnimatedCard className="h-full flex flex-col">
       <CardHeader className="p-4 pb-2 border-b border-border/40">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2">
@@ -34,18 +35,18 @@ export function PolicyCard({ policy }: { policy: GovernancePolicy }) {
         </div>
       </CardHeader>
 
-      <CardContent className="p-4 pt-3 space-y-4">
+      <CardContent className="p-4 pt-3 flex-1 flex flex-col justify-between space-y-4">
         <p className="text-sm text-muted-foreground leading-relaxed">
           {policy.description}
         </p>
 
-        <div className="flex items-center justify-between border-t pt-3">
+        <div className="flex items-center justify-between border-t border-border/40 pt-3">
           <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
             Risk Threshold
           </span>
           <RiskBadge level={policy.riskThreshold} />
         </div>
       </CardContent>
-    </Card>
+    </AnimatedCard>
   );
 }

@@ -7,6 +7,7 @@ import { SearchToolbar } from "@/components/dashboard/shared/search-toolbar";
 import { MemoryCard } from "@/components/dashboard/memory/memory-card";
 import { Loader2, BrainCircuit } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const TABS: { id: MemoryType; label: string }[] = [
   { id: "working", label: "Working Memory" },
@@ -95,19 +96,15 @@ export default function MemoryWorkspacePage() {
               </Button>
             </div>
           ) : memories.length === 0 ? (
-            <div className="h-full w-full flex flex-col items-center justify-center text-muted-foreground border border-dashed rounded-lg py-20">
-              <div className="bg-muted h-12 w-12 rounded-full flex items-center justify-center mb-4">
-                <BrainCircuit className="h-6 w-6 text-muted-foreground" />
-              </div>
-              <h3 className="font-semibold text-foreground">
-                No memories stored yet
-              </h3>
-              <p className="text-sm mt-1 max-w-sm text-center">
-                {searchQuery
+            <EmptyState
+              title={searchQuery ? "No search results" : "No memories stored yet"}
+              description={
+                searchQuery
                   ? `No results match your search in ${activeTab} memory.`
-                  : `The ${activeTab} memory bank is currently empty.`}
-              </p>
-            </div>
+                  : `The ${activeTab} memory bank is currently empty.`
+              }
+              icon={BrainCircuit}
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-10">
               {memories.map((item) => (

@@ -1,7 +1,8 @@
 import * as React from "react";
 import Link from "next/link";
 import { Session } from "@/lib/api/types";
-import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
+import { CardHeader, CardContent, CardTitle } from "@/components/ui/card";
+import { AnimatedCard } from "@/components/ui/animated-card";
 import { Progress } from "@/components/ui/progress";
 import { SessionStatusBadge } from "./session-status-badge";
 import { Clock, Bot, Activity } from "lucide-react";
@@ -13,8 +14,8 @@ export function SessionCard({ session }: { session: Session }) {
   );
 
   return (
-    <Link href={`/sessions/${session.sessionId}`}>
-      <Card className="hover:bg-muted/40 transition-colors cursor-pointer group h-full flex flex-col">
+    <Link href={`/sessions/${session.sessionId}`} className="block h-full group">
+      <AnimatedCard className="h-full flex flex-col">
         <CardHeader className="pb-3 border-b border-border/50">
           <div className="flex items-start justify-between">
             <div className="space-y-1.5">
@@ -63,7 +64,7 @@ export function SessionCard({ session }: { session: Session }) {
             <Progress value={session.progress} className="h-1.5" />
           </div>
         </CardContent>
-      </Card>
+      </AnimatedCard>
     </Link>
   );
 }

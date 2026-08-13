@@ -1,6 +1,7 @@
 import * as React from "react";
 import { ApprovalRequest } from "@/lib/api/types";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { CardContent, CardHeader } from "@/components/ui/card";
+import { AnimatedCard } from "@/components/ui/animated-card";
 import { Button } from "@/components/ui/button";
 import { ApprovalStatusBadge } from "./approval-status-badge";
 import { RiskBadge } from "./risk-badge";
@@ -15,7 +16,7 @@ export function ApprovalCard({ approval }: { approval: ApprovalRequest }) {
   });
 
   return (
-    <Card className="hover:border-primary/50 transition-colors h-full flex flex-col">
+    <AnimatedCard className="h-full flex flex-col">
       <CardHeader className="p-4 pb-3 border-b border-border/40 space-y-3">
         <div className="flex items-start justify-between">
           <ApprovalStatusBadge status={approval.status} />
@@ -57,7 +58,7 @@ export function ApprovalCard({ approval }: { approval: ApprovalRequest }) {
         </div>
 
         {approval.status === "pending" && (
-          <div className="flex gap-2 mt-4">
+          <div className="flex gap-2 mt-4 relative z-10">
             <Button className="w-full" variant="default" size="sm">
               Approve
             </Button>
@@ -67,6 +68,6 @@ export function ApprovalCard({ approval }: { approval: ApprovalRequest }) {
           </div>
         )}
       </CardContent>
-    </Card>
+    </AnimatedCard>
   );
 }

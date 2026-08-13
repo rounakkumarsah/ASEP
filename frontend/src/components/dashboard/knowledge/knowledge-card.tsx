@@ -1,6 +1,6 @@
 import * as React from "react";
 import { KnowledgeDocument } from "@/lib/api/types";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { BentoGridItem } from "@/components/ui/bento-grid";
 import { FileText, Database } from "lucide-react";
 
 export function KnowledgeCard({ document }: { document: KnowledgeDocument }) {
@@ -11,41 +11,40 @@ export function KnowledgeCard({ document }: { document: KnowledgeDocument }) {
   });
 
   return (
-    <Card className="hover:border-primary/50 transition-colors h-full flex flex-col group cursor-pointer">
-      <CardHeader className="p-4 pb-2 border-b border-border/40 space-y-1">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-2 text-primary">
-            <FileText className="h-4 w-4" />
-            <h3 className="font-semibold text-sm leading-none group-hover:underline decoration-primary/50 underline-offset-4">
-              {document.title}
-            </h3>
+    <BentoGridItem
+      className="h-full border-border/40 hover:border-primary/50 cursor-pointer group"
+      title={
+        <div className="flex items-center gap-2 text-foreground group-hover:text-primary transition-colors">
+          <FileText className="h-4 w-4" />
+          <span className="font-semibold text-sm leading-none truncate">{document.title}</span>
+        </div>
+      }
+      description={
+        <div className="flex flex-col gap-3 mt-1">
+          <p className="text-xs text-muted-foreground/80 line-clamp-3 leading-relaxed">
+            {document.snippet}
+          </p>
+          <div className="flex gap-1.5 flex-wrap mt-auto pt-2">
+            {document.tags.map((tag) => (
+              <span
+                key={tag}
+                className="inline-flex items-center rounded-md bg-secondary/50 px-2 py-0.5 text-[10px] font-medium text-secondary-foreground border border-border/50"
+              >
+                #{tag}
+              </span>
+            ))}
           </div>
         </div>
-        <div className="flex items-center text-xs text-muted-foreground gap-3">
-          <span className="flex items-center gap-1">
+      }
+      header={
+        <div className="flex items-center justify-between text-[10px] text-muted-foreground uppercase tracking-wider font-semibold bg-muted/30 p-2 rounded-md mb-2">
+          <span className="flex items-center gap-1.5">
             <Database className="h-3 w-3" />
             {document.source}
           </span>
-          <span>Added {date}</span>
+          <span>{date}</span>
         </div>
-      </CardHeader>
-
-      <CardContent className="p-4 pt-3 flex-1 flex flex-col">
-        <p className="text-sm text-muted-foreground leading-relaxed flex-1 line-clamp-3">
-          {document.snippet}
-        </p>
-
-        <div className="mt-4 flex gap-1.5 flex-wrap">
-          {document.tags.map((tag) => (
-            <span
-              key={tag}
-              className="inline-flex items-center rounded-md bg-secondary/50 px-2 py-0.5 text-[10px] font-medium text-secondary-foreground border border-border/50"
-            >
-              #{tag}
-            </span>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+      }
+    />
   );
 }

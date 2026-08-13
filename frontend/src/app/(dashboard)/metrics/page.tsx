@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { MetricCard } from "@/components/ui/metric-card";
 
 interface MetricsData {
   requests_total: number;
@@ -122,52 +123,36 @@ export default function MetricsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Card 1: CPU Util */}
-        <Card className="border-border/40 bg-card/30">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase">Process CPU</CardTitle>
-            <Cpu className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{metrics?.system?.process_cpu_percent?.toFixed(1) || "0.0"}%</div>
-            <p className="text-xs text-muted-foreground mt-1">Process Core Utilization</p>
-          </CardContent>
-        </Card>
+        <MetricCard
+          title="Process CPU"
+          icon={<Cpu className="h-5 w-5" />}
+          value={`${metrics?.system?.process_cpu_percent?.toFixed(1) || "0.0"}%`}
+          subtitle="Process Core Utilization"
+        />
 
         {/* Card 2: Memory allocations */}
-        <Card className="border-border/40 bg-card/30">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase">Process RSS Memory</CardTitle>
-            <Database className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatBytes(metrics?.system?.process_memory_rss_bytes || 0)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Resident Memory Allocation</p>
-          </CardContent>
-        </Card>
+        <MetricCard
+          title="Process RSS Memory"
+          icon={<Database className="h-5 w-5" />}
+          value={formatBytes(metrics?.system?.process_memory_rss_bytes || 0)}
+          subtitle="Resident Memory Allocation"
+        />
 
         {/* Card 3: Total requests */}
-        <Card className="border-border/40 bg-card/30">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase">Total Requests</CardTitle>
-            <Activity className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{metrics?.requests_total || 0}</div>
-            <p className="text-xs text-muted-foreground mt-1">API Endpoint Hits</p>
-          </CardContent>
-        </Card>
+        <MetricCard
+          title="Total Requests"
+          icon={<Activity className="h-5 w-5" />}
+          value={metrics?.requests_total || 0}
+          subtitle="API Endpoint Hits"
+        />
 
         {/* Card 4: Error Rate */}
-        <Card className="border-border/40 bg-card/30">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase">API Error Rate</CardTitle>
-            <Gauge className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{(metrics?.error_rate || 0 * 100).toFixed(2)}%</div>
-            <p className="text-xs text-muted-foreground mt-1">HTTP 5xx Server Failures</p>
-          </CardContent>
-        </Card>
+        <MetricCard
+          title="API Error Rate"
+          icon={<Gauge className="h-5 w-5" />}
+          value={`${(metrics?.error_rate || 0 * 100).toFixed(2)}%`}
+          subtitle="HTTP 5xx Server Failures"
+        />
 
       </div>
 

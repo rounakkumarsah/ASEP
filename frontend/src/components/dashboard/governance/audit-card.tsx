@@ -1,6 +1,7 @@
 import * as React from "react";
 import { AuditRecord } from "@/lib/api/types";
-import { Card, CardContent } from "@/components/ui/card";
+import { CardContent } from "@/components/ui/card";
+import { AnimatedCard } from "@/components/ui/animated-card";
 import { CheckCircle2, XCircle, ShieldBan, Terminal } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,7 +26,7 @@ export function AuditCard({ audit }: { audit: AuditRecord }) {
   }
 
   return (
-    <Card className={cn("border-l-4 rounded-lg", statusColor)}>
+    <AnimatedCard className={cn("border-l-4 rounded-lg", statusColor)}>
       <CardContent className="p-4 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="bg-muted p-2 rounded-md">
@@ -55,6 +56,6 @@ export function AuditCard({ audit }: { audit: AuditRecord }) {
           </span>
         </div>
       </CardContent>
-    </Card>
+    </AnimatedCard>
   );
 }

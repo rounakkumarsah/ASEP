@@ -6,8 +6,10 @@ import { SearchToolbar } from "@/components/dashboard/shared/search-toolbar";
 import { KnowledgeCard } from "@/components/dashboard/knowledge/knowledge-card";
 import { Loader2, Database, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BentoGrid } from "@/components/ui/bento-grid";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { apiClient } from "@/lib/api/client";
 
 export default function KnowledgeExplorerPage() {
@@ -135,31 +137,29 @@ export default function KnowledgeExplorerPage() {
               </Button>
             </div>
           ) : documents.length === 0 ? (
-            <div className="h-full w-full flex flex-col items-center justify-center text-muted-foreground border border-dashed rounded-lg py-20 bg-card/10">
-              <div className="bg-primary/10 h-12 w-12 rounded-full flex items-center justify-center mb-4 text-primary">
-                <Database className="h-6 w-6" />
-              </div>
-              <h3 className="font-bold text-foreground text-lg">
-                {searchQuery ? "No results found" : "Upload your first document"}
-              </h3>
-              <p className="text-sm mt-2 mb-6 max-w-sm text-center text-muted-foreground">
-                {searchQuery
+            <EmptyState
+              icon={Database}
+              title={searchQuery ? "No results found" : "Upload your first document"}
+              description={
+                searchQuery
                   ? `No results match your search query "${searchQuery}". Try adjusting your filters.`
-                  : `The universal knowledge base parses and indexes document files for multi-agent RAG memory pools. Upload your first document to start.`}
-              </p>
-              {!searchQuery && (
-                <Button className="font-semibold gap-2" onClick={() => setShowUpload(true)}>
-                  <Upload className="h-4 w-4" />
-                  Upload Your First Document
-                </Button>
-              )}
-            </div>
+                  : "The universal knowledge base parses and indexes document files for multi-agent RAG memory pools. Upload your first document to start."
+              }
+              action={
+                !searchQuery && (
+                  <Button className="font-semibold gap-2" onClick={() => setShowUpload(true)}>
+                    <Upload className="h-4 w-4" />
+                    Upload Document
+                  </Button>
+                )
+              }
+            />
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pb-10">
+            <BentoGrid className="pb-10">
               {documents.map((doc) => (
                 <KnowledgeCard key={doc.id} document={doc} />
               ))}
-            </div>
+            </BentoGrid>
           )}
         </div>
       </div>

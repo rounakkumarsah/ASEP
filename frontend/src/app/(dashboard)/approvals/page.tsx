@@ -14,7 +14,8 @@ import {
   Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 
 interface ReviewSession {
@@ -118,13 +119,11 @@ export default function ApprovalsPage() {
         </h2>
 
         {pendingItems.length === 0 ? (
-          <Card className="border border-dashed p-10 text-center flex flex-col items-center justify-center text-muted-foreground">
-            <ShieldCheck className="h-10 w-10 text-emerald-500 mb-2" />
-            <CardTitle className="text-base font-bold text-foreground">No pending approvals</CardTitle>
-            <CardDescription className="max-w-xs mt-1">
-              No tasks currently require human authorization. All agents running automatically.
-            </CardDescription>
-          </Card>
+          <EmptyState
+            title="No pending approvals"
+            description="No tasks currently require human authorization. All agents running automatically."
+            icon={ShieldCheck}
+          />
         ) : (
           <div className="space-y-4">
             {pendingItems.map(item => (

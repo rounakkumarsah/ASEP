@@ -12,6 +12,7 @@ import { QueueCard } from "@/components/dashboard/overview/queue-card";
 import { MetricCard } from "@/components/dashboard/overview/metric-card";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Loader2,
   ActivitySquare,
@@ -176,19 +177,11 @@ export default function OverviewPage() {
           </div>
 
           {/* Recent Activity (Empty State) */}
-          <Card className="border-[#202833] bg-[#0D1117] shadow-xs">
-            <CardHeader className="border-b border-[#202833]">
-              <CardTitle className="text-sm font-bold font-mono text-[#F5F7FA]">System Activity Stream</CardTitle>
-              <CardDescription className="text-xs text-[#9CA6B5]">Real-time execution log audit trail</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col items-center justify-center py-10 text-[#9CA6B5] text-center space-y-2 font-mono">
-              <Terminal className="h-8 w-8 text-[#667085]" />
-              <p className="font-semibold text-[#F5F7FA] text-xs">No execution logs recorded yet</p>
-              <p className="text-[11px] text-[#667085] max-w-sm">
-                Activity traces will automatically populate here as agent runs execute.
-              </p>
-            </CardContent>
-          </Card>
+          <EmptyState
+            icon={Terminal}
+            title="System Activity Stream"
+            description="Real-time execution log audit trail. Activity traces will automatically populate here as agent runs execute."
+          />
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -224,11 +217,13 @@ export default function OverviewPage() {
             trend={{ value: "0", isPositive: true }}
           />
 
-          <div className="col-span-full border border-[#202833] rounded-xl bg-[#0D1117] shadow-xs p-5">
-            <h3 className="font-mono text-xs font-bold uppercase tracking-wider text-[#F5F7FA] mb-4">Execution Log Stream</h3>
-            <div className="flex flex-col items-center justify-center py-8 text-[#9CA6B5] font-mono text-xs">
-              <p>No recent activity traces</p>
-            </div>
+          <div className="col-span-full">
+            <EmptyState
+              icon={Terminal}
+              title="Execution Log Stream"
+              description="No recent activity traces."
+              className="min-h-[250px]"
+            />
           </div>
         </div>
       )}

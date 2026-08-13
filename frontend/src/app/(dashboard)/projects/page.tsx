@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { AnimatedCard } from "@/components/ui/animated-card";
 
 interface Project {
   id: string;
@@ -171,25 +173,21 @@ export default function ProjectsPage() {
 
       {/* Projects Grid or Empty State */}
       {filteredProjects.length === 0 ? (
-        <div className="border border-dashed border-border/60 bg-card/20 rounded-xl p-12 text-center flex flex-col items-center justify-center space-y-4 my-8">
-          <div className="p-4 rounded-full bg-primary/10 text-primary">
-            <FolderPlus className="h-10 w-10" />
-          </div>
-          <div className="space-y-1 max-w-sm">
-            <h3 className="text-xl font-bold text-foreground">Create your first project</h3>
-            <p className="text-sm text-muted-foreground">
-              Projects isolate agent runs, API key boundaries, and codebase telemetry.
-            </p>
-          </div>
-          <Button onClick={() => setShowCreate(true)} className="gap-2 mt-2">
-            <Plus className="h-4 w-4" />
-            Create Project
-          </Button>
-        </div>
+        <EmptyState
+          icon={FolderPlus}
+          title="Create your first project"
+          description="Projects isolate agent runs, API key boundaries, and codebase telemetry."
+          action={
+            <Button onClick={() => setShowCreate(true)} className="gap-2 mt-2">
+              <Plus className="h-4 w-4" />
+              Create Project
+            </Button>
+          }
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredProjects.map(project => (
-            <Card key={project.id} className="hover:border-primary/40 transition-all bg-card/40 flex flex-col justify-between">
+            <AnimatedCard key={project.id} className="flex flex-col justify-between">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2">
@@ -207,13 +205,13 @@ export default function ProjectsPage() {
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                  className="h-8 w-8 text-destructive hover:bg-destructive/10 relative z-10"
                   onClick={() => handleDelete(project.id)}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </CardContent>
-            </Card>
+            </AnimatedCard>
           ))}
         </div>
       )}

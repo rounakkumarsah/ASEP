@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Cpu, KeyRound, Loader2, Shield } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -99,127 +99,96 @@ export default function ForgotPasswordPage() {
 
   return (
     <GuestRoute>
-      <div className="flex h-screen w-full bg-[#090B0F] text-[#F5F7FA] overflow-hidden">
-        {/* Left Side: Auth Form */}
-        <div className="flex-1 flex items-center justify-center px-6 lg:px-12 py-10 z-10 overflow-y-auto">
-          <Card className="w-full max-w-md border border-[#202833] bg-[#0D1117] shadow-xl">
-            <CardHeader className="text-center pb-4">
-              <Link href="/" className="flex items-center justify-center space-x-2.5 mb-4 group">
-                <div className="p-1.5 rounded bg-[#111720] border border-[#202833] text-[#22D3EE] group-hover:border-[#22D3EE]/50 transition-colors">
-                  <Cpu className="h-5 w-5" />
-                </div>
-                <span className="font-mono font-bold tracking-wider text-lg text-[#F5F7FA]">ASEP</span>
-              </Link>
-              <div className="mx-auto h-11 w-11 rounded-md bg-[#111720] border border-[#202833] flex items-center justify-center text-[#22D3EE] mb-4">
-                <KeyRound className="h-5 w-5" />
+      <div className="w-full">
+        <Card className="w-full max-w-md border border-[#202833] bg-[#0D1117] shadow-xl">
+          <CardHeader className="text-center pb-4">
+            <CardTitle className="text-xl font-bold font-mono text-[#F5F7FA]">Forgot Password?</CardTitle>
+            <CardDescription className="text-xs text-[#9CA6B5] font-sans">
+              Enter your email to receive password reset instructions.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {error && (
+              <div className="p-3 mb-4 text-xs font-mono text-[#F05252] bg-[#F05252]/10 rounded border border-[#F05252]/20 text-center">
+                {error}
               </div>
-              <CardTitle className="text-xl font-bold font-mono text-[#F5F7FA]">Forgot Password?</CardTitle>
-              <CardDescription className="text-xs text-[#9CA6B5] font-sans">
-                Enter your email to receive password reset instructions.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {error && (
-                <div className="p-3 mb-4 text-xs font-mono text-[#F05252] bg-[#F05252]/10 rounded border border-[#F05252]/20 text-center">
-                  {error}
+            )}
+            {success ? (
+              <div className="space-y-4 text-center">
+                <div className="p-3 text-xs font-mono text-[#2DD4A3] bg-[#2DD4A3]/10 rounded border border-[#2DD4A3]/20">
+                  ✓ Email Sent successfully!
                 </div>
-              )}
-              {success ? (
-                <div className="space-y-4 text-center">
-                  <div className="p-3 text-xs font-mono text-[#2DD4A3] bg-[#2DD4A3]/10 rounded border border-[#2DD4A3]/20">
-                    ✓ Email Sent successfully!
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <Button
-                      onClick={() => window.open("https://mail.google.com", "_blank")}
-                      className="w-full text-xs font-mono font-semibold bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9] h-10"
-                    >
-                      Open Gmail
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setSuccess(false);
-                        form.handleSubmit(onSubmit)();
-                      }}
-                      className="w-full text-xs font-mono font-semibold border-[#202833] bg-[#111720] text-[#F5F7FA] h-10"
-                    >
-                      Resend Email
-                    </Button>
-                    <Link href="/login" className="mt-2 block text-xs font-mono text-[#9CA6B5] hover:text-[#22D3EE] underline">
-                      Back to Login
-                    </Link>
-                  </div>
-                </div>
-              ) : (
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs font-mono font-semibold uppercase text-[#9CA6B5]">Email Address</FormLabel>
-                          <FormControl>
-                            <Input type="email" placeholder="jane@company.com" className="border-[#202833] bg-[#090B0F] text-[#F5F7FA]" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    {env.NEXT_PUBLIC_ENABLE_TURNSTILE && (
-                      <div className="space-y-1">
-                        <Turnstile
-                          ref={turnstileRef}
-                          onToken={handleToken}
-                          onExpire={handleTurnstileExpire}
-                          onError={handleTurnstileError}
-                        />
-                        {captchaError && (
-                          <p className="text-xs text-[#F05252] font-mono">{captchaError}</p>
-                        )}
-                      </div>
-                    )}
-                    <Button type="submit" className="w-full text-xs font-mono font-semibold bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9] h-10" disabled={isSubmitting}>
-                      {isSubmitting ? (
-                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing…</>
-                      ) : (
-                        "Send Reset Link"
-                      )}
-                    </Button>
-                  </form>
-                </Form>
-              )}
-              {!success && (
-                <div className="mt-6 text-center text-xs font-mono text-[#9CA6B5]">
-                  Remember your password?{" "}
-                  <Link href="/login" className="font-bold text-[#22D3EE] hover:underline">
-                    Sign In
+                <div className="flex flex-col gap-2">
+                  <Button
+                    onClick={() => window.open("https://mail.google.com", "_blank")}
+                    className="w-full text-xs font-mono font-semibold bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9] h-10"
+                  >
+                    Open Gmail
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSuccess(false);
+                      form.handleSubmit(onSubmit)();
+                    }}
+                    className="w-full text-xs font-mono font-semibold border-[#202833] bg-[#111720] text-[#F5F7FA] h-10"
+                  >
+                    Resend Email
+                  </Button>
+                  <Link href="/login" className="mt-2 block text-xs font-mono text-[#9CA6B5] hover:text-[#22D3EE] underline">
+                    Back to Login
                   </Link>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right Side: Trust & Product preview */}
-        <div className="hidden lg:flex flex-1 bg-[#0D1117] border-l border-[#202833] items-center justify-center p-12 relative overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,#111720_0%,transparent_70%)]" />
-          <div className="max-w-xl space-y-8 z-10">
-            <div className="space-y-3">
-              <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-md border border-[#202833] bg-[#111720] text-xs font-mono text-[#22D3EE]">
-                <Shield className="h-3.5 w-3.5" />
-                <span>Authorized Cryptographic Sign-in</span>
               </div>
-              <h2 className="text-3xl font-extrabold tracking-tight text-[#F5F7FA] font-sans">
-                Secure Account Recovery
-              </h2>
-              <p className="text-[#9CA6B5] text-sm leading-relaxed">
-                Restore your connection to the ASEP agent platform securely. Verification links expire in 15 minutes to guarantee absolute vault isolation protection.
-              </p>
-            </div>
-          </div>
-        </div>
+            ) : (
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs font-mono font-semibold uppercase text-[#9CA6B5]">Email Address</FormLabel>
+                        <FormControl>
+                          <Input type="email" placeholder="jane@company.com" className="border-[#202833] bg-[#090B0F] text-[#F5F7FA]" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  {env.NEXT_PUBLIC_ENABLE_TURNSTILE && (
+                    <div className="space-y-1">
+                      <Turnstile
+                        ref={turnstileRef}
+                        onToken={handleToken}
+                        onExpire={handleTurnstileExpire}
+                        onError={handleTurnstileError}
+                      />
+                      {captchaError && (
+                        <p className="text-xs text-[#F05252] font-mono">{captchaError}</p>
+                      )}
+                    </div>
+                  )}
+                  <Button type="submit" className="w-full text-xs font-mono font-semibold bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9] h-10" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing…</>
+                    ) : (
+                      "Send Reset Link"
+                    )}
+                  </Button>
+                </form>
+              </Form>
+            )}
+            {!success && (
+              <div className="mt-6 text-center text-xs font-mono text-[#9CA6B5]">
+                Remember your password?{" "}
+                <Link href="/login" className="font-bold text-[#22D3EE] hover:underline">
+                  Sign In
+                </Link>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </GuestRoute>
   );

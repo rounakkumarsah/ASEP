@@ -26,7 +26,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { AnimatedCard } from "@/components/ui/animated-card";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
@@ -248,7 +249,7 @@ export default function SettingsPage() {
     switch (activeTab) {
       case "profile":
         return (
-          <Card className="border-border/40 bg-card/30 shadow-sm">
+          <AnimatedCard className="border-border/40 bg-card/30 shadow-sm">
             <CardHeader>
               <CardTitle className="text-xl font-bold flex items-center gap-2">
                 <UserIcon className="h-5 w-5 text-primary" /> User Profile
@@ -275,7 +276,7 @@ export default function SettingsPage() {
                   <label className="text-xs font-semibold text-muted-foreground uppercase">Email Address</label>
                   <Input value={user?.email || ""} disabled className="bg-muted/40 cursor-not-allowed" />
                 </div>
-                <div className="flex items-center gap-4 pt-2">
+                <div className="flex items-center gap-4 pt-2 relative z-10">
                   <Button type="submit" disabled={profileSaving} className="font-semibold">
                     {profileSaving ? "Saving Changes..." : "Save Profile"}
                   </Button>
@@ -287,12 +288,12 @@ export default function SettingsPage() {
                 </div>
               </form>
             </CardContent>
-          </Card>
+          </AnimatedCard>
         );
 
       case "account":
         return (
-          <Card className="border-border/40 bg-card/30 shadow-sm">
+          <AnimatedCard className="border-border/40 bg-card/30 shadow-sm">
             <CardHeader>
               <CardTitle className="text-xl font-bold flex items-center gap-2">
                 <UserCheck className="h-5 w-5 text-primary" /> Account Details
@@ -301,32 +302,32 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
-                <div className="p-4 border border-border/40 rounded-xl bg-background/50 space-y-1">
+                <div className="p-4 border border-border/40 rounded-xl bg-background/50 space-y-1 relative z-10">
                   <span className="font-semibold text-muted-foreground text-xs uppercase block">User ID</span>
                   <span className="font-mono text-xs text-foreground block truncate">{user?.id}</span>
                 </div>
-                <div className="p-4 border border-border/40 rounded-xl bg-background/50 space-y-1">
+                <div className="p-4 border border-border/40 rounded-xl bg-background/50 space-y-1 relative z-10">
                   <span className="font-semibold text-muted-foreground text-xs uppercase block">Role Privilege</span>
                   <span className="font-semibold text-foreground capitalize block">{user?.role || "developer"}</span>
                 </div>
-                <div className="p-4 border border-border/40 rounded-xl bg-background/50 space-y-1">
+                <div className="p-4 border border-border/40 rounded-xl bg-background/50 space-y-1 relative z-10">
                   <span className="font-semibold text-muted-foreground text-xs uppercase block">Email Verification</span>
                   <Badge variant={user?.email_verified ? "default" : "secondary"}>
                     {user?.email_verified ? "Verified" : "Pending Verification"}
                   </Badge>
                 </div>
-                <div className="p-4 border border-border/40 rounded-xl bg-background/50 space-y-1">
+                <div className="p-4 border border-border/40 rounded-xl bg-background/50 space-y-1 relative z-10">
                   <span className="font-semibold text-muted-foreground text-xs uppercase block">Account Status</span>
                   <Badge variant="default">Active SaaS Tier</Badge>
                 </div>
               </div>
             </CardContent>
-          </Card>
+          </AnimatedCard>
         );
 
       case "security":
         return (
-          <Card className="border-border/40 bg-card/30 shadow-sm">
+          <AnimatedCard className="border-border/40 bg-card/30 shadow-sm">
             <CardHeader>
               <CardTitle className="text-xl font-bold flex items-center gap-2">
                 <Lock className="h-5 w-5 text-primary" /> Security & Protection
@@ -334,14 +335,14 @@ export default function SettingsPage() {
               <CardDescription>Production security safeguards and authentication posture.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="p-4 border border-border/50 rounded-xl bg-background/40 flex items-center justify-between">
+              <div className="p-4 border border-border/50 rounded-xl bg-background/40 flex items-center justify-between relative z-10">
                 <div>
                   <p className="font-semibold text-sm">Cloudflare Turnstile Protection</p>
                   <p className="text-xs text-muted-foreground">Applies enterprise anti-bot verification during entry checks.</p>
                 </div>
                 <Badge variant="default">Active</Badge>
               </div>
-              <div className="p-4 border border-border/50 rounded-xl bg-background/40 flex items-center justify-between">
+              <div className="p-4 border border-border/50 rounded-xl bg-background/40 flex items-center justify-between relative z-10">
                 <div>
                   <p className="font-semibold text-sm">JWT Cookie Policy</p>
                   <p className="text-xs text-muted-foreground">HTTP-only SameSite cookie token authorization.</p>
@@ -349,12 +350,12 @@ export default function SettingsPage() {
                 <Badge variant="default">Strict</Badge>
               </div>
             </CardContent>
-          </Card>
+          </AnimatedCard>
         );
 
       case "password":
         return (
-          <Card className="border-border/40 bg-card/30 shadow-sm">
+          <AnimatedCard className="border-border/40 bg-card/30 shadow-sm">
             <CardHeader>
               <CardTitle className="text-xl font-bold flex items-center gap-2">
                 <KeyRound className="h-5 w-5 text-primary" /> Password Management
@@ -363,7 +364,7 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <form onSubmit={handlePasswordSubmit} className="space-y-4 max-w-md">
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 relative z-10">
                   <label className="text-xs font-semibold text-muted-foreground uppercase">Current Password</label>
                   <Input 
                     type="password"
@@ -372,7 +373,7 @@ export default function SettingsPage() {
                     required
                   />
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 relative z-10">
                   <label className="text-xs font-semibold text-muted-foreground uppercase">New Password</label>
                   <Input 
                     type="password"
@@ -382,7 +383,7 @@ export default function SettingsPage() {
                     minLength={8}
                   />
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 relative z-10">
                   <label className="text-xs font-semibold text-muted-foreground uppercase">Confirm New Password</label>
                   <Input 
                     type="password"
@@ -393,21 +394,21 @@ export default function SettingsPage() {
                   />
                 </div>
                 {passwordMessage && (
-                  <div className={`text-sm ${passwordMessage.error ? "text-destructive font-medium" : "text-green-500 font-medium"}`}>
+                  <div className={`text-sm ${passwordMessage.error ? "text-destructive font-medium" : "text-green-500 font-medium"} relative z-10`}>
                     {passwordMessage.text}
                   </div>
                 )}
-                <Button type="submit" disabled={passwordSaving} className="font-semibold">
+                <Button type="submit" disabled={passwordSaving} className="font-semibold relative z-10">
                   {passwordSaving ? "Updating Password..." : "Update Password"}
                 </Button>
               </form>
             </CardContent>
-          </Card>
+          </AnimatedCard>
         );
 
       case "mfa":
         return (
-          <Card className="border-border/40 bg-card/30 shadow-sm">
+          <AnimatedCard className="border-border/40 bg-card/30 shadow-sm">
             <CardHeader>
               <CardTitle className="text-xl font-bold flex items-center gap-2">
                 <Shield className="h-5 w-5 text-primary" /> Multi-Factor Authentication
@@ -415,21 +416,21 @@ export default function SettingsPage() {
               <CardDescription>Enhance login security with Time-based One-Time Passwords (TOTP).</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="p-4 border border-border/50 rounded-xl bg-background/40 flex items-center justify-between">
+              <div className="p-4 border border-border/50 rounded-xl bg-background/40 flex items-center justify-between relative z-10">
                 <div>
                   <p className="font-semibold text-sm">Authenticator App (TOTP)</p>
                   <p className="text-xs text-muted-foreground">Compatible with Google Authenticator, Authy, and 1Password.</p>
                 </div>
                 <Badge variant="outline">Disabled</Badge>
               </div>
-              <Button variant="outline" size="sm" className="font-semibold">Enable MFA Protection</Button>
+              <Button variant="outline" size="sm" className="font-semibold relative z-10">Enable MFA Protection</Button>
             </CardContent>
-          </Card>
+          </AnimatedCard>
         );
 
       case "sessions":
         return (
-          <Card className="border-border/40 bg-card/30 shadow-sm">
+          <AnimatedCard className="border-border/40 bg-card/30 shadow-sm">
             <CardHeader>
               <CardTitle className="text-xl font-bold flex items-center gap-2">
                 <Laptop className="h-5 w-5 text-primary" /> Active Sessions
@@ -438,13 +439,13 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {sessionsLoading ? (
-                <p className="text-sm text-muted-foreground">Loading active sessions...</p>
+                <p className="text-sm text-muted-foreground relative z-10">Loading active sessions...</p>
               ) : sessions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No active sessions found.</p>
+                <p className="text-sm text-muted-foreground relative z-10">No active sessions found.</p>
               ) : (
                 <div className="space-y-3">
                   {sessions.map(s => (
-                    <div key={s.id} className="p-4 border border-border/40 rounded-xl bg-background/40 flex items-center justify-between">
+                    <div key={s.id} className="p-4 border border-border/40 rounded-xl bg-background/40 flex items-center justify-between relative z-10">
                       <div>
                         <p className="font-semibold text-sm">{s.user_agent}</p>
                         <p className="text-xs text-muted-foreground">IP: {s.ip_address} • {s.last_active}</p>
@@ -455,12 +456,12 @@ export default function SettingsPage() {
                 </div>
               )}
             </CardContent>
-          </Card>
+          </AnimatedCard>
         );
 
       case "org":
         return (
-          <Card className="border-border/40 bg-card/30 shadow-sm">
+          <AnimatedCard className="border-border/40 bg-card/30 shadow-sm">
             <CardHeader>
               <CardTitle className="text-xl font-bold flex items-center gap-2">
                 <Building2 className="h-5 w-5 text-primary" /> Organization Workspace
@@ -469,10 +470,10 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {orgLoading ? (
-                <p className="text-sm text-muted-foreground">Loading workspace details...</p>
+                <p className="text-sm text-muted-foreground relative z-10">Loading workspace details...</p>
               ) : (
                 <form onSubmit={handleOrgSubmit} className="space-y-4">
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 relative z-10">
                     <label className="text-xs font-semibold text-muted-foreground uppercase">Organization Name</label>
                     <Input
                       value={orgName}
@@ -481,18 +482,18 @@ export default function SettingsPage() {
                       required
                     />
                   </div>
-                  <Button type="submit" disabled={orgSaving} className="font-semibold">
+                  <Button type="submit" disabled={orgSaving} className="font-semibold relative z-10">
                     {orgSaving ? "Saving..." : "Save Workspace"}
                   </Button>
                 </form>
               )}
             </CardContent>
-          </Card>
+          </AnimatedCard>
         );
 
       case "team":
         return (
-          <Card className="border-border/40 bg-card/30 shadow-sm">
+          <AnimatedCard className="border-border/40 bg-card/30 shadow-sm">
             <CardHeader>
               <CardTitle className="text-xl font-bold flex items-center gap-2">
                 <Users className="h-5 w-5 text-primary" /> Team Members
@@ -501,13 +502,13 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {teamLoading ? (
-                <p className="text-sm text-muted-foreground">Loading members...</p>
+                <p className="text-sm text-muted-foreground relative z-10">Loading members...</p>
               ) : teamMembers.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No team members registered yet.</p>
+                <p className="text-sm text-muted-foreground relative z-10">No team members registered yet.</p>
               ) : (
                 <div className="space-y-2">
                   {teamMembers.map(m => (
-                    <div key={m.id} className="p-4 border border-border/40 rounded-xl bg-background/40 flex items-center justify-between">
+                    <div key={m.id} className="p-4 border border-border/40 rounded-xl bg-background/40 flex items-center justify-between relative z-10">
                       <div>
                         <p className="font-semibold text-sm">{m.first_name || m.email}</p>
                         <p className="text-xs text-muted-foreground">{m.email}</p>
@@ -518,12 +519,12 @@ export default function SettingsPage() {
                 </div>
               )}
             </CardContent>
-          </Card>
+          </AnimatedCard>
         );
 
       case "api_keys":
         return (
-          <Card className="border-border/40 bg-card/30 shadow-sm">
+          <AnimatedCard className="border-border/40 bg-card/30 shadow-sm">
             <CardHeader>
               <CardTitle className="text-xl font-bold flex items-center gap-2">
                 <Key className="h-5 w-5 text-primary" /> API Key Management
@@ -531,19 +532,19 @@ export default function SettingsPage() {
               <CardDescription>Manage project-scoped API key credentials.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground relative z-10">
                 API Keys are isolated within project workspaces to maintain strict multi-tenant access boundaries.
               </p>
-              <Button onClick={() => router.push("/api-keys")} className="font-semibold gap-2">
+              <Button onClick={() => router.push("/api-keys")} className="font-semibold gap-2 relative z-10">
                 <Key className="h-4 w-4" /> Go to API Keys Manager
               </Button>
             </CardContent>
-          </Card>
+          </AnimatedCard>
         );
 
       case "billing":
         return (
-          <Card className="border-border/40 bg-card/30 shadow-sm">
+          <AnimatedCard className="border-border/40 bg-card/30 shadow-sm">
             <CardHeader>
               <CardTitle className="text-xl font-bold flex items-center gap-2">
                 <CreditCard className="h-5 w-5 text-primary" /> Billing & Subscriptions
@@ -551,19 +552,19 @@ export default function SettingsPage() {
               <CardDescription>Manage subscription plans, invoices, and payment checkout.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground relative z-10">
                 Upgrade your plan or view past transaction history in the Billing dashboard.
               </p>
-              <Button onClick={() => router.push("/billing")} className="font-semibold gap-2">
+              <Button onClick={() => router.push("/billing")} className="font-semibold gap-2 relative z-10">
                 <CreditCard className="h-4 w-4" /> Open Billing Dashboard
               </Button>
             </CardContent>
-          </Card>
+          </AnimatedCard>
         );
 
       case "llm":
         return (
-          <Card className="border-border/40 bg-card/30 shadow-sm">
+          <AnimatedCard className="border-border/40 bg-card/30 shadow-sm">
             <CardHeader>
               <CardTitle className="text-xl font-bold flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-primary" /> Production LLM Providers
@@ -579,7 +580,7 @@ export default function SettingsPage() {
                 { name: "Groq Cloud", detail: "Llama 3.3 70B (High-speed inference)", badge: "Active" },
                 { name: "Cohere Command", detail: "Command R+ / Embed v3", badge: "Active" },
               ].map(provider => (
-                <div key={provider.name} className="p-4 border border-border/40 rounded-xl bg-background/40 flex items-center justify-between">
+                <div key={provider.name} className="p-4 border border-border/40 rounded-xl bg-background/40 flex items-center justify-between relative z-10">
                   <div>
                     <p className="font-semibold text-sm text-foreground">{provider.name}</p>
                     <p className="text-xs text-muted-foreground">{provider.detail}</p>
@@ -590,12 +591,12 @@ export default function SettingsPage() {
                 </div>
               ))}
             </CardContent>
-          </Card>
+          </AnimatedCard>
         );
 
       case "integrations":
         return (
-          <Card className="border-border/40 bg-card/30 shadow-sm">
+          <AnimatedCard className="border-border/40 bg-card/30 shadow-sm">
             <CardHeader>
               <CardTitle className="text-xl font-bold flex items-center gap-2">
                 <Plug className="h-5 w-5 text-primary" /> Production Integrations
@@ -603,14 +604,14 @@ export default function SettingsPage() {
               <CardDescription>Connected developer platforms and security infrastructure.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="p-4 border border-border/40 rounded-xl bg-background/40 flex items-center justify-between">
+              <div className="p-4 border border-border/40 rounded-xl bg-background/40 flex items-center justify-between relative z-10">
                 <div>
                   <p className="font-semibold text-sm">Cloudflare Turnstile</p>
                   <p className="text-xs text-muted-foreground">Bot detection and anti-spam verification.</p>
                 </div>
                 <Badge variant="default">Connected</Badge>
               </div>
-              <div className="p-4 border border-border/40 rounded-xl bg-background/40 flex items-center justify-between">
+              <div className="p-4 border border-border/40 rounded-xl bg-background/40 flex items-center justify-between relative z-10">
                 <div>
                   <p className="font-semibold text-sm">Razorpay Checkout</p>
                   <p className="text-xs text-muted-foreground">Subscription payments and automated invoicing.</p>
@@ -618,12 +619,12 @@ export default function SettingsPage() {
                 <Badge variant="default">Connected</Badge>
               </div>
             </CardContent>
-          </Card>
+          </AnimatedCard>
         );
 
       case "preferences":
         return (
-          <Card className="border-border/40 bg-card/30 shadow-sm">
+          <AnimatedCard className="border-border/40 bg-card/30 shadow-sm">
             <CardHeader>
               <CardTitle className="text-xl font-bold flex items-center gap-2">
                 <Settings2 className="h-5 w-5 text-primary" /> Platform Preferences
@@ -631,7 +632,7 @@ export default function SettingsPage() {
               <CardDescription>Configure production LLM defaults and regional localization parameters.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
+              <div className="space-y-2 relative z-10">
                 <label className="text-xs font-semibold text-muted-foreground uppercase">Default Model Engine</label>
                 <select 
                   value={preferredProvider}
@@ -647,17 +648,17 @@ export default function SettingsPage() {
                 </select>
               </div>
               {prefSaved && (
-                <p className="text-xs text-green-500 font-semibold flex items-center gap-1">
+                <p className="text-xs text-green-500 font-semibold flex items-center gap-1 relative z-10">
                   <Check className="h-3.5 w-3.5" /> Preferred model saved.
                 </p>
               )}
             </CardContent>
-          </Card>
+          </AnimatedCard>
         );
 
       case "notifications":
         return (
-          <Card className="border-border/40 bg-card/30 shadow-sm">
+          <AnimatedCard className="border-border/40 bg-card/30 shadow-sm">
             <CardHeader>
               <CardTitle className="text-xl font-bold flex items-center gap-2">
                 <Bell className="h-5 w-5 text-primary" /> Notification Preferences
@@ -666,14 +667,14 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-3">
-                <div className="flex items-center justify-between p-4 border border-border/50 rounded-xl bg-background/40">
+                <div className="flex items-center justify-between p-4 border border-border/50 rounded-xl bg-background/40 relative z-10">
                   <div>
                     <p className="font-semibold text-sm">Security & Audit Notifications</p>
                     <p className="text-xs text-muted-foreground">Receive instant alerts when API key changes or privilege escalations occur.</p>
                   </div>
                   <Badge variant="default">Enabled</Badge>
                 </div>
-                <div className="flex items-center justify-between p-4 border border-border/50 rounded-xl bg-background/40">
+                <div className="flex items-center justify-between p-4 border border-border/50 rounded-xl bg-background/40 relative z-10">
                   <div>
                     <p className="font-semibold text-sm">Evaluation Benchmark Reports</p>
                     <p className="text-xs text-muted-foreground">Weekly automated summary emails of test suite accuracy scores.</p>
@@ -682,12 +683,12 @@ export default function SettingsPage() {
                 </div>
               </div>
             </CardContent>
-          </Card>
+          </AnimatedCard>
         );
 
       case "appearance":
         return (
-          <Card className="border-border/40 bg-card/30 shadow-sm">
+          <AnimatedCard className="border-border/40 bg-card/30 shadow-sm">
             <CardHeader>
               <CardTitle className="text-xl font-bold flex items-center gap-2">
                 <Paintbrush className="h-5 w-5 text-primary" /> Appearance Settings
@@ -699,14 +700,16 @@ export default function SettingsPage() {
                 <p className="font-semibold text-sm">Theme Mode</p>
                 <p className="text-xs text-muted-foreground">Adjust display color schemes for visual clarity.</p>
               </div>
-              <ThemeToggle />
+              <div className="relative z-10">
+                <ThemeToggle />
+              </div>
             </CardContent>
-          </Card>
+          </AnimatedCard>
         );
 
       case "delete_account":
         return (
-          <Card className="border-destructive/40 bg-destructive/5 shadow-sm">
+          <AnimatedCard className="border-destructive/40 bg-destructive/5 shadow-sm">
             <CardHeader>
               <CardTitle className="text-xl font-bold text-destructive flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5" /> Danger Zone — Delete Account
@@ -714,12 +717,12 @@ export default function SettingsPage() {
               <CardDescription>Permanently remove your account and all associated workspace data.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground relative z-10">
                 Once deleted, your account cannot be restored. All projects, API keys, and workspace resources will be permanently purged.
               </p>
               <Button 
                 variant="destructive"
-                className="font-semibold"
+                className="font-semibold relative z-10"
                 onClick={() => {
                   if (confirm("Are you ABSOLUTELY sure you want to delete your account? This action cannot be undone.")) {
                     apiClient.delete("/api/v1/auth/me")
@@ -731,7 +734,7 @@ export default function SettingsPage() {
                 Delete Account
               </Button>
             </CardContent>
-          </Card>
+          </AnimatedCard>
         );
 
       default:

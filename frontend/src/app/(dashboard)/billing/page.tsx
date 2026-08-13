@@ -5,7 +5,6 @@ import { CreditCard, Zap, Building2, History, CheckCircle2 } from "lucide-react"
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -13,6 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { RazorpayCheckout } from "@/components/payments/razorpay-checkout";
 import { getPaymentHistory } from "@/lib/api/services/payments";
 import type { PaymentRecord } from "@/lib/api/services/payments";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PricingCard } from "@/components/ui/pricing-card";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -117,48 +118,17 @@ export default function BillingPage() {
           const isSuccess = successPlanId === plan.id;
 
           return (
-            <Card
+            <PricingCard
               key={plan.id}
-              className={`relative flex flex-col border ${
-                plan.badge
-                  ? "border-primary/60 shadow-lg shadow-primary/10"
-                  : "border-border/50"
-              }`}
-            >
-              {plan.badge && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <Badge className="px-3 py-0.5 text-xs font-semibold">
-                    {plan.badge}
-                  </Badge>
-                </div>
-              )}
-
-              <CardHeader className="pb-2">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Icon className="h-4 w-4 text-primary" />
-                  </div>
-                  <CardTitle className="text-lg">{plan.name}</CardTitle>
-                </div>
-                <CardDescription className="text-xs">{plan.description}</CardDescription>
-                <p className="text-3xl font-extrabold mt-2">
-                  {formatCurrency(plan.price, plan.currency)}
-                  <span className="text-sm font-normal text-muted-foreground">/mo</span>
-                </p>
-              </CardHeader>
-
-              <CardContent className="flex flex-col flex-1 gap-4">
-                <ul className="space-y-1.5 flex-1">
-                  {plan.features.map((f) => (
-                    <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-
-                {isSuccess ? (
-                  <div className="flex items-center justify-center gap-2 rounded-lg bg-green-500/10 p-3 text-green-600 dark:text-green-400 text-sm font-semibold">
+              name={plan.name}
+              price={formatCurrency(plan.price, plan.currency)}
+              description={plan.description}
+              icon={Icon}
+              features={plan.features}
+              isPopular={!!plan.badge}
+              action={
+                isSuccess ? (
+                  <div className="flex w-full items-center justify-center gap-2 rounded-lg bg-green-500/10 py-3 text-green-600 dark:text-green-400 text-sm font-semibold">
                     <CheckCircle2 className="h-4 w-4" />
                     Activated!
                   </div>
@@ -180,9 +150,9 @@ export default function BillingPage() {
                       console.warn("Payment failed:", reason);
                     }}
                   />
-                )}
-              </CardContent>
-            </Card>
+                )
+              }
+            />
           );
         })}
       </div>
@@ -199,9 +169,11 @@ export default function BillingPage() {
           {historyLoading ? (
             <p className="text-sm text-muted-foreground py-4 text-center">Loading…</p>
           ) : payments.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">
-              No payments yet.
-            </p>
+            <EmptyState
+              icon={History}
+              title="No payments yet"
+              description="Your payment history will appear here once you subscribe to a plan."
+            />
           ) : (
             <div className="divide-y divide-border/50">
               {payments.map((p) => (

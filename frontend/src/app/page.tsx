@@ -4,8 +4,10 @@ import { LandingNavbar } from "@/components/landing/navbar";
 import { SocialProofSection } from "@/components/landing/social-proof";
 import { FeaturesSection } from "@/components/landing/features";
 import { ArchitectureSection } from "@/components/landing/architecture";
+import { IntegrationsSection } from "@/components/landing/integrations";
 import { ProductPreviewSection } from "@/components/landing/product-preview";
-import { CtaSection } from "@/components/landing/cta-section";
+import { FAQSection } from "@/components/landing/faq";
+import { CTASection } from "@/components/landing/cta-section";
 import { LandingFooter } from "@/components/landing/footer";
 
 export const metadata: Metadata = {
@@ -26,8 +28,10 @@ export default function LandingPage() {
       <SocialProofSection />
       <FeaturesSection />
       <ArchitectureSection />
+      <IntegrationsSection />
       <ProductPreviewSection />
-      <CtaSection />
+      <FAQSection />
+      <CTASection />
       <LandingFooter />
     </main>
   );
