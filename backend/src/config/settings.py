@@ -69,7 +69,37 @@ class Settings(BaseSettings):
         default="redis://localhost:6379/0",
         description="Redis connection URL. Use rediss:// for TLS (production)."
     )
-
+    REDIS_TERMINAL_CHANNEL_PREFIX: str = Field(
+        default="opensep:terminal",
+        description="Prefix channel key for PTY WebSocket routing broadcasts."
+    )
+    REDIS_PASSWORD: str | None = Field(
+        default=None,
+        description="Optional password for Redis authentication."
+    )
+    
+    # -----------------------------------------------------------------------
+    # Terminal & Governance
+    # -----------------------------------------------------------------------
+    TERMINAL_SHELL: str = Field(
+        default="/bin/bash",
+        description="Default shell path for interactive PTY allocations."
+    )
+    OPA_ENABLED: bool = Field(
+        default=False,
+        description="Enforces Open Policy Agent pre-execution command checks."
+    )
+    OPA_URL: str = Field(
+        default="http://localhost:8181/v1/data/asep/policy",
+        description="OPA endpoint URL."
+    )
+    # -----------------------------------------------------------------------
+    # AI Providers Configuration Keys
+    # -----------------------------------------------------------------------
+    ANTHROPIC_API_KEY: str | None = Field(
+        default=None,
+        description="API Key for Anthropic Claude LLM provider."
+    )
 
     # -----------------------------------------------------------------------
 
@@ -305,13 +335,47 @@ class Settings(BaseSettings):
         return v
 
 
+        
+from pydantic import model_validator
+from typing import Any
+
+# Re-declare Settings class suffix with root validators
+class Settings(Settings):
+    @model_validator(mode="after")
+    def validate_production_environment_variables(self) -> Settings:
+        import os
+        app_env = os.getenv("APP_ENV", "development")
+        is_production_like = app_env in ("staging", "production") or self.APP_ENV in ("staging", "production")
+        
+        if is_production_like:
+            # 1. Validate DATABASE_URL
+            db_url = getattr(self, "DATABASE_URL", "") or os.getenv("DATABASE_URL", "")
+            db_fallbacks = ["localhost", "postgres:5432", "changeme", "asep:changeme"]
+            if not db_url or any(fb in db_url for fb in db_fallbacks):
+                raise ValueError(f"CRITICAL: Production DATABASE_URL must not use local fallbacks: {db_url}")
+                
+            # 2. Validate REDIS_URL
+            redis_url = getattr(self, "REDIS_URL", "") or os.getenv("REDIS_URL", "")
+            redis_fallbacks = ["localhost", "redis:6379", "127.0.0.1"]
+            if not redis_url or any(fb in redis_url for fb in redis_fallbacks):
+                raise ValueError(f"CRITICAL: Production REDIS_URL must not use local fallbacks: {redis_url}")
+                
+            # 3. Validate SECRET_KEY keys
+            secret_key = getattr(self, "SECRET_KEY", "")
+            secret_fallbacks = ["change-this-to-a-random-256-bit-secret", "change_me_in_production"]
+            if not secret_key or any(fb in secret_key for fb in secret_fallbacks):
+                raise ValueError(f"CRITICAL: Production SECRET_KEY must be properly configured.")
+                
+            # 4. Validate ANTHROPIC_API_KEY
+            anthropic_key = getattr(self, "ANTHROPIC_API_KEY", "") or os.getenv("ANTHROPIC_API_KEY", "")
+            if not anthropic_key:
+                raise ValueError("CRITICAL: Production ANTHROPIC_API_KEY must be explicitly configured.")
+                
+        return self
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     """
     Return a cached Settings instance.
-
-    Using lru_cache means settings are loaded once per process lifetime,
-    which is safe because environment variables don't change at runtime.
     """
     return Settings()

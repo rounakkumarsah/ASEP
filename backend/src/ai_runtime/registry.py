@@ -6,6 +6,7 @@ from src.ai_runtime.providers.mock import MockProvider
 from src.ai_runtime.providers.ollama import OllamaProvider
 from src.ai_runtime.providers.gemini import GeminiProvider
 from src.ai_runtime.providers.openai import OpenAIProvider
+from src.ai_runtime.providers.anthropic import AnthropicProvider
 from src.ai_runtime.circuit_breaker import CircuitBreaker
 
 class ProviderRegistry:
@@ -14,6 +15,7 @@ class ProviderRegistry:
             "ollama": OllamaProvider(),
             "gemini": GeminiProvider(),
             "openai": OpenAIProvider(),
+            "anthropic": AnthropicProvider(),
             "mock": MockProvider()
         }
         
@@ -21,6 +23,7 @@ class ProviderRegistry:
             "ollama": CircuitBreaker(),
             "gemini": CircuitBreaker(),
             "openai": CircuitBreaker(),
+            "anthropic": CircuitBreaker(),
             "mock": CircuitBreaker()
         }
         
@@ -41,6 +44,8 @@ class ProviderRegistry:
             return "gemini"
         elif "gpt-" in model_lower:
             return "openai"
+        elif "claude" in model_lower:
+            return "anthropic"
         elif "mock" in model_lower:
             return "mock"
         else:

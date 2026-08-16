@@ -55,6 +55,7 @@ from src.repositories.knowledge_document import KnowledgeDocumentRepository
 from src.repositories.memory_entry import MemoryEntryRepository
 from src.repositories.task import TaskRepository
 from src.repositories.user import UserRepository
+from src.repositories.hitl_session import HITLSessionRepository
 from src.unit_of_work.base import AbstractUnitOfWork
 
 logger = logging.getLogger(__name__)
@@ -64,7 +65,7 @@ class SQLAlchemyUnitOfWork(AbstractUnitOfWork):
     """Production Unit of Work backed by a SQLAlchemy ``AsyncSession``.
 
     One ``SQLAlchemyUnitOfWork`` instance represents exactly one database
-    transaction.  All five repositories share the same session so their
+    transaction.  All repositories share the same session so their
     operations are atomically committed or rolled back together.
 
     Attributes:
@@ -74,6 +75,7 @@ class SQLAlchemyUnitOfWork(AbstractUnitOfWork):
         audit_logs:          ``AuditLogRepository`` bound to the active session.
         knowledge_documents: ``KnowledgeDocumentRepository`` bound to the active
                              session.
+        hitl_sessions:       ``HITLSessionRepository`` bound to the active session.
 
     Args:
         session_factory: An ``async_sessionmaker[AsyncSession]`` used to open
@@ -136,6 +138,7 @@ class SQLAlchemyUnitOfWork(AbstractUnitOfWork):
         self.audit_logs = AuditLogRepository(self._session)
         self.knowledge_documents = KnowledgeDocumentRepository(self._session)
         self.users = UserRepository(self._session)
+        self.hitl_sessions = HITLSessionRepository(self._session)
         logger.debug("SQLAlchemyUnitOfWork session opened")
         return self
 

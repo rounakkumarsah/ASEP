@@ -26,6 +26,7 @@ class MockUnitOfWork(AbstractUnitOfWork):
         self.audit_logs = AsyncMock()
         self.knowledge_documents = AsyncMock()
         self.users = AsyncMock()
+        self.hitl_sessions = AsyncMock()
         
         # Mock transaction methods
         self.commit = AsyncMock()

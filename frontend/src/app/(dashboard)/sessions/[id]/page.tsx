@@ -17,6 +17,13 @@ import {
   Loader2,
 } from "lucide-react";
 
+import dynamic from "next/dynamic";
+
+const TerminalEmulator = dynamic(
+  () => import("@/components/TerminalEmulator").then((mod) => mod.TerminalEmulator),
+  { ssr: false }
+);
+
 export default function SessionDetailsPage() {
   const params = useParams();
   const router = useRouter();
@@ -50,6 +57,12 @@ export default function SessionDetailsPage() {
   const timeElapsed = Math.floor(
     (Date.now() - startedAtDate.getTime()) / 60000,
   );
+
+  // Construct WebSocket URL using NEXT_PUBLIC_WS_URL env var or safe default
+  const baseWsUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000";
+  // Trim trailing slash if present in environment variable
+  const wsUrlClean = baseWsUrl.endsWith("/") ? baseWsUrl.slice(0, -1) : baseWsUrl;
+  const wsUrl = `${wsUrlClean}/api/v1/ws/sessions/${id}/terminal`;
 
   return (
     <div className="space-y-6">
@@ -98,17 +111,10 @@ export default function SessionDetailsPage() {
                 Timeline
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-0 flex-1 bg-muted/20 relative">
-              {/* Timeline Placeholder */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground p-8 text-center">
-                <Loader2 className="h-10 w-10 animate-spin text-muted-foreground/30 mb-4" />
-                <h3 className="font-semibold text-foreground mb-1">
-                  Live streaming not yet connected
-                </h3>
-                <p className="text-sm max-w-sm">
-                  In a future phase, this area will stream live execution logs,
-                  agent reasoning traces, and standard output.
-                </p>
+            <CardContent className="p-0 flex-1 bg-muted/20 relative flex flex-col">
+              {/* Dynamic Terminal Emulator Component */}
+              <div className="flex-1 w-full h-full relative">
+                <TerminalEmulator wsUrl={wsUrl} />
               </div>
             </CardContent>
           </Card>

@@ -3,7 +3,7 @@ ASEP — Edge Registry and Conditional Routing Edges
 """
 
 import logging
-from typing import Callable
+from collections.abc import Callable
 
 from src.runtime.state import AgentState
 
@@ -33,11 +33,12 @@ class EdgeRegistry:
 
 # --- Default Router Implementations ---
 
+
 def human_validation_router_default(state: AgentState) -> str:
     """Routes based on human input. Returns next node name."""
     human_input = state.get("human_input")
     logger.info(f"Conditional routing edge checking human_input: '{human_input}'")
-    
+
     if human_input == "approve":
         return "end"
     else:

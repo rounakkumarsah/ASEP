@@ -32,6 +32,7 @@ from src.db.models.knowledge_document import CrawlStatus, DocumentSourceType, Do
 from src.db.models.memory_entry import MemoryEntry, MemoryType
 from src.db.models.payment import Payment
 from src.db.models.task import Task, TaskPriority, TaskStatus
+from src.db.models.hitl_session import HITLSession, HITLStatus, HITLAction
 
 __all__: list[str] = [
     # multi-tenancy
@@ -64,4 +65,9 @@ __all__: list[str] = [
     "DocumentSourceType",
     "DocumentStatus",
     "CrawlStatus",
+    # hitl_session
+    "HITLSession",
+    "HITLStatus",
+    "HITLAction",
 ]
+

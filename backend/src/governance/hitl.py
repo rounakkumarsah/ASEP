@@ -2,26 +2,29 @@
 ASEP — Human-in-the-Loop (HITL) Orchestration Engine
 """
 
-import os
-import uuid
-import time
+from __future__ import annotations
+
+import contextlib
 import logging
-from datetime import datetime, timezone, timedelta
-from enum import Enum
-from typing import Any, Dict, List, Optional
+import time
+import uuid
+from datetime import UTC, datetime, timedelta
+from enum import StrEnum
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
 
-class RiskLevel(str, Enum):
+class RiskLevel(StrEnum):
     LOW = "Low"
     MEDIUM = "Medium"
     HIGH = "High"
     CRITICAL = "Critical"
 
 
-class ApprovalAction(str, Enum):
+class ApprovalAction(StrEnum):
     APPROVE = "Approve"
     REJECT = "Reject"
     MODIFY = "Modify"
@@ -31,7 +34,7 @@ class ApprovalAction(str, Enum):
     EXPIRE = "Expire"
 
 
-class ReviewerRole(str, Enum):
+class ReviewerRole(StrEnum):
     OPERATOR = "Operator"
     TEAM_LEAD = "Team Lead"
     ADMINISTRATOR = "Administrator"
@@ -54,21 +57,21 @@ class ReviewSession(BaseModel):
     correlation_id: str
     requesting_agent: str
     requesting_tool: str
-    requested_permissions: List[str] = Field(default_factory=list)
+    requested_permissions: list[str] = Field(default_factory=list)
     risk_level: RiskLevel = RiskLevel.LOW
     justification: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    reviewer: Optional[str] = None
-    reviewer_role: Optional[ReviewerRole] = None
-    decision: Optional[ApprovalAction] = None
-    audit_trail: List[Dict[str, Any]] = Field(default_factory=list)
-    modified_arguments: Optional[Dict[str, Any]] = None
-    expired_at: Optional[datetime] = None
-    
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    reviewer: str | None = None
+    reviewer_role: ReviewerRole | None = None
+    decision: ApprovalAction | None = None
+    audit_trail: list[dict[str, Any]] = Field(default_factory=list)
+    modified_arguments: dict[str, Any] | None = None
+    expired_at: datetime | None = None
+
     # SLA metric parameters
     created_at: float = Field(default_factory=time.time)
-    decided_at: Optional[float] = None
-    latency_seconds: Optional[float] = None
+    decided_at: float | None = None
+    latency_seconds: float | None = None
 
 
 class ApprovalSLA(BaseModel):
@@ -84,61 +87,92 @@ class NotificationInterface:
 
     @staticmethod
     def notify(session: ReviewSession) -> None:
-        logger.info(f"[Notification] Dispatching alert to Slack/Email/Dashboard queue for session={session.session_id}")
+        logger.info(
+            f"[Notification] Dispatching alert to Slack/Email/Dashboard queue for session={session.session_id}"
+        )
 
 
 class HITLEngine:
     """Enterprise Human-in-the-Loop decision and queue registry engine."""
 
     def __init__(self) -> None:
-        self.queue: Dict[str, ReviewSession] = {}
-        self.sla_stats = ApprovalSLA()
-        self.templates: Dict[str, ApprovalTemplate] = {
+        self.uow_factory = None
+        self.templates: dict[str, ApprovalTemplate] = {
             "critical_shell": ApprovalTemplate(
                 template_id="critical_shell",
                 name="Critical Shell Command Review",
                 description="Manual reviews required for running CLI terminal processes.",
                 default_risk_level=RiskLevel.CRITICAL,
-                required_reviewer_role=ReviewerRole.SECURITY_REVIEWER
+                required_reviewer_role=ReviewerRole.SECURITY_REVIEWER,
             )
         }
-        self.risk_policies: Dict[str, RiskLevel] = {
+        self.risk_policies: dict[str, RiskLevel] = {
             "filesystem.delete": RiskLevel.HIGH,
             "filesystem.write": RiskLevel.MEDIUM,
             "git.commit": RiskLevel.MEDIUM,
             "terminal": RiskLevel.CRITICAL,
-            "docker": RiskLevel.CRITICAL
+            "docker": RiskLevel.CRITICAL,
         }
 
-    def evaluate_risk(self, tool_name: str, arguments: Dict[str, Any]) -> RiskLevel:
+    def evaluate_risk(self, tool_name: str, arguments: dict[str, Any]) -> RiskLevel:
         """Determines the risk classification mapped to tool parameters."""
         action = arguments.get("action", "")
         key = f"{tool_name}.{action}" if action else tool_name
-        
+
         # Check specific operation policy
         if key in self.risk_policies:
             return self.risk_policies[key]
         if tool_name in self.risk_policies:
             return self.risk_policies[tool_name]
-            
+
         return RiskLevel.LOW
 
-    def create_session(
+    async def create_session(
         self,
         request_id: str,
         execution_id: str,
         correlation_id: str,
         requesting_agent: str,
         requesting_tool: str,
-        requested_permissions: List[str],
-        arguments: Dict[str, Any],
+        requested_permissions: list[str],
+        arguments: dict[str, Any],
         justification: str,
-        ttl_seconds: int = 300
+        ttl_seconds: int = 300,
     ) -> ReviewSession:
-        """Create and queue a human review session for critical tasks."""
+        """Create and queue a human review session for critical tasks in the database."""
         risk_lvl = self.evaluate_risk(requesting_tool, arguments)
-        
+        session_id = f"resume_tok_{uuid.uuid4().hex[:12]}"
+
+        import uuid as pyuuid
+
+        from src.db.models.hitl_session import HITLSession, HITLStatus
+
+        db_session = HITLSession(
+            session_id=session_id,
+            execution_id=pyuuid.UUID(execution_id),
+            correlation_id=correlation_id,
+            requesting_agent=requesting_agent,
+            requesting_tool=requesting_tool,
+            risk_level=risk_lvl.value,
+            status=HITLStatus.PENDING,
+            arguments_json=arguments,
+            justification=justification,
+            ttl_seconds=ttl_seconds,
+        )
+
+        uow_ctx = self.uow_factory() if self.uow_factory else None
+        if uow_ctx is None:
+            from src.unit_of_work.sqlalchemy import SQLAlchemyUnitOfWork
+
+            uow_ctx = SQLAlchemyUnitOfWork()
+
+        async with uow_ctx as uow:
+            await uow.hitl_sessions.create(db_session)
+            await uow.commit()
+
+        # Construct ReviewSession domain schema to return
         session = ReviewSession(
+            session_id=session_id,
             request_id=request_id,
             execution_id=execution_id,
             correlation_id=correlation_id,
@@ -148,86 +182,218 @@ class HITLEngine:
             risk_level=risk_lvl,
             justification=justification,
             modified_arguments=arguments,
-            expired_at=datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)
+            expired_at=datetime.now(UTC) + timedelta(seconds=ttl_seconds),
         )
-        
-        session.audit_trail.append({
-            "action": "ApprovalRequested",
-            "timestamp": time.time(),
-            "details": f"Review requested for action '{requesting_tool}' classified as {risk_lvl}."
-        })
-        
-        self.queue[session.session_id] = session
+        session.audit_trail.append(
+            {
+                "action": "ApprovalRequested",
+                "timestamp": time.time(),
+                "details": f"Review requested for action '{requesting_tool}' classified as {risk_lvl}.",
+            }
+        )
+
         NotificationInterface.notify(session)
         logger.info(f"ApprovalRequested: Created HITL review session {session.session_id}")
         return session
 
-    def submit_decision(
+    async def get_session(self, session_id: str) -> ReviewSession | None:
+        """Fetch a review session by ID."""
+        uow_ctx = self.uow_factory() if self.uow_factory else None
+        if uow_ctx is None:
+            from src.unit_of_work.sqlalchemy import SQLAlchemyUnitOfWork
+
+            uow_ctx = SQLAlchemyUnitOfWork()
+
+        async with uow_ctx as uow:
+            db_sess = await uow.hitl_sessions.get(session_id)
+            if not db_sess:
+                return None
+            return self._to_domain(db_sess)
+
+    async def get_all_sessions(self) -> list[ReviewSession]:
+        """Fetch all review sessions."""
+        uow_ctx = self.uow_factory() if self.uow_factory else None
+        if uow_ctx is None:
+            from src.unit_of_work.sqlalchemy import SQLAlchemyUnitOfWork
+
+            uow_ctx = SQLAlchemyUnitOfWork()
+
+        async with uow_ctx as uow:
+            db_sessions = await uow.hitl_sessions.list()
+            return [self._to_domain(s) for s in db_sessions]
+
+    def _to_domain(self, db_sess: Any) -> ReviewSession:
+        # Parse fields with fallback
+        try:
+            risk = RiskLevel(db_sess.risk_level)
+        except ValueError:
+            risk = RiskLevel.LOW
+
+        decision = None
+        if db_sess.decision:
+            try:
+                decision_val = (
+                    db_sess.decision.value
+                    if hasattr(db_sess.decision, "value")
+                    else db_sess.decision
+                )
+                decision = ApprovalAction(decision_val)
+            except ValueError:
+                pass
+
+        role = None
+        if db_sess.reviewer_role:
+            with contextlib.suppress(ValueError):
+                role = ReviewerRole(db_sess.reviewer_role)
+
+        created_at_ts = db_sess.created_at.timestamp() if db_sess.created_at else time.time()
+        decided_at_ts = db_sess.decided_at.timestamp() if db_sess.decided_at else None
+
+        domain_sess = ReviewSession(
+            session_id=db_sess.session_id,
+            request_id=db_sess.correlation_id,
+            execution_id=str(db_sess.execution_id),
+            correlation_id=db_sess.correlation_id,
+            requesting_agent=db_sess.requesting_agent,
+            requesting_tool=db_sess.requesting_tool,
+            requested_permissions=["approve"],
+            risk_level=risk,
+            justification=db_sess.justification,
+            reviewer=db_sess.reviewer,
+            reviewer_role=role,
+            decision=decision,
+            modified_arguments=db_sess.arguments_json,
+            expired_at=(
+                db_sess.created_at + timedelta(seconds=db_sess.ttl_seconds)
+                if db_sess.created_at
+                else None
+            ),
+            created_at=created_at_ts,
+            decided_at=decided_at_ts,
+            latency_seconds=db_sess.latency_seconds,
+            audit_trail=[],
+        )
+
+        # Reconstruct audit trail — always include the creation event
+        domain_sess.audit_trail.append(
+            {
+                "action": "ApprovalRequested",
+                "timestamp": created_at_ts,
+                "details": f"Review requested for action '{db_sess.requesting_tool}' classified as {risk}.",
+            }
+        )
+        # Append the decision event if the session has been resolved
+        if db_sess.decision:
+            domain_sess.audit_trail.append(
+                {
+                    "action": f"Approval{domain_sess.decision.value}",
+                    "timestamp": decided_at_ts or time.time(),
+                    "details": f"Decision submitted by {db_sess.reviewer} ({role.value if role else ''}). Notes: {db_sess.notes or ''}",
+                }
+            )
+        return domain_sess
+
+    async def submit_decision(
         self,
         session_id: str,
         action: ApprovalAction,
         reviewer: str,
         role: ReviewerRole,
-        modified_args: Optional[Dict[str, Any]] = None,
-        notes: str = ""
+        modified_args: dict[str, Any] | None = None,
+        notes: str = "",
     ) -> ReviewSession:
-        """Resolve a queued review session with approval, rejection, or modifications."""
-        session = self.queue.get(session_id)
-        if not session:
-            raise KeyError(f"Review session {session_id} not found.")
-            
-        if session.decision:
-            raise ValueError(f"Review session {session_id} already resolved.")
+        """Resolve a queued review session with approval, rejection, or modifications in database."""
+        from src.db.models.hitl_session import HITLAction, HITLStatus
 
-        # Check Expiration before processing
-        if session.expired_at and datetime.now(timezone.utc) > session.expired_at:
-            session.decision = ApprovalAction.EXPIRE
-            session.audit_trail.append({
-                "action": "ApprovalExpired",
-                "timestamp": time.time(),
-                "details": "Session expired before human decision."
-            })
-            self._recalculate_sla()
-            logger.warning(f"ApprovalExpired: Session {session_id} expired.")
-            return session
+        uow_ctx = self.uow_factory() if self.uow_factory else None
+        if uow_ctx is None:
+            from src.unit_of_work.sqlalchemy import SQLAlchemyUnitOfWork
 
-        session.decision = action
-        session.reviewer = reviewer
-        session.reviewer_role = role
-        session.decided_at = time.time()
-        session.latency_seconds = session.decided_at - session.created_at
-        
-        if modified_args:
-            session.modified_arguments = modified_args
-            
-        session.audit_trail.append({
-            "action": f"Approval{action.value}",
-            "timestamp": time.time(),
-            "details": f"Decision submitted by {reviewer} ({role.value}). Notes: {notes}"
-        })
-        
-        self._recalculate_sla()
-        logger.info(f"Approval{action.value}: Resolved session {session_id} successfully.")
-        return session
+            uow_ctx = SQLAlchemyUnitOfWork()
 
-    def _recalculate_sla(self) -> None:
-        """Recalculates average review parameters for active logs."""
-        resolved = [s for s in self.queue.values() if s.decision is not None]
-        if not resolved:
-            return
-            
-        latencies = [s.latency_seconds for s in resolved if s.latency_seconds is not None]
-        self.sla_stats.average_review_time = sum(latencies) / len(latencies) if latencies else 0.0
-        self.sla_stats.approval_latency = self.sla_stats.average_review_time
-        
-        timeouts = len([s for s in resolved if s.decision == ApprovalAction.EXPIRE])
-        self.sla_stats.timeout_rate = timeouts / len(resolved)
-        
-        escalated = len([s for s in resolved if s.decision == ApprovalAction.ESCALATE])
-        self.sla_stats.escalation_rate = escalated / len(resolved)
+        async with uow_ctx as uow:
+            db_sess = await uow.hitl_sessions.get(session_id)
+            if not db_sess:
+                raise KeyError(f"Review session {session_id} not found.")
+
+            if db_sess.decision:
+                raise ValueError(f"Review session {session_id} already resolved.")
+
+            now = datetime.now(UTC)
+            db_sess.decided_at = now
+            db_sess.reviewer = reviewer
+            db_sess.reviewer_role = role.value
+            db_sess.notes = notes
+
+            # Check expiration
+            expire_time = (
+                db_sess.created_at + timedelta(seconds=db_sess.ttl_seconds)
+                if db_sess.created_at
+                else now
+            )
+            # Ensure compare timezone awareness
+            if db_sess.created_at and db_sess.created_at.tzinfo is None:
+                expire_time = expire_time.replace(tzinfo=UTC)
+
+            if now > expire_time:
+                db_sess.decision = HITLAction.EXPIRE
+                db_sess.status = HITLStatus.EXPIRED
+            else:
+                db_sess.decision = HITLAction(action.value)
+                if action == ApprovalAction.APPROVE:
+                    db_sess.status = HITLStatus.APPROVED
+                elif action == ApprovalAction.REJECT:
+                    db_sess.status = HITLStatus.REJECTED
+                else:
+                    db_sess.status = HITLStatus.APPROVED
+
+            if db_sess.created_at:
+                created_tz = db_sess.created_at
+                if created_tz.tzinfo is None:
+                    created_tz = created_tz.replace(tzinfo=UTC)
+                db_sess.latency_seconds = (now - created_tz).total_seconds()
+
+            if modified_args:
+                db_sess.arguments_json = modified_args
+
+            await uow.commit()
+            return self._to_domain(db_sess)
+
+    async def get_sla_stats(self) -> ApprovalSLA:
+        """Recalculates and retrieves average review parameters for active logs."""
+        from src.db.models.hitl_session import HITLAction
+
+        uow_ctx = self.uow_factory() if self.uow_factory else None
+        if uow_ctx is None:
+            from src.unit_of_work.sqlalchemy import SQLAlchemyUnitOfWork
+
+            uow_ctx = SQLAlchemyUnitOfWork()
+
+        async with uow_ctx as uow:
+            sessions = await uow.hitl_sessions.list()
+            resolved = [s for s in sessions if s.decision is not None]
+            if not resolved:
+                return ApprovalSLA()
+
+            latencies = [s.latency_seconds for s in resolved if s.latency_seconds is not None]
+            avg_time = sum(latencies) / len(latencies) if latencies else 0.0
+
+            timeouts = len([s for s in resolved if s.decision == HITLAction.EXPIRE])
+            timeout_rate = timeouts / len(resolved)
+
+            escalated = len([s for s in resolved if s.decision == HITLAction.ESCALATE])
+            escalation_rate = escalated / len(resolved)
+
+            return ApprovalSLA(
+                approval_latency=avg_time,
+                average_review_time=avg_time,
+                escalation_rate=escalation_rate,
+                timeout_rate=timeout_rate,
+            )
 
 
-_global_hitl_engine: Optional[HITLEngine] = None
+_global_hitl_engine: HITLEngine | None = None
+
 
 def get_hitl_engine() -> HITLEngine:
     global _global_hitl_engine

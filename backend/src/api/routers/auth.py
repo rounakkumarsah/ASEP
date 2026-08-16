@@ -4,31 +4,32 @@ ASEP — Auth Router
 
 import logging
 from typing import Annotated, Any
-from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
+
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 
+from src.api.dependencies import get_audit_service
 from src.auth.dependencies import AuthServiceDep, CurrentUser
+from src.auth.rate_limit import check_rate_limit
 from src.auth.schemas import (
+    ForgotPasswordRequest,
+    LoginRequest,
+    ProfileUpdateRequest,
     RefreshTokenRequest,
     RefreshTokenResponse,
+    ResendVerificationRequest,
+    ResetPasswordRequest,
+    SignupRequest,
     TokenResponse,
     UserResponse,
-    SignupRequest,
-    LoginRequest,
     VerifyEmailRequest,
-    ResendVerificationRequest,
-    ForgotPasswordRequest,
-    ResetPasswordRequest,
-    ProfileUpdateRequest,
 )
 from src.auth.turnstile import verify_turnstile_token
-from src.auth.rate_limit import check_rate_limit
 from src.cache.redis import get_redis_client
+from src.config.settings import get_settings
+from src.db.models.audit_log import ActorType, AuditOutcome, AuditSeverity
 from src.db.postgres import DbSession
 from src.services.audit_service import AuditService
-from src.api.dependencies import get_audit_service
-from src.db.models.audit_log import ActorType, AuditOutcome, AuditSeverity
-from src.config.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -36,28 +37,33 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 def _set_auth_cookies(response: Response, tokens: RefreshTokenResponse, app_env: str) -> None:
-    """Sets secure HttpOnly cookies for access and refresh tokens."""
+    """Sets secure HttpOnly cookies for access and refresh tokens.
+
+    Both cookies use ``SameSite=strict`` to provide the strongest CSRF
+    protection available.  The ``secure`` flag is enabled only in
+    production so that local development still works over plain HTTP.
+    """
     is_prod = app_env == "production"
-    
-    # Access token cookie
+
+    # Access token cookie — short-lived (30 min)
     response.set_cookie(
         key="access_token",
         value=tokens.access_token,
         httponly=True,
         secure=is_prod,
-        samesite="lax",
+        samesite="strict",
         path="/",
         max_age=1800,  # 30 minutes
     )
-    
-    # Refresh token cookie
+
+    # Refresh token cookie — long-lived (7 days), restricted to refresh path
     response.set_cookie(
         key="refresh_token",
         value=tokens.refresh_token,
         httponly=True,
         secure=is_prod,
-        samesite="lax",
-        path="/",
+        samesite="strict",
+        path="/api/v1/auth/refresh",  # Scope to refresh endpoint only
         max_age=604800,  # 7 days
     )
 
@@ -230,7 +236,7 @@ async def logout(
             )
         except Exception:
             pass
-        
+
         await auth_service.revoke_tokens(access_token, refresh_token)
 
     _clear_auth_cookies(response)
@@ -256,12 +262,13 @@ async def refresh(
     # Rate limiting: 10 refresh attempts per IP per minute
     client_ip = request.client.host if request.client else "unknown"
     rate_limit_key = f"rate_limit:refresh:{client_ip}"
-    if settings.APP_ENV == "production" and redis_client:
-        if not await check_rate_limit(redis_client, rate_limit_key, max_attempts=10, window_seconds=60):
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Too many refresh attempts. Please try again later.",
-            )
+    if settings.APP_ENV == "production" and redis_client and not await check_rate_limit(
+        redis_client, rate_limit_key, max_attempts=10, window_seconds=60
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many refresh attempts. Please try again later.",
+        )
 
     # Check cookie first, fall back to payload body
     refresh_token = request.cookies.get("refresh_token")
@@ -433,7 +440,7 @@ async def reset_password(
     """Execute password update using verification token."""
     client_ip = request.client.host if request.client else "unknown"
     ok = await auth_service.reset_password(data.token, data.password)
-    
+
     if not ok:
         await audit_service.log_event(
             actor_type=ActorType.SYSTEM,
@@ -482,8 +489,10 @@ async def update_profile(
 @router.get("/oauth/github")
 async def github_oauth_initiate(request: Request) -> dict:
     """Initiate GitHub OAuth flow - returns the authorization URL."""
-    from src.auth.oauth import build_github_auth_url
     import uuid
+
+    from src.auth.oauth import build_github_auth_url
+
     redis = get_redis_client()
     settings = get_settings()
 
@@ -516,7 +525,9 @@ async def github_oauth_callback(
 ) -> None:
     """Handle GitHub OAuth callback - validates state, exchanges code, issues JWT cookies."""
     from fastapi.responses import RedirectResponse
+
     from src.auth.oauth import exchange_github_code
+
     redis = get_redis_client()
     settings = get_settings()
     frontend_callback = settings.FRONTEND_OAUTH_CALLBACK_URL
@@ -548,8 +559,10 @@ async def github_oauth_callback(
 @router.get("/oauth/google")
 async def google_oauth_initiate(request: Request) -> dict:
     """Initiate Google OAuth flow - returns the authorization URL."""
-    from src.auth.oauth import build_google_auth_url
     import uuid
+
+    from src.auth.oauth import build_google_auth_url
+
     redis = get_redis_client()
     settings = get_settings()
 
@@ -581,7 +594,9 @@ async def google_oauth_callback(
 ) -> None:
     """Handle Google OAuth callback - validates state, exchanges code, issues JWT cookies."""
     from fastapi.responses import RedirectResponse
+
     from src.auth.oauth import exchange_google_code
+
     redis = get_redis_client()
     settings = get_settings()
     frontend_callback = settings.FRONTEND_OAUTH_CALLBACK_URL
@@ -646,8 +661,11 @@ async def list_active_sessions(
             "ip_address": client_ip,
             "user_agent": user_agent,
             "current": True,
-            "created_at": current_user.created_at.isoformat() if hasattr(current_user, "created_at") and current_user.created_at else "",
+            "created_at": (
+                current_user.created_at.isoformat()
+                if hasattr(current_user, "created_at") and current_user.created_at
+                else ""
+            ),
             "last_active": "Just now",
         }
     ]
-

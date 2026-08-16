@@ -19,39 +19,39 @@ TODO (Phase 0.2):
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.exceptions import register_exception_handlers
-from src.api.routers.health import router as health_router
-from src.api.routers.metrics import router as metrics_router
-from src.api.routers.diagnostics import router as diagnostics_router
-from src.api.routers.ai_runtime import router as ai_runtime_router
-from src.api.routers.rag import router as rag_router
-from src.api.routers.hitl import router as hitl_router
-from src.api.routers.workflows import router as workflows_router
-from src.api.routers.evaluation import router as evaluation_router
-from src.api.routers.knowledge_sync import router as knowledge_sync_router
+from src.api.middleware.logging import StructuredLoggingMiddleware
 from src.api.routers.agent_runs import router as agent_runs_router
-from src.api.routers.tasks import router as tasks_router
-from src.api.routers.memory import router as memory_router
-from src.api.routers.monitoring import router as monitoring_router
+from src.api.routers.ai_runtime import router as ai_runtime_router
+from src.api.routers.api_keys import router as api_keys_router
 from src.api.routers.audit import router as audit_router
 from src.api.routers.auth import router as auth_router
+from src.api.routers.diagnostics import router as diagnostics_router
+from src.api.routers.evaluation import router as evaluation_router
+from src.api.routers.health import router as health_router
+from src.api.routers.hitl import router as hitl_router
 from src.api.routers.knowledge import router as knowledge_router
-from src.api.routers.payments import router as payments_router
+from src.api.routers.knowledge_sync import router as knowledge_sync_router
+from src.api.routers.memory import router as memory_router
+from src.api.routers.metrics import router as metrics_router
+from src.api.routers.monitoring import router as monitoring_router
 from src.api.routers.organizations import router as organizations_router
-from src.api.routers.api_keys import router as api_keys_router
+from src.api.routers.payments import router as payments_router
 from src.api.routers.projects import router as projects_router
-from src.api.middleware.logging import StructuredLoggingMiddleware
+from src.api.routers.rag import router as rag_router
+from src.api.routers.tasks import router as tasks_router
+from src.api.routers.workflows import router as workflows_router
+from src.api.routers.conversations import router as conversations_router
 from src.cache.redis import close_redis, init_redis
 from src.config.settings import get_settings
 from src.db.postgres import close_db, init_db
 from src.utils.logging import configure_logging
-import os
 
 logger = logging.getLogger(__name__)
 
@@ -69,8 +69,6 @@ try:
     logger.info("Sentry SDK initialized with FastAPI integration.")
 except Exception as exc:
     logger.warning("Failed to initialize Sentry SDK: %s", exc)
-
-
 
 
 @asynccontextmanager
@@ -96,11 +94,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         1. Close all connections gracefully
     """
     settings = get_settings()
-    configure_logging(
-        level=settings.APP_LOG_LEVEL,
-        json_logs=(settings.APP_ENV == "production")
+    configure_logging(level=settings.APP_LOG_LEVEL, json_logs=(settings.APP_ENV == "production"))
+    logger.info(
+        "ASEP backend starting", extra={"version": settings.APP_VERSION, "env": settings.APP_ENV}
     )
-    logger.info("ASEP backend starting", extra={"version": settings.APP_VERSION, "env": settings.APP_ENV})
 
     import asyncio
 
@@ -119,6 +116,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Initialize Neo4j driver — graceful degradation if unavailable at startup
     try:
         from src.graph.neo4j import close_neo4j, init_neo4j
+
         await asyncio.wait_for(init_neo4j(), timeout=2.0)
         logger.info("Neo4j driver ready.")
     except Exception as neo4j_exc:
@@ -132,10 +130,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Initialize Qdrant client — graceful degradation if unavailable at startup.
     try:
         from src.vector.qdrant import close_qdrant, init_qdrant
+
         await asyncio.wait_for(init_qdrant(), timeout=2.0)
+        from src.config.settings import get_settings as _get_settings
         from src.vector.collections import create_collection_if_not_exists
         from src.vector.qdrant import get_qdrant_client
-        from src.config.settings import get_settings as _get_settings
+
         _settings = _get_settings()
         await create_collection_if_not_exists(
             get_qdrant_client(),
@@ -154,18 +154,27 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             str(qdrant_exc),
         )
 
+    # Initialize Postgres checkpointer (LangGraph durable persistence)
+    try:
+        from src.runtime import init_postgres_checkpointer
+
+        await init_postgres_checkpointer()
+    except Exception as cp_exc:
+        logger.warning("Postgres checkpointer initialization failed: %s", cp_exc)
+
     yield
 
     logger.info("ASEP backend shutting down")
     # Close database connection pool gracefully
     await close_db()
-    
+
     # Close redis pool
     await close_redis()
-    
+
     # Close neo4j driver
     try:
         from src.graph.neo4j import close_neo4j
+
         await close_neo4j()
     except Exception:
         pass
@@ -173,7 +182,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Close qdrant client
     try:
         from src.vector.qdrant import close_qdrant
+
         await close_qdrant()
+    except Exception:
+        pass
+
+    # Close Postgres checkpointer
+    try:
+        from src.runtime import close_postgres_checkpointer
+
+        await close_postgres_checkpointer()
     except Exception:
         pass
 
@@ -225,7 +243,9 @@ def create_app() -> FastAPI:
             "connect-src 'self' ws: wss: http: https: "
             "https://api.razorpay.com https://lumberjack.razorpay.com;"
         )
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains; preload"
+        )
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
@@ -264,8 +284,7 @@ def create_app() -> FastAPI:
     app.include_router(workflows_router, prefix="/api/v1")
     app.include_router(evaluation_router, prefix="/api/v1")
     app.include_router(knowledge_sync_router, prefix="/api/v1")
-
-
+    app.include_router(conversations_router, prefix="/api/v1")
 
     logger.info("FastAPI application created", extra={"routes": len(app.routes)})
     return app

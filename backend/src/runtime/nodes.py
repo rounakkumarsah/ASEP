@@ -3,7 +3,8 @@ ASEP — Node Registry and Generic Graph Nodes
 """
 
 import logging
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from langgraph.types import interrupt
 
@@ -39,12 +40,13 @@ class NodeRegistry:
 
 # --- Default Lifecycle Node Implementations ---
 
+
 def start_node_default(state: AgentState) -> dict[str, Any]:
     """Initializes run and updates status."""
     logger.info(f"Start node executed for run {state.get('run_id')}")
     return {
         "status": "running",
-        "messages": [{"role": "system", "content": "Graph execution started."}]
+        "messages": [{"role": "system", "content": "Graph execution started."}],
     }
 
 
@@ -53,23 +55,47 @@ def process_node_default(state: AgentState) -> dict[str, Any]:
     logger.info(f"Process node executed for run {state.get('run_id')}")
     return {
         "status": "processing",
-        "messages": [{"role": "system", "content": "Processing task steps."}]
+        "messages": [{"role": "system", "content": "Processing task steps."}],
     }
 
 
-def human_validation_node_default(state: AgentState) -> dict[str, Any]:
-    """Pauses execution using LangGraph's native interrupt, prompting for validation."""
-    logger.info(f"Human validation node reached for run {state.get('run_id')}. Pausing...")
-    
-    # LangGraph interrupt halts execution.
-    # On resume, this call returns the resume payload passed to the run.
-    resume_payload = interrupt("Requesting operator approval.")
-    
-    logger.info(f"Resumed validation node with payload: {resume_payload}")
+async def human_validation_node_default(state: AgentState) -> dict[str, Any]:
+    """Pauses execution using LangGraph's native interrupt, enqueuing it in the HITLEngine."""
+    run_id = state.get("run_id") or "unknown"
+
+    import uuid
+
+    from src.governance.hitl import get_hitl_engine
+
+    engine = get_hitl_engine()
+
+    # Note: Because LangGraph resumes from the interrupt() call, this block
+    # only runs once when the node is first entered.
+    session = await engine.create_session(
+        request_id=str(uuid.uuid4()),
+        execution_id=run_id,
+        correlation_id=run_id,
+        requesting_agent="graph_node",
+        requesting_tool="human_validation",
+        requested_permissions=["approve"],
+        arguments={},
+        justification="StateGraph requires human approval before terminating.",
+    )
+
+    # LangGraph interrupt halts execution, presenting the session details
+    resume_payload = interrupt(
+        {"session_id": session.session_id, "prompt": "Requesting operator approval."}
+    )
+
+    # Resolve resume payload value safely if it's an Enum or dict representation
+    payload_val = resume_payload.value if hasattr(resume_payload, "value") else str(resume_payload)
+    if isinstance(resume_payload, dict) and "action" in resume_payload:
+        payload_val = resume_payload["action"]
+
     return {
         "status": "resumed",
-        "human_input": str(resume_payload),
-        "messages": [{"role": "system", "content": f"Operator responded: {resume_payload}"}]
+        "human_input": str(payload_val).lower(),
+        "messages": [{"role": "system", "content": f"Operator responded with: {payload_val}"}],
     }
 
 
@@ -78,5 +104,5 @@ def end_node_default(state: AgentState) -> dict[str, Any]:
     logger.info(f"End node executed for run {state.get('run_id')}")
     return {
         "status": "completed",
-        "messages": [{"role": "system", "content": "Graph execution completed."}]
+        "messages": [{"role": "system", "content": "Graph execution completed."}],
     }
