@@ -11,6 +11,7 @@ import "./src/lib/config/env";
  *   - Configure CSP headers
  */
 const nextConfig: NextConfig = {
+  output: "standalone",
   reactStrictMode: true,
   async headers() {
     return [

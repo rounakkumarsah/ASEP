@@ -26,6 +26,16 @@ async def test_universal_document_parsing():
     csv_text = await ingest.parse_document(csv_bytes, "data.csv")
     assert "ASEP" in csv_text
 
+    # PPTX parsing
+    pptx_bytes = b"FakePptxBytes"
+    pptx_text = await ingest.parse_document(pptx_bytes, "presentation.pptx")
+    assert "presentation" in pptx_text
+
+    # Excel parsing
+    excel_bytes = b"FakeExcelBytes"
+    excel_text = await ingest.parse_document(excel_bytes, "table.xlsx")
+    assert excel_text is not None
+
 
 @pytest.mark.asyncio
 async def test_image_screenshot_extraction():

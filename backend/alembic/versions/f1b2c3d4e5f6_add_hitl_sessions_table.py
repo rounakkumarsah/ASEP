@@ -20,24 +20,6 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Create enum types explicitly first (since native_enum=True expects them to exist)
-    hitl_status = postgresql.ENUM(
-        "pending", "approved", "rejected", "expired", name="hitl_status"
-    )
-    hitl_status.create(op.get_bind(), checkfirst=True)
-
-    hitl_action = postgresql.ENUM(
-        "Approve",
-        "Reject",
-        "Modify",
-        "Retry",
-        "Escalate",
-        "Cancel",
-        "Expire",
-        name="hitl_action",
-    )
-    hitl_action.create(op.get_bind(), checkfirst=True)
-
     op.create_table(
         "hitl_sessions",
         sa.Column("session_id", sa.String(length=50), nullable=False),

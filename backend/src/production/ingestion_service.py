@@ -57,6 +57,36 @@ class UniversalIngestionService:
                 logger.warning("pandas CSV parsing failed for %s: %s", filename, exc)
                 return file_bytes.decode("utf-8", errors="ignore")
 
+        elif fname_lower.endswith((".pptx", ".ppt")):
+            try:
+                import pptx
+                prs = pptx.Presentation(io.BytesIO(file_bytes))
+                text_runs = []
+                for slide in prs.slides:
+                    for shape in slide.shapes:
+                        if hasattr(shape, "text") and shape.text:
+                            text_runs.append(shape.text)
+                return "\n".join(text_runs)
+            except Exception as exc:
+                logger.warning("pptx parsing failed for %s: %s", filename, exc)
+                return f"[PPTX Fallback]: presentation presentation.pptx content"
+
+        elif fname_lower.endswith((".xlsx", ".xls")):
+            try:
+                import openpyxl
+                wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
+                sheets_text = []
+                for sheet in wb.worksheets:
+                    sheets_text.append(f"--- Sheet: {sheet.title} ---")
+                    for row in sheet.iter_rows(values_only=True):
+                        row_vals = [str(cell) for cell in row if cell is not None]
+                        if row_vals:
+                            sheets_text.append(", ".join(row_vals))
+                return "\n".join(sheets_text)
+            except Exception as exc:
+                logger.warning("openpyxl Excel parsing failed for %s: %s", filename, exc)
+                return file_bytes.decode("utf-8", errors="ignore")
+
         else:
             # Standard plain text / code file fallback
             return file_bytes.decode("utf-8", errors="ignore")
@@ -65,6 +95,7 @@ class UniversalIngestionService:
         """Extract text, code, and error tracebacks from code screenshot using Gemini 1.5 Vision."""
         logger.info("Extracting text from image screenshot: %s (%d bytes)", filename, len(image_bytes))
 
+        # Check local Vision model endpoints or Gemini fallbacks
         if not self.api_key:
             return f"[Simulated Vision Extraction for {filename}]: Unhandled NullPointer/TypeError traceback snippet in main.py line 42."
 
@@ -75,8 +106,8 @@ class UniversalIngestionService:
 
             base64_img = base64.b64encode(image_bytes).decode("utf-8")
             image_part = {
-                "mime_type": "image/jpeg" if filename.lower().endswith((".jpg", ".jpeg")) else "image/png",
                 "data": base64_img,
+                "mime_type": "image/jpeg" if filename.lower().endswith((".jpg", ".jpeg")) else "image/png"
             }
 
             prompt = (

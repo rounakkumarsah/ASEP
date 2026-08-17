@@ -9,7 +9,7 @@ export class LoginPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.usernameInput = page.getByLabel('Email', { exact: true });
+    this.usernameInput = page.getByLabel('Email or Username', { exact: true });
     this.passwordInput = page.getByLabel('Password', { exact: true });
     this.submitButton = page.getByRole('button', { name: 'Sign In' });
     this.errorMessage = page.locator('text=Invalid username or password');

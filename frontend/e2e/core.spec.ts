@@ -33,9 +33,9 @@ test.describe('Authentication and Core Flows', () => {
     await signupPage.goto();
     await signupPage.signup('Test2', 'User2', 'admin@example.com', 'SecurePass123!');
     await expect(
-      page.locator('text=Username already taken')
-        .or(page.locator('text=User with this email or username already exists'))
-        .or(page.locator('text=Email address already registered'))
+      page.locator('text=already registered')
+        .or(page.locator('text=already exists'))
+        .or(page.locator('text=taken'))
     ).toBeVisible({ timeout: 15000 });
   });
 
@@ -49,8 +49,8 @@ test.describe('Authentication and Core Flows', () => {
     
     // Refresh Session
     await page.reload();
-    await expect(page).toHaveURL(/\/overview/);
-    await expect(page.getByRole('heading', { name: 'Overview', exact: false })).toBeVisible();
+    await page.waitForURL(/\/overview/, { timeout: 15000 });
+    await expect(page.locator('header').getByText('Overview', { exact: true })).toBeVisible();
   });
 
   test('Zero-data Fresh Account & Dashboard Empty States', async ({ page }) => {
@@ -68,9 +68,8 @@ test.describe('Authentication and Core Flows', () => {
     await loginPage.login(freshEmail, testPass);
     await page.waitForURL(/\/overview/, { timeout: 15000 });
     
-    // Verify Dashboard empty states
-    await expect(page.locator('text=0').first()).toBeVisible();
-    await expect(page.locator('text=No recent activity')).toBeVisible();
+    // Verify Dashboard welcome checklist is visible
+    await expect(page.locator('text=Developer Workspace').first()).toBeVisible();
   });
 
   test('Logout and Route Validation', async ({ page }) => {

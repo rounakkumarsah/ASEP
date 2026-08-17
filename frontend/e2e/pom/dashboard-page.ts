@@ -9,7 +9,7 @@ export class DashboardPage {
   constructor(page: Page) {
     this.page = page;
     this.mobileMenuButton = page.getByRole('button', { name: 'Open sidebar' });
-    this.themeToggle = page.getByRole('button', { name: 'Toggle theme' });
+    this.themeToggle = page.locator('button[title*="Theme"]');
     this.profileMenuButton = page.getByRole('button', { name: 'User profile' });
   }
 
@@ -42,7 +42,7 @@ export class DashboardPage {
   }
 
   async expectPageTitle(title: string) {
-    const heading = this.page.locator('header').getByRole('heading', { name: title, exact: true });
-    await expect(heading).toBeVisible();
+    const header = this.page.locator('header');
+    await expect(header.getByText(title, { exact: true })).toBeVisible();
   }
 }

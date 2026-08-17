@@ -7,6 +7,7 @@ from src.ai_runtime.providers.ollama import OllamaProvider
 from src.ai_runtime.providers.gemini import GeminiProvider
 from src.ai_runtime.providers.openai import OpenAIProvider
 from src.ai_runtime.providers.anthropic import AnthropicProvider
+from src.ai_runtime.providers.vision import VisionModelProvider
 from src.ai_runtime.circuit_breaker import CircuitBreaker
 
 class ProviderRegistry:
@@ -16,6 +17,7 @@ class ProviderRegistry:
             "gemini": GeminiProvider(),
             "openai": OpenAIProvider(),
             "anthropic": AnthropicProvider(),
+            "vision": VisionModelProvider(),
             "mock": MockProvider()
         }
         
@@ -24,6 +26,7 @@ class ProviderRegistry:
             "gemini": CircuitBreaker(),
             "openai": CircuitBreaker(),
             "anthropic": CircuitBreaker(),
+            "vision": CircuitBreaker(),
             "mock": CircuitBreaker()
         }
         
@@ -46,6 +49,8 @@ class ProviderRegistry:
             return "openai"
         elif "claude" in model_lower:
             return "anthropic"
+        elif "qwen" in model_lower or "vision" in model_lower:
+            return "vision"
         elif "mock" in model_lower:
             return "mock"
         else:

@@ -14,8 +14,10 @@ from src.documents.loaders import (
     DOCXLoader,
     PDFLoader,
     TextLoader,
+    PPTXLoader,
     get_loader_for_file,
 )
+from src.documents.ocr import OCRImageLoader
 from src.documents.metadata import extract_file_metadata
 
 __all__ = [
@@ -28,6 +30,8 @@ __all__ = [
     "DOCXLoader",
     "PDFLoader",
     "TextLoader",
+    "PPTXLoader",
+    "OCRImageLoader",
     "get_loader_for_file",
     "extract_file_metadata",
 ]

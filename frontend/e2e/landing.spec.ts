@@ -9,7 +9,7 @@ test.describe('Public Landing Page', () => {
     
     // Check main branding logo is visible (it is a span, not a heading)
     await expect(page.getByText('ASEP').first()).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Autonomous Software Engineering at Enterprise Scale' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Build Software with/ })).toBeVisible();
     
     // Check CTA navigation to signup
     const ctaLink = page.getByRole('link', { name: 'Deploy Control Plane' });
