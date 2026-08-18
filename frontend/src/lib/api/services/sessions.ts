@@ -1,4 +1,4 @@
-import { ApiResponse, Session } from "../types";
+import { ApiResponse, Session, SessionStatus } from "../types";
 
 import { apiClient } from "../client";
 
@@ -33,13 +33,14 @@ export const sessionsService = {
         data: {
           sessionId: id,
           runId: "run-987-xyz",
-          status: "running",
+          threadId: "thread-987-xyz",
+          status: SessionStatus.Executing,
           activeAgent: "Supervisor",
           progress: 45,
           stage: "Refactoring source tree",
           currentTask: "Running validation tests",
           startedAt: new Date(Date.now() - 300000).toISOString(),
-          logs: []
+          updatedAt: new Date().toISOString(),
         }
       };
     }

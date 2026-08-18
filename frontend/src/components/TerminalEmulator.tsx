@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { Terminal } from "@xterm/xterm";
 import { AttachAddon } from "@xterm/addon-attach";
 import { FitAddon } from "@xterm/addon-fit";
@@ -37,19 +37,22 @@ export const TerminalEmulator: React.FC<TerminalEmulatorProps> = ({
   const BACKOFF_BASE_MS = 1000;
 
   // Resolve visual color tokens dynamically depending on theme configuration
-  const terminalTheme = {
-    background: theme === "dark" ? "#090B0F" : "#FFFFFF",
-    foreground: theme === "dark" ? "#F5F7FA" : "#0F172A",
-    cursor: "#22D3EE",
-    black: theme === "dark" ? "#090B0F" : "#000000",
-    red: "#EF4444",
-    green: "#10B981",
-    yellow: "#F59E0B",
-    blue: "#3B82F6",
-    magenta: "#EC4899",
-    cyan: "#22D3EE",
-    white: theme === "dark" ? "#F5F7FA" : "#0F172A",
-  };
+  const terminalTheme = useMemo(
+    () => ({
+      background: theme === "dark" ? "#090B0F" : "#FFFFFF",
+      foreground: theme === "dark" ? "#F5F7FA" : "#0F172A",
+      cursor: "#22D3EE",
+      black: theme === "dark" ? "#090B0F" : "#000000",
+      red: "#EF4444",
+      green: "#10B981",
+      yellow: "#F59E0B",
+      blue: "#3B82F6",
+      magenta: "#EC4899",
+      cyan: "#22D3EE",
+      white: theme === "dark" ? "#F5F7FA" : "#0F172A",
+    }),
+    [theme]
+  );
 
   const handleResize = useCallback(() => {
     if (!fitAddonRef.current || !websocketRef.current || !terminalRef.current) return;
