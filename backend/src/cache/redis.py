@@ -92,18 +92,29 @@ async def close_redis() -> None:
         _redis_client = None
 
 
-def get_redis_client() -> Redis:
-    """Get the global Redis client instance.
-    
-    Raises:
-        RuntimeError: If Redis has not been initialized.
-    """
+def get_redis_client() -> Redis | None:
+    """Get the global Redis client instance or initialise on-demand."""
+    global _redis_client
     if _redis_client is None:
-        raise RuntimeError("Redis client is not initialized. Call init_redis() first.")
+        try:
+            settings = get_settings()
+            kwargs = {
+                "encoding": "utf-8",
+                "decode_responses": True,
+                "health_check_interval": 30,
+                "socket_timeout": 2.0,
+                "socket_connect_timeout": 2.0,
+            }
+            if settings.REDIS_URL.startswith("rediss://"):
+                import ssl
+                kwargs["ssl_cert_reqs"] = ssl.CERT_NONE
+            _redis_client = from_url(settings.REDIS_URL, **kwargs)
+        except Exception:
+            _redis_client = None
     return _redis_client
 
 
-async def redis_dependency() -> AsyncGenerator[Redis, None]:
+async def redis_dependency() -> AsyncGenerator[Redis | None, None]:
     """FastAPI dependency to inject the Redis client."""
     client = get_redis_client()
     yield client

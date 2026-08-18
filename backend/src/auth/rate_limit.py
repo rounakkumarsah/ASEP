@@ -1,10 +1,12 @@
 import logging
 from redis.asyncio import Redis
 
+from typing import Optional
+
 logger = logging.getLogger(__name__)
 
 async def check_rate_limit(
-    redis: Redis,
+    redis: Optional[Redis],
     key: str,
     max_attempts: int,
     window_seconds: int,
@@ -13,6 +15,8 @@ async def check_rate_limit(
     Basic Redis sliding window rate-limiter.
     Returns True if execution is allowed, False if blocked by rate limit.
     """
+    if redis is None:
+        return True
     try:
         current = await redis.get(key)
         if current is not None and int(current) >= max_attempts:

@@ -22,7 +22,9 @@ class UserRepository(BaseRepository[User, uuid.UUID]):
         return result.scalars().first()
 
     async def get_by_email(self, email: str) -> User | None:
-        """Get a user by email."""
-        stmt = select(User).where(User.email == email)
+        """Get a user by email (case-insensitive)."""
+        from sqlalchemy import func
+        clean_email = email.strip().lower()
+        stmt = select(User).where(func.lower(User.email) == clean_email)
         result = await self._session.execute(stmt)
         return result.scalars().first()

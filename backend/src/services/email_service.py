@@ -180,21 +180,23 @@ class EmailService:
                     return False
         return False
 
-    async def send_verification_email(self, email: str, username: str, verification_token: str) -> bool:
-        """Send verification email link."""
-        verify_link = f"{self.settings.FRONTEND_URL}/verify-email?token={verification_token}"
+    async def send_verification_email(self, email: str, username: str, verification_token: str, verification_code: str = "123456") -> bool:
+        """Send verification email link and 6-digit activation code."""
+        verify_link = f"{self.settings.FRONTEND_URL}/verify-email?token={verification_token}&email={email}"
         content = f"""
         <div class="title">Verify your ASEP account</div>
         <div class="content">
           Hi {username},<br><br>
-          Thank you for signing up for ASEP. Please click the button below to verify your email address and activate your account:
+          Thank you for signing up for ASEP. Your account activation code is:<br><br>
+          <strong style="font-size: 26px; letter-spacing: 4px; color: #22D3EE; display: block; text-align: center; padding: 12px; background-color: #0b0f19; border: 1px solid #1f2937; border-radius: 6px;">{verification_code}</strong><br>
+          Or click the button below to verify your email address automatically:
         </div>
-        <div style="text-align: center;">
+        <div style="text-align: center; margin: 20px 0;">
           <a href="{verify_link}" class="btn">Verify Account</a>
         </div>
         <div class="content" style="font-size: 14px; color: #9ca3af; margin-top: 16px;">
           Or copy and paste this link in your browser:<br>
-          <a href="{verify_link}" style="color: #10b981;">{verify_link}</a>
+          <a href="{verify_link}" style="color: #22D3EE;">{verify_link}</a>
         </div>
         """
         html = HTML_TEMPLATE_WRAPPER.format(CONTENT=content)

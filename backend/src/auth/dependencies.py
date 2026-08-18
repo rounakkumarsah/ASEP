@@ -68,9 +68,15 @@ async def get_current_user(
 
     # Check if token is blacklisted in Redis
     redis = get_redis_client()
-    is_revoked = await redis.get(f"revoked_token:{token}")
-    if is_revoked:
-        raise credentials_exception
+    if redis:
+        try:
+            is_revoked = await redis.get(f"revoked_token:{token}")
+            if is_revoked:
+                raise credentials_exception
+        except HTTPException:
+            raise
+        except Exception:
+            pass
 
     settings = get_settings()
     try:

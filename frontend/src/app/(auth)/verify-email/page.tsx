@@ -34,7 +34,7 @@ export default function VerifyEmailPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(
-          token ? { token } : { email: email, code: code.trim() || "123456" }
+          token ? { token } : { email: email.trim().toLowerCase(), code: code.trim() || "123456" }
         ),
       });
 
