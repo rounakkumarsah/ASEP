@@ -2,6 +2,7 @@
 ASEP — Auth Router
 """
 
+import json
 import logging
 from typing import Annotated, Any
 
@@ -15,6 +16,9 @@ from src.auth.schemas import (
     CheckUsernameResponse,
     ForgotPasswordRequest,
     LoginRequest,
+    MFADisableRequest,
+    MFASetupResponse,
+    MFAVerifyRequest,
     ProfileUpdateRequest,
     RefreshTokenRequest,
     RefreshTokenResponse,
@@ -119,15 +123,21 @@ async def signup(
         await audit_service.log_event(
             actor_type=ActorType.SYSTEM,
             actor_id=data.email,
-            action="user.signup_failed_duplicate",
+            action="user.signup_failed",
             resource_type="user",
             outcome=AuditOutcome.FAILURE,
             severity=AuditSeverity.INFO,
             ip_address=client_ip,
         )
+        err_msg = str(e)
+        if "already exists" in err_msg.lower() or "already registered" in err_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Account already exists with this email address.",
+            )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
+            detail=err_msg,
         )
 
     # Generate activation code and persist to Redis
@@ -154,8 +164,8 @@ async def login(
     audit_service: Annotated[AuditService, Depends(get_audit_service)],
     response: Response,
     request: Request,
-) -> TokenResponse:
-    """Login a user, set HttpOnly secure cookies, and return token."""
+) -> Any:
+    """Login a user, set HttpOnly secure cookies, and return token or MFA challenge."""
     redis = get_redis_client()
     settings = get_settings()
 
@@ -169,7 +179,14 @@ async def login(
             )
 
     client_ip = request.client.host if request.client else "unknown"
-    user = await auth_service.authenticate_user(data.email, data.password)
+    user, auth_status = await auth_service.authenticate_user(data.email, data.password, data.code)
+
+    if auth_status == "MFA_REQUIRED":
+        return Response(
+            content=json.dumps({"mfa_required": True, "email": data.email}),
+            media_type="application/json",
+            status_code=status.HTTP_200_OK,
+        )
 
     if not user:
         await audit_service.log_event(
@@ -181,14 +198,19 @@ async def login(
             severity=AuditSeverity.WARNING,
             ip_address=client_ip,
         )
+        detail_msg = "Invalid MFA authentication code." if auth_status == "INVALID_MFA_CODE" else "Invalid username or password"
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username or password",
+            detail=detail_msg,
             headers={"WWW-Authenticate": "Bearer"},
         )
 
     # Correct password resets the rate limit counter
-    await redis.delete(rate_limit_key)
+    if redis:
+        try:
+            await redis.delete(rate_limit_key)
+        except Exception:
+            pass
 
     tokens = auth_service.create_login_tokens(user)
     _set_auth_cookies(response, tokens, settings.APP_ENV)
@@ -205,6 +227,48 @@ async def login(
     )
 
     return TokenResponse(access_token=tokens.access_token)
+
+
+@router.post("/mfa/setup", response_model=MFASetupResponse)
+async def setup_mfa(
+    current_user: CurrentUser,
+    auth_service: AuthServiceDep,
+) -> MFASetupResponse:
+    """Generate TOTP secret, QR code URI, and recovery codes for MFA setup."""
+    secret, otpauth_url, recovery_codes = await auth_service.setup_mfa(current_user.id)
+    return MFASetupResponse(
+        secret=secret,
+        otpauth_url=otpauth_url,
+        recovery_codes=recovery_codes,
+    )
+
+
+@router.post("/mfa/enable")
+async def enable_mfa(
+    data: MFAVerifyRequest,
+    current_user: CurrentUser,
+    auth_service: AuthServiceDep,
+) -> dict[str, Any]:
+    """Verify OTP code and enable Multi-Factor Authentication."""
+    try:
+        await auth_service.enable_mfa(current_user.id, data.code)
+        return {"status": "success", "message": "Two-factor authentication enabled successfully."}
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+
+@router.post("/mfa/disable")
+async def disable_mfa(
+    data: MFADisableRequest,
+    current_user: CurrentUser,
+    auth_service: AuthServiceDep,
+) -> dict[str, Any]:
+    """Disable Multi-Factor Authentication after password confirmation."""
+    try:
+        await auth_service.disable_mfa(current_user.id, data.password)
+        return {"status": "success", "message": "Two-factor authentication disabled successfully."}
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
 
 @router.post("/logout")

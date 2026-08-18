@@ -140,6 +140,11 @@ def test_users_api_endpoints(monkeypatch):
     current_user_obj.avatar_url = None
     current_user_obj.company = None
     current_user_obj.last_login = None
+    current_user_obj.mfa_enabled = False
+    current_user_obj.account_type = "individual"
+    current_user_obj.timezone = "UTC"
+    current_user_obj.locale = "en"
+    current_user_obj.current_plan = "free"
     import datetime
     current_user_obj.created_at = datetime.datetime.now(datetime.timezone.utc)
     current_user_obj.updated_at = datetime.datetime.now(datetime.timezone.utc)
@@ -184,3 +189,72 @@ def test_users_api_endpoints(monkeypatch):
     # 4. Test PATCH /api/v1/users/profile (Conflict 409)
     res_conflict = client.patch("/api/v1/users/profile", json={"username": "already_taken"})
     assert res_conflict.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_duplicate_email_signup_and_normalization():
+    """Verify duplicate email raises 409 and email normalization handles gmail dots."""
+    from src.auth.service import normalize_email, RESERVED_USERNAMES
+
+    # Email normalization checks
+    assert normalize_email("  User.Name+test@GMAIL.COM  ") == "username@gmail.com"
+    assert normalize_email("  Dev@Company.IO  ") == "dev@company.io"
+
+    # Reserved username check
+    assert "admin" in RESERVED_USERNAMES
+    assert "root" in RESERVED_USERNAMES
+    assert "support" in RESERVED_USERNAMES
+    assert "billing" in RESERVED_USERNAMES
+
+
+@pytest.mark.asyncio
+async def test_totp_mfa_calculation_and_verification():
+    """Verify standard RFC 6238 TOTP generation and validation."""
+    from src.auth.service import _generate_totp_secret, _calculate_totp, _verify_totp
+    import time
+
+    secret = _generate_totp_secret()
+    assert len(secret) == 32
+
+    current_step = int(time.time() // 30)
+    current_code = _calculate_totp(secret, current_step)
+    assert len(current_code) == 6
+    assert current_code.isdigit()
+
+    # Valid current code matches
+    assert _verify_totp(secret, current_code) is True
+
+    # Invalid code rejected
+    assert _verify_totp(secret, "000000" if current_code != "000000" else "111111") is False
+
+
+@pytest.mark.asyncio
+async def test_reserved_username_availability_check():
+    """Verify check_username_availability rejects reserved keywords and offers suggestions."""
+    from src.auth.service import AuthService
+
+    user_service_mock = MagicMock()
+    uow_mock = AsyncMock()
+    uow_mock.users.get_by_username.return_value = None
+
+    class MockUowContext:
+        async def __aenter__(self):
+            return uow_mock
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    user_service_mock._uow_factory = MockUowContext
+    auth_service = AuthService(user_service=user_service_mock, email_service=MagicMock())
+
+    # Reserved username check
+    avail, suggestions = await auth_service.check_username_availability("admin")
+    assert avail is False
+    assert len(suggestions) > 0
+    assert "admin_dev" in suggestions or any("admin" in s for s in suggestions)
+
+    # Valid unique username
+    avail_valid, sug_valid = await auth_service.check_username_availability("valid_developer_99")
+    assert avail_valid is True
+    assert len(sug_valid) == 0
+

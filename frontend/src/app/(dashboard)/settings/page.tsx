@@ -79,12 +79,27 @@ export default function SettingsPage() {
   const [firstName, setFirstName] = React.useState(user?.first_name || "");
   const [lastName, setLastName] = React.useState(user?.last_name || "");
   const [username, setUsername] = React.useState(user?.username || "");
+  const [accountType, setAccountType] = React.useState(user?.account_type || "individual");
+  const [timezone, setTimezone] = React.useState(user?.timezone || "UTC");
+  const [locale, setLocale] = React.useState(user?.locale || "en");
   const [usernameChecking, setUsernameChecking] = React.useState(false);
   const [usernameAvailable, setUsernameAvailable] = React.useState<boolean | null>(true);
   const [usernameError, setUsernameError] = React.useState<string | null>(null);
   const [usernameSuggestions, setUsernameSuggestions] = React.useState<string[]>([]);
   const [profileSaving, setProfileSaving] = React.useState(false);
   const [profileSuccess, setProfileSuccess] = React.useState(false);
+
+  // MFA State
+  const [mfaSettingUp, setMfaSettingUp] = React.useState(false);
+  const [mfaSecret, setMfaSecret] = React.useState("");
+  const [mfaOtpauthUrl, setMfaOtpauthUrl] = React.useState("");
+  const [mfaRecoveryCodes, setMfaRecoveryCodes] = React.useState<string[]>([]);
+  const [mfaCode, setMfaCode] = React.useState("");
+  const [mfaPassword, setMfaPassword] = React.useState("");
+  const [mfaLoading, setMfaLoading] = React.useState(false);
+  const [mfaError, setMfaError] = React.useState<string | null>(null);
+  const [mfaSuccess, setMfaSuccess] = React.useState<string | null>(null);
+  const [showDisableMfaModal, setShowDisableMfaModal] = React.useState(false);
 
   // Password Change Form state
   const [currentPassword, setCurrentPassword] = React.useState("");
@@ -93,18 +108,21 @@ export default function SettingsPage() {
   const [passwordSaving, setPasswordSaving] = React.useState(false);
   const [passwordMessage, setPasswordMessage] = React.useState<{ text: string; error: boolean } | null>(null);
 
-  // Org Form State
+  // Org & Team Form State
   const [orgName, setOrgName] = React.useState("");
   const [orgLoading, setOrgLoading] = React.useState(true);
   const [orgSaving, setOrgSaving] = React.useState(false);
+  const [teamMembers, setTeamMembers] = React.useState<Array<{ id: string; email: string; role: string; first_name?: string; last_name?: string }>>([]);
+  const [pendingInvites, setPendingInvites] = React.useState<Array<{ id: string; email: string; role: string; created_at: string }>>([]);
+  const [teamLoading, setTeamLoading] = React.useState(false);
+  const [inviteEmail, setInviteEmail] = React.useState("");
+  const [inviteRole, setInviteRole] = React.useState("developer");
+  const [inviteLoading, setInviteLoading] = React.useState(false);
+  const [inviteMessage, setInviteMessage] = React.useState<{ text: string; error: boolean } | null>(null);
 
   // Preferences Form State
   const [preferredProvider, setPreferredProvider] = React.useState("gemini-1.5-pro");
   const [prefSaved, setPrefSaved] = React.useState(false);
-
-  // Team members state
-  const [teamMembers, setTeamMembers] = React.useState<Array<{ id: string; email: string; role: string; first_name?: string }>>([]);
-  const [teamLoading, setTeamLoading] = React.useState(false);
 
   // Active Sessions state
   const [sessions, setSessions] = React.useState<Array<{ id: string; ip_address: string; user_agent: string; current: boolean; last_active: string }>>([]);
@@ -115,6 +133,9 @@ export default function SettingsPage() {
       setFirstName(user.first_name || "");
       setLastName(user.last_name || "");
       setUsername(user.username || "");
+      setAccountType(user.account_type || "individual");
+      setTimezone(user.timezone || "UTC");
+      setLocale(user.locale || "en");
       setUsernameAvailable(true);
       setUsernameError(null);
       setUsernameSuggestions([]);
@@ -168,6 +189,22 @@ export default function SettingsPage() {
     return () => clearTimeout(timer);
   }, [username, user]);
 
+  const loadTeamData = React.useCallback(async () => {
+    setTeamLoading(true);
+    try {
+      const [membersRes, invitesRes] = await Promise.all([
+        apiClient.get("/api/v1/organizations/members"),
+        apiClient.get("/api/v1/organizations/invites"),
+      ]);
+      setTeamMembers(membersRes.data || []);
+      setPendingInvites(invitesRes.data || []);
+    } catch {
+      // Ignored if personal workspace
+    } finally {
+      setTeamLoading(false);
+    }
+  }, []);
+
   React.useEffect(() => {
     apiClient.get("/api/v1/organizations/me")
       .then(res => {
@@ -179,11 +216,7 @@ export default function SettingsPage() {
 
   React.useEffect(() => {
     if (activeTab === "team") {
-      setTeamLoading(true);
-      apiClient.get("/api/v1/organizations/members")
-        .then(res => setTeamMembers(res.data || []))
-        .catch(() => {})
-        .finally(() => setTeamLoading(false));
+      loadTeamData();
     }
     if (activeTab === "sessions") {
       setSessionsLoading(true);
@@ -192,7 +225,7 @@ export default function SettingsPage() {
         .catch(() => {})
         .finally(() => setSessionsLoading(false));
     }
-  }, [activeTab]);
+  }, [activeTab, loadTeamData]);
 
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -203,6 +236,9 @@ export default function SettingsPage() {
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         username: username.trim(),
+        account_type: accountType,
+        timezone,
+        locale,
       });
       if (res.data) {
         if (updateUser) {
@@ -226,6 +262,153 @@ export default function SettingsPage() {
       }
     } finally {
       setProfileSaving(false);
+    }
+  };
+
+  const handleAccountTypeChange = async (newType: string) => {
+    setAccountType(newType);
+    try {
+      const res = await apiClient.patch("/api/v1/users/profile", {
+        account_type: newType,
+      });
+      if (res.data) {
+        if (updateUser) updateUser(res.data);
+        if (refreshUser) await refreshUser();
+      }
+    } catch {
+      // Fallback
+    }
+  };
+
+  const handleStartMfaSetup = async () => {
+    setMfaLoading(true);
+    setMfaError(null);
+    try {
+      const res = await apiClient.post("/api/v1/auth/mfa/setup");
+      setMfaSecret(res.data.secret);
+      setMfaOtpauthUrl(res.data.otpauth_url);
+      setMfaRecoveryCodes(res.data.recovery_codes);
+      setMfaSettingUp(true);
+    } catch (err: unknown) {
+      const msg = err && typeof err === "object" && "response" in err
+        ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+        : "Failed to initiate MFA setup.";
+      setMfaError(msg || "Failed to initiate MFA setup.");
+    } finally {
+      setMfaLoading(false);
+    }
+  };
+
+  const handleEnableMfa = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mfaCode || mfaCode.length < 6) return;
+    setMfaLoading(true);
+    setMfaError(null);
+    try {
+      await apiClient.post("/api/v1/auth/mfa/enable", { code: mfaCode.trim() });
+      setMfaSuccess("Two-factor authentication enabled successfully.");
+      setMfaSettingUp(false);
+      setMfaCode("");
+      if (refreshUser) await refreshUser();
+    } catch (err: unknown) {
+      const msg = err && typeof err === "object" && "response" in err
+        ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+        : "Invalid verification code. Please try again.";
+      setMfaError(msg || "Invalid code.");
+    } finally {
+      setMfaLoading(false);
+    }
+  };
+
+  const handleDisableMfa = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mfaPassword) return;
+    setMfaLoading(true);
+    setMfaError(null);
+    try {
+      await apiClient.post("/api/v1/auth/mfa/disable", { password: mfaPassword });
+      setMfaSuccess("Two-factor authentication disabled.");
+      setShowDisableMfaModal(false);
+      setMfaPassword("");
+      if (refreshUser) await refreshUser();
+    } catch (err: unknown) {
+      const msg = err && typeof err === "object" && "response" in err
+        ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+        : "Incorrect password.";
+      setMfaError(msg || "Incorrect password.");
+    } finally {
+      setMfaLoading(false);
+    }
+  };
+
+  const handleInviteMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteEmail) return;
+    setInviteLoading(true);
+    setInviteMessage(null);
+    try {
+      await apiClient.post("/api/v1/organizations/invites", {
+        email: inviteEmail.trim(),
+        role: inviteRole,
+      });
+      setInviteMessage({ text: `Invitation dispatched to ${inviteEmail}`, error: false });
+      setInviteEmail("");
+      loadTeamData();
+    } catch (err: unknown) {
+      const msg = err && typeof err === "object" && "response" in err
+        ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+        : "Failed to send invitation.";
+      setInviteMessage({ text: msg || "Failed to invite member", error: true });
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  const handleRevokeInvite = async (inviteId: string) => {
+    try {
+      await apiClient.delete(`/api/v1/organizations/invites/${inviteId}`);
+      loadTeamData();
+    } catch {
+      alert("Failed to revoke invite.");
+    }
+  };
+
+  const handleRemoveMember = async (memberId: string) => {
+    if (!confirm("Are you sure you want to remove this member from the organization?")) return;
+    try {
+      await apiClient.delete(`/api/v1/organizations/members/${memberId}`);
+      loadTeamData();
+    } catch (err: unknown) {
+      const msg = err && typeof err === "object" && "response" in err
+        ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+        : "Failed to remove member.";
+      alert(msg);
+    }
+  };
+
+  const handleChangeRole = async (memberId: string, role: string) => {
+    try {
+      await apiClient.patch(`/api/v1/organizations/members/${memberId}/role`, { role });
+      loadTeamData();
+    } catch (err: unknown) {
+      const msg = err && typeof err === "object" && "response" in err
+        ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+        : "Failed to update role.";
+      alert(msg);
+    }
+  };
+
+  const handleTransferOwnership = async (memberId: string) => {
+    if (!confirm("Transfer organization ownership? You will become an Administrator.")) return;
+    try {
+      await apiClient.post("/api/v1/organizations/transfer-ownership", { new_owner_id: memberId });
+      loadTeamData();
+      if (refreshUser) await refreshUser();
+    } catch (err: unknown) {
+      const msg = err && typeof err === "object" && "response" in err
+        ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+        : "Failed to transfer ownership.";
+      alert(msg);
     }
   };
 
@@ -391,6 +574,40 @@ export default function SettingsPage() {
                   <label className="text-xs font-semibold text-muted-foreground uppercase">Email Address</label>
                   <Input value={user?.email || ""} disabled className="bg-muted/40 cursor-not-allowed" />
                 </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground uppercase">Timezone</label>
+                    <select
+                      value={timezone}
+                      onChange={e => setTimezone(e.target.value)}
+                      className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm font-sans focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                      <option value="UTC">UTC (Universal Coordinated Time)</option>
+                      <option value="America/New_York">America/New York (EST/EDT)</option>
+                      <option value="America/Los_Angeles">America/Los Angeles (PST/PDT)</option>
+                      <option value="Europe/London">Europe/London (GMT/BST)</option>
+                      <option value="Europe/Berlin">Europe/Berlin (CET/CEST)</option>
+                      <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
+                      <option value="Asia/Singapore">Asia/Singapore (SGT)</option>
+                      <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+                      <option value="Australia/Sydney">Australia/Sydney (AEST)</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground uppercase">Language / Locale</label>
+                    <select
+                      value={locale}
+                      onChange={e => setLocale(e.target.value)}
+                      className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm font-sans focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                      <option value="en">English (US)</option>
+                      <option value="es">Español</option>
+                      <option value="de">Deutsch</option>
+                      <option value="fr">Français</option>
+                      <option value="ja">日本語</option>
+                    </select>
+                  </div>
+                </div>
                 <div className="flex items-center gap-4 pt-2 relative z-10">
                   <Button 
                     type="submit" 
@@ -417,7 +634,7 @@ export default function SettingsPage() {
               <CardTitle className="text-xl font-bold flex items-center gap-2">
                 <UserCheck className="h-5 w-5 text-primary" /> Account Details
               </CardTitle>
-              <CardDescription>Core identity and permission attributes associated with your SaaS account.</CardDescription>
+              <CardDescription>Core identity, analytics classification, and active subscription plan.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
@@ -425,19 +642,57 @@ export default function SettingsPage() {
                   <span className="font-semibold text-muted-foreground text-xs uppercase block">User ID</span>
                   <span className="font-mono text-xs text-foreground block truncate">{user?.id}</span>
                 </div>
+
                 <div className="p-4 border border-border/40 rounded-xl bg-background/50 space-y-1 relative z-10">
-                  <span className="font-semibold text-muted-foreground text-xs uppercase block">Role Privilege</span>
-                  <span className="font-semibold text-foreground capitalize block">{user?.role || "developer"}</span>
+                  <span className="font-semibold text-muted-foreground text-xs uppercase block">Account Type</span>
+                  <select
+                    value={accountType}
+                    onChange={e => handleAccountTypeChange(e.target.value)}
+                    className="w-full h-8 px-2 mt-1 rounded border border-input bg-background text-xs font-semibold focus-visible:outline-none"
+                  >
+                    <option value="student">Student</option>
+                    <option value="individual">Individual</option>
+                    <option value="freelancer">Freelancer</option>
+                    <option value="startup">Startup</option>
+                    <option value="company">Company</option>
+                    <option value="enterprise">Enterprise</option>
+                    <option value="researcher">Researcher</option>
+                    <option value="educator">Educator</option>
+                  </select>
+                  <span className="text-[10px] text-muted-foreground block pt-1">Analytics categorization only</span>
                 </div>
+
                 <div className="p-4 border border-border/40 rounded-xl bg-background/50 space-y-1 relative z-10">
                   <span className="font-semibold text-muted-foreground text-xs uppercase block">Email Verification</span>
-                  <Badge variant={user?.email_verified ? "default" : "secondary"}>
-                    {user?.email_verified ? "Verified" : "Pending Verification"}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={user?.email_verified ? "default" : "secondary"}>
+                      {user?.email_verified ? "Verified" : "Pending Verification"}
+                    </Badge>
+                    {!user?.email_verified && (
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/verify-email?email=${encodeURIComponent(user?.email || "")}`)}
+                        className="text-xs text-primary hover:underline"
+                      >
+                        Verify now &rarr;
+                      </button>
+                    )}
+                  </div>
                 </div>
+
                 <div className="p-4 border border-border/40 rounded-xl bg-background/50 space-y-1 relative z-10">
-                  <span className="font-semibold text-muted-foreground text-xs uppercase block">Account Status</span>
-                  <Badge variant="default">Active SaaS Tier</Badge>
+                  <span className="font-semibold text-muted-foreground text-xs uppercase block">Current Plan</span>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-bold text-foreground capitalize">{user?.current_plan || "Free Plan"}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {user?.current_plan === "pro" ? "Unlimited Daily AI Queries" : "10 Daily AI Requests"}
+                      </p>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => router.push("/billing")} className="text-xs">
+                      {user?.current_plan === "pro" ? "Manage" : "Upgrade"}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -532,17 +787,288 @@ export default function SettingsPage() {
               <CardTitle className="text-xl font-bold flex items-center gap-2">
                 <Shield className="h-5 w-5 text-primary" /> Multi-Factor Authentication
               </CardTitle>
-              <CardDescription>Enhance login security with Time-based One-Time Passwords (TOTP).</CardDescription>
+              <CardDescription>Secure your account with Time-based One-Time Passwords (TOTP).</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="p-4 border border-border/50 rounded-xl bg-background/40 flex items-center justify-between relative z-10">
-                <div>
-                  <p className="font-semibold text-sm">Authenticator App (TOTP)</p>
-                  <p className="text-xs text-muted-foreground">Compatible with Google Authenticator, Authy, and 1Password.</p>
+            <CardContent className="space-y-5">
+              {mfaSuccess && (
+                <div className="p-3 text-xs font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                  ✓ {mfaSuccess}
                 </div>
-                <Badge variant="outline">Disabled</Badge>
+              )}
+              {mfaError && (
+                <div className="p-3 text-xs font-mono text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl">
+                  {mfaError}
+                </div>
+              )}
+
+              {user?.mfa_enabled ? (
+                <div className="space-y-4">
+                  <div className="p-4 border border-emerald-500/30 rounded-xl bg-emerald-500/10 flex items-center justify-between relative z-10">
+                    <div>
+                      <p className="font-semibold text-sm text-foreground">Authenticator App (TOTP)</p>
+                      <p className="text-xs text-muted-foreground">Active. Two-factor code is required on every login.</p>
+                    </div>
+                    <Badge variant="default" className="bg-emerald-500 text-black font-semibold">Enabled</Badge>
+                  </div>
+
+                  {!showDisableMfaModal ? (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setShowDisableMfaModal(true)}
+                      className="font-semibold relative z-10"
+                    >
+                      Disable Two-Factor Authentication
+                    </Button>
+                  ) : (
+                    <form onSubmit={handleDisableMfa} className="p-4 border border-border/50 rounded-xl bg-background/50 space-y-3 max-w-md">
+                      <p className="text-xs font-semibold uppercase text-muted-foreground">Enter Password to Confirm</p>
+                      <Input
+                        type="password"
+                        placeholder="Current account password"
+                        value={mfaPassword}
+                        onChange={e => setMfaPassword(e.target.value)}
+                        required
+                        className="text-xs"
+                      />
+                      <div className="flex gap-2">
+                        <Button type="submit" variant="destructive" size="sm" disabled={mfaLoading}>
+                          {mfaLoading ? "Disabling..." : "Confirm & Disable MFA"}
+                        </Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => setShowDisableMfaModal(false)}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              ) : !mfaSettingUp ? (
+                <div className="space-y-4">
+                  <div className="p-4 border border-border/50 rounded-xl bg-background/40 flex items-center justify-between relative z-10">
+                    <div>
+                      <p className="font-semibold text-sm text-foreground">Authenticator App (TOTP)</p>
+                      <p className="text-xs text-muted-foreground">Compatible with Google Authenticator, 1Password, Authy, and Microsoft Authenticator.</p>
+                    </div>
+                    <Badge variant="outline">Disabled</Badge>
+                  </div>
+                  <Button
+                    onClick={handleStartMfaSetup}
+                    disabled={mfaLoading}
+                    className="font-semibold relative z-10"
+                  >
+                    {mfaLoading ? "Initializing..." : "Setup Authenticator App"}
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-6 max-w-lg">
+                  <div className="p-4 border border-primary/30 rounded-xl bg-primary/5 space-y-4">
+                    <p className="text-xs font-mono font-bold uppercase text-primary">Step 1: Scan QR or Enter Key</p>
+                    <p className="text-xs text-muted-foreground">
+                      Scan with your authenticator app or copy the manual key below:
+                    </p>
+                    <div className="p-3 bg-background border border-border/60 rounded-lg flex items-center justify-between">
+                      <span className="font-mono text-xs text-foreground select-all tracking-wider">{mfaSecret}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          navigator.clipboard.writeText(mfaSecret);
+                          alert("Secret key copied to clipboard!");
+                        }}
+                        className="text-xs text-primary"
+                      >
+                        Copy
+                      </Button>
+                    </div>
+                    {mfaOtpauthUrl && (
+                      <a
+                        href={mfaOtpauthUrl}
+                        className="text-[11px] text-primary hover:underline block pt-1 font-mono"
+                      >
+                        Open directly in Authenticator App &rarr;
+                      </a>
+                    )}
+                  </div>
+
+                  <form onSubmit={handleEnableMfa} className="space-y-3">
+                    <p className="text-xs font-mono font-bold uppercase text-primary">Step 2: Enter 6-Digit Code</p>
+                    <div className="flex gap-2">
+                      <Input
+                        type="text"
+                        maxLength={6}
+                        placeholder="123456"
+                        value={mfaCode}
+                        onChange={e => setMfaCode(e.target.value)}
+                        className="font-mono text-center tracking-widest text-base h-10 w-44"
+                      />
+                      <Button type="submit" disabled={mfaLoading || mfaCode.length < 6} className="font-semibold">
+                        {mfaLoading ? "Verifying..." : "Verify & Enable MFA"}
+                      </Button>
+                    </div>
+                  </form>
+
+                  {mfaRecoveryCodes.length > 0 && (
+                    <div className="p-4 border border-border/50 rounded-xl bg-background/40 space-y-2">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase">Emergency Recovery Codes</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Save these codes in a secure password manager. Each code can only be used once.
+                      </p>
+                      <div className="grid grid-cols-2 gap-2 pt-1 font-mono text-xs">
+                        {mfaRecoveryCodes.map((code, idx) => (
+                          <div key={idx} className="p-1.5 bg-muted/40 rounded border border-border/30 text-center select-all">
+                            {code}
+                          </div>
+                        ))}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          navigator.clipboard.writeText(mfaRecoveryCodes.join("\n"));
+                          alert("Recovery codes copied to clipboard!");
+                        }}
+                        className="text-xs w-full mt-2"
+                      >
+                        Copy Recovery Codes
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </AnimatedCard>
+        );
+
+      case "team":
+        return (
+          <AnimatedCard className="border-border/40 bg-card/30 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-xl font-bold flex items-center gap-2">
+                <Users className="h-5 w-5 text-primary" /> Team Members & Workspaces
+              </CardTitle>
+              <CardDescription>Manage organization invitations, team roles, and member permissions.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Invite Form */}
+              <form onSubmit={handleInviteMember} className="p-4 border border-border/50 rounded-xl bg-background/40 space-y-3">
+                <p className="text-xs font-mono font-bold uppercase text-primary">Invite New Member</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <div className="sm:col-span-2">
+                    <Input
+                      type="email"
+                      placeholder="colleague@company.com"
+                      value={inviteEmail}
+                      onChange={e => setInviteEmail(e.target.value)}
+                      required
+                      className="text-xs"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <select
+                      value={inviteRole}
+                      onChange={e => setInviteRole(e.target.value)}
+                      className="h-9 px-2.5 rounded-md border border-input bg-background text-xs font-semibold focus-visible:outline-none flex-1"
+                    >
+                      <option value="developer">Developer</option>
+                      <option value="admin">Admin</option>
+                      <option value="manager">Manager</option>
+                      <option value="billing">Billing</option>
+                      <option value="viewer">Viewer</option>
+                    </select>
+                    <Button type="submit" disabled={inviteLoading} size="sm" className="font-semibold text-xs">
+                      {inviteLoading ? "Inviting..." : "Send Invite"}
+                    </Button>
+                  </div>
+                </div>
+                {inviteMessage && (
+                  <p className={`text-xs ${inviteMessage.error ? "text-rose-400" : "text-emerald-400"}`}>
+                    {inviteMessage.text}
+                  </p>
+                )}
+              </form>
+
+              {/* Pending Invites */}
+              {pendingInvites.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase">Pending Invitations ({pendingInvites.length})</p>
+                  <div className="space-y-2">
+                    {pendingInvites.map(inv => (
+                      <div key={inv.id} className="p-3 border border-border/40 rounded-xl bg-background/30 flex items-center justify-between text-xs">
+                        <div>
+                          <p className="font-semibold text-foreground">{inv.email}</p>
+                          <p className="text-[10px] text-muted-foreground">Role: <span className="capitalize">{inv.role}</span></p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRevokeInvite(inv.id)}
+                          className="text-xs text-rose-400 hover:text-rose-300"
+                        >
+                          Revoke
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Members List */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase">Organization Members ({teamMembers.length})</p>
+                {teamLoading ? (
+                  <p className="text-xs text-muted-foreground">Loading members...</p>
+                ) : teamMembers.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No members found.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {teamMembers.map(m => (
+                      <div key={m.id} className="p-3.5 border border-border/40 rounded-xl bg-background/40 flex items-center justify-between relative z-10 text-xs">
+                        <div>
+                          <p className="font-semibold text-foreground">{m.first_name ? `${m.first_name} ${m.last_name || ""}` : m.email}</p>
+                          <p className="text-[11px] text-muted-foreground">{m.email}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={m.role || "developer"}
+                            onChange={e => handleChangeRole(m.id, e.target.value)}
+                            disabled={m.id === user?.id && m.role === "owner"}
+                            className="h-8 px-2 rounded border border-input bg-background text-xs font-semibold focus-visible:outline-none"
+                          >
+                            <option value="owner">Owner</option>
+                            <option value="admin">Admin</option>
+                            <option value="developer">Developer</option>
+                            <option value="manager">Manager</option>
+                            <option value="billing">Billing</option>
+                            <option value="viewer">Viewer</option>
+                          </select>
+                          {m.id !== user?.id && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleTransferOwnership(m.id)}
+                                className="text-xs text-amber-400 hover:text-amber-300 h-8"
+                              >
+                                Transfer Owner
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRemoveMember(m.id)}
+                                className="text-xs text-rose-400 hover:text-rose-300 h-8"
+                              >
+                                Remove
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-              <Button variant="outline" size="sm" className="font-semibold relative z-10">Enable MFA Protection</Button>
             </CardContent>
           </AnimatedCard>
         );

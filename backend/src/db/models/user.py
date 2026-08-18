@@ -133,6 +133,53 @@ class User(TimestampMixin, Base):
         doc="Flag indicating if the account is active.",
     )
 
+    mfa_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+        doc="Flag indicating if Multi-Factor Authentication (TOTP) is active.",
+    )
+
+    mfa_secret: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        doc="Base32-encoded TOTP shared secret.",
+    )
+
+    mfa_recovery_codes: Mapped[str | None] = mapped_column(
+        String(1024),
+        nullable=True,
+        doc="JSON serialized list of unused MFA recovery codes.",
+    )
+
+    account_type: Mapped[str | None] = mapped_column(
+        String(50),
+        default="individual",
+        nullable=True,
+        doc="User selected account type for analytics.",
+    )
+
+    timezone: Mapped[str | None] = mapped_column(
+        String(50),
+        default="UTC",
+        nullable=True,
+        doc="User selected timezone.",
+    )
+
+    locale: Mapped[str | None] = mapped_column(
+        String(10),
+        default="en",
+        nullable=True,
+        doc="User interface locale.",
+    )
+
+    current_plan: Mapped[str | None] = mapped_column(
+        String(50),
+        default="free",
+        nullable=True,
+        doc="User active subscription plan tier (free, pro, enterprise).",
+    )
+
     # -----------------------------------------------------------------------
     # OAuth / Social Login
     # -----------------------------------------------------------------------

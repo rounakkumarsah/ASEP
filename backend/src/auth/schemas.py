@@ -49,6 +49,11 @@ class UserResponse(BaseModel):
     email_verified: bool
     status: str
     avatar_url: Optional[str] = None
+    mfa_enabled: bool = False
+    account_type: Optional[str] = "individual"
+    timezone: Optional[str] = "UTC"
+    locale: Optional[str] = "en"
+    current_plan: Optional[str] = "free"
     last_login: Optional[datetime.datetime] = None
     created_at: datetime.datetime
     updated_at: datetime.datetime
@@ -59,6 +64,7 @@ class UserResponse(BaseModel):
 class SignupRequest(BaseModel):
     firstName: str = Field(..., min_length=1)
     lastName: str = Field(..., min_length=1)
+    username: Optional[str] = None
     company: Optional[str] = None
     email: str
     password: str = Field(..., min_length=12)
@@ -69,6 +75,7 @@ class SignupRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     password: str
+    code: Optional[str] = None  # MFA OTP code if mfa_enabled
     rememberMe: Optional[bool] = False
 
 
@@ -90,11 +97,15 @@ class ResetPasswordRequest(BaseModel):
     token: str
     password: str = Field(..., min_length=12)
 
+
 class ProfileUpdateRequest(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     username: Optional[str] = None
     avatar: Optional[str] = None
+    account_type: Optional[str] = None
+    timezone: Optional[str] = None
+    locale: Optional[str] = None
 
 
 class CheckUsernameResponse(BaseModel):
@@ -108,3 +119,17 @@ class UserQuotaResponse(BaseModel):
     used: int
     remaining: int
     reset_seconds: int
+
+
+class MFASetupResponse(BaseModel):
+    secret: str
+    otpauth_url: str
+    recovery_codes: list[str]
+
+
+class MFAVerifyRequest(BaseModel):
+    code: str
+
+
+class MFADisableRequest(BaseModel):
+    password: str

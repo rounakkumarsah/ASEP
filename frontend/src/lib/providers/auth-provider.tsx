@@ -13,6 +13,11 @@ export type User = {
   company?: string | null;
   avatar_url?: string | null;
   email_verified?: boolean;
+  mfa_enabled?: boolean;
+  account_type?: string | null;
+  timezone?: string | null;
+  locale?: string | null;
+  current_plan?: string | null;
 };
 
 export type AuthContextType = {

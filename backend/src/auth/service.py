@@ -9,6 +9,16 @@ from typing import Optional
 from collections.abc import Callable
 import jwt
 
+import base64
+import hmac
+import hashlib
+import json
+import random
+import re
+import secrets
+import time
+import urllib.parse
+
 from fastapi import HTTPException
 from src.auth.jwt import create_access_token, create_refresh_token, decode_token
 from src.auth.password import verify_password, get_password_hash
@@ -21,6 +31,79 @@ from src.cache.redis import get_redis_client
 
 logger = logging.getLogger(__name__)
 
+RESERVED_USERNAMES = {
+    "admin",
+    "administrator",
+    "root",
+    "support",
+    "api",
+    "billing",
+    "system",
+    "asep",
+    "owner",
+    "bot",
+    "dev",
+    "operator",
+    "null",
+    "undefined",
+    "security",
+    "help",
+    "moderator",
+    "auth",
+    "login",
+    "signup",
+    "settings",
+    "overview",
+    "workspace",
+    "organization",
+    "dashboard",
+}
+
+
+def normalize_email(email: str) -> str:
+    """Normalize email address: trim, lowercase, and handle Gmail dot/plus normalization."""
+    clean = email.strip().lower()
+    parts = clean.split("@")
+    if len(parts) == 2:
+        local_part, domain = parts[0], parts[1]
+        if domain in ["gmail.com", "googlemail.com"]:
+            # Remove dots and plus-tags for Gmail domain
+            local_part = local_part.split("+")[0].replace(".", "")
+            return f"{local_part}@{domain}"
+    return clean
+
+
+def _generate_totp_secret() -> str:
+    """Generate RFC 6238 Base32-encoded 160-bit shared secret."""
+    return base64.b32encode(secrets.token_bytes(20)).decode("utf-8").rstrip("=")
+
+
+def _calculate_totp(secret: str, time_step: int) -> str:
+    """Calculate 6-digit TOTP code for a given 30-second time step."""
+    # Ensure correct Base32 padding
+    padding = "=" * (-len(secret) % 8)
+    key = base64.b32decode(secret.upper() + padding)
+    msg = time_step.to_bytes(8, byteorder="big")
+    hmac_hash = hmac.new(key, msg, hashlib.sha1).digest()
+    offset = hmac_hash[19] & 0x0F
+    code_int = int.from_bytes(hmac_hash[offset : offset + 4], byteorder="big") & 0x7FFFFFFF
+    return f"{code_int % 1000000:06d}"
+
+
+def _verify_totp(secret: str, code: str) -> bool:
+    """Verify TOTP token allowing ±1 time step clock drift."""
+    if not secret or not code:
+        return False
+    clean_code = code.strip().replace(" ", "")
+    if len(clean_code) != 6 or not clean_code.isdigit():
+        return False
+
+    current_step = int(time.time() // 30)
+    for step in (current_step, current_step - 1, current_step + 1):
+        if _calculate_totp(secret, step) == clean_code:
+            return True
+    return False
+
 
 def _write_debug(lines: list) -> None:
     """Write AUTH_DEBUG lines to /tmp/auth_debug.txt for docker cp retrieval."""
@@ -32,60 +115,119 @@ def _write_debug(lines: list) -> None:
 
 
 class AuthService:
-    """Authentication, token lifecycle, and account management."""
+    """Authentication, token lifecycle, MFA, and account management."""
 
     def __init__(self, user_service: UserService, email_service: EmailService) -> None:
         self.user_service = user_service
         self.email_service = email_service
 
-    async def authenticate_user(self, email: str, password: str) -> Optional[User]:
-        """Authenticate a user using their email and password."""
+    async def authenticate_user(
+        self, email: str, password: str, code: Optional[str] = None
+    ) -> tuple[Optional[User], Optional[str]]:
+        """Authenticate a user. Returns (user, status_code_or_error).
+        
+        status_code_or_error can be:
+          - None: success
+          - "MFA_REQUIRED": valid password, but MFA OTP code is needed
+          - "INVALID_MFA_CODE": invalid MFA OTP or recovery code
+          - "INVALID_CREDENTIALS": password mismatch or user not found
+        """
+        clean_email = normalize_email(email)
         async with self.user_service._uow_factory() as uow:
-            user = await uow.users.get_by_email(email)
+            user = await uow.users.get_by_email(clean_email)
             if not user:
-                return None
+                return None, "INVALID_CREDENTIALS"
 
             if not user.hashed_password or not verify_password(password, user.hashed_password):
-                return None
+                return None, "INVALID_CREDENTIALS"
 
             if not user.is_active or user.status != "active":
-                return None
+                return None, "INACTIVE_ACCOUNT"
+
+            # Check MFA
+            if user.mfa_enabled:
+                if not code:
+                    return user, "MFA_REQUIRED"
+
+                is_valid = False
+                # 1. Check TOTP
+                if user.mfa_secret and _verify_totp(user.mfa_secret, code):
+                    is_valid = True
+                # 2. Check Recovery Code
+                elif user.mfa_recovery_codes:
+                    try:
+                        codes = json.loads(user.mfa_recovery_codes)
+                        code_clean = code.strip().lower()
+                        if code_clean in [c.lower() for c in codes]:
+                            codes = [c for c in codes if c.lower() != code_clean]
+                            user.mfa_recovery_codes = json.dumps(codes)
+                            is_valid = True
+                    except Exception:
+                        pass
+
+                if not is_valid:
+                    return None, "INVALID_MFA_CODE"
 
             # Update last login timestamp
-            user.last_login = datetime.datetime.utcnow()
+            user.last_login = datetime.datetime.now(datetime.timezone.utc)
             await uow.commit()
-            return user
+            return user, None
 
     async def create_user(self, data: SignupRequest) -> User:
-        """Create and register a new user in the database."""
+        """Create and register a new user in the database with strict normalization and validation."""
+        clean_email = normalize_email(data.email)
         async with self.user_service._uow_factory() as uow:
             # Check if email already exists
-            existing_user = await uow.users.get_by_email(data.email)
+            existing_user = await uow.users.get_by_email(clean_email)
             if existing_user:
-                raise ValueError("Email address already registered")
+                raise ValueError("Account already exists with this email address.")
+
+            # Validate or generate username
+            if data.username and data.username.strip():
+                clean_username = data.username.strip()
+                if not re.match(r"^[a-zA-Z0-9_]{3,30}$", clean_username):
+                    raise ValueError("Username must be 3–30 characters using letters, numbers, and underscores only.")
+                if clean_username.lower() in RESERVED_USERNAMES:
+                    raise ValueError(f"Username '{clean_username}' is reserved.")
+                if await uow.users.get_by_username(clean_username):
+                    raise ValueError("Username already taken.")
+                unique_username = clean_username
+            else:
+                # Generate robust unique username
+                first = re.sub(r"[^a-zA-Z0-9_]", "", data.firstName.lower())
+                last = re.sub(r"[^a-zA-Z0-9_]", "", data.lastName.lower())
+                base_cand = f"{first}_{last}"[:20].strip("_") or clean_email.split("@")[0][:20]
+                if base_cand in RESERVED_USERNAMES or len(base_cand) < 3:
+                    base_cand = f"user_{base_cand}"[:20]
+
+                unique_username = base_cand
+                counter = 1
+                while (
+                    unique_username.lower() in RESERVED_USERNAMES
+                    or await uow.users.get_by_username(unique_username)
+                ):
+                    unique_username = f"{base_cand}{counter}"
+                    counter += 1
 
             hashed_pass = get_password_hash(data.password)
-            
-            # Generate username from email prefix
-            username_prefix = data.email.split("@")[0]
-            unique_username = username_prefix
-            counter = 1
-            while await uow.users.get_by_username(unique_username):
-                unique_username = f"{username_prefix}{counter}"
-                counter += 1
 
             new_user = User(
                 id=uuid.uuid4(),
                 username=unique_username,
-                first_name=data.firstName,
-                last_name=data.lastName,
-                company=data.company,
-                email=data.email,
+                first_name=data.firstName.strip(),
+                last_name=data.lastName.strip(),
+                company=data.company.strip() if data.company else None,
+                email=clean_email,
                 hashed_password=hashed_pass,
-                role="developer",  # Default role for new signups
+                role="developer",
                 status="active",
                 email_verified=False,
                 is_active=True,
+                mfa_enabled=False,
+                account_type="individual",
+                timezone="UTC",
+                locale="en",
+                current_plan="free",
             )
             created = await uow.users.create(new_user)
             await uow.commit()
@@ -423,7 +565,7 @@ class AuthService:
                 pass
 
     async def check_username_availability(self, username: str, current_user_id: Optional[uuid.UUID] = None) -> tuple[bool, list[str]]:
-        """Validate format and check uniqueness of username. Returns (is_available, suggestions)."""
+        """Validate format, check reserved names, and check uniqueness of username. Returns (is_available, suggestions)."""
         import re
         import random
 
@@ -431,6 +573,14 @@ class AuthService:
         # Validation rules: 3-30 chars, alphanumeric + underscores
         if not re.match(r"^[a-zA-Z0-9_]{3,30}$", cleaned):
             return False, []
+
+        if cleaned.lower() in RESERVED_USERNAMES:
+            suggestions = [
+                f"{cleaned}_dev",
+                f"{cleaned}_user",
+                f"{cleaned}{random.randint(100, 9999)}",
+            ]
+            return False, suggestions
 
         async with self.user_service._uow_factory() as uow:
             existing = await uow.users.get_by_username(cleaned)
@@ -449,13 +599,17 @@ class AuthService:
             for cand in candidates:
                 if len(suggestions) >= 3:
                     break
-                if len(cand) <= 30 and not await uow.users.get_by_username(cand):
+                if (
+                    len(cand) <= 30
+                    and cand.lower() not in RESERVED_USERNAMES
+                    and not await uow.users.get_by_username(cand)
+                ):
                     suggestions.append(cand)
 
             return False, suggestions
 
     async def update_user(self, user_id: uuid.UUID, data: "ProfileUpdateRequest") -> User:
-        """Update user profile information."""
+        """Update user profile and account preferences."""
         import re
         async with self.user_service._uow_factory() as uow:
             user = await uow.users.get(user_id)
@@ -466,6 +620,9 @@ class AuthService:
                 cleaned_username = data.username.strip()
                 if not re.match(r"^[a-zA-Z0-9_]{3,30}$", cleaned_username):
                     raise ValueError("Username must be between 3 and 30 characters and contain only letters, numbers, and underscores.")
+
+                if cleaned_username.lower() in RESERVED_USERNAMES:
+                    raise ValueError(f"Username '{cleaned_username}' is reserved.")
 
                 if cleaned_username.lower() != user.username.lower():
                     existing = await uow.users.get_by_username(cleaned_username)
@@ -479,9 +636,62 @@ class AuthService:
                 user.last_name = data.last_name.strip()
             if data.avatar is not None:
                 user.avatar_url = data.avatar
+            if data.account_type is not None:
+                user.account_type = data.account_type.strip().lower()
+            if data.timezone is not None:
+                user.timezone = data.timezone.strip()
+            if data.locale is not None:
+                user.locale = data.locale.strip().lower()
 
             await uow.commit()
             return user
+
+    async def setup_mfa(self, user_id: uuid.UUID) -> tuple[str, str, list[str]]:
+        """Initialize MFA setup for a user. Generates secret, otpauth URL, and recovery codes."""
+        async with self.user_service._uow_factory() as uow:
+            user = await uow.users.get(user_id)
+            if not user:
+                raise ValueError("User not found")
+
+            secret = _generate_totp_secret()
+            recovery_codes = [f"{secrets.token_hex(4)}-{secrets.token_hex(4)}" for _ in range(8)]
+            user.mfa_secret = secret
+            user.mfa_recovery_codes = json.dumps(recovery_codes)
+            await uow.commit()
+
+            encoded_email = urllib.parse.quote(user.email)
+            otpauth_url = f"otpauth://totp/ASEP:{encoded_email}?secret={secret}&issuer=ASEP&algorithm=SHA1&digits=6&period=30"
+            return secret, otpauth_url, recovery_codes
+
+    async def enable_mfa(self, user_id: uuid.UUID, code: str) -> bool:
+        """Verify the user's OTP code to finalize MFA enablement."""
+        async with self.user_service._uow_factory() as uow:
+            user = await uow.users.get(user_id)
+            if not user or not user.mfa_secret:
+                raise ValueError("MFA setup has not been initiated")
+
+            if not _verify_totp(user.mfa_secret, code):
+                raise ValueError("Invalid verification code")
+
+            user.mfa_enabled = True
+            await uow.commit()
+            return True
+
+    async def disable_mfa(self, user_id: uuid.UUID, password: str) -> bool:
+        """Disable MFA for a user after verifying current password."""
+        async with self.user_service._uow_factory() as uow:
+            user = await uow.users.get(user_id)
+            if not user:
+                raise ValueError("User not found")
+
+            if not user.hashed_password or not verify_password(password, user.hashed_password):
+                raise ValueError("Invalid password")
+
+            user.mfa_enabled = False
+            user.mfa_secret = None
+            user.mfa_recovery_codes = None
+            await uow.commit()
+            return True
 
     async def get_or_create_oauth_user(self, profile: object) -> "User":
         """Find or create a User from an OAuth provider profile.

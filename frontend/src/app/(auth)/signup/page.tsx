@@ -32,6 +32,13 @@ const signupSchema = z
   .object({
     workspaceName: z.string().min(1, "Workspace Name is required"),
     fullName: z.string().min(1, "Full Name is required"),
+    username: z
+      .string()
+      .min(3, "Username must be at least 3 characters")
+      .max(30, "Username cannot exceed 30 characters")
+      .regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores")
+      .optional()
+      .or(z.literal("")),
     email: z.string().email("Invalid email address"),
     password: z
       .string()
@@ -64,7 +71,18 @@ export default function SignupPage() {
   const [oauthLoading, setOauthLoading] = React.useState(false);
   const [error, setError] = React.useState("");
   const [termsError, setTermsError] = React.useState<string | null>(null);
-  const [duplicateEmailToast, setDuplicateEmailToast] = React.useState<{ show: boolean; email: string } | null>(null);
+  const [accountExistsEmail, setAccountExistsEmail] = React.useState<string | null>(null);
+  const [usernameAvailability, setUsernameAvailability] = React.useState<{
+    checking: boolean;
+    available: boolean | null;
+    message: string;
+    suggestions: string[];
+  }>({
+    checking: false,
+    available: null,
+    message: "",
+    suggestions: [],
+  });
 
   const onInvalid = (errors: FieldErrors<SignupValues>) => {
     if (errors?.acceptTerms) {
@@ -101,12 +119,59 @@ export default function SignupPage() {
     defaultValues: {
       workspaceName: "",
       fullName: "",
+      username: "",
       email: "",
       password: "",
       confirmPassword: "",
       acceptTerms: false,
     },
   });
+
+  const watchUsername = form.watch("username", "");
+
+  React.useEffect(() => {
+    if (!watchUsername || watchUsername.trim().length < 3) {
+      setUsernameAvailability({ checking: false, available: null, message: "", suggestions: [] });
+      return;
+    }
+    const clean = watchUsername.trim();
+    if (!/^[a-zA-Z0-9_]{3,30}$/.test(clean)) {
+      setUsernameAvailability({
+        checking: false,
+        available: false,
+        message: "Letters, numbers, and underscores only (3-30 chars).",
+        suggestions: [],
+      });
+      return;
+    }
+
+    setUsernameAvailability((prev) => ({ ...prev, checking: true, message: "" }));
+    const timer = setTimeout(async () => {
+      try {
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const res = await fetch(`${API_URL}/api/v1/users/check-username?username=${encodeURIComponent(clean)}`);
+        const data = await res.json();
+        if (data.available) {
+          setUsernameAvailability({
+            checking: false,
+            available: true,
+            message: "Username is available",
+            suggestions: [],
+          });
+        } else {
+          setUsernameAvailability({
+            checking: false,
+            available: false,
+            message: "Username is reserved or already taken",
+            suggestions: data.suggestions || [],
+          });
+        }
+      } catch {
+        setUsernameAvailability({ checking: false, available: null, message: "", suggestions: [] });
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [watchUsername]);
 
   const watchPassword = form.watch("password", "");
 
@@ -175,9 +240,18 @@ export default function SignupPage() {
       return;
     }
 
+    if (usernameAvailability.available === false) {
+      form.setError("username", {
+        type: "manual",
+        message: "Please choose an available username.",
+      });
+      return;
+    }
+
     if (isSubmitting) return;
     setCaptchaError("");
     setError("");
+    setAccountExistsEmail(null);
 
     pendingValuesRef.current = values;
     setIsSubmitting(true);
@@ -210,8 +284,9 @@ export default function SignupPage() {
         body: JSON.stringify({
           firstName,
           lastName,
+          username: values.username ? values.username.trim() : null,
           company: values.workspaceName || null,
-          email: values.email,
+          email: values.email.trim(),
           password: values.password,
           acceptTerms: values.acceptTerms,
           captchaToken: freshToken,
@@ -224,11 +299,10 @@ export default function SignupPage() {
           ? errorData.detail.toLowerCase().trim()
           : "";
 
-        if (detailStr.includes("already registered")) {
-          setDuplicateEmailToast({ show: true, email: values.email });
-          setTimeout(() => {
-            router.push(`/login?email=${encodeURIComponent(values.email)}`);
-          }, 2000);
+        if (res.status === 409 || detailStr.includes("already registered") || detailStr.includes("already exists")) {
+          setAccountExistsEmail(values.email);
+          setIsSubmitting(false);
+          turnstileRef.current?.reset();
           return;
         }
 
@@ -239,7 +313,7 @@ export default function SignupPage() {
       }
 
       pendingValuesRef.current = null;
-      router.push(`/verify-email?email=${encodeURIComponent(values.email)}`);
+      router.push(`/verify-email?email=${encodeURIComponent(values.email.trim())}`);
     } catch {
       setCaptchaError("Unable to connect to the authentication server.");
       turnstileRef.current?.reset();
@@ -269,6 +343,32 @@ export default function SignupPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {accountExistsEmail && (
+              <div className="mb-4 p-4 rounded-xl border border-[#F5B942]/30 bg-[#F5B942]/10 text-left space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">⚠️</span>
+                  <p className="text-xs font-mono font-bold text-[#F5B942]">Account already exists</p>
+                </div>
+                <p className="text-xs font-sans text-[#9CA6B5]">
+                  An account with <strong className="text-[#F5F7FA]">{accountExistsEmail}</strong> already exists. Please sign in or reset your password.
+                </p>
+                <div className="flex gap-2 pt-1">
+                  <Link
+                    href={`/login?email=${encodeURIComponent(accountExistsEmail)}`}
+                    className="flex-1 text-center py-2 text-xs font-mono font-semibold bg-[#22D3EE] text-[#090B0F] rounded-lg hover:bg-[#67E8F9]"
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    href={`/forgot-password?email=${encodeURIComponent(accountExistsEmail)}`}
+                    className="flex-1 text-center py-2 text-xs font-mono font-semibold border border-[#202833] bg-[#111720] text-[#F5F7FA] rounded-lg hover:bg-[#161f2e]"
+                  >
+                    Forgot Password
+                  </Link>
+                </div>
+              </div>
+            )}
+
             {error && (
               <div className="mb-4 text-xs font-mono text-[#F05252] bg-[#F05252]/10 rounded border border-[#F05252]/20 p-2 text-center">{error}</div>
             )}
@@ -337,6 +437,61 @@ export default function SignupPage() {
                       <FormControl>
                         <Input placeholder="Jane Doe" className="border-[#202833] bg-[#090B0F] text-[#F5F7FA] h-9 text-xs" {...field} />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="username"
+                  render={({ field }) => (
+                    <FormItem>
+                      <div className="flex justify-between items-center">
+                        <FormLabel className="text-xs font-mono font-semibold uppercase text-[#9CA6B5]">Username</FormLabel>
+                        {usernameAvailability.checking ? (
+                          <span className="text-[10px] font-mono text-[#9CA6B5] flex items-center gap-1">
+                            <Loader2 className="w-2.5 h-2.5 animate-spin" /> Checking...
+                          </span>
+                        ) : usernameAvailability.available === true ? (
+                          <span className="text-[10px] font-mono text-[#2DD4A3]">✓ Available</span>
+                        ) : usernameAvailability.available === false ? (
+                          <span className="text-[10px] font-mono text-[#F05252]">✗ Unavailable</span>
+                        ) : null}
+                      </div>
+                      <FormControl>
+                        <Input
+                          placeholder="janedoe"
+                          className={`border-[#202833] bg-[#090B0F] text-[#F5F7FA] h-9 text-xs font-mono ${
+                            usernameAvailability.available === true
+                              ? "border-[#2DD4A3]/50 focus-visible:ring-[#2DD4A3]"
+                              : usernameAvailability.available === false
+                              ? "border-[#F05252]/50 focus-visible:ring-[#F05252]"
+                              : ""
+                          }`}
+                          {...field}
+                        />
+                      </FormControl>
+                      {usernameAvailability.message && (
+                        <p className={`text-[11px] font-mono ${usernameAvailability.available ? "text-[#2DD4A3]" : "text-[#F05252]"}`}>
+                          {usernameAvailability.message}
+                        </p>
+                      )}
+                      {usernameAvailability.suggestions.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 pt-1 items-center">
+                          <span className="text-[10px] font-mono text-[#667085]">Suggestions:</span>
+                          {usernameAvailability.suggestions.map((sug) => (
+                            <button
+                              key={sug}
+                              type="button"
+                              onClick={() => form.setValue("username", sug, { shouldValidate: true })}
+                              className="px-2 py-0.5 rounded text-[10px] font-mono bg-[#111720] border border-[#202833] hover:border-[#22D3EE] text-[#22D3EE]"
+                            >
+                              {sug}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -548,36 +703,6 @@ export default function SignupPage() {
           </CardContent>
         </Card>
       </div>
-
-      {duplicateEmailToast?.show && (
-        <div className="fixed bottom-5 right-5 z-50 animate-in fade-in slide-in-from-bottom-5 duration-300">
-          <div className="flex flex-col gap-3 p-4 rounded-xl border border-[#202833] bg-[#0D1117] shadow-2xl max-w-sm font-mono text-xs text-[#F5F7FA]">
-            <div className="flex items-start gap-3">
-              <div className="p-2 rounded bg-[#111720] border border-[#202833] text-[#22D3EE] shrink-0">
-                <Loader2 className="h-4 w-4 animate-spin" />
-              </div>
-              <div className="flex-1 space-y-1">
-                <p className="font-bold text-[#F5F7FA]">
-                  This email is already registered.
-                </p>
-                <p className="text-[#9CA6B5]">
-                  Please sign in instead. Redirecting in 2s...
-                </p>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button
-                size="sm"
-                variant="default"
-                onClick={() => router.push(`/login?email=${encodeURIComponent(duplicateEmailToast.email)}`)}
-                className="text-[10px] font-bold px-3 py-1.5 h-8 bg-[#22D3EE] text-[#090B0F]"
-              >
-                Go to Sign In
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </GuestRoute>
   );
 }

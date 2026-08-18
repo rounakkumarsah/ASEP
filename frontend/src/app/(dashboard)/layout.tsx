@@ -1,5 +1,6 @@
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { DashboardHeader } from "@/components/dashboard/header";
+import { EmailVerificationBanner } from "@/components/dashboard/email-verification-banner";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 
 export default function DashboardLayout({
@@ -16,6 +17,7 @@ export default function DashboardLayout({
         {/* Main Content Column */}
         <div className="lg:pl-64 flex flex-col flex-1 min-h-screen">
           <DashboardHeader />
+          <EmailVerificationBanner />
 
           <main className="flex-1 w-full">
             <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">

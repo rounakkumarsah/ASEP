@@ -179,6 +179,27 @@ class MemberResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class InviteMemberRequest(BaseModel):
+    email: str
+    role: str = "developer"
+
+
+class InviteResponse(BaseModel):
+    id: str
+    email: str
+    role: str
+    status: str = "pending"
+    created_at: str
+
+
+class ChangeRoleRequest(BaseModel):
+    role: str
+
+
+class TransferOwnershipRequest(BaseModel):
+    new_owner_id: uuid.UUID
+
+
 @router.get("/members", response_model=list[MemberResponse])
 async def list_organization_members(
     current_user: CurrentUser,
@@ -192,7 +213,7 @@ async def list_organization_members(
                 email=current_user.email,
                 first_name=current_user.first_name,
                 last_name=current_user.last_name,
-                role=current_user.role or "developer",
+                role=current_user.role or "owner",
             )
         ]
 
@@ -201,4 +222,173 @@ async def list_organization_members(
     )
     users = result.scalars().all()
     return [MemberResponse.model_validate(u) for u in users]
+
+
+@router.post("/invites", response_model=InviteResponse)
+async def invite_member(
+    payload: InviteMemberRequest,
+    current_user: CurrentUser,
+    db: DbSession,
+) -> InviteResponse:
+    """Invite a new member to the organization by email."""
+    if not current_user.org_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Create or join an organization first.")
+
+    org_res = await db.execute(select(Organization).where(Organization.id == current_user.org_id))
+    org = org_res.scalar_one_or_none()
+    if not org:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found.")
+
+    valid_roles = {"owner", "admin", "developer", "manager", "billing", "viewer"}
+    role = payload.role.lower()
+    if role not in valid_roles:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid role. Must be one of: {', '.join(valid_roles)}")
+
+    import datetime
+    invite_id = str(uuid.uuid4())
+    now_str = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+    from src.cache.redis import get_redis_client
+    redis = get_redis_client()
+    if redis:
+        try:
+            import json
+            invite_data = json.dumps({"id": invite_id, "email": payload.email, "role": role, "created_at": now_str})
+            await redis.hset(f"org_invites:{org.id}", invite_id, invite_data)
+        except Exception:
+            pass
+
+    return InviteResponse(id=invite_id, email=payload.email, role=role, status="pending", created_at=now_str)
+
+
+@router.get("/invites", response_model=list[InviteResponse])
+async def list_pending_invites(
+    current_user: CurrentUser,
+    db: DbSession,
+) -> list[InviteResponse]:
+    """List all pending invitations for the current organization."""
+    if not current_user.org_id:
+        return []
+
+    from src.cache.redis import get_redis_client
+    redis = get_redis_client()
+    invites: list[InviteResponse] = []
+    if redis:
+        try:
+            import json
+            raw_invites = await redis.hgetall(f"org_invites:{current_user.org_id}")
+            for _, inv_json in raw_invites.items():
+                parsed = json.loads(inv_json if isinstance(inv_json, str) else inv_json.decode("utf-8"))
+                invites.append(InviteResponse(**parsed))
+        except Exception:
+            pass
+    return invites
+
+
+@router.delete("/invites/{invite_id}")
+async def revoke_invite(
+    invite_id: str,
+    current_user: CurrentUser,
+    db: DbSession,
+) -> dict[str, str]:
+    """Revoke a pending invitation."""
+    if not current_user.org_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No organization found.")
+
+    from src.cache.redis import get_redis_client
+    redis = get_redis_client()
+    if redis:
+        try:
+            await redis.hdel(f"org_invites:{current_user.org_id}", invite_id)
+        except Exception:
+            pass
+    return {"status": "success", "message": "Invitation revoked successfully."}
+
+
+@router.delete("/members/{member_id}")
+async def remove_organization_member(
+    member_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DbSession,
+) -> dict[str, str]:
+    """Remove a member from the organization."""
+    if not current_user.org_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No organization found.")
+
+    org_res = await db.execute(select(Organization).where(Organization.id == current_user.org_id))
+    org = org_res.scalar_one_or_none()
+    if not org:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found.")
+
+    if org.owner_id != current_user.id and current_user.id != member_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the organization owner can remove members.")
+
+    if member_id == org.owner_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot remove the organization owner. Transfer ownership first.")
+
+    target_res = await db.execute(select(User).where(User.id == member_id, User.org_id == current_user.org_id))
+    target_user = target_res.scalar_one_or_none()
+    if not target_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found in this organization.")
+
+    target_user.org_id = None
+    await db.flush()
+    return {"status": "success", "message": "Member removed from organization."}
+
+
+@router.patch("/members/{member_id}/role")
+async def update_member_role(
+    member_id: uuid.UUID,
+    payload: ChangeRoleRequest,
+    current_user: CurrentUser,
+    db: DbSession,
+) -> dict[str, str]:
+    """Update role for a member in the organization."""
+    if not current_user.org_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No organization found.")
+
+    org_res = await db.execute(select(Organization).where(Organization.id == current_user.org_id))
+    org = org_res.scalar_one_or_none()
+    if not org or org.owner_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the owner can update member roles.")
+
+    valid_roles = {"owner", "admin", "developer", "manager", "billing", "viewer"}
+    if payload.role.lower() not in valid_roles:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid role. Must be one of: {', '.join(valid_roles)}")
+
+    target_res = await db.execute(select(User).where(User.id == member_id, User.org_id == current_user.org_id))
+    target_user = target_res.scalar_one_or_none()
+    if not target_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found.")
+
+    target_user.role = payload.role.lower()
+    await db.flush()
+    return {"status": "success", "message": f"Role updated to {payload.role}."}
+
+
+@router.post("/transfer-ownership")
+async def transfer_organization_ownership(
+    payload: TransferOwnershipRequest,
+    current_user: CurrentUser,
+    db: DbSession,
+) -> dict[str, str]:
+    """Transfer organization ownership to another member."""
+    if not current_user.org_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No organization found.")
+
+    org_res = await db.execute(select(Organization).where(Organization.id == current_user.org_id))
+    org = org_res.scalar_one_or_none()
+    if not org or org.owner_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the current owner can transfer ownership.")
+
+    target_res = await db.execute(select(User).where(User.id == payload.new_owner_id, User.org_id == current_user.org_id))
+    target_user = target_res.scalar_one_or_none()
+    if not target_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Target user is not a member of this organization.")
+
+    org.owner_id = target_user.id
+    target_user.role = "owner"
+    current_user.role = "admin"
+    await db.flush()
+    return {"status": "success", "message": f"Ownership transferred to {target_user.email}."}
 
