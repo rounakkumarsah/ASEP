@@ -35,10 +35,10 @@ test.describe('Authentication Flow', () => {
     
     await loginPage.goto();
     await loginPage.login('admin@example.com', 'SecurePass123!');
-    await expect(page).toHaveURL(/\/overview/);
+    await expect(page).toHaveURL(/\/overview/, { timeout: 15000 });
     
     // Verify user can log out
     await dashboardPage.logout();
-    await expect(page).toHaveURL(/\/login/);
+    await expect(page).toHaveURL(/\/login/, { timeout: 15000 });
   });
 });

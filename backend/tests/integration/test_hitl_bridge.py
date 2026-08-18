@@ -19,13 +19,17 @@ class MockUnitOfWork(AbstractUnitOfWork):
     def __init__(self):
         super().__init__()
         self.hitl_sessions = AsyncMock()
-        self.commit = AsyncMock()
-        self.rollback = AsyncMock()
 
     async def __aenter__(self):
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
+        pass
+
+    async def commit(self) -> None:
+        pass
+
+    async def rollback(self) -> None:
         pass
 
 
@@ -40,7 +44,7 @@ async def test_hitl_bridge_full_lifecycle():
     mock_uow.hitl_sessions.create = AsyncMock(side_effect=lambda x: x)
     engine.uow_factory = lambda: mock_uow
 
-    run_id = "test-run-hitl-bridge"
+    run_id = str(uuid.uuid4())
     thread_id = "test-thread-hitl-bridge"
 
     # 1. Start execution run and consume the stream until it pauses (completes stream)

@@ -51,11 +51,10 @@ class StateGraphWrapper:
     def compile(self) -> CompiledStateGraph:
         """Compile the assembled StateGraph with checkpointing.
 
-        LangGraph suspends execution *before* the ``validate`` node on every run,
-        creating a durable checkpoint so that a human operator can review the
-        pending action.  Resumption is driven by ``astream(Command(resume=…))``.
+        Execution enters the ``validate`` node which pauses execution using
+        LangGraph's native ``interrupt()``, enqueuing the session into HITLEngine.
+        Resumption is driven by ``astream(Command(resume=…))``.
         """
         return self.workflow.compile(
             checkpointer=self.checkpointer,
-            interrupt_before=["validate"],
         )
