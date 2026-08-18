@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UpgradeModal } from "../monetization/upgrade-modal";
+import { apiClient } from "@/lib/api/client";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -12,6 +13,32 @@ interface LayoutProps {
 export function AppLayout({ children }: LayoutProps) {
   const pathname = usePathname();
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
+  const [quota, setQuota] = useState<{ tier: string; limit: number; used: number; remaining: number }>({
+    tier: "free",
+    limit: 10,
+    used: 0,
+    remaining: 10,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+    apiClient
+      .get("/api/v1/users/quota")
+      .then((res) => {
+        if (isMounted && res.data) {
+          setQuota({
+            tier: res.data.tier || "free",
+            limit: res.data.limit ?? 10,
+            used: res.data.used ?? 0,
+            remaining: res.data.remaining ?? 10,
+          });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, [pathname]);
 
   const navItems = [
     { name: "Research", href: "/research", icon: "🔍" },
@@ -61,16 +88,23 @@ export function AppLayout({ children }: LayoutProps) {
         <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-800">
           <div className="flex items-center justify-between text-xs mb-2">
             <span className="text-zinc-400">Current Plan:</span>
-            <span className="font-semibold text-amber-400 bg-amber-950/40 border border-amber-800/50 px-2 py-0.5 rounded">
-              FREE
+            <span className="font-semibold text-amber-400 bg-amber-950/40 border border-amber-800/50 px-2 py-0.5 rounded uppercase">
+              {quota.tier}
             </span>
           </div>
           <div className="flex items-center justify-between text-xs text-zinc-400 mb-2">
             <span>Daily Quota:</span>
-            <span className="font-medium text-zinc-200">8 / 10 Left</span>
+            <span className="font-medium text-zinc-200">
+              {quota.tier.toLowerCase() === "free" ? `${quota.remaining} / ${quota.limit} Left` : "Unlimited"}
+            </span>
           </div>
           <div className="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden mb-3">
-            <div className="bg-blue-500 h-full w-[80%]" />
+            <div
+              className="bg-blue-500 h-full transition-all duration-300"
+              style={{
+                width: quota.tier.toLowerCase() === "free" ? `${Math.min(100, Math.max(0, (quota.remaining / quota.limit) * 100))}%` : "100%",
+              }}
+            />
           </div>
           <button
             onClick={() => setIsUpgradeOpen(true)}

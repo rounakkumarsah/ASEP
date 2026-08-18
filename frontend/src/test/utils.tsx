@@ -11,6 +11,8 @@ const defaultAuthContextValue: AuthContextType = {
   isLoading: false,
   login: vi.fn(),
   logout: vi.fn(),
+  refreshUser: vi.fn().mockResolvedValue(undefined),
+  updateUser: vi.fn(),
 };
 
 interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {

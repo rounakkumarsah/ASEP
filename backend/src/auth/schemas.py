@@ -95,3 +95,16 @@ class ProfileUpdateRequest(BaseModel):
     last_name: Optional[str] = None
     username: Optional[str] = None
     avatar: Optional[str] = None
+
+
+class CheckUsernameResponse(BaseModel):
+    available: bool
+    suggestions: list[str] = []
+
+
+class UserQuotaResponse(BaseModel):
+    tier: str
+    limit: int
+    used: int
+    remaining: int
+    reset_seconds: int

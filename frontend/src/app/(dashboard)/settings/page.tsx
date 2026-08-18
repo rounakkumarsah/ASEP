@@ -55,7 +55,7 @@ interface TabCategory {
 }
 
 export default function SettingsPage() {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser, updateUser } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialTab = (searchParams.get("tab") as SettingsTab) || "profile";
@@ -78,6 +78,11 @@ export default function SettingsPage() {
   // Profile Form state
   const [firstName, setFirstName] = React.useState(user?.first_name || "");
   const [lastName, setLastName] = React.useState(user?.last_name || "");
+  const [username, setUsername] = React.useState(user?.username || "");
+  const [usernameChecking, setUsernameChecking] = React.useState(false);
+  const [usernameAvailable, setUsernameAvailable] = React.useState<boolean | null>(true);
+  const [usernameError, setUsernameError] = React.useState<string | null>(null);
+  const [usernameSuggestions, setUsernameSuggestions] = React.useState<string[]>([]);
   const [profileSaving, setProfileSaving] = React.useState(false);
   const [profileSuccess, setProfileSuccess] = React.useState(false);
 
@@ -109,8 +114,59 @@ export default function SettingsPage() {
     if (user) {
       setFirstName(user.first_name || "");
       setLastName(user.last_name || "");
+      setUsername(user.username || "");
+      setUsernameAvailable(true);
+      setUsernameError(null);
+      setUsernameSuggestions([]);
     }
   }, [user]);
+
+  // Debounced username availability validation (500ms)
+  React.useEffect(() => {
+    if (!username || !user) return;
+    const trimmed = username.trim();
+    if (trimmed.toLowerCase() === (user.username || "").toLowerCase()) {
+      setUsernameChecking(false);
+      setUsernameAvailable(true);
+      setUsernameError(null);
+      setUsernameSuggestions([]);
+      return;
+    }
+
+    const validFormat = /^[a-zA-Z0-9_]{3,30}$/.test(trimmed);
+    if (!validFormat) {
+      setUsernameChecking(false);
+      setUsernameAvailable(false);
+      setUsernameError("Username must be 3–30 characters (letters, numbers, underscores only).");
+      setUsernameSuggestions([]);
+      return;
+    }
+
+    setUsernameChecking(true);
+    setUsernameError(null);
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await apiClient.get(`/api/v1/users/check-username?username=${encodeURIComponent(trimmed)}`);
+        if (res.data?.available) {
+          setUsernameAvailable(true);
+          setUsernameError(null);
+          setUsernameSuggestions([]);
+        } else {
+          setUsernameAvailable(false);
+          setUsernameError("Username already taken.");
+          setUsernameSuggestions(res.data?.suggestions || []);
+        }
+      } catch {
+        setUsernameAvailable(true);
+        setUsernameError(null);
+      } finally {
+        setUsernameChecking(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [username, user]);
 
   React.useEffect(() => {
     apiClient.get("/api/v1/organizations/me")
@@ -140,16 +196,34 @@ export default function SettingsPage() {
 
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (usernameChecking || usernameAvailable === false || !username.trim()) return;
     setProfileSaving(true);
     try {
-      await apiClient.patch("/api/v1/auth/me", {
-        first_name: firstName,
-        last_name: lastName,
+      const res = await apiClient.patch("/api/v1/users/profile", {
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        username: username.trim(),
       });
+      if (res.data) {
+        if (updateUser) {
+          updateUser(res.data);
+        }
+        if (refreshUser) {
+          await refreshUser();
+        }
+      }
       setProfileSuccess(true);
       setTimeout(() => setProfileSuccess(false), 3000);
-    } catch {
-      alert("Failed to update profile details.");
+    } catch (err: unknown) {
+      const message = err && typeof err === "object" && "response" in err
+        ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+        : "Failed to update profile details.";
+      if (message?.toLowerCase().includes("taken")) {
+        setUsernameAvailable(false);
+        setUsernameError("Username already taken.");
+      } else {
+        alert(message || "Failed to update profile details.");
+      }
     } finally {
       setProfileSaving(false);
     }
@@ -269,15 +343,60 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase">Username</label>
-                  <Input value={user?.username || ""} disabled className="bg-muted/40 cursor-not-allowed" />
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-muted-foreground uppercase">Username</label>
+                    {usernameChecking && (
+                      <span className="text-xs text-muted-foreground animate-pulse">Checking availability...</span>
+                    )}
+                    {!usernameChecking && username.trim().toLowerCase() !== (user?.username || "").toLowerCase() && usernameAvailable === true && (
+                      <span className="text-xs text-emerald-400 font-medium flex items-center gap-1">
+                        <Check className="h-3.5 w-3.5" /> Username available
+                      </span>
+                    )}
+                    {!usernameChecking && usernameAvailable === false && (
+                      <span className="text-xs text-rose-400 font-medium">
+                        {usernameError || "Username unavailable"}
+                      </span>
+                    )}
+                  </div>
+                  <Input
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="e.g. sachin_dev"
+                    className={
+                      usernameAvailable === false && username.trim().toLowerCase() !== (user?.username || "").toLowerCase()
+                        ? "border-rose-500/50 focus-visible:ring-rose-500"
+                        : usernameAvailable === true && username.trim().toLowerCase() !== (user?.username || "").toLowerCase()
+                        ? "border-emerald-500/50 focus-visible:ring-emerald-500"
+                        : ""
+                    }
+                  />
+                  {usernameSuggestions.length > 0 && (
+                    <div className="pt-1 text-xs flex flex-wrap items-center gap-1.5">
+                      <span className="text-muted-foreground text-[11px]">Suggestions:</span>
+                      {usernameSuggestions.map((sug) => (
+                        <button
+                          key={sug}
+                          type="button"
+                          onClick={() => setUsername(sug)}
+                          className="px-2 py-0.5 rounded bg-muted/60 hover:bg-muted text-primary hover:underline font-mono text-[11px] transition-colors"
+                        >
+                          {sug}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-muted-foreground uppercase">Email Address</label>
                   <Input value={user?.email || ""} disabled className="bg-muted/40 cursor-not-allowed" />
                 </div>
                 <div className="flex items-center gap-4 pt-2 relative z-10">
-                  <Button type="submit" disabled={profileSaving} className="font-semibold">
+                  <Button 
+                    type="submit" 
+                    disabled={profileSaving || usernameChecking || usernameAvailable === false || !username.trim()} 
+                    className="font-semibold"
+                  >
                     {profileSaving ? "Saving Changes..." : "Save Profile"}
                   </Button>
                   {profileSuccess && (

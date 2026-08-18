@@ -23,7 +23,7 @@ describe('SidebarNav and DashboardSidebar Components', () => {
     expect(screen.getByText('Approvals')).toBeInTheDocument();
     expect(screen.getByText('Evaluation')).toBeInTheDocument();
     expect(screen.getByText('Metrics')).toBeInTheDocument();
-    expect(screen.getByText('Audit')).toBeInTheDocument();
+    expect(screen.getByText('Audit Logs')).toBeInTheDocument();
     expect(screen.getByText('Settings')).toBeInTheDocument();
   });
 

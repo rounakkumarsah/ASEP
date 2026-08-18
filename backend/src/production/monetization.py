@@ -61,7 +61,33 @@ class FreemiumRateLimiter:
             )
         except Exception as exc:
             logger.debug("Rate limit check fallback (Redis unavailable): %s", exc)
-            return RateLimitResult(allowed=True, remaining_queries=10, current_tier=tier, reset_seconds=0)
+            return RateLimitResult(allowed=True, remaining_queries=self.free_limit, current_tier=tier, reset_seconds=0)
+
+    async def get_usage(self, user_id: str, tier: str = "free") -> RateLimitResult:
+        """Inspect current daily usage without consuming a credit."""
+        if tier.lower() in ["pro", "enterprise"]:
+            return RateLimitResult(allowed=True, remaining_queries=999999, current_tier=tier, reset_seconds=0)
+
+        redis = get_redis_client()
+        day_key = time.strftime("%Y-%m-%d")
+        key = f"rate_limit:{user_id}:{day_key}"
+
+        try:
+            if not redis:
+                return RateLimitResult(allowed=True, remaining_queries=self.free_limit, current_tier=tier, reset_seconds=86400)
+
+            count_str = await redis.get(key)
+            count = int(count_str) if count_str is not None else 0
+            remaining = max(0, self.free_limit - count)
+            return RateLimitResult(
+                allowed=count < self.free_limit,
+                remaining_queries=remaining,
+                current_tier=tier,
+                reset_seconds=86400,
+            )
+        except Exception as exc:
+            logger.debug("Quota check fallback (Redis unavailable): %s", exc)
+            return RateLimitResult(allowed=True, remaining_queries=self.free_limit, current_tier=tier, reset_seconds=0)
 
 
 class RazorpayMonetizationManager:

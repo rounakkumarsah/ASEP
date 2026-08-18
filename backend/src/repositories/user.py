@@ -16,8 +16,10 @@ class UserRepository(BaseRepository[User, uuid.UUID]):
     _model = User
         
     async def get_by_username(self, username: str) -> User | None:
-        """Get a user by username."""
-        stmt = select(User).where(User.username == username)
+        """Get a user by username (case-insensitive)."""
+        from sqlalchemy import func
+        clean_username = username.strip().lower()
+        stmt = select(User).where(func.lower(User.username) == clean_username)
         result = await self._session.execute(stmt)
         return result.scalars().first()
 

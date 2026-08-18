@@ -21,6 +21,8 @@ export type AuthContextType = {
   isLoading: boolean;
   login: (token: string, user: User) => void;
   logout: () => void;
+  refreshUser: () => Promise<void>;
+  updateUser: (userData: Partial<User>) => void;
 };
 
 export const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
@@ -62,6 +64,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push("/overview");
   };
 
+  const updateUser = (userData: Partial<User>) => {
+    setUser((prev) => (prev ? { ...prev, ...userData } : null));
+  };
+
   const logout = async () => {
     setUser(null);
     router.push("/login");
@@ -84,6 +90,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         login,
         logout,
+        refreshUser: initAuth,
+        updateUser,
       }}
     >
       {children}

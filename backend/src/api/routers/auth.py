@@ -5,13 +5,14 @@ ASEP — Auth Router
 import logging
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from pydantic import BaseModel, Field
 
 from src.api.dependencies import get_audit_service
 from src.auth.dependencies import AuthServiceDep, CurrentUser
 from src.auth.rate_limit import check_rate_limit
 from src.auth.schemas import (
+    CheckUsernameResponse,
     ForgotPasswordRequest,
     LoginRequest,
     ProfileUpdateRequest,
@@ -470,6 +471,7 @@ async def reset_password(
 
 
 @router.put("/profile", response_model=UserResponse)
+@router.patch("/profile", response_model=UserResponse)
 async def update_profile(
     data: ProfileUpdateRequest,
     current_user: CurrentUser,
@@ -480,10 +482,26 @@ async def update_profile(
         updated = await auth_service.update_user(current_user.id, data)
         return UserResponse.model_validate(updated)
     except ValueError as e:
+        err_str = str(e)
+        if "already taken" in err_str.lower():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Username already taken",
+            )
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(e),
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=err_str,
         )
+
+
+@router.get("/check-username", response_model=CheckUsernameResponse)
+async def check_username_auth(
+    username: Annotated[str, Query(..., min_length=1, max_length=50)],
+    auth_service: AuthServiceDep,
+) -> CheckUsernameResponse:
+    """Check username availability."""
+    available, suggestions = await auth_service.check_username_availability(username)
+    return CheckUsernameResponse(available=available, suggestions=suggestions)
 
 
 @router.get("/oauth/github")

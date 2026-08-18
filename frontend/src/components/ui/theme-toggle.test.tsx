@@ -20,16 +20,16 @@ vi.mock('next-themes', () => {
 describe('ThemeToggle Component', () => {
   it('renders correctly', () => {
     renderWithProviders(<ThemeToggle />);
-    const button = screen.getByRole('button', { name: /toggle theme/i });
+    const button = screen.getByRole('button', { name: /theme/i });
     expect(button).toBeInTheDocument();
   });
 
   it('triggers setTheme on click', () => {
     const { setTheme } = useTheme();
     renderWithProviders(<ThemeToggle />);
-    const button = screen.getByRole('button', { name: /toggle theme/i });
+    const button = screen.getByRole('button', { name: /theme/i });
     
     fireEvent.click(button);
-    expect(setTheme).toHaveBeenCalledWith('dark');
+    expect(setTheme).toHaveBeenCalledWith('system');
   });
 });

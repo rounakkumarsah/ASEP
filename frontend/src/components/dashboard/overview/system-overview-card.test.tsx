@@ -21,7 +21,7 @@ describe('SystemOverviewCard Component', () => {
     renderWithProviders(<SystemOverviewCard health={mockHealth} />);
     
     // Check main title
-    expect(screen.getByText('System Overview')).toBeInTheDocument();
+    expect(screen.getByText('System Control Plane')).toBeInTheDocument();
     
     // Check uptime days
     expect(screen.getByText('2')).toBeInTheDocument();

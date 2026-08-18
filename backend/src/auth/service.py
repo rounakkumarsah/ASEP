@@ -422,26 +422,64 @@ class AuthService:
             except Exception:
                 pass
 
+    async def check_username_availability(self, username: str, current_user_id: Optional[uuid.UUID] = None) -> tuple[bool, list[str]]:
+        """Validate format and check uniqueness of username. Returns (is_available, suggestions)."""
+        import re
+        import random
+
+        cleaned = username.strip()
+        # Validation rules: 3-30 chars, alphanumeric + underscores
+        if not re.match(r"^[a-zA-Z0-9_]{3,30}$", cleaned):
+            return False, []
+
+        async with self.user_service._uow_factory() as uow:
+            existing = await uow.users.get_by_username(cleaned)
+            if not existing or (current_user_id and existing.id == current_user_id):
+                return True, []
+
+            # Generate 3 valid suggestions
+            suggestions: list[str] = []
+            candidates = [
+                f"{cleaned}_1",
+                f"{cleaned}_dev",
+                f"{cleaned}{random.randint(100, 9999)}",
+                f"{cleaned}_ai",
+                f"{cleaned}_pro",
+            ]
+            for cand in candidates:
+                if len(suggestions) >= 3:
+                    break
+                if len(cand) <= 30 and not await uow.users.get_by_username(cand):
+                    suggestions.append(cand)
+
+            return False, suggestions
+
     async def update_user(self, user_id: uuid.UUID, data: "ProfileUpdateRequest") -> User:
         """Update user profile information."""
+        import re
         async with self.user_service._uow_factory() as uow:
             user = await uow.users.get(user_id)
             if not user:
                 raise ValueError("User not found")
-                
-            if data.username and data.username != user.username:
-                existing = await uow.users.get_by_username(data.username)
-                if existing:
-                    raise ValueError("Username already taken")
-                user.username = data.username
-                
+
+            if data.username is not None:
+                cleaned_username = data.username.strip()
+                if not re.match(r"^[a-zA-Z0-9_]{3,30}$", cleaned_username):
+                    raise ValueError("Username must be between 3 and 30 characters and contain only letters, numbers, and underscores.")
+
+                if cleaned_username.lower() != user.username.lower():
+                    existing = await uow.users.get_by_username(cleaned_username)
+                    if existing and existing.id != user.id:
+                        raise ValueError("Username already taken")
+                    user.username = cleaned_username
+
             if data.first_name is not None:
-                user.first_name = data.first_name
+                user.first_name = data.first_name.strip()
             if data.last_name is not None:
-                user.last_name = data.last_name
+                user.last_name = data.last_name.strip()
             if data.avatar is not None:
                 user.avatar_url = data.avatar
-                
+
             await uow.commit()
             return user
 

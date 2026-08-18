@@ -15,6 +15,8 @@ from sqlalchemy import (
     Uuid,
     DateTime,
     ForeignKey,
+    Index,
+    func,
 )
 import datetime
 from sqlalchemy.orm import Mapped, mapped_column
@@ -156,6 +158,11 @@ class User(TimestampMixin, Base):
         nullable=True,
         index=True,
         doc="FK to the Organization this user belongs to. NULL until assigned.",
+    )
+
+    __table_args__ = (
+        Index("uq_users_lower_username", func.lower(username), unique=True),
+        Index("uq_users_lower_email", func.lower(email), unique=True),
     )
 
     def __repr__(self) -> str:
