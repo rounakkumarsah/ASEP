@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useForm } from "react-hook-form";
+import { useForm, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Loader2, Eye, EyeOff, RefreshCw } from "lucide-react";
@@ -42,7 +42,7 @@ const signupSchema = z
       .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character"),
     confirmPassword: z.string().min(1, "Please confirm your password"),
     acceptTerms: z.boolean().refine((val) => val === true, {
-      message: "You must accept the terms and conditions",
+      message: "You must accept the Terms of Service and Privacy Policy before creating an account.",
     }),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -59,10 +59,19 @@ export default function SignupPage() {
   const [captchaError, setCaptchaError] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const turnstileRef = React.useRef<TurnstileRef>(null);
+  const termsCheckboxRef = React.useRef<HTMLInputElement>(null);
   const pendingValuesRef = React.useRef<SignupValues | null>(null);
   const [oauthLoading, setOauthLoading] = React.useState(false);
   const [error, setError] = React.useState("");
+  const [termsError, setTermsError] = React.useState<string | null>(null);
   const [duplicateEmailToast, setDuplicateEmailToast] = React.useState<{ show: boolean; email: string } | null>(null);
+
+  const onInvalid = (errors: FieldErrors<SignupValues>) => {
+    if (errors?.acceptTerms) {
+      setTermsError("You must accept the Terms of Service and Privacy Policy before creating an account.");
+      termsCheckboxRef.current?.focus();
+    }
+  };
 
   const handleOAuthLogin = async (provider: "github" | "google") => {
     setOauthLoading(true);
@@ -157,6 +166,15 @@ export default function SignupPage() {
   };
 
   const onSubmit = async (values: SignupValues) => {
+    if (!values.acceptTerms) {
+      form.setError("acceptTerms", {
+        type: "manual",
+        message: "You must accept the Terms of Service and Privacy Policy before creating an account.",
+      });
+      termsCheckboxRef.current?.focus();
+      return;
+    }
+
     if (isSubmitting) return;
     setCaptchaError("");
     setError("");
@@ -295,7 +313,7 @@ export default function SignupPage() {
             </div>
 
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
+              <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-3">
                 <FormField
                   control={form.control}
                   name="workspaceName"
@@ -444,36 +462,71 @@ export default function SignupPage() {
                 <FormField
                   control={form.control}
                   name="acceptTerms"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-lg border border-[#202833] p-3.5 bg-[#111720]/40">
-                      <FormControl>
-                        <input
-                          type="checkbox"
-                          id="acceptTerms"
-                          checked={field.value}
-                          onChange={field.onChange}
-                          className="h-3.5 w-3.5 rounded border-[#202833] bg-[#090B0F] text-[#22D3EE] focus:ring-[#22D3EE] mt-1"
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <label htmlFor="acceptTerms" className="text-xs font-mono text-[#9CA6B5] leading-snug">
-                          I accept the{" "}
-                          <Link href="/terms" className="text-[#22D3EE] hover:underline font-bold">
-                            Terms of Service
-                          </Link>{" "}
-                          and{" "}
-                          <Link href="/privacy" className="text-[#22D3EE] hover:underline font-bold">
-                            Privacy Policy
-                          </Link>
-                          .
-                        </label>
-                      </div>
-                    </FormItem>
-                  )}
+                  render={({ field, fieldState }) => {
+                    const hasError = !!termsError || !!fieldState.error || !!form.formState.errors.acceptTerms;
+                    const errorMessage = termsError || fieldState.error?.message || form.formState.errors.acceptTerms?.message || "You must accept the Terms of Service and Privacy Policy before creating an account.";
+
+                    return (
+                      <FormItem className="space-y-1.5">
+                        <div className="flex flex-row items-start space-x-3 space-y-0 rounded-lg border border-[#202833] p-3.5 bg-[#111720]/40">
+                          <FormControl>
+                            <input
+                              ref={termsCheckboxRef}
+                              type="checkbox"
+                              id="acceptTerms"
+                              checked={field.value}
+                              onChange={(e) => {
+                                field.onChange(e);
+                                if (e.target.checked) {
+                                  setTermsError(null);
+                                  form.clearErrors("acceptTerms");
+                                }
+                              }}
+                              aria-invalid={hasError}
+                              aria-describedby={hasError ? "acceptTerms-error" : undefined}
+                              className="h-3.5 w-3.5 rounded border-[#202833] bg-[#090B0F] text-[#22D3EE] focus:ring-[#22D3EE] mt-1 cursor-pointer"
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <label htmlFor="acceptTerms" className="text-xs font-mono text-[#9CA6B5] leading-snug cursor-pointer">
+                              I accept the{" "}
+                              <Link href="/terms" className="text-[#22D3EE] hover:underline font-bold">
+                                Terms of Service
+                              </Link>{" "}
+                              and{" "}
+                              <Link href="/privacy" className="text-[#22D3EE] hover:underline font-bold">
+                                Privacy Policy
+                              </Link>
+                              .
+                            </label>
+                          </div>
+                        </div>
+                        {hasError && (
+                          <p
+                            id="acceptTerms-error"
+                            role="alert"
+                            className="text-xs text-[#ef4444] font-mono leading-tight pl-1"
+                          >
+                            {errorMessage}
+                          </p>
+                        )}
+                      </FormItem>
+                    );
+                  }}
                 />
 
                 <Button
                   type="submit"
+                  onClick={() => {
+                    if (!form.getValues("acceptTerms")) {
+                      setTermsError("You must accept the Terms of Service and Privacy Policy before creating an account.");
+                      form.setError("acceptTerms", {
+                        type: "manual",
+                        message: "You must accept the Terms of Service and Privacy Policy before creating an account.",
+                      });
+                      termsCheckboxRef.current?.focus();
+                    }
+                  }}
                   className="w-full text-xs font-mono font-semibold bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9] h-10"
                   disabled={isSubmitting}
                 >

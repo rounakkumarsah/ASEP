@@ -18,6 +18,29 @@ test.describe('Authentication and Core Flows', () => {
   const testEmail = `admin@example.com`;
   const testPass = 'SecurePass123!';
 
+  test('Signup - terms validation error when unchecked and clears on check', async ({ page }) => {
+    const signupPage = new SignupPage(page);
+    await signupPage.goto();
+    await signupPage.workspaceNameInput.fill('Acme Corp');
+    await signupPage.fullNameInput.fill('Terms Tester');
+    await signupPage.emailInput.fill(`terms_${Date.now()}@example.com`);
+    await signupPage.passwordInput.fill('SecurePass123!');
+    await signupPage.confirmPasswordInput.fill('SecurePass123!');
+    await page.waitForTimeout(500);
+
+    // Do NOT check terms, click Register Account
+    await signupPage.submitButton.click();
+
+    // Verify error message is displayed and checkbox is aria-invalid
+    const errorMessage = page.locator('text=You must accept the Terms of Service and Privacy Policy before creating an account.');
+    await expect(errorMessage).toBeVisible({ timeout: 5000 });
+    await expect(signupPage.termsCheckbox).toHaveAttribute('aria-invalid', 'true');
+
+    // Check the checkbox -> error message disappears immediately
+    await signupPage.termsCheckbox.check();
+    await expect(errorMessage).not.toBeVisible();
+  });
+
   test('Signup - successful registration', async ({ page }) => {
     const freshSignupEmail = `test_${Date.now()}@example.com`;
     const signupPage = new SignupPage(page);
