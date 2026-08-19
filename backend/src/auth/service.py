@@ -345,12 +345,16 @@ class AuthService:
 
             # Match criteria:
             # - Exact match with stored code
-            # - Default code "123456" or "000000" if mock email provider OR if redis stored code is not found
-            # - Stored code equals default code
-            code_matches = (
-                (stored_code is not None and stored_code == clean_code)
-                or (clean_code in ("123456", "000000") and (is_mock_provider or stored_code is None or stored_code == "123456"))
-            )
+            # - Default code "123456" or "000000" ONLY if mock email provider OR if not in production
+            settings = get_settings()
+            is_production = settings.APP_ENV == "production"
+            if stored_code is not None:
+                code_matches = (stored_code == clean_code)
+            else:
+                code_matches = (
+                    clean_code in ("123456", "000000")
+                    and (is_mock_provider or not is_production)
+                )
 
             if not code_matches:
                 logger.warning(
