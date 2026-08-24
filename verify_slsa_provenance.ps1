@@ -1,5 +1,5 @@
 # verify_slsa_provenance.ps1
-# World-class SLSA Level 3 Independent Verification Script
+# World-class SLSA Build Level 2 Independent Verification Script
 
 param(
     [Parameter(Mandatory=$false)]
@@ -7,7 +7,7 @@ param(
 )
 
 Write-Host "============================================================" -ForegroundColor Cyan
-Write-Host "  ASEP: SLSA Level 3 Independent Verification" -ForegroundColor Cyan
+Write-Host "  ASEP: SLSA Build Level 2 Independent Verification" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
 
 # 1. Prompt for Token if not provided
@@ -64,7 +64,7 @@ Write-Host "[+] Successfully resolved digest: $ImageDigest" -ForegroundColor Gre
 Write-Host "[*] Verifying GitHub SLSA Artifact Attestations..." -ForegroundColor Blue
 gh attestation verify oci://ghcr.io/rounakkumarsah/asep:latest --repo rounakkumarsah/ASEP --format json
 if ($LASTEXITCODE -eq 0) {
-    Write-Host "[+] Artifact Attestation Verified Successfully! (SLSA Level 3 Provenance)" -ForegroundColor Green
+    Write-Host "[+] Artifact Attestation Verified Successfully! (SLSA Build Level 2 Provenance)" -ForegroundColor Green
 } else {
     Write-Host "[X] Artifact Attestation Verification Failed." -ForegroundColor Red
 }
