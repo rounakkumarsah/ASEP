@@ -130,7 +130,7 @@ jobs:
     name: Sigstore Cosign, Trivy & Artifact Attestations (SLSA Level 3)
     runs-on: ubuntu-latest
     needs: [python-security, node-security, semgrep-scan, codeql-scan, gitleaks-scan]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
