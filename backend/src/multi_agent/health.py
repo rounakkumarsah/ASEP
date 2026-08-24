@@ -1,7 +1,9 @@
 from __future__ import annotations
+
 import logging
-from src.multi_agent.contracts import AgentRole, AgentManifest
+
 from src.multi_agent.base_agent import BaseAgent
+from src.multi_agent.contracts import AgentManifest, AgentRole
 from src.multi_agent.registry import AgentRegistry
 
 logger = logging.getLogger(__name__)
@@ -20,10 +22,10 @@ async def multi_agent_health_check() -> bool:
 
         agent = DummyAgent()
         registry.register(agent)
-        
+
         assert registry.lookup(AgentRole.PLANNER) is not None
         assert registry.health()[AgentRole.PLANNER.value] is True
-        
+
         logger.info("Multi-agent health check passed")
         return True
 

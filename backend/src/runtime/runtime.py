@@ -61,8 +61,9 @@ class LangGraphRuntime:
         # Preserve active execution parameters strictly through MemoryManager (Working Memory)
         await self.memory.working.set_state(thread_id, "active_run_id", run_id)
 
-        config = {"configurable": {"thread_id": thread_id}}
-        initial_state = {
+        from langchain_core.runnables.config import RunnableConfig
+        config = RunnableConfig(configurable={"thread_id": thread_id})
+        initial_state: dict[str, Any] = {
             "messages": [],
             "status": "started",
             "next_action": None,
@@ -81,7 +82,8 @@ class LangGraphRuntime:
         """Resumes a paused run, feeding operator feedback to the active interrupt node."""
         logger.info(f"Resuming paused run on thread: '{thread_id}' with response: '{human_input}'")
 
-        config = {"configurable": {"thread_id": thread_id}}
+        from langchain_core.runnables.config import RunnableConfig
+        config = RunnableConfig(configurable={"thread_id": thread_id})
 
         # Send Command(resume=...) containing the human input payload
         async for event in self.graph.astream(
@@ -91,7 +93,8 @@ class LangGraphRuntime:
 
     async def get_state(self, thread_id: str) -> dict[str, Any]:
         """Read current graph state from checkpoints."""
-        config = {"configurable": {"thread_id": thread_id}}
+        from langchain_core.runnables.config import RunnableConfig
+        config = RunnableConfig(configurable={"thread_id": thread_id})
         state = await self.graph.aget_state(config)
         return state.values if state else {}
 

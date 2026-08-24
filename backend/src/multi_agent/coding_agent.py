@@ -3,12 +3,14 @@ ASEP — Coding Agent Upgraded
 """
 
 from __future__ import annotations
+
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
+
+from src.ai_runtime.registry import ProviderRegistry
+from src.governance.screenshot_debug import ScreenshotDebugger
 from src.multi_agent.base_agent import BaseAgent
 from src.multi_agent.contracts import AgentManifest, AgentRequest, AgentRole
-from src.governance.screenshot_debug import ScreenshotDebugger
-from src.ai_runtime.registry import ProviderRegistry
 from src.multi_agent.registry import get_agent_registry
 
 logger = logging.getLogger(__name__)
@@ -16,7 +18,7 @@ logger = logging.getLogger(__name__)
 class CodingAgent(BaseAgent):
     """Generates code, implements features, performs refactoring, and executes visual stacktrace debugging."""
 
-    def __init__(self, debugger: Optional[ScreenshotDebugger] = None, registry: Optional[ProviderRegistry] = None) -> None:
+    def __init__(self, debugger: ScreenshotDebugger | None = None, registry: ProviderRegistry | None = None) -> None:
         manifest = AgentManifest(
             name="CodingAgent",
             version="1.2.0",
@@ -29,7 +31,7 @@ class CodingAgent(BaseAgent):
         self.debugger = debugger or ScreenshotDebugger()
         self.providers = registry or ProviderRegistry()
 
-    async def _execute_internal(self, request: AgentRequest) -> Dict[str, Any]:
+    async def _execute_internal(self, request: AgentRequest) -> dict[str, Any]:
         spec = request.input_data.get("specification", "")
         action = request.input_data.get("action", "generate")
         language = request.input_data.get("language", "python")
@@ -47,7 +49,7 @@ class CodingAgent(BaseAgent):
 
         # 2. Patch Planning & Repository Understanding steps
         logger.info("Analyzing repository files matching specification targets")
-        
+
         # 3. Code Generation
         if action == "refactor":
             result_code = f"# Refactored {language} code for: {spec}\n# Optimized for performance and readability."

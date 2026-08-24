@@ -3,15 +3,16 @@ ASEP — Unit Tests for Execution Engine
 """
 
 import asyncio
+
 import pytest
+
 from src.runtime.execution.engine import (
     AgentEvent,
     AsyncExecutionEngine,
     CancellationToken,
     EventEmitter,
-    ExecutionContext,
-    ExecutionStatus,
     EventType,
+    ExecutionStatus,
     RetryHandler,
     RetryPolicy,
     StateManager,

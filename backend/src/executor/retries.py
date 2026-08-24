@@ -4,8 +4,9 @@ ASEP — Retry Policy with Exponential Backoff
 
 import asyncio
 import logging
-from dataclasses import dataclass, field
-from typing import Any, Callable, Coroutine, TypeVar
+from collections.abc import Callable, Coroutine
+from dataclasses import dataclass
+from typing import Any, TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,7 @@ class RetryPolicy:
     timeout_seconds: float | None = 30.0
 
 
-async def with_retry(
+async def with_retry[T](
     coro_factory: Callable[[], Coroutine[Any, Any, T]],
     policy: RetryPolicy,
     task_id: str = "unknown",
@@ -54,7 +55,7 @@ async def with_retry(
             logger.info(f"[{task_id}] Succeeded on attempt {attempt}")
             return result, None, attempt
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             last_error = f"Timed out after {policy.timeout_seconds}s on attempt {attempt}"
             logger.warning(f"[{task_id}] {last_error}")
             # Timeout is not retried — treat as final failure immediately

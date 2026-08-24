@@ -4,7 +4,6 @@ ASEP — Governance Audit Trail
 
 import json
 import logging
-import os
 from pathlib import Path
 
 from src.governance.decision import GovernanceDecision

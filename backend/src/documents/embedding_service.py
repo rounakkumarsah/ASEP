@@ -1,7 +1,8 @@
 from __future__ import annotations
+
 import logging
 from abc import ABC, abstractmethod
-from typing import List
+
 from src.ai_runtime.service import AIRuntimeService
 
 logger = logging.getLogger(__name__)
@@ -10,12 +11,12 @@ class EmbeddingProvider(ABC):
     """Abstract base class for embedding providers."""
 
     @abstractmethod
-    async def embed_query(self, text: str) -> List[float]:
+    async def embed_query(self, text: str) -> list[float]:
         """Generate embedding for a single query string."""
         pass
 
     @abstractmethod
-    async def embed_documents(self, texts: List[str]) -> List[List[float]]:
+    async def embed_documents(self, texts: list[str]) -> list[list[float]]:
         """Generate embeddings for a batch of document texts."""
         pass
 
@@ -25,13 +26,13 @@ class RuntimeEmbeddingProvider(EmbeddingProvider):
     def __init__(self, service: AIRuntimeService | None = None) -> None:
         self.service = service or AIRuntimeService()
 
-    async def embed_query(self, text: str) -> List[float]:
+    async def embed_query(self, text: str) -> list[float]:
         res = await self.embed_documents([text])
         if not res:
             raise ValueError("Failed to generate embedding for query.")
         return res[0]
 
-    async def embed_documents(self, texts: List[str]) -> List[List[float]]:
+    async def embed_documents(self, texts: list[str]) -> list[list[float]]:
         if not texts:
             return []
         try:

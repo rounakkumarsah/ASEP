@@ -2,8 +2,10 @@
 ASEP — Unit Tests for Query Optimizer
 """
 
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
+
 from src.documents.query_optimizer import QueryOptimizer
 
 

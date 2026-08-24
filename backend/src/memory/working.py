@@ -51,6 +51,6 @@ class WorkingMemory:
         """Clear all working memory keys associated with the session."""
         cache_key_messages = f"working_memory:{session_id}:messages"
         await self.cache.delete(cache_key_messages)
-        
+
         # Note: In production we could scan and delete wildcard keys under working_memory:{session_id}:*
         # For this phase, standard clearing of messages is sufficient.

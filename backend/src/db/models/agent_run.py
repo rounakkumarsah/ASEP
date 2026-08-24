@@ -43,13 +43,12 @@ from sqlalchemy.sql import func
 
 from src.db.postgres import Base
 
-
 # ---------------------------------------------------------------------------
 # RunStatus
 # ---------------------------------------------------------------------------
 
 
-class RunStatus(str, enum.Enum):
+class RunStatus(enum.StrEnum):
     """Lifecycle states of a single ``AgentRun``.
 
     Inheriting from ``str`` means every member is simultaneously a plain

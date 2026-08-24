@@ -1,10 +1,12 @@
 from __future__ import annotations
+
 import logging
-from typing import Dict, Any, List
-from src.multi_agent.contracts import AgentRole, AgentManifest, AgentRequest
+from typing import Any
+
 from src.multi_agent.base_agent import BaseAgent
-from src.tools.mcp_client import MCPClient
+from src.multi_agent.contracts import AgentManifest, AgentRequest, AgentRole
 from src.production.graphrag_engine import LocalGraphRAGEngine
+from src.tools.mcp_client import MCPClient
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +26,7 @@ class ResearchAgent(BaseAgent):
         self.mcp = mcp_client or MCPClient(server_url="http://localhost:8000")
         self.graphrag = graphrag_engine or LocalGraphRAGEngine()
 
-    async def _execute_internal(self, request: AgentRequest) -> Dict[str, Any]:
+    async def _execute_internal(self, request: AgentRequest) -> dict[str, Any]:
         query = request.input_data.get("query", "")
         session_id = request.input_data.get("session_id", "default_session")
         logger.info(f"Research agent starting hybrid execution chain: {query}")
@@ -38,16 +40,16 @@ class ResearchAgent(BaseAgent):
         # Step 2: Documentation Search (Hybrid RAG query retrieval pipeline execution)
         docs_notes = "[Docs Search] Evaluated Markdown/PDF document mappings."
         try:
-            from src.documents.query_pipeline import RetrievalPipeline
+            from src.documents.embedding_service import RuntimeEmbeddingProvider
             from src.documents.hybrid_retrieval import HybridRetrievalPipeline
-            from src.vector.qdrant import QdrantVectorService
-            from src.documents.embedding_service import MockEmbeddingProvider
-            
-            mock_vector = QdrantVectorService()
-            mock_embed = MockEmbeddingProvider()
+            from src.documents.query_pipeline import RetrievalPipeline
+            from src.vector.vector_service import VectorService
+
+            mock_vector = VectorService(None)  # type: ignore[arg-type]
+            mock_embed = RuntimeEmbeddingProvider()
             hybrid_pipe = HybridRetrievalPipeline(mock_vector, mock_embed)
             pipeline = RetrievalPipeline(hybrid_pipe)
-            
+
             retrieval_out = await pipeline.execute_retrieval(query, limit=3)
             docs_notes = f"[Docs Search] Formatted context: {retrieval_out.merged_context.formatted_context}"
         except Exception as exc:
@@ -66,19 +68,19 @@ class ResearchAgent(BaseAgent):
         # Step 4: Durable & Ephemeral memory recall (MemoryRetrieval)
         memory_notes = "[Memory Recall] Recalled working transaction transcripts."
         try:
-            from src.unit_of_work.sqlalchemy import SQLAlchemyUnitOfWork
-            from src.cache.redis import RedisCacheService
-            from src.vector.qdrant import QdrantVectorService
+            from src.cache.cache import CacheService
+            from src.documents.embedding_service import RuntimeEmbeddingProvider
             from src.graph.graph_service import GraphService
-            from src.documents.embedding_service import MockEmbeddingProvider
             from src.memory.memory_manager import MemoryManager
-            
+            from src.unit_of_work.sqlalchemy import SQLAlchemyUnitOfWork
+            from src.vector.vector_service import VectorService
+
             uow = SQLAlchemyUnitOfWork()
-            cache = RedisCacheService()
-            vector = QdrantVectorService()
-            graph = GraphService()
-            embed = MockEmbeddingProvider()
-            
+            cache = CacheService(None)  # type: ignore[arg-type]
+            vector = VectorService(None)  # type: ignore[arg-type]
+            graph = GraphService(None)  # type: ignore[arg-type]
+            embed = RuntimeEmbeddingProvider()
+
             manager = MemoryManager(uow, cache, vector, graph, embed)
             mem_out = await manager.retrieval.retrieve_context(query, session_id, limit=3)
             memory_notes = f"[Memory Recall] Recalled working transcripts: {mem_out.get('working')} | Ranked fusion hits: {len(mem_out.get('ranked_fusion', []))}"

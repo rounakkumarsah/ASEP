@@ -10,7 +10,6 @@ from __future__ import annotations
 import base64
 import io
 import logging
-from typing import Any, Dict, Optional
 
 from src.config.settings import get_settings
 
@@ -20,7 +19,7 @@ logger = logging.getLogger(__name__)
 class UniversalIngestionService:
     """Ingestion pipeline for multi-format documents and code screenshot images."""
 
-    def __init__(self, gemini_api_key: Optional[str] = None) -> None:
+    def __init__(self, gemini_api_key: str | None = None) -> None:
         self.settings = get_settings()
         self.api_key = gemini_api_key or self.settings.GEMINI_API_KEY
 
@@ -69,7 +68,7 @@ class UniversalIngestionService:
                 return "\n".join(text_runs)
             except Exception as exc:
                 logger.warning("pptx parsing failed for %s: %s", filename, exc)
-                return f"[PPTX Fallback]: presentation presentation.pptx content"
+                return "[PPTX Fallback]: presentation presentation.pptx content"
 
         elif fname_lower.endswith((".xlsx", ".xls")):
             try:

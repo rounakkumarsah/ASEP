@@ -5,7 +5,7 @@ ASEP — Evaluation Health Check
 import logging
 
 from src.evaluation.scoring import Scorer
-from src.evaluation.tracing import Trace, TraceStore, Tracer
+from src.evaluation.tracing import Trace, Tracer, TraceStore
 from src.evaluation.trajectory import TrajectoryAnalyzer
 
 logger = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ async def evaluation_health_check() -> bool:
 
         # 4. Scorer produces bounded output
         scorer = Scorer()
-        from src.evaluation.metrics import LatencyMetrics, SessionMetrics, MemoryMetrics
+        from src.evaluation.metrics import LatencyMetrics, SessionMetrics
         metrics = SessionMetrics(
             session_id="hc", run_id="hc-run", thread_id="hc", trace_id="hc-trace",
             task_count=2, succeeded=2,

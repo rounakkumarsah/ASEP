@@ -14,14 +14,13 @@ from __future__ import annotations
 import enum
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set
 
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
 
-class ModelTier(str, enum.Enum):
+class ModelTier(enum.StrEnum):
     FLASH_LITE = "flash_lite"
     FLASH = "flash"
     PRO = "pro"
@@ -31,8 +30,8 @@ class ModelTier(str, enum.Enum):
 class AgentCapability:
     name: str
     description: str
-    supported_tasks: Set[str] = field(default_factory=set)
-    supported_tools: Set[str] = field(default_factory=set)
+    supported_tasks: set[str] = field(default_factory=set)
+    supported_tools: set[str] = field(default_factory=set)
     cost_per_1k_tokens: float = 0.001
     latency_score: float = 0.9  # 0.0 (slowest) to 1.0 (fastest)
 
@@ -40,7 +39,7 @@ class AgentCapability:
 class AgentProfile(BaseModel):
     name: str
     role: str
-    capabilities: List[str] = Field(default_factory=list)
+    capabilities: list[str] = Field(default_factory=list)
     model_tier: ModelTier = ModelTier.FLASH
     max_tokens: int = 4096
     cost_per_1k_tokens: float = 0.001
@@ -57,8 +56,8 @@ class CapabilityMatcher:
     def score_agent(
         self,
         agent: AgentProfile,
-        required_capabilities: List[str],
-        task_tags: List[str],
+        required_capabilities: list[str],
+        task_tags: list[str],
     ) -> float:
         if not agent.is_active:
             return 0.0
@@ -112,10 +111,10 @@ class CostAwareRouter:
 class AgentRouterEngine:
     """Routes tasks to candidate agents using capabilities, cost, and availability."""
 
-    def __init__(self, agents: Optional[List[AgentProfile]] = None) -> None:
+    def __init__(self, agents: list[AgentProfile] | None = None) -> None:
         self.matcher = CapabilityMatcher()
         self.cost_router = CostAwareRouter()
-        self.registry: Dict[str, AgentProfile] = {}
+        self.registry: dict[str, AgentProfile] = {}
 
         # Default registered profiles
         default_profiles = agents or [
@@ -133,11 +132,11 @@ class AgentRouterEngine:
     def route_task(
         self,
         task_description: str,
-        required_capabilities: Optional[List[str]] = None,
-        task_tags: Optional[List[str]] = None,
+        required_capabilities: list[str] | None = None,
+        task_tags: list[str] | None = None,
         urgency: str = "normal",
         max_cost_budget: float = 0.05,
-    ) -> Optional[AgentProfile]:
+    ) -> AgentProfile | None:
         req_caps = required_capabilities or []
         tags = task_tags or []
 
@@ -151,7 +150,7 @@ class AgentRouterEngine:
             else:
                 req_caps.append("execution")
 
-        best_agent: Optional[AgentProfile] = None
+        best_agent: AgentProfile | None = None
         best_score = -1.0
 
         for agent in self.registry.values():

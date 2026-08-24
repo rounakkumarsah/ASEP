@@ -3,6 +3,7 @@ ASEP — Unit Tests for Evaluation, Observability & Operations (Phase P2)
 """
 
 import pytest
+
 from src.production.eval_framework import EvaluationFramework
 from src.production.governance_engine import GovernanceEngine
 from src.production.observability_tracer import AgentObservabilityTracer
@@ -25,7 +26,7 @@ def test_eval_framework():
 
 def test_observability_tracer():
     tracer = AgentObservabilityTracer()
-    span = tracer.start_span("s1", "tr1", "planner", "decompose_task")
+    tracer.start_span("s1", "tr1", "planner", "decompose_task")
     tracer.end_span("s1", status="ok", tokens_used=150, cost_usd=0.0002)
 
     summary = tracer.get_trace_summary("tr1")
@@ -61,7 +62,7 @@ def test_circuit_breaker_and_dlq():
         cb.check_state()
 
     dlq = DeadLetterQueue()
-    msg = dlq.enqueue("m1", "e1", "planner", {"task": "plan"}, "Timeout")
+    dlq.enqueue("m1", "e1", "planner", {"task": "plan"}, "Timeout")
     assert len(dlq.list_messages()) == 1
 
     replayed = dlq.replay_message("m1")

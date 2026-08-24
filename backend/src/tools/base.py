@@ -2,14 +2,12 @@
 ASEP — Base Tool Abstraction
 """
 
-import sys
 from abc import ABC, abstractmethod
-from typing import Any, Type, Optional, List
+from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
-from src.tools.metadata import ToolMetadata, ToolType, ToolCategory
-from src.tools.permissions import ToolPermission
+from src.tools.metadata import ToolMetadata, ToolType
 from src.tools.schemas import ToolExecutionOutput
 
 
@@ -20,8 +18,8 @@ class BaseTool(ABC):
     version: str = "1.0.0"
     description: str
     category: str  # ToolCategory
-    input_model: Type[BaseModel]
-    required_permissions: List[str] = []
+    input_model: type[BaseModel]
+    required_permissions: list[str] = []
 
     # Sandbox / safety metadata declarations
     sandbox_supported: bool = True
@@ -32,7 +30,7 @@ class BaseTool(ABC):
         """Returns the JSON schema describing input arguments."""
         return self.input_model.model_json_schema()
 
-    def permissions(self) -> List[str]:
+    def permissions(self) -> list[str]:
         """Returns the required permissions list."""
         return self.required_permissions
 
@@ -73,6 +71,6 @@ class BaseTool(ABC):
         }
 
     @abstractmethod
-    async def execute(self, arguments: dict[str, Any], session_id: Optional[str] = None) -> ToolExecutionOutput:
+    async def execute(self, arguments: dict[str, Any], session_id: str | None = None) -> ToolExecutionOutput:
         """Asynchronously execute the tool logic with validated arguments."""
         pass

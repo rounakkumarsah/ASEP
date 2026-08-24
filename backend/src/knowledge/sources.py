@@ -3,7 +3,8 @@ ASEP — Knowledge Source Registry
 """
 
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -14,11 +15,11 @@ class KnowledgeSource(BaseModel):
     source_id: str
     name: str
     source_type: str  # Git Repository, Documentation, Local Files, Markdown, PDF, HTML, API, Website
-    source_url: Optional[str] = None
+    source_url: str | None = None
     version: str = "1.0"
     is_enabled: bool = True
     trust_level: float = Field(default=0.8, ge=0.0, le=1.0)
-    license: Optional[str] = "Proprietary"
+    license: str | None = "Proprietary"
     language: str = "en"
     provenance: str = "System Config"
 
@@ -27,7 +28,7 @@ class SourceRegistry:
     """Thread-safe registry for configuring sync sources."""
 
     def __init__(self) -> None:
-        self._sources: Dict[str, KnowledgeSource] = {}
+        self._sources: dict[str, KnowledgeSource] = {}
 
     def register_source(self, source: KnowledgeSource) -> None:
         """Register a knowledge source."""
@@ -40,11 +41,11 @@ class SourceRegistry:
             del self._sources[source_id]
             logger.info(f"Unregistered knowledge source: {source_id}")
 
-    def discover_sources(self) -> List[KnowledgeSource]:
+    def discover_sources(self) -> list[KnowledgeSource]:
         """Discover all configured knowledge sources."""
         return list(self._sources.values())
 
-    def lookup(self, source_id: str) -> Optional[KnowledgeSource]:
+    def lookup(self, source_id: str) -> KnowledgeSource | None:
         """Lookup source details by ID."""
         return self._sources.get(source_id)
 
@@ -58,20 +59,20 @@ class SourceRegistry:
         if source_id in self._sources:
             self._sources[source_id].is_enabled = False
 
-    def metadata(self, source_id: str) -> Optional[Dict[str, Any]]:
+    def metadata(self, source_id: str) -> dict[str, Any] | None:
         """Get source metadata."""
         src = self._sources.get(source_id)
         if not src:
             return None
         return src.model_dump()
 
-    def version(self, source_id: str) -> Optional[str]:
+    def version(self, source_id: str) -> str | None:
         """Get source version."""
         src = self._sources.get(source_id)
         return src.version if src else None
 
 
-_global_source_registry: Optional[SourceRegistry] = None
+_global_source_registry: SourceRegistry | None = None
 
 def get_source_registry() -> SourceRegistry:
     global _global_source_registry

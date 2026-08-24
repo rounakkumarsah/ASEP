@@ -4,19 +4,17 @@ ASEP — Users API Router
 Endpoints for operator profiles, username availability checks, and daily quotas.
 """
 
-from typing import Annotated, Optional
-import uuid
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, status
 
-from src.auth.dependencies import AuthServiceDep, CurrentUser, get_auth_service, get_user_service
+from src.auth.dependencies import AuthServiceDep, CurrentUser
 from src.auth.schemas import (
     CheckUsernameResponse,
     ProfileUpdateRequest,
     UserQuotaResponse,
     UserResponse,
 )
-from src.db.models.user import User
 from src.production.monetization import FreemiumRateLimiter
 
 router = APIRouter(prefix="/users", tags=["Users"])

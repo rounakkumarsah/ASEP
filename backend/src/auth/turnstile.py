@@ -1,5 +1,7 @@
 import logging
 
+import httpx
+
 from src.config.settings import get_settings
 
 logger = logging.getLogger(__name__)
@@ -55,7 +57,7 @@ async def verify_turnstile_token(token: str | None, remote_ip: str | None = None
                     f"Turnstile verification failed: error-codes={res_data.get('error-codes')}, "
                     f"hostname={res_data.get('hostname')}"
                 )
-            return success
+            return bool(success)
     except Exception as e:
         logger.exception(f"Exception during Turnstile validation: {e}")
         return False

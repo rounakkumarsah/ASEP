@@ -12,7 +12,7 @@ import logging
 import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -27,7 +27,7 @@ class ChatMessage(BaseModel):
     role: str  # user, assistant, system, tool
     content: str
     timestamp: float = Field(default_factory=time.time)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class ConversationMemory(BaseModel):
@@ -35,14 +35,14 @@ class ConversationMemory(BaseModel):
     session_id: str
     max_messages: int = 50
     max_tokens: int = 4096
-    messages: List[ChatMessage] = Field(default_factory=list)
+    messages: list[ChatMessage] = Field(default_factory=list)
 
-    def add_message(self, role: str, content: str, metadata: Optional[Dict[str, Any]] = None) -> None:
+    def add_message(self, role: str, content: str, metadata: dict[str, Any] | None = None) -> None:
         msg = ChatMessage(role=role, content=content, metadata=metadata or {})
         self.messages.append(msg)
         self._truncate_window()
 
-    def get_messages(self) -> List[ChatMessage]:
+    def get_messages(self) -> list[ChatMessage]:
         return list(self.messages)
 
     def _truncate_window(self) -> None:
@@ -59,7 +59,7 @@ class ConversationMemory(BaseModel):
 # Eviction Policies (LRU & TTL)
 # ---------------------------------------------------------------------------
 
-class EvictionStrategy(str, enum.Enum):
+class EvictionStrategy(enum.StrEnum):
     LRU = "lru"
     TTL = "ttl"
     IMPORTANCE = "importance"
@@ -71,7 +71,7 @@ class MemoryItem:
     value: Any
     created_at: float = field(default_factory=time.time)
     last_accessed: float = field(default_factory=time.time)
-    ttl_seconds: Optional[float] = None
+    ttl_seconds: float | None = None
     importance: float = 1.0
 
 
@@ -81,7 +81,7 @@ class MemoryEvictionPolicy:
     def __init__(
         self,
         max_capacity: int = 1000,
-        default_ttl: Optional[float] = 3600.0,
+        default_ttl: float | None = 3600.0,
         strategy: EvictionStrategy = EvictionStrategy.LRU,
     ) -> None:
         self.max_capacity = max_capacity
@@ -89,7 +89,7 @@ class MemoryEvictionPolicy:
         self.strategy = strategy
         self._store: OrderedDict[str, MemoryItem] = OrderedDict()
 
-    def set(self, key: str, value: Any, ttl: Optional[float] = None, importance: float = 1.0) -> None:
+    def set(self, key: str, value: Any, ttl: float | None = None, importance: float = 1.0) -> None:
         now = time.time()
         item_ttl = ttl if ttl is not None else self.default_ttl
 

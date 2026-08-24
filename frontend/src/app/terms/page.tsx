@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { LandingNavbar } from "@/components/landing/navbar";
 import { LandingFooter } from "@/components/landing/footer";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Terms of Service | ASEP",
-  description: "Terms and conditions for using the Autonomous Software Engineering Platform.",
+  description: "Terms and conditions governing the Autonomous Software Engineering Platform (ASEP).",
 };
 
 export default function TermsPage() {
@@ -12,30 +13,93 @@ export default function TermsPage() {
     <div className="flex min-h-screen flex-col bg-[#090B0F] text-[#F5F7FA]">
       <LandingNavbar />
       
-      <main className="flex-1 pt-24 pb-16">
-        <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-          <h1 className="text-3xl font-extrabold tracking-tight mb-2 text-[#F5F7FA] font-mono">Terms of Service</h1>
-          <p className="text-[11px] font-mono text-[#667085] mb-8">Last Updated: August 6, 2026</p>
+      <main className="flex-1 pt-28 pb-20">
+        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-10">
+            <h1 className="text-3xl font-extrabold tracking-tight mb-2 text-[#F5F7FA] font-mono">
+              Terms of Service
+            </h1>
+            <p className="text-xs font-mono text-[#667085]">
+              Effective Date: August 22, 2026 | Version 1.0.0
+            </p>
+          </div>
           
-          <div className="space-y-6 text-xs text-[#9CA6B5] leading-relaxed font-sans">
-            <section className="p-5 border border-[#202833] bg-[#0D1117] rounded-xl space-y-2">
+          <div className="space-y-6 text-xs text-[#9CA6B5] leading-relaxed">
+            <section className="p-6 border border-[#202833] bg-[#0D1117] rounded-xl space-y-3">
               <h2 className="text-sm font-mono font-bold text-[#F5F7FA]">1. Acceptance of Terms</h2>
               <p>
-                By accessing or using the ASEP platform, you agree to comply with and be bound by these Terms of Service. If you do not agree, please do not use our services.
+                By registering for an account, accessing, or using the Autonomous Software Engineering Platform (&ldquo;ASEP&rdquo;, &ldquo;Platform&rdquo;, &ldquo;Service&rdquo;), you (&ldquo;Customer&rdquo;, &ldquo;User&rdquo;, &ldquo;you&rdquo;) agree to be bound by these Terms of Service (&ldquo;Terms&rdquo;) and our <Link href="/privacy" className="text-[#22D3EE] hover:underline font-semibold">Privacy Policy</Link>. If you are accepting on behalf of an organization, you represent and warrant that you possess full authority to bind that entity to these Terms.
               </p>
             </section>
 
-            <section className="p-5 border border-[#202833] bg-[#0D1117] rounded-xl space-y-2">
-              <h2 className="text-sm font-mono font-bold text-[#F5F7FA]">2. Description of Service</h2>
+            <section className="p-6 border border-[#202833] bg-[#0D1117] rounded-xl space-y-3">
+              <h2 className="text-sm font-mono font-bold text-[#F5F7FA]">2. Platform Capabilities & Autonomous Agent Operations</h2>
               <p>
-                ASEP provides a local control plane and isolated sandbox execution environments for running and orchestrating autonomous software developer agents.
+                ASEP provides an autonomous software development orchestration suite, sandbox execution runners, multi-agent control planes, memory indexers, and continuous engineering workflows.
+              </p>
+              <p>
+                <strong>Execution Discretion:</strong> You acknowledge that autonomous agents operate by executing automated scripts, code edits, and dependency analysis. You are solely responsible for setting appropriate Human-in-the-Loop (&ldquo;HITL&rdquo;) approval gates, API quota limits, and permissions within your workspace.
               </p>
             </section>
 
-            <section className="p-5 border border-[#202833] bg-[#0D1117] rounded-xl space-y-2">
-              <h2 className="text-sm font-mono font-bold text-[#F5F7FA]">3. User Responsibilities</h2>
+            <section className="p-6 border border-[#202833] bg-[#0D1117] rounded-xl space-y-3">
+              <h2 className="text-sm font-mono font-bold text-[#F5F7FA]">3. Account Security & Responsibilities</h2>
+              <ul className="list-disc pl-5 space-y-1.5">
+                <li>You must provide accurate, current, and complete registration information.</li>
+                <li>You are responsible for maintaining the confidentiality of your credentials, Multi-Factor Authentication (MFA) tokens, and API access keys.</li>
+                <li>You agree to immediately notify ASEP of any unauthorized account access or security breach.</li>
+                <li>Accounts registered by &ldquo;bots&rdquo; or automated methods without prior authorization are strictly prohibited.</li>
+              </ul>
+            </section>
+
+            <section className="p-6 border border-[#202833] bg-[#0D1117] rounded-xl space-y-3">
+              <h2 className="text-sm font-mono font-bold text-[#F5F7FA]">4. Intellectual Property & Code Ownership</h2>
               <p>
-                You are responsible for obtaining appropriate license credentials for any third-party language models integrated with your agent workflows, and for maintaining security of your local configurations.
+                <strong>Customer Code & Outputs:</strong> You retain full, exclusive ownership of all source code, architecture designs, prompts, and software artifacts generated by agents operating in your workspace. ASEP asserts no intellectual property claims over code generated for you.
+              </p>
+              <p>
+                <strong>Platform IP:</strong> ASEP and its licensors retain all rights, title, and interest in and to the Platform, runtime engines, proprietary algorithms, user interfaces, documentation, and trademarks.
+              </p>
+            </section>
+
+            <section className="p-6 border border-[#202833] bg-[#0D1117] rounded-xl space-y-3">
+              <h2 className="text-sm font-mono font-bold text-[#F5F7FA]">5. Subscription Plans, Billing & Refunds</h2>
+              <p>
+                Certain features, agent execution compute, and multi-tenant quotas require a paid subscription.
+              </p>
+              <ul className="list-disc pl-5 space-y-1.5">
+                <li><strong>Payment Processing:</strong> Payments are processed via authorized payment gateways (e.g. Razorpay). By subscribing, you authorize recurring charges in accordance with your chosen billing cycle.</li>
+                <li><strong>Cancellation:</strong> You may cancel your subscription at any time via the billing portal. Access continues through the end of the active billing period.</li>
+                <li><strong>Refunds:</strong> Unless required by applicable law, fees paid are non-refundable once the billing period has commenced.</li>
+              </ul>
+            </section>
+
+            <section className="p-6 border border-[#202833] bg-[#0D1117] rounded-xl space-y-3">
+              <h2 className="text-sm font-mono font-bold text-[#F5F7FA]">6. Fair Use & Prohibited Conduct</h2>
+              <p>You agree not to use ASEP to:</p>
+              <ul className="list-disc pl-5 space-y-1.5">
+                <li>Generate malware, ransomware, exploits, or malicious code designed to disrupt external infrastructure.</li>
+                <li>Circumvent rate limits, compute bounds, or security sandboxes.</li>
+                <li>Reverse engineer, decompile, or extract the core platform algorithms without express written consent.</li>
+                <li>Resell, sublicense, or redistribute the platform access without an enterprise partnership agreement.</li>
+              </ul>
+            </section>
+
+            <section className="p-6 border border-[#202833] bg-[#0D1117] rounded-xl space-y-3">
+              <h2 className="text-sm font-mono font-bold text-[#F5F7FA]">7. Limitation of Liability & Warranty Disclaimer</h2>
+              <p>
+                THE PLATFORM IS PROVIDED &ldquo;AS IS&rdquo; AND &ldquo;AS AVAILABLE&rdquo; WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED. TO THE MAXIMUM EXTENT PERMITTED BY LAW, ASEP SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING LOSS OF PROFITS, DATA LOSS, SYSTEM DOWNTIME, OR CODE COMPILATION DEFECTS ARISING OUT OF YOUR USE OF THE SERVICE.
+              </p>
+            </section>
+
+            <section className="p-6 border border-[#202833] bg-[#0D1117] rounded-xl space-y-3">
+              <h2 className="text-sm font-mono font-bold text-[#F5F7FA]">8. Contact & Legal Inquiries</h2>
+              <p>
+                If you have questions regarding these Terms, please contact our legal and support team at{" "}
+                <a href="mailto:legal@asep.dev" className="text-[#22D3EE] hover:underline font-mono">
+                  legal@asep.dev
+                </a>{" "}
+                or reach out via the <Link href="/contact" className="text-[#22D3EE] hover:underline font-semibold">Contact Page</Link>.
               </p>
             </section>
           </div>
@@ -46,3 +110,4 @@ export default function TermsPage() {
     </div>
   );
 }
+

@@ -1,8 +1,9 @@
-import pytest
-import tempfile
 import os
-from src.documents.loaders import get_loader_for_file, PPTXLoader, LogLoader
+import tempfile
+
+from src.documents.loaders import LogLoader, PPTXLoader, get_loader_for_file
 from src.documents.ocr import OCRImageLoader
+
 
 def test_pptx_loader_fallback():
     loader = get_loader_for_file("presentation.pptx")

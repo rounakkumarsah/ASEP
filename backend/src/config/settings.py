@@ -77,7 +77,7 @@ class Settings(BaseSettings):
         default=None,
         description="Optional password for Redis authentication."
     )
-    
+
     # -----------------------------------------------------------------------
     # Terminal & Governance
     # -----------------------------------------------------------------------
@@ -124,7 +124,7 @@ class Settings(BaseSettings):
 
     # Embedding Provider Settings
     EMBEDDING_API_URL: str = Field(
-        default="http://localhost:11434/v1/embeddings", 
+        default="http://localhost:11434/v1/embeddings",
         description="OpenAI-compatible embedding endpoint URL"
     )
     EMBEDDING_API_KEY: str | None = Field(default=None, description="API Key for embedding service")
@@ -276,7 +276,7 @@ class Settings(BaseSettings):
     def validate_database_url(cls, v: str) -> str:
         import os
         is_prod = os.getenv("APP_ENV", "development") == "production"
-        
+
         # Enforce that in production a production-grade database URL is provided
         default_indicators = ["localhost", "postgres:5432", "changeme", "asep:changeme"]
         if is_prod and any(ind in v for ind in default_indicators):
@@ -284,13 +284,13 @@ class Settings(BaseSettings):
                 "CRITICAL: A production DATABASE_URL environment variable is required when APP_ENV=production. "
                 "Local fallback database credentials are not permitted in production."
             )
-            
+
         # Standardize connection scheme to AsyncPG or Psycopg async engine format
         if v.startswith("postgres://"):
             v = v.replace("postgres://", "postgresql+asyncpg://", 1)
         elif v.startswith("postgresql://"):
             v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
-            
+
         # Strip query parameters like sslmode=require that asyncpg rejects as unsupported kwargs
         if "?" in v:
             v = v.split("?")[0]
@@ -314,10 +314,10 @@ class Settings(BaseSettings):
             "change_me_in_production",
             "change_me_in_production_refresh"
         ]
-        
+
         import os
         is_prod = os.getenv("APP_ENV", "development") == "production"
-        
+
         if is_prod and v in defaults:
             import logging
             logging.getLogger(__name__).warning("Production Security Warning: %s is using default placeholder value.", info.field_name)
@@ -334,43 +334,44 @@ class Settings(BaseSettings):
         return v
 
 
+
 from pydantic import model_validator
-from typing import Any
+
 
 # Re-declare Settings class suffix with root validators
 class Settings(Settings):
     @model_validator(mode="after")
     def validate_production_environment_variables(self) -> Settings:
-        import os
         import logging
+        import os
         log = logging.getLogger(__name__)
         app_env = os.getenv("APP_ENV", "development")
         is_production_like = app_env in ("staging", "production") or self.APP_ENV in ("staging", "production")
-        
+
         if is_production_like:
             # 1. Validate DATABASE_URL
             db_url = getattr(self, "DATABASE_URL", "") or os.getenv("DATABASE_URL", "")
             db_fallbacks = ["localhost", "postgres:5432", "changeme", "asep:changeme"]
             if not db_url or any(fb in db_url for fb in db_fallbacks):
                 log.warning("Production Warning: DATABASE_URL is using local default: %s", db_url)
-                
+
             # 2. Validate REDIS_URL
             redis_url = getattr(self, "REDIS_URL", "") or os.getenv("REDIS_URL", "")
             redis_fallbacks = ["localhost", "redis:6379", "127.0.0.1"]
             if not redis_url or any(fb in redis_url for fb in redis_fallbacks):
                 log.warning("Production Warning: REDIS_URL is using local default: %s", redis_url)
-                
+
             # 3. Validate SECRET_KEY keys
             secret_key = getattr(self, "SECRET_KEY", "")
             secret_fallbacks = ["change-this-to-a-random-256-bit-secret", "change_me_in_production"]
             if not secret_key or any(fb in secret_key for fb in secret_fallbacks):
                 log.warning("Production Warning: SECRET_KEY should be set to a secure 256-bit random value.")
-                
+
             # 4. Validate ANTHROPIC_API_KEY
             anthropic_key = getattr(self, "ANTHROPIC_API_KEY", "") or os.getenv("ANTHROPIC_API_KEY", "")
             if not anthropic_key:
                 log.info("Production Info: ANTHROPIC_API_KEY is not configured; other available providers will be used.")
-                
+
         return self
 
 @lru_cache(maxsize=1)

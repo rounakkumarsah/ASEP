@@ -7,11 +7,13 @@ operations to the official SDK and correctly formats records.
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
-from qdrant_client.http.models import Distance, UpdateStatus, UpdateResult
-from src.vector.vector_service import VectorService
+
+import pytest
+from qdrant_client.http.models import Distance
+
 from src.vector.models import VectorRecord
+from src.vector.vector_service import VectorService
 
 
 @pytest.mark.asyncio
@@ -72,7 +74,7 @@ async def test_vector_service_delete_collection_not_found():
 @pytest.mark.asyncio
 async def test_vector_service_upsert_documents():
     mock_client = AsyncMock()
-    
+
     # Mock update result
     mock_result = MagicMock()
     mock_result.status = MagicMock()
@@ -96,14 +98,14 @@ async def test_vector_service_upsert_documents():
 @pytest.mark.asyncio
 async def test_vector_service_search():
     mock_client = AsyncMock()
-    
+
     # Mock query_points response (Qdrant v1.7+)
     mock_hit = MagicMock()
     mock_hit.id = "point-1"
     mock_hit.score = 0.95
     mock_hit.payload = {"text": "hello"}
     mock_hit.version = 1
-    
+
     mock_response = MagicMock()
     mock_response.points = [mock_hit]
     mock_client.query_points.return_value = mock_response

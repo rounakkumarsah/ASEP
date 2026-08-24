@@ -3,8 +3,8 @@ Tests for AgentRunService
 """
 
 import uuid
+
 import pytest
-from unittest.mock import AsyncMock
 
 from src.db.models.agent_run import AgentRun, RunStatus
 from src.services.agent_run_service import AgentRunService

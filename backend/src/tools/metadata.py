@@ -2,18 +2,18 @@
 ASEP — Tool Metadata Schemas
 """
 
-from enum import Enum
-from typing import Any, List
+from enum import StrEnum
+from typing import Any
 
 from pydantic import BaseModel, Field
 
 
-class ToolType(str, Enum):
+class ToolType(StrEnum):
     LOCAL = "local"
     MCP = "mcp"
 
 
-class ToolCategory(str, Enum):
+class ToolCategory(StrEnum):
     DEVELOPMENT = "Development"
     INFRASTRUCTURE = "Infrastructure"
     DATABASE = "Database"
@@ -33,12 +33,12 @@ class ToolMetadata(BaseModel):
     input_schema: dict[str, Any] = Field(
         description="JSON schema describing the required and optional arguments"
     )
-    required_permissions: List[str] = Field(
+    required_permissions: list[str] = Field(
         default_factory=list,
         description="Permission scopes required to trigger this tool"
     )
     tool_type: ToolType = Field(default=ToolType.LOCAL, description="Classification of tool execution route")
-    
+
     # Sandbox/Safety capabilities
     sandbox_supported: bool = Field(default=True, description="Indicates if the tool can execute in a sandbox")
     destructive_operations: bool = Field(default=False, description="Indicates if the tool runs destructive commands")

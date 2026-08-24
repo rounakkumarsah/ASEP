@@ -1,10 +1,10 @@
 import asyncio
-from src.multi_agent import (
-    MessageBus, AgentRegistry, Supervisor, AgentRole, CoordinationContext
-)
-from src.multi_agent.planner_agent import PlannerAgent
+
+from src.multi_agent import AgentRegistry, AgentRole, MessageBus, Supervisor
 from src.multi_agent.executor_agent import ExecutorAgent
+from src.multi_agent.planner_agent import PlannerAgent
 from src.planner.plan import DecomposedPlan
+
 
 # Mocks
 class MockPlanner:
@@ -15,7 +15,7 @@ class MockPlanner:
 class MockExecutor:
     async def execute(self, plan: DecomposedPlan):
         print(f"MockExecutor executing plan for: {plan.goal}")
-        from src.executor.result import ExecutionReport, ExecutionResult, TaskResult
+        from src.executor.result import ExecutionReport, ExecutionResult
         # Return a dummy report matching the schema
         return ExecutionReport(session_id="hc", run_id="hc", passed=True, result=ExecutionResult(status="completed", output={}), tasks=[])
 
@@ -29,16 +29,16 @@ async def run_integration_test():
     # We only register and start planner and executor for this mock pipeline
     planner_agent = PlannerAgent(bus, planner)
     executor_agent = ExecutorAgent(bus, executor)
-    
+
     registry.register(AgentRole.PLANNER, planner_agent)
     registry.register(AgentRole.EXECUTOR, executor_agent)
-    
+
     # We won't register evaluator/reflector for this test, the router handles missing roles by returning them
-    # Wait, the supervisor only routes if the agent exists. 
+    # Wait, the supervisor only routes if the agent exists.
     # If the role is missing, it logs "pipeline complete" and completes the session!
 
     supervisor = Supervisor(bus, registry)
-    
+
     # Start all agents
     planner_agent.start()
     executor_agent.start()
@@ -46,7 +46,7 @@ async def run_integration_test():
 
     goal = "Test the pipeline"
     print(f"Submitting goal: {goal}")
-    
+
     # supervisor.run_session is an AsyncGenerator
     async for result in supervisor.run_session(goal):
         print("Final result received by Supervisor:")

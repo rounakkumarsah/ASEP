@@ -36,9 +36,9 @@ from src.evaluation.scoring import (
 )
 from src.evaluation.tracing import (
     Trace,
+    Tracer,
     TraceSpan,
     TraceStore,
-    Tracer,
 )
 from src.evaluation.trajectory import (
     Trajectory,

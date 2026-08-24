@@ -8,8 +8,8 @@ Supports replay for regression testing.
 
 import logging
 import uuid
-from datetime import datetime, timezone
-from typing import Any, AsyncGenerator, Callable
+from collections.abc import AsyncGenerator, Callable
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 
@@ -17,7 +17,7 @@ from src.agent.events import AgentEvent, AgentEventType
 from src.evaluation.datasets import EvaluationCase, EvaluationDataset
 from src.evaluation.metrics import MetricsCollector, SessionMetrics
 from src.evaluation.scoring import AllScores, Scorer
-from src.evaluation.tracing import Trace, TraceStore, Tracer
+from src.evaluation.tracing import Trace, Tracer, TraceStore
 from src.evaluation.trajectory import Trajectory, TrajectoryAnalysis, TrajectoryAnalyzer
 
 logger = logging.getLogger(__name__)
@@ -48,7 +48,7 @@ class EvaluationResult(BaseModel):
 
     passed: bool
     error: str | None = None
-    evaluated_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    evaluated_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
 
     # Replay metadata
     is_replay: bool = False

@@ -1,12 +1,12 @@
-import pytest
-import tempfile
 import os
-from unittest.mock import MagicMock
-from src.multi_agent.contracts import AgentRole, AgentState, AgentRequest
-from src.multi_agent.registry import AgentRegistry
-from src.multi_agent.research_agent import ResearchAgent
+import tempfile
+
+import pytest
+
 from src.multi_agent.coding_agent import CodingAgent
-from src.governance.screenshot_debug import ScreenshotDebugger
+from src.multi_agent.contracts import AgentRequest, AgentState
+from src.multi_agent.research_agent import ResearchAgent
+
 
 @pytest.mark.asyncio
 async def test_upgraded_research_agent_pipeline():

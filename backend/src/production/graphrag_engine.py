@@ -10,7 +10,6 @@ from __future__ import annotations
 import hashlib
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
 
 from src.cache.redis import get_redis_client
 
@@ -20,7 +19,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SemanticCacheHit:
     is_hit: bool
-    cached_solution: Optional[str] = None
+    cached_solution: str | None = None
     similarity_score: float = 0.0
 
 

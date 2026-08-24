@@ -2,10 +2,11 @@
 ASEP — Authentication Schemas
 """
 
-import uuid
 import datetime
-from typing import Literal, Optional
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
+import uuid
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class TokenResponse(BaseModel):
@@ -43,18 +44,18 @@ class UserResponse(BaseModel):
     email: str
     role: str
     is_active: bool
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    company: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
+    company: str | None = None
     email_verified: bool
     status: str
-    avatar_url: Optional[str] = None
+    avatar_url: str | None = None
     mfa_enabled: bool = False
-    account_type: Optional[str] = "individual"
-    timezone: Optional[str] = "UTC"
-    locale: Optional[str] = "en"
-    current_plan: Optional[str] = "free"
-    last_login: Optional[datetime.datetime] = None
+    account_type: str | None = "individual"
+    timezone: str | None = "UTC"
+    locale: str | None = "en"
+    current_plan: str | None = "free"
+    last_login: datetime.datetime | None = None
     created_at: datetime.datetime
     updated_at: datetime.datetime
 
@@ -64,25 +65,25 @@ class UserResponse(BaseModel):
 class SignupRequest(BaseModel):
     firstName: str = Field(..., min_length=1)
     lastName: str = Field(..., min_length=1)
-    username: Optional[str] = None
-    company: Optional[str] = None
+    username: str | None = None
+    company: str | None = None
     email: str
     password: str = Field(..., min_length=12)
     acceptTerms: bool = Field(..., Literal=True)
-    captchaToken: Optional[str] = None
+    captchaToken: str | None = None
 
 
 class LoginRequest(BaseModel):
     email: str
     password: str
-    code: Optional[str] = None  # MFA OTP code if mfa_enabled
-    rememberMe: Optional[bool] = False
+    code: str | None = None  # MFA OTP code if mfa_enabled
+    rememberMe: bool | None = False
 
 
 class VerifyEmailRequest(BaseModel):
-    email: Optional[str] = None
-    code: Optional[str] = None
-    token: Optional[str] = None
+    email: str | None = None
+    code: str | None = None
+    token: str | None = None
 
 
 class ForgotPasswordRequest(BaseModel):
@@ -99,13 +100,13 @@ class ResetPasswordRequest(BaseModel):
 
 
 class ProfileUpdateRequest(BaseModel):
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    username: Optional[str] = None
-    avatar: Optional[str] = None
-    account_type: Optional[str] = None
-    timezone: Optional[str] = None
-    locale: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
+    username: str | None = None
+    avatar: str | None = None
+    account_type: str | None = None
+    timezone: str | None = None
+    locale: str | None = None
 
 
 class CheckUsernameResponse(BaseModel):

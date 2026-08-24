@@ -33,7 +33,7 @@ from __future__ import annotations
 import logging
 import uuid
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.db.models.agent_run import AgentRun, RunStatus
 from src.services.exceptions import InvalidStateError
@@ -176,7 +176,7 @@ class AgentRunService:
             run = await uow.agent_runs.update(
                 run,
                 status=RunStatus.RUNNING,
-                started_at=datetime.now(tz=timezone.utc),
+                started_at=datetime.now(tz=UTC),
             )
             await uow.commit()
 
@@ -209,7 +209,7 @@ class AgentRunService:
             run = await uow.agent_runs.update(
                 run,
                 status=RunStatus.COMPLETED,
-                finished_at=datetime.now(tz=timezone.utc),
+                finished_at=datetime.now(tz=UTC),
                 final_output=final_output,
             )
             await uow.commit()
@@ -249,7 +249,7 @@ class AgentRunService:
             run = await uow.agent_runs.update(
                 run,
                 status=RunStatus.FAILED,
-                finished_at=datetime.now(tz=timezone.utc),
+                finished_at=datetime.now(tz=UTC),
                 error_message=error_message,
             )
             await uow.commit()
@@ -278,7 +278,7 @@ class AgentRunService:
             run = await uow.agent_runs.update(
                 run,
                 status=RunStatus.CANCELLED,
-                finished_at=datetime.now(tz=timezone.utc),
+                finished_at=datetime.now(tz=UTC),
             )
             await uow.commit()
 
@@ -306,7 +306,7 @@ class AgentRunService:
             run = await uow.agent_runs.update(
                 run,
                 status=RunStatus.TIMED_OUT,
-                finished_at=datetime.now(tz=timezone.utc),
+                finished_at=datetime.now(tz=UTC),
             )
             await uow.commit()
 

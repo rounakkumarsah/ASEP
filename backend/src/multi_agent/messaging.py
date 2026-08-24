@@ -4,7 +4,7 @@ ASEP — Messaging Bus
 
 import asyncio
 import logging
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 from src.multi_agent.contracts import AgentRole, Message
 
@@ -25,7 +25,7 @@ class MessageBus:
     async def publish(self, message: Message) -> None:
         """Publish a message to its intended recipient or broadcast if it is an EVENT."""
         logger.debug(f"[{message.session_id}] Bus publishing {message.message_type.value} from {message.sender_role.value} to {message.receiver_role.value}")
-        
+
         if message.message_type == "event":
             await self._event_queue.put(message)
         else:

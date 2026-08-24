@@ -2,10 +2,12 @@
 ASEP — Reflection Policies
 """
 
-from enum import Enum
+from enum import StrEnum
+
 from pydantic import BaseModel, Field
 
-class ReflectionTrigger(str, Enum):
+
+class ReflectionTrigger(StrEnum):
     ON_SUCCESS = "on_success"
     ON_FAILURE = "on_failure"
     ALWAYS = "always"

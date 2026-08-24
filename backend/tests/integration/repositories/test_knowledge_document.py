@@ -4,9 +4,15 @@ Integration Tests for KnowledgeDocumentRepository
 
 import uuid
 from decimal import Decimal
+
 import pytest
 
-from src.db.models.knowledge_document import KnowledgeDocument, DocumentStatus, DocumentSourceType, CrawlStatus
+from src.db.models.knowledge_document import (
+    CrawlStatus,
+    DocumentSourceType,
+    DocumentStatus,
+    KnowledgeDocument,
+)
 from src.repositories.knowledge_document import KnowledgeDocumentRepository
 
 
@@ -36,7 +42,7 @@ async def test_get_ready(repo, db_session):
     await repo.create(doc1)
     await repo.create(doc2)
     await db_session.flush()
-    
+
     ready_docs = await repo.get_ready()
     # Ensure doc1 is in ready, but doc2 is not
     assert doc1.id in [d.id for d in ready_docs]
@@ -57,11 +63,11 @@ async def test_get_by_checksum(repo, db_session):
     )
     await repo.create(doc)
     await db_session.flush()
-    
+
     fetched = await repo.get_by_checksum(checksum)
     assert fetched is not None
     assert fetched.id == doc.id
-    
+
     not_found = await repo.get_by_checksum("invalid")
     assert not_found is None
 
@@ -79,6 +85,6 @@ async def test_get_pending_crawl(repo, db_session):
     )
     await repo.create(doc)
     await db_session.flush()
-    
+
     pending = await repo.get_pending_crawl()
     assert doc.id in [d.id for d in pending]

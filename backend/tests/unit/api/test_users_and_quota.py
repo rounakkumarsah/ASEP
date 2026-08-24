@@ -9,15 +9,16 @@ Tests verifying:
 """
 
 import uuid
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 from fastapi.testclient import TestClient
 
 from src.api.app import create_app
-from src.auth.dependencies import get_current_user, get_auth_service
+from src.auth.dependencies import get_auth_service, get_current_user
 from src.auth.service import AuthService
-from src.production.monetization import FreemiumRateLimiter
 from src.db.models.user import User
+from src.production.monetization import FreemiumRateLimiter
 
 
 @pytest.mark.asyncio
@@ -146,8 +147,8 @@ def test_users_api_endpoints(monkeypatch):
     current_user_obj.locale = "en"
     current_user_obj.current_plan = "free"
     import datetime
-    current_user_obj.created_at = datetime.datetime.now(datetime.timezone.utc)
-    current_user_obj.updated_at = datetime.datetime.now(datetime.timezone.utc)
+    current_user_obj.created_at = datetime.datetime.now(datetime.UTC)
+    current_user_obj.updated_at = datetime.datetime.now(datetime.UTC)
 
     mock_auth_service = MagicMock()
     mock_auth_service.check_username_availability = AsyncMock(return_value=(True, []))
@@ -194,7 +195,7 @@ def test_users_api_endpoints(monkeypatch):
 @pytest.mark.asyncio
 async def test_duplicate_email_signup_and_normalization():
     """Verify duplicate email raises 409 and email normalization handles gmail dots."""
-    from src.auth.service import normalize_email, RESERVED_USERNAMES
+    from src.auth.service import RESERVED_USERNAMES, normalize_email
 
     # Email normalization checks
     assert normalize_email("  User.Name+test@GMAIL.COM  ") == "username@gmail.com"
@@ -210,8 +211,9 @@ async def test_duplicate_email_signup_and_normalization():
 @pytest.mark.asyncio
 async def test_totp_mfa_calculation_and_verification():
     """Verify standard RFC 6238 TOTP generation and validation."""
-    from src.auth.service import _generate_totp_secret, _calculate_totp, _verify_totp
     import time
+
+    from src.auth.service import _calculate_totp, _generate_totp_secret, _verify_totp
 
     secret = _generate_totp_secret()
     assert len(secret) == 32

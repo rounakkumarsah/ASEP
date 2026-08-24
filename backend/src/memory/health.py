@@ -14,13 +14,13 @@ logger = logging.getLogger(__name__)
 
 async def memory_health_check() -> bool:
     """Verifies that all memory storage backends are operational.
-    
+
     Checks:
         - Redis (Working Memory backend)
         - PostgreSQL (Episodic & Procedural Memory backend)
         - Qdrant (Semantic Vector storage)
         - Neo4j (Semantic Graph storage)
-        
+
     Returns:
         True if all subsystems respond successfully, False otherwise.
     """
@@ -29,7 +29,7 @@ async def memory_health_check() -> bool:
         db_healthy, _, _ = await check_db_health()
         qdrant_ok = await qdrant_health_check()
         neo4j_ok = await neo4j_health_check()
-        
+
         all_ok = redis_ok and db_healthy and qdrant_ok and neo4j_ok
         if not all_ok:
             logger.warning(

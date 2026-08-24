@@ -28,10 +28,10 @@ DEFAULT_COLLECTION = "asep_documents"
 
 
 async def create_collection_if_not_exists(
-    client: "AsyncQdrantClient",
+    client: AsyncQdrantClient,
     collection_name: str | None = None,
     vector_size: int | None = None,
-    distance_metric: "Distance | None" = None,
+    distance_metric: Distance | None = None,
 ) -> None:
     """
     Ensure a Qdrant collection exists with the correct schema.
@@ -73,7 +73,7 @@ async def create_collection_if_not_exists(
 
 
 async def delete_collection(
-    client: "AsyncQdrantClient",
+    client: AsyncQdrantClient,
     collection_name: str,
 ) -> bool:
     """

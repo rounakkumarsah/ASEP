@@ -1,7 +1,7 @@
-import os
-import re
 import logging
-from typing import Dict, Any, Tuple, Optional
+import re
+from typing import Any
+
 from src.documents.ocr import OCRImageLoader
 from src.production.graphrag_engine import LocalGraphRAGEngine
 
@@ -10,11 +10,11 @@ logger = logging.getLogger(__name__)
 class ScreenshotDebugger:
     """Performs optical character recognition (OCR) and filters system error trace blocks."""
 
-    def __init__(self, ocr_loader: Optional[OCRImageLoader] = None, graphrag_engine: Optional[LocalGraphRAGEngine] = None) -> None:
+    def __init__(self, ocr_loader: OCRImageLoader | None = None, graphrag_engine: LocalGraphRAGEngine | None = None) -> None:
         self.ocr = ocr_loader or OCRImageLoader()
         self.graphrag = graphrag_engine or LocalGraphRAGEngine()
 
-    def detect_stack_trace(self, text: str) -> Tuple[Optional[str], Optional[str]]:
+    def detect_stack_trace(self, text: str) -> tuple[str | None, str | None]:
         """Parses python, javascript, node, or bash error blocks."""
         # Check python traceback signatures
         py_match = re.search(r'(Traceback\s*\(most\s*recent\s*call\s*last\):.*)', text, re.DOTALL | re.IGNORECASE)
@@ -33,16 +33,16 @@ class ScreenshotDebugger:
 
         return None, None
 
-    async def debug_screenshot(self, file_path: str) -> Dict[str, Any]:
+    async def debug_screenshot(self, file_path: str) -> dict[str, Any]:
         """Runs the complete OCR traceback detection and retrieves cached solution recommendations."""
         logger.info(f"Analyzing screenshot for debug clues: {file_path}")
-        
+
         # 1. OCR Extract
         extracted_text, confidence = self.ocr.load_with_confidence(file_path)
-        
+
         # 2. Extract error segment & language clues
         error_block, language = self.detect_stack_trace(extracted_text)
-        
+
         # 3. If traceback is found, search semantic cache
         cache_hit = False
         solution = None

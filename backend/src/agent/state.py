@@ -2,14 +2,14 @@
 ASEP — Agent State Models
 """
 
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 
-class AgentSessionStatus(str, Enum):
+class AgentSessionStatus(StrEnum):
     IDLE = "idle"
     PLANNING = "planning"
     EXECUTING = "executing"
@@ -36,5 +36,5 @@ class AgentState(BaseModel):
         default_factory=dict,
         description="Arbitrary metadata for extensibility"
     )
-    start_time: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    start_time: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
     end_time: datetime | None = Field(default=None)

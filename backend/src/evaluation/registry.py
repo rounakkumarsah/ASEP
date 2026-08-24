@@ -3,7 +3,8 @@ ASEP — Evaluation Registry
 """
 
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Any
+
 from src.evaluation.datasets import EvaluationDataset
 
 logger = logging.getLogger(__name__)
@@ -13,7 +14,7 @@ class EvaluationRegistry:
     """Thread-safe registry for managing validation datasets and execution benchmark schemas."""
 
     def __init__(self) -> None:
-        self._datasets: Dict[str, EvaluationDataset] = {}
+        self._datasets: dict[str, EvaluationDataset] = {}
 
     def register(self, dataset: EvaluationDataset) -> None:
         """Register a validation dataset."""
@@ -26,20 +27,20 @@ class EvaluationRegistry:
             del self._datasets[name]
             logger.info(f"Unregistered evaluation dataset: {name}")
 
-    def discover(self) -> List[EvaluationDataset]:
+    def discover(self) -> list[EvaluationDataset]:
         """Discover all registered evaluation datasets."""
         return list(self._datasets.values())
 
-    def lookup(self, name: str) -> Optional[EvaluationDataset]:
+    def lookup(self, name: str) -> EvaluationDataset | None:
         """Lookup dataset details by unique name key."""
         return self._datasets.get(name)
 
-    def version(self, name: str) -> Optional[str]:
+    def version(self, name: str) -> str | None:
         """Get version of a registered dataset."""
         ds = self.lookup(name)
         return ds.version if ds else None
 
-    def metadata(self, name: str) -> Optional[Dict[str, Any]]:
+    def metadata(self, name: str) -> dict[str, Any] | None:
         """Get metadata details of a dataset."""
         ds = self.lookup(name)
         if not ds:
@@ -53,13 +54,13 @@ class EvaluationRegistry:
         }
 
 
-_global_evaluation_registry: Optional[EvaluationRegistry] = None
+_global_evaluation_registry: EvaluationRegistry | None = None
 
 def get_evaluation_registry() -> EvaluationRegistry:
     global _global_evaluation_registry
     if _global_evaluation_registry is None:
         _global_evaluation_registry = EvaluationRegistry()
-        from src.evaluation.datasets import EvaluationDataset, EvaluationCase
+        from src.evaluation.datasets import EvaluationCase, EvaluationDataset
         default_ds = EvaluationDataset(
             name="golden_rag_suite",
             version="1.1",

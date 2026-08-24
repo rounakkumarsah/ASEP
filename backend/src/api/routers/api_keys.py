@@ -12,16 +12,13 @@ Security guarantees:
 from __future__ import annotations
 
 import hashlib
-import hmac
 import logging
 import os
 import uuid
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.auth.dependencies import CurrentUser
 from src.db.models.api_key import ApiKey

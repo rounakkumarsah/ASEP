@@ -8,9 +8,9 @@ via environment variables without hardcoded credentials.
 
 from __future__ import annotations
 
-import os
 import logging
-from typing import Any, Dict, Optional
+import os
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -36,16 +36,18 @@ class CloudinaryStorageService:
             except Exception as exc:
                 logger.warning("Cloudinary configuration failed: %s", exc)
 
-    async def upload_file(self, file_bytes: bytes, filename: str, folder: str = "asep_uploads") -> Dict[str, Any]:
-        """Upload file bytes to Cloudinary and return secure URL metadata."""
+    async def upload_file(self, file_bytes: bytes, filename: str, folder: str = "asep_uploads") -> dict[str, Any]:
+        """Upload file bytes to Cloudinary and return secure URL metadata.
+
+        Raises:
+            RuntimeError: If Cloudinary credentials are not configured.
+        """
         if not (self.cloud_name and self.api_key and self.api_secret):
-            logger.info("Cloudinary keys not set — using local in-memory fallback for %s", filename)
-            return {
-                "secure_url": f"https://mock-storage.asep.internal/{folder}/{filename}",
-                "public_id": f"{folder}/{filename}",
-                "bytes": len(file_bytes),
-                "is_mock": True,
-            }
+            raise RuntimeError(
+                "File storage is not configured. "
+                "Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET "
+                "environment variables to enable file uploads."
+            )
 
         try:
             import cloudinary.uploader
@@ -63,15 +65,11 @@ class CloudinaryStorageService:
             }
         except Exception as exc:
             logger.error("Cloudinary upload failed for %s: %s", filename, exc)
-            return {
-                "secure_url": f"https://mock-storage.asep.internal/{folder}/{filename}",
-                "public_id": f"{folder}/{filename}",
-                "bytes": len(file_bytes),
-                "is_mock": True,
-            }
+            raise RuntimeError(f"File upload failed: {exc}") from exc
 
 
-def upload_to_cloudinary(file_bytes: bytes, resource_type: str = "image", filename: Optional[str] = None) -> Optional[str]:
+
+def upload_to_cloudinary(file_bytes: bytes, resource_type: str = "image", filename: str | None = None) -> str | None:
     """
     Upload file bytes to Cloudinary and return secure URL.
     Reads CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET

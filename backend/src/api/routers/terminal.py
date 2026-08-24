@@ -10,16 +10,22 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import fcntl
 import json
 import logging
 import os
-import pty
 import signal
 import struct
 import sys
-import termios
 import uuid
+
+try:
+    import fcntl
+    import pty
+    import termios
+except ImportError:
+    fcntl = None  # type: ignore[assignment]
+    pty = None  # type: ignore[assignment]
+    termios = None  # type: ignore[assignment]
 
 import redis.asyncio as redis
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
@@ -70,12 +76,24 @@ class LocalPTYSession:
         """Forks a child process attached to a PTY master/slave pair and initializes shell execution."""
         _clean_zombies()
 
-        if len(CONCURRENT_SESSIONS) >= MAX_CONCURRENT_SESSIONS:
-            logger.warning(
-                "Rejecting terminal request session=%s: Max concurrency cap reached",
-                self.session_id,
-            )
-            return False
+        settings = get_settings()
+        if hasattr(settings, "REDIS_URL") and settings.REDIS_URL:
+            if not self.redis_client:
+                self.redis_client = redis.from_url(settings.REDIS_URL)
+            try:
+                active_count = await self.redis_client.scard("asep:terminal:sessions")
+                if active_count >= MAX_CONCURRENT_SESSIONS:
+                    logger.warning("Rejecting terminal request session=%s: Max Redis concurrency cap reached", self.session_id)
+                    return False
+            except Exception as e:
+                logger.error("Redis concurrency check failed: %s", e)
+        else:
+            if len(CONCURRENT_SESSIONS) >= MAX_CONCURRENT_SESSIONS:
+                logger.warning(
+                    "Rejecting terminal request session=%s: Max memory concurrency cap reached",
+                    self.session_id,
+                )
+                return False
 
         try:
             pid, fd = pty.fork()
@@ -102,13 +120,18 @@ class LocalPTYSession:
                 # Set initial terminal size
                 self._set_winsize(rows, cols)
 
-                # Register globally
-                CONCURRENT_SESSIONS.add(self.session_id)
-
                 # Setup Redis client for horizontal scaling if configured
                 settings = get_settings()
                 if hasattr(settings, "REDIS_URL") and settings.REDIS_URL:
-                    self.redis_client = redis.from_url(settings.REDIS_URL)
+                    if not self.redis_client:
+                        self.redis_client = redis.from_url(settings.REDIS_URL)
+                    try:
+                        await self.redis_client.sadd("asep:terminal:sessions", self.session_id)
+                    except Exception as e:
+                        logger.error("Failed to add session to Redis: %s", e)
+
+                # Register globally (fallback)
+                CONCURRENT_SESSIONS.add(self.session_id)
 
                 logger.info(
                     "Spawned PTY shell pid=%d fd=%d for session=%s",
@@ -194,6 +217,11 @@ class LocalPTYSession:
     async def cleanup(self) -> None:
         """Ensures process termination, zombie reaping, and client cleanup."""
         CONCURRENT_SESSIONS.discard(self.session_id)
+        if self.redis_client:
+            try:
+                await self.redis_client.srem("asep:terminal:sessions", self.session_id)
+            except Exception as e:
+                logger.error("Failed to remove session from Redis: %s", e)
 
         if self.read_task:
             self.read_task.cancel()

@@ -19,7 +19,7 @@ Design context:
 
 from src.repositories.agent_run import AgentRunRepository
 from src.repositories.audit_log import AuditLogRepository
-from src.repositories.base import BaseRepository, DEFAULT_LIMIT, DEFAULT_OFFSET, MAX_LIMIT
+from src.repositories.base import DEFAULT_LIMIT, DEFAULT_OFFSET, MAX_LIMIT, BaseRepository
 from src.repositories.knowledge_document import KnowledgeDocumentRepository
 from src.repositories.memory_entry import MemoryEntryRepository
 from src.repositories.task import TaskRepository

@@ -1,18 +1,21 @@
 from __future__ import annotations
+
 import os
 import time
-from typing import AsyncGenerator, List, Dict, Any
+from collections.abc import AsyncGenerator
+from typing import Any
 
-from src.ai_runtime.providers.base import BaseAIProvider
 from src.ai_runtime.contracts import (
     CompletionRequest,
     CompletionResponse,
-    StreamChunk,
-    ProviderHealth,
     ProviderCapabilityMatrix,
+    ProviderHealth,
+    StreamChunk,
     UsageInfo,
 )
+from src.ai_runtime.providers.base import BaseAIProvider
 from src.config.settings import get_settings
+
 
 class AnthropicProvider(BaseAIProvider):
     """
@@ -37,7 +40,7 @@ class AnthropicProvider(BaseAIProvider):
             self._client = Anthropic(api_key=self.api_key)
         return self._client
 
-    def _convert_messages(self, messages: List[Any]) -> tuple[str | None, List[Dict[str, Any]]]:
+    def _convert_messages(self, messages: list[Any]) -> tuple[str | None, list[dict[str, Any]]]:
         system_prompt = None
         converted_messages = []
         for msg in messages:
@@ -62,7 +65,7 @@ class AnthropicProvider(BaseAIProvider):
         import asyncio
         loop = asyncio.get_running_loop()
 
-        kwargs: Dict[str, Any] = {
+        kwargs: dict[str, Any] = {
             "model": target_model,
             "messages": messages,
             "temperature": request.temperature,
@@ -109,7 +112,7 @@ class AnthropicProvider(BaseAIProvider):
         res = await self.complete(request)
         yield StreamChunk(text=res.text, usage=res.usage, finish_reason=res.finish_reason)
 
-    async def complete_structured(self, request: CompletionRequest, schema: Dict[str, Any]) -> CompletionResponse:
+    async def complete_structured(self, request: CompletionRequest, schema: dict[str, Any]) -> CompletionResponse:
         # Structured output delegates to normal complete with formatting injection
         prompt_override = request.messages.copy()
         import copy
@@ -119,11 +122,11 @@ class AnthropicProvider(BaseAIProvider):
             last_msg = copy.deepcopy(prompt_override[-1])
             last_msg.content = last_msg.content + schema_instruction
             prompt_override[-1] = last_msg
-        
+
         request.messages = prompt_override
         return await self.complete(request)
 
-    async def embeddings(self, texts: List[str]) -> List[List[float]]:
+    async def embeddings(self, texts: list[str]) -> list[list[float]]:
         # Anthropic does not support client side embeddings natively; return vector stubs
         return [[0.0] * 1536 for _ in texts]
 

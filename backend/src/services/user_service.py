@@ -8,6 +8,7 @@ from collections.abc import Callable
 from src.db.models.user import User
 from src.unit_of_work.base import AbstractUnitOfWork
 
+
 class UserService:
     """Minimal service for User operations."""
 

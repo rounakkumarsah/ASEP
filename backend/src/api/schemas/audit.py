@@ -8,8 +8,6 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from pydantic import Field
-
 from src.api.schemas.common import ORMBaseModel
 from src.db.models.audit_log import ActorType, AuditOutcome, AuditSeverity
 

@@ -3,35 +3,36 @@ ASEP — API Router for Evaluations Subsystem
 """
 
 import uuid
-from typing import Any, Dict, List
+from typing import Any
+
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
-from src.evaluation.registry import get_evaluation_registry
-from src.evaluation.evaluator import Evaluator, EvaluationResult
-from src.evaluation.reports import ReportBuilder, EvaluationReport
 from src.agent.events import AgentEvent, AgentEventType
+from src.evaluation.evaluator import Evaluator
+from src.evaluation.registry import get_evaluation_registry
+from src.evaluation.reports import EvaluationReport, ReportBuilder
 
 router = APIRouter(prefix="/evaluations", tags=["Evaluations"])
 
 # Mock history data to populate /history endpoint
-_evaluation_history: List[EvaluationReport] = []
+_evaluation_history: list[EvaluationReport] = []
 
 
 class EvaluationRunRequest(BaseModel):
     dataset_name: str
 
 
-@router.get("", response_model=List[Dict[str, Any]])
-async def list_evaluations() -> List[Dict[str, Any]]:
+@router.get("", response_model=list[dict[str, Any]])
+async def list_evaluations() -> list[dict[str, Any]]:
     """Retrieve all registered evaluation datasets."""
     registry = get_evaluation_registry()
     datasets = registry.discover()
     return [registry.metadata(ds.name) for ds in datasets if registry.metadata(ds.name)]
 
 
-@router.get("/history", response_model=List[Dict[str, Any]])
-async def get_history() -> List[Dict[str, Any]]:
+@router.get("/history", response_model=list[dict[str, Any]])
+async def get_history() -> list[dict[str, Any]]:
     """Retrieve past evaluation runs and summaries."""
     return [
         {
@@ -47,7 +48,7 @@ async def get_history() -> List[Dict[str, Any]]:
 
 
 @router.get("/{dataset_name}")
-async def get_evaluation(dataset_name: str) -> Dict[str, Any]:
+async def get_evaluation(dataset_name: str) -> dict[str, Any]:
     """Retrieve details of a specific registered evaluation dataset."""
     registry = get_evaluation_registry()
     meta = registry.metadata(dataset_name)
@@ -56,8 +57,8 @@ async def get_evaluation(dataset_name: str) -> Dict[str, Any]:
     return meta
 
 
-@router.post("/run", response_model=Dict[str, Any])
-async def run_evaluation(req: EvaluationRunRequest) -> Dict[str, Any]:
+@router.post("/run", response_model=dict[str, Any])
+async def run_evaluation(req: EvaluationRunRequest) -> dict[str, Any]:
     """Execute evaluation cases in a dataset and return the summary report."""
     registry = get_evaluation_registry()
     dataset = registry.lookup(req.dataset_name)

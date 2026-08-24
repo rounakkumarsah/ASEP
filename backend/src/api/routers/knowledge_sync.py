@@ -2,12 +2,13 @@
 ASEP — API Router for Knowledge Synchronization Engine
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from src.knowledge.sources import get_source_registry, KnowledgeSource
-from src.knowledge.sync import get_sync_engine, SyncedDocument, SyncHistory
+from src.knowledge.sources import KnowledgeSource, get_source_registry
+from src.knowledge.sync import get_sync_engine
 
 router = APIRouter(prefix="/knowledge", tags=["Knowledge Synchronization"])
 
@@ -16,7 +17,7 @@ class SourceCreateRequest(BaseModel):
     source_id: str
     name: str
     source_type: str
-    source_url: Optional[str] = None
+    source_url: str | None = None
     version: str = "1.0"
     trust_level: float = 0.8
     license: str = "Proprietary"
@@ -27,11 +28,11 @@ class SourceCreateRequest(BaseModel):
 class SyncTriggerRequest(BaseModel):
     source_id: str
     sync_mode: str = "incremental"  # full, incremental
-    documents: Optional[List[Dict[str, Any]]] = None
+    documents: list[dict[str, Any]] | None = None
 
 
-@router.get("/sources", response_model=List[Dict[str, Any]])
-async def list_sources() -> List[Dict[str, Any]]:
+@router.get("/sources", response_model=list[dict[str, Any]])
+async def list_sources() -> list[dict[str, Any]]:
     """Retrieve all configured knowledge sources."""
     registry = get_source_registry()
     sources = registry.discover_sources()
@@ -39,12 +40,12 @@ async def list_sources() -> List[Dict[str, Any]]:
 
 
 @router.post("/sources")
-async def create_source(req: SourceCreateRequest) -> Dict[str, Any]:
+async def create_source(req: SourceCreateRequest) -> dict[str, Any]:
     """Configure a new trusted knowledge source."""
     registry = get_source_registry()
     if registry.lookup(req.source_id):
         raise HTTPException(status_code=400, detail="Source ID already exists.")
-    
+
     source = KnowledgeSource(
         source_id=req.source_id,
         name=req.name,
@@ -61,7 +62,7 @@ async def create_source(req: SourceCreateRequest) -> Dict[str, Any]:
 
 
 @router.post("/sync")
-async def trigger_sync(req: SyncTriggerRequest) -> Dict[str, Any]:
+async def trigger_sync(req: SyncTriggerRequest) -> dict[str, Any]:
     """Execute full or incremental synchronization runner."""
     engine = get_sync_engine()
     try:
@@ -79,14 +80,14 @@ async def trigger_sync(req: SyncTriggerRequest) -> Dict[str, Any]:
 
 
 @router.get("/sync/history")
-async def get_sync_history() -> List[Dict[str, Any]]:
+async def get_sync_history() -> list[dict[str, Any]]:
     """Get history log of all synchronization operations."""
     engine = get_sync_engine()
     return [h.model_dump() for h in engine.history]
 
 
 @router.get("/documents")
-async def list_documents() -> List[Dict[str, Any]]:
+async def list_documents() -> list[dict[str, Any]]:
     """Retrieve all currently synchronized document records."""
     engine = get_sync_engine()
     return [doc.model_dump() for doc in engine.documents.values()]

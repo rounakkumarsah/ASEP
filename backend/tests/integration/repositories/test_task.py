@@ -3,10 +3,10 @@ Integration Tests for TaskRepository
 """
 
 import uuid
-import pytest
-from sqlalchemy.exc import NoResultFound
 
-from src.db.models.task import Task, TaskStatus, TaskPriority
+import pytest
+
+from src.db.models.task import Task, TaskStatus
 from src.repositories.task import TaskRepository
 
 
@@ -16,6 +16,7 @@ def repo(db_session):
 
 
 from src.db.models.agent_run import AgentRun, RunStatus
+
 
 @pytest.mark.asyncio
 async def test_get_by_run(repo, db_session):
@@ -38,9 +39,9 @@ async def test_get_by_run(repo, db_session):
     for t in tasks:
         await repo.create(t)
     await db_session.flush()
-    
+
     fetched = await repo.get_by_run(run_id)
-    
+
     assert len(fetched) == 3
     # Verify order
     assert fetched[0].position == 0
@@ -63,12 +64,12 @@ async def test_get_pending_oldest_first(repo, db_session):
 
     t1 = Task(id=uuid.uuid4(), agent_run_id=run_id, position=0, title="T0", status=TaskStatus.PENDING)
     t2 = Task(id=uuid.uuid4(), agent_run_id=run_id, position=1, title="T1", status=TaskStatus.RUNNING)
-    
+
     await repo.create(t1)
     await repo.create(t2)
     await db_session.flush()
-    
+
     next_pending = await repo.get_next_pending(run_id)
-    
+
     assert next_pending is not None
     assert next_pending.id == t1.id

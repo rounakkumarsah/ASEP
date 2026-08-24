@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 async def planner_health_check() -> bool:
     """Verifies that the LLM Chat Completion provider is reachable and responsive.
-    
+
     Returns:
         True if the provider responds to a simple ping chat completion, False otherwise.
     """

@@ -1,7 +1,9 @@
 import pytest
-from src.ai_runtime.providers.vision import VisionModelProvider
+
 from src.ai_runtime.contracts import CompletionRequest, Message
+from src.ai_runtime.providers.vision import VisionModelProvider
 from src.ai_runtime.registry import ProviderRegistry
+
 
 @pytest.mark.asyncio
 async def test_vision_provider_complete():

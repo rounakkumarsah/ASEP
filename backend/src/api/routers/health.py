@@ -22,9 +22,8 @@ from __future__ import annotations
 import logging
 import platform
 import time
-from typing import Any
 
-from fastapi import APIRouter, status, Response
+from fastapi import APIRouter, Response, status
 from pydantic import BaseModel
 
 from src.config.settings import get_settings

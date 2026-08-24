@@ -7,12 +7,12 @@ Razorpay checkout link generation, and webhook tier upgrade processing.
 
 from __future__ import annotations
 
-import hmac
 import hashlib
+import hmac
 import logging
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any
 
 from src.cache.redis import get_redis_client
 from src.config.settings import get_settings
@@ -96,7 +96,7 @@ class RazorpayMonetizationManager:
     def __init__(self) -> None:
         self.settings = get_settings()
 
-    def generate_checkout_url(self, user_id: str, plan_tier: str = "pro") -> Dict[str, Any]:
+    def generate_checkout_url(self, user_id: str, plan_tier: str = "pro") -> dict[str, Any]:
         """Generate Razorpay order parameters for frontend checkout modal."""
         amount_in_paise = 299900 if plan_tier == "pro" else 999900  # ₹2,999 or ₹9,999
         order_id = f"order_{user_id[:8]}_{int(time.time())}"

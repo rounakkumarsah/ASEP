@@ -2,19 +2,19 @@
 ASEP — Workflows Execution Engine
 """
 
-import time
 import asyncio
 import logging
-from typing import Any, Dict, List, Optional
+import time
+from typing import Any
 
 from src.workflows.models import (
-    WorkflowDefinition,
-    WorkflowContext,
-    ExecutionState,
     Checkpoint,
-    WorkflowHistory,
+    ExecutionState,
+    WorkflowContext,
+    WorkflowDefinition,
     WorkflowEvent,
-    WorkflowStep
+    WorkflowHistory,
+    WorkflowStep,
 )
 
 logger = logging.getLogger(__name__)
@@ -24,17 +24,17 @@ class WorkflowEngine:
     """The central orchestration engine running asynchronous agent execution graphs."""
 
     def __init__(self) -> None:
-        self.active_executions: Dict[str, ExecutionState] = {}
-        self.checkpoints: Dict[str, Checkpoint] = {}
-        self.histories: Dict[str, WorkflowHistory] = {}
-        
+        self.active_executions: dict[str, ExecutionState] = {}
+        self.checkpoints: dict[str, Checkpoint] = {}
+        self.histories: dict[str, WorkflowHistory] = {}
+
         # Metrics trackers
         self.active_count = 0
         self.total_completed = 0
         self.total_failed = 0
         self.total_retries = 0
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """Observability telemetry snapshot."""
         total = self.total_completed + self.total_failed
         success_rate = (self.total_completed / total) if total > 0 else 1.0
@@ -54,11 +54,11 @@ class WorkflowEngine:
         self,
         definition: WorkflowDefinition,
         context: WorkflowContext,
-        inputs: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        inputs: dict[str, Any]
+    ) -> dict[str, Any]:
         """Launches or resumes execution of a workflow definition."""
         execution_id = context.execution_id
-        
+
         # Check if already completed/cancelled
         if execution_id in self.histories and self.histories[execution_id].end_time is not None:
             return self.checkpoints[execution_id].agent_outputs
@@ -68,7 +68,7 @@ class WorkflowEngine:
 
         self.active_executions[execution_id] = ExecutionState.RUNNING
         self.active_count += 1
-        
+
         # Initialize history record
         if execution_id not in self.histories:
             self.histories[execution_id] = WorkflowHistory(
@@ -76,7 +76,7 @@ class WorkflowEngine:
                 workflow_id=definition.workflow_id
             )
             self._emit(WorkflowEvent.STARTED, execution_id)
-            
+
         history = self.histories[execution_id]
         history.state_transitions.append({"state": "RUNNING", "time": time.time()})
 
@@ -127,7 +127,7 @@ class WorkflowEngine:
 
                 # 3. Normal single node step execution with retries
                 await self._execute_step_with_retries(current_step.node_id, definition, checkpoint, inputs)
-                
+
                 # Check for WAITING_HITL transition during execution (e.g. step simulation triggers approval)
                 if self.active_executions.get(execution_id) == ExecutionState.WAITING_HITL:
                     self._emit(WorkflowEvent.PAUSED, execution_id, "Suspended at HITL approval gate.")
@@ -136,10 +136,10 @@ class WorkflowEngine:
                 checkpoint.completed_nodes.append(current_step.node_id)
                 if current_step.node_id in checkpoint.pending_nodes:
                     checkpoint.pending_nodes.remove(current_step.node_id)
-                
+
                 # Resolve routing logic
                 checkpoint.current_node = self._resolve_next_node(current_step, checkpoint)
-                
+
                 # Commit checkpoint
                 if definition.checkpoint_policy.on_step_complete:
                     self._emit(WorkflowEvent.CHECKPOINT_CREATED, execution_id, f"Committed checkpoint node={checkpoint.current_node}")
@@ -163,10 +163,10 @@ class WorkflowEngine:
             self.total_completed += 1
             self.active_count -= 1
             self._emit(WorkflowEvent.COMPLETED, execution_id)
-            
+
         return checkpoint.agent_outputs
 
-    def _resolve_next_node(self, step: WorkflowStep, checkpoint: Checkpoint) -> Optional[str]:
+    def _resolve_next_node(self, step: WorkflowStep, checkpoint: Checkpoint) -> str | None:
         """Resolves switch keys or sequential pointers."""
         if step.conditional_routes:
             # Look up evaluation outcome from agent_outputs
@@ -180,7 +180,7 @@ class WorkflowEngine:
         node_id: str,
         definition: WorkflowDefinition,
         checkpoint: Checkpoint,
-        inputs: Dict[str, Any]
+        inputs: dict[str, Any]
     ) -> None:
         """Executes a single step running retries with exponential backoffs."""
         step = next((s for s in definition.steps if s.node_id == node_id), None)
@@ -189,13 +189,13 @@ class WorkflowEngine:
 
         policy = definition.retry_policy
         attempts = 0
-        
+
         while attempts <= policy.max_retries:
             try:
                 # Execution simulation: target routing target agent outputs
                 # In real graphs, this maps directly to AgentRuntime invoke/call executions
                 logger.info(f"Executing step {node_id} on target={step.target_agent}")
-                
+
                 # Check if this simulates high-risk terminal/HITL gate
                 if step.target_tool == "terminal" and checkpoint.approval_state is None:
                     # Suspend execution to wait for approval
@@ -217,11 +217,11 @@ class WorkflowEngine:
                 attempts += 1
                 self.total_retries += 1
                 self._emit(WorkflowEvent.RETRY, checkpoint.execution_id, f"Attempt {attempts} failed: {str(e)}")
-                
+
                 # Verify non-retryable conditions
                 if attempts > policy.max_retries or any(cond in str(e) for cond in policy.retry_conditions):
                     raise e
-                    
+
                 # Backoff delay
                 delay = policy.initial_delay * (policy.backoff_factor ** (attempts - 1))
                 await asyncio.sleep(delay)
@@ -250,7 +250,7 @@ class WorkflowEngine:
             self._emit(WorkflowEvent.CANCELLED, execution_id)
 
 
-_global_workflow_engine: Optional[WorkflowEngine] = None
+_global_workflow_engine: WorkflowEngine | None = None
 
 def get_workflow_engine() -> WorkflowEngine:
     global _global_workflow_engine

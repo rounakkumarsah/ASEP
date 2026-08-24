@@ -69,12 +69,10 @@ from __future__ import annotations
 
 import enum
 import uuid
-from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
     CheckConstraint,
-    DateTime,
     Enum,
     Index,
     Integer,
@@ -85,18 +83,16 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.sql import func
 
 from src.db.models.agent_run import TimestampMixin
 from src.db.postgres import Base
-
 
 # ---------------------------------------------------------------------------
 # ActorType
 # ---------------------------------------------------------------------------
 
 
-class ActorType(str, enum.Enum):
+class ActorType(enum.StrEnum):
     """Classification of the entity that initiated an audited action.
 
     Inheriting from ``str`` means every member is simultaneously a plain
@@ -123,7 +119,7 @@ class ActorType(str, enum.Enum):
 # ---------------------------------------------------------------------------
 
 
-class AuditSeverity(str, enum.Enum):
+class AuditSeverity(enum.StrEnum):
     """Operational severity of an audited event.
 
     Mirrors Python's ``logging`` module levels for operational familiarity.
@@ -158,7 +154,7 @@ class AuditSeverity(str, enum.Enum):
 # ---------------------------------------------------------------------------
 
 
-class AuditOutcome(str, enum.Enum):
+class AuditOutcome(enum.StrEnum):
     """Result of the operation recorded by an ``AuditLog`` entry.
 
     Attributes:

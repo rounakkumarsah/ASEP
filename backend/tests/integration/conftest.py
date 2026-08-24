@@ -48,14 +48,14 @@ async def db_session_factory(db_engine):
         await conn.begin()
         # Start a nested transaction (savepoint)
         await conn.begin_nested()
-        
+
         session_factory = async_sessionmaker(
             bind=conn,
             expire_on_commit=False,
             join_transaction_mode="create_savepoint",
         )
         yield session_factory
-        
+
         # Roll back everything after the test completes
         await conn.rollback()
 

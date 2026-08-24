@@ -1,6 +1,5 @@
-import pytest
 from fastapi.testclient import TestClient
-from httpx import AsyncClient
+
 
 class TestObservability:
     def test_diagnostics_endpoint(self, client: TestClient) -> None:

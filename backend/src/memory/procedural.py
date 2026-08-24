@@ -28,7 +28,7 @@ class ProceduralMemory:
     ) -> MemoryEntry:
         """Register a procedure in Postgres and optional dependency node in Neo4j."""
         content = json.dumps({"name": name, "steps": steps})
-        
+
         async with self.uow:
             entry = MemoryEntry(
                 memory_type=MemoryType.PROCEDURAL,
@@ -39,7 +39,7 @@ class ProceduralMemory:
             )
             created = await self.uow.memory_entries.create(entry)
             await self.uow.commit()
-            
+
             # Neo4j: Write Procedure metadata node
             query = """
             MERGE (p:Procedure {id: $id})
@@ -50,7 +50,7 @@ class ProceduralMemory:
                 query,
                 {"id": str(created.id), "name": name, "steps": steps}
             )
-            
+
             return created
 
     async def get_procedure_by_id(self, procedure_id: uuid.UUID) -> MemoryEntry | None:

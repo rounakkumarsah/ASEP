@@ -142,7 +142,9 @@ async def start_run(
 
     runtime = get_langgraph_runtime()
 
-    async def _event_generator():
+    from collections.abc import AsyncGenerator
+
+    async def _event_generator() -> AsyncGenerator[str, None]:
         try:
             async for event in runtime.execute_run(run_id=run_id, thread_id=thread_id):
                 yield _sse_line(
@@ -220,7 +222,9 @@ async def resume_run(
             detail=f"Thread '{thread_id}' not found in checkpointer.",
         )
 
-    async def _event_generator():
+    from collections.abc import AsyncGenerator
+
+    async def _event_generator() -> AsyncGenerator[str, None]:
         try:
             async for event in runtime.resume_run(
                 thread_id=thread_id, human_input=payload.decision
@@ -265,7 +269,8 @@ async def get_thread_state(
     """
     runtime = get_langgraph_runtime()
 
-    config = {"configurable": {"thread_id": thread_id}}
+    from langchain_core.runnables.config import RunnableConfig
+    config = RunnableConfig(configurable={"thread_id": thread_id})
     snapshot = await runtime.graph.aget_state(config)
 
     if not snapshot:
@@ -307,18 +312,20 @@ async def get_thread_history(
     snapshot with its associated state values.
     """
     runtime = get_langgraph_runtime()
-    config = {"configurable": {"thread_id": thread_id}}
+    from langchain_core.runnables.config import RunnableConfig
+    config = RunnableConfig(configurable={"thread_id": thread_id})
 
     history: list[dict[str, Any]] = []
     async for snapshot in runtime.graph.aget_state_history(config, limit=limit):
+        metadata = snapshot.metadata or {}
         history.append(
             {
                 "checkpoint_id": snapshot.config.get("configurable", {}).get("checkpoint_id"),
                 "next": list(snapshot.next),
                 "status": snapshot.values.get("status"),
                 "run_id": snapshot.values.get("run_id"),
-                "created_at": snapshot.metadata.get("created_at"),
-                "step": snapshot.metadata.get("step"),
+                "created_at": metadata.get("created_at"),
+                "step": metadata.get("step"),
             }
         )
 
@@ -368,21 +375,21 @@ async def get_session_pending_approval(
     Resolves active HITL session state from local database if thread is paused.
     """
     from src.governance.hitl import get_hitl_engine
-    
+
     engine = get_hitl_engine()
     sessions = await engine.get_all_sessions()
-    
+
     # Filter pending review sessions bound to this thread
     active = [
-        s for s in sessions 
-        if s.execution_id == thread_id and s.status.value.lower() == "pending"
+        s for s in sessions
+        if s.execution_id == thread_id and s.decision is None
     ]
-    
+
     if not active:
         return None
-        
+
     hitl_sess = active[0]
-    
+
     # Mock data lookup if target files list is empty to support frontend display
     files_list = []
     if hitl_sess.modified_arguments:
@@ -401,7 +408,7 @@ async def get_session_pending_approval(
                 modified="def main():\n    print('Authorized Execution')",
             )
         ]
-        
+
     return PendingApprovalResponse(
         approval_id=hitl_sess.session_id,
         files=files_list,
@@ -429,13 +436,13 @@ async def resolve_session_approval(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User role lacks authorization to resolve reviews.",
         )
-        
+
     # Standard resolution pipeline uses the HITL Governance Engine
-    from src.governance.hitl import get_hitl_engine, ApprovalAction, ReviewerRole
-    
+    from src.governance.hitl import ApprovalAction, ReviewerRole, get_hitl_engine
+
     engine = get_hitl_engine()
     action = ApprovalAction.APPROVE if payload.decision == "approve" else ApprovalAction.REJECT
-    
+
     try:
         await engine.submit_decision(
             session_id=approval_id,

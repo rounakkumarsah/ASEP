@@ -7,8 +7,10 @@ relationship creation, custom queries, graph deletions, and health checks.
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
 from src.graph.graph_service import GraphService
 from src.graph.models import GraphNode, GraphRelationship
 
@@ -137,7 +139,7 @@ async def test_graph_service_search_related_entities():
 
     service = GraphService(driver=mock_driver)
     res = await service.search_related_entities(["n1"])
-    
+
     assert len(res) == 1
     assert res[0]["source_id"] == "n1"
     assert res[0]["target_id"] == "n2"
@@ -163,7 +165,7 @@ async def test_graph_service_delete_graph():
 
     service = GraphService(driver=mock_driver)
     res = await service.delete_graph()
-    
+
     assert res is True
     mock_session.execute_write.assert_called_once()
 

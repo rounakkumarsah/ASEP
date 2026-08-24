@@ -2,7 +2,6 @@
 ASEP — Unit Tests for Context Merge Engine
 """
 
-import pytest
 from src.documents.context_merge import ContextMergeEngine
 from src.documents.hybrid_retrieval import HybridSearchResult
 

@@ -3,9 +3,6 @@ Integration Tests for SQLAlchemyUnitOfWork
 """
 
 import pytest
-import pytest_asyncio
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
 
 from src.unit_of_work.sqlalchemy import SQLAlchemyUnitOfWork
 
@@ -45,9 +42,9 @@ async def test_uow_rollback_on_exception(uow):
     with pytest.raises(TestException):
         async with uow:
             # We would normally write to a repo here
-            # and verify it's rolled back, but since we rely on the 
+            # and verify it's rolled back, but since we rely on the
             # nested savepoint fixture, we just verify the UoW handles the exception properly
             raise TestException("Trigger rollback")
-    
+
     # Execution reaching here means __aexit__ properly bubbled up the exception
     # after (presumably) calling rollback

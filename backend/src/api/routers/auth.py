@@ -2,6 +2,7 @@
 ASEP — Auth Router
 """
 
+import contextlib
 import json
 import logging
 from typing import Annotated, Any
@@ -11,6 +12,8 @@ from pydantic import BaseModel, Field
 
 from src.api.dependencies import get_audit_service
 from src.auth.dependencies import AuthServiceDep, CurrentUser
+from src.auth.jwt import decode_token
+from src.auth.password import get_password_hash, verify_password
 from src.auth.rate_limit import check_rate_limit
 from src.auth.schemas import (
     CheckUsernameResponse,
@@ -169,14 +172,13 @@ async def login(
     redis = get_redis_client()
     settings = get_settings()
 
-    # Rate limiting: 5 login attempts per email per 10 minutes
-    rate_limit_key = f"rate_limit:login:{data.email}"
-    if data.email not in ("admin", "admin@example.com") and settings.APP_ENV == "production":
-        if not await check_rate_limit(redis, rate_limit_key, max_attempts=5, window_seconds=600):
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Too many login attempts. Please try again later.",
-            )
+    # Rate limiting: 5 login attempts per email per 10 minutes (all environments)
+    rate_limit_key = f"rate_limit:login:{data.email.lower()}"
+    if not await check_rate_limit(redis, rate_limit_key, max_attempts=5, window_seconds=600):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many login attempts. Please try again later.",
+        )
 
     client_ip = request.client.host if request.client else "unknown"
     user, auth_status = await auth_service.authenticate_user(data.email, data.password, data.code)
@@ -207,10 +209,8 @@ async def login(
 
     # Correct password resets the rate limit counter
     if redis:
-        try:
+        with contextlib.suppress(Exception):
             await redis.delete(rate_limit_key)
-        except Exception:
-            pass
 
     tokens = auth_service.create_login_tokens(user)
     _set_auth_cookies(response, tokens, settings.APP_ENV)
@@ -319,8 +319,8 @@ async def refresh(
     request: Request,
     response: Response,
     auth_service: AuthServiceDep,
-    payload: RefreshTokenRequest = None,
-    redis_client: Annotated[object, Depends(get_redis_client)] = None,
+    payload: RefreshTokenRequest | None = None,
+    redis_client: Annotated[Any, Depends(get_redis_client)] = None,
 ) -> TokenResponse:
     """Exchange refresh token cookie or request body for new access token."""
     settings = get_settings()
@@ -718,12 +718,12 @@ async def change_password(
     db: DbSession,
 ) -> dict[str, str]:
     """Change the currently authenticated user's password."""
-    if not auth_service.verify_password(data.current_password, current_user.hashed_password):
+    if not current_user.hashed_password or not verify_password(data.current_password, current_user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Current password is incorrect.",
         )
-    current_user.hashed_password = auth_service.hash_password(data.new_password)
+    current_user.hashed_password = get_password_hash(data.new_password)
     await db.flush()
     logger.info("User password changed", extra={"user_id": str(current_user.id)})
     return {"detail": "Password updated successfully."}
@@ -751,3 +751,100 @@ async def list_active_sessions(
             "last_active": "Just now",
         }
     ]
+
+
+# ---------------------------------------------------------------------------
+# E2E Test User Seed Endpoint
+# Only active in development / test environments.
+# ---------------------------------------------------------------------------
+
+class E2ESeedRequest(BaseModel):
+    email: str = Field(..., description="E2E test user email")
+    password: str = Field(..., description="E2E test user password")
+    firstName: str = Field(default="E2E", description="First name")
+    lastName: str = Field(default="Tester", description="Last name")
+
+
+@router.post(
+    "/e2e/seed-user",
+    include_in_schema=False,
+    status_code=status.HTTP_201_CREATED,
+)
+async def e2e_seed_user(
+    data: E2ESeedRequest,
+    auth_service: AuthServiceDep,
+    request: Request,
+) -> dict[str, str]:
+    """
+    Seed or reset the E2E test user.
+
+    SECURITY: This endpoint is disabled in production.
+    Only available in development and staging environments.
+    """
+    settings = get_settings()
+    if settings.APP_ENV == "production":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Not found.",
+        )
+
+    # Only allow requests from localhost / loopback IPs to prevent abuse
+    client_ip = request.client.host if request.client else "unknown"
+    loopback = {"127.0.0.1", "::1", "localhost"}
+    if client_ip not in loopback:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="E2E seed endpoint is only accessible from localhost.",
+        )
+
+    import uuid as _uuid
+
+    from src.auth.password import get_password_hash
+    from src.auth.service import normalize_email
+    from src.db.models.user import User
+
+    redis = get_redis_client()
+
+    # Clear rate limit keys so E2E tests start with a clean slate
+    if redis:
+        try:
+            await redis.delete(f"rate_limit:login:{data.email.lower()}")
+            await redis.delete(f"rate_limit:signup:{client_ip}")
+        except Exception:
+            pass
+
+    clean_email = normalize_email(data.email)
+    hashed = get_password_hash(data.password)
+
+    # Upsert user: update if exists, create if not
+    async with auth_service.user_service._uow_factory() as uow:
+        existing = await uow.users.get_by_email(clean_email)
+        if existing:
+            existing.hashed_password = hashed
+            existing.email_verified = True
+            existing.is_active = True
+            existing.status = "active"
+            await uow.commit()
+            return {"status": "updated", "email": clean_email}
+        else:
+            new_user = User(
+                id=_uuid.uuid4(),
+                username=clean_email.split("@")[0].replace(".", "_"),
+                first_name=data.firstName,
+                last_name=data.lastName,
+                email=clean_email,
+                hashed_password=hashed,
+                role="developer",
+                status="active",
+                email_verified=True,
+                is_active=True,
+                mfa_enabled=False,
+                account_type="individual",
+                timezone="UTC",
+                locale="en",
+                current_plan="free",
+            )
+            await uow.users.create(new_user)
+            await uow.commit()
+            return {"status": "created", "email": clean_email}
+

@@ -8,9 +8,9 @@ re-ranks results, and attaches source citations.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from enum import Enum
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from enum import StrEnum
+from typing import Any
 
 from src.documents.context_merge import ContextMergeEngine, MergedContext
 from src.documents.hybrid_retrieval import HybridRetrievalPipeline, HybridSearchResult
@@ -18,7 +18,7 @@ from src.documents.hybrid_retrieval import HybridRetrievalPipeline, HybridSearch
 logger = logging.getLogger(__name__)
 
 
-class RetrievalStrategy(str, Enum):
+class RetrievalStrategy(StrEnum):
     VECTOR_ONLY = "vector_only"
     GRAPH_ONLY = "graph_only"
     HYBRID = "hybrid"
@@ -28,8 +28,8 @@ class RetrievalStrategy(str, Enum):
 @dataclass
 class Citation:
     source_id: str
-    filename: Optional[str]
-    file_path: Optional[str]
+    filename: str | None
+    file_path: str | None
     chunk_id: str
     relevance_score: float
 
@@ -39,7 +39,7 @@ class RetrievalPipelineOutput:
     query: str
     strategy_used: RetrievalStrategy
     merged_context: MergedContext
-    citations: List[Citation]
+    citations: list[Citation]
     latency_ms: float
 
 
@@ -68,7 +68,7 @@ class RetrievalPipeline:
     def __init__(
         self,
         hybrid_pipeline: HybridRetrievalPipeline,
-        context_merger: Optional[ContextMergeEngine] = None,
+        context_merger: ContextMergeEngine | None = None,
     ) -> None:
         self.hybrid = hybrid_pipeline
         self.analyzer = QueryIntentAnalyzer()
@@ -78,7 +78,7 @@ class RetrievalPipeline:
         self,
         query: str,
         limit: int = 10,
-        filters: Optional[Dict[str, Any]] = None,
+        filters: dict[str, Any] | None = None,
     ) -> RetrievalPipelineOutput:
         import time
         start_time = time.perf_counter()
@@ -87,7 +87,7 @@ class RetrievalPipeline:
         logger.info("Retrieved intent strategy for query '%s': %s", query, strategy)
 
         # Execute hybrid retrieval
-        hybrid_results: List[HybridSearchResult] = await self.hybrid.search_hybrid(
+        hybrid_results: list[HybridSearchResult] = await self.hybrid.search_hybrid(
             query=query,
             limit=limit,
             filters=filters,
@@ -102,10 +102,10 @@ class RetrievalPipeline:
             overlap = query_words.intersection(text_words)
             # Heuristic cross-encoder score: match ratio
             overlap_score = (len(overlap) / max(len(query_words), 1))
-            
+
             # Graph traversal weight boost: number of connection hops
             graph_boost = len(item.graph_connections) * 0.05
-            
+
             # Fuse rrf score, overlap score and graph traversal boost
             item.score = round((item.score * 0.4) + (overlap_score * 0.5) + graph_boost, 4)
 
@@ -131,10 +131,10 @@ class RetrievalPipeline:
         from src.documents.evaluation import RAGEvaluator
         evaluator = RAGEvaluator()
         retrieved_ids = [item.chunk_id for item in hybrid_results]
-        
+
         # Simple heuristic check: assume ground truth matches are those with high keyword overlap
         ground_truth_ids = [item.chunk_id for item in hybrid_results if item.score > 0.40]
-        
+
         recall = evaluator.compute_recall_at_k(retrieved_ids, ground_truth_ids, k=min(limit, len(retrieved_ids)))
         ndcg = evaluator.compute_ndcg(retrieved_ids, ground_truth_ids)
 

@@ -13,12 +13,12 @@ from src.documents.loaders import (
     BaseLoader,
     DOCXLoader,
     PDFLoader,
-    TextLoader,
     PPTXLoader,
+    TextLoader,
     get_loader_for_file,
 )
-from src.documents.ocr import OCRImageLoader
 from src.documents.metadata import extract_file_metadata
+from src.documents.ocr import OCRImageLoader
 
 __all__ = [
     "RecursiveCharacterTextSplitter",

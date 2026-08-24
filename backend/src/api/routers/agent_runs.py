@@ -3,6 +3,7 @@ AgentRuns Router
 """
 
 import uuid
+
 from fastapi import APIRouter, Depends, status
 
 from src.api.dependencies import AgentRunServiceDep, TaskServiceDep
@@ -12,11 +13,10 @@ from src.api.schemas import (
     PaginatedResponse,
     PaginationParams,
     TaskDefinitionSchema,
-    TaskResponse
+    TaskResponse,
 )
 from src.auth.decorators import RequirePermission
 from src.auth.permissions import Permission
-
 
 router = APIRouter(prefix="/agent-runs", tags=["Agent Runs"])
 
@@ -42,7 +42,7 @@ async def list_agent_runs(
 ) -> PaginatedResponse[AgentRunResponse]:
     """List agent runs with pagination."""
     # Assuming get_active_runs for now. Later we might want generic list support in the service.
-    # Service doesn't have a generic "list_runs(limit, offset)" method right now, 
+    # Service doesn't have a generic "list_runs(limit, offset)" method right now,
     # but let's use get_active_runs for the list endpoint as a proxy, or add a stub.
     # Actually get_active_runs has no pagination limit offset in its signature.
     # We will just return active runs as a list and wrap it.

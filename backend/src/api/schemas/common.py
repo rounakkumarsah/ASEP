@@ -6,7 +6,7 @@ Shared Pydantic models for the API presentation layer.
 
 from __future__ import annotations
 
-from typing import Annotated, Any, Generic, TypeVar
+from typing import Annotated, Any, TypeVar
 
 from fastapi import Query
 from pydantic import BaseModel, ConfigDict
@@ -26,7 +26,7 @@ class ErrorResponse(BaseModel):
     details: dict[str, Any] | None = None
 
 
-class PaginatedResponse(BaseModel, Generic[T]):
+class PaginatedResponse[T](BaseModel):
     """Generic wrapper for paginated lists."""
     items: list[T]
     total: int

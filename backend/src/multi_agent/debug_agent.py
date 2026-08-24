@@ -7,7 +7,7 @@ Performs root cause analysis, stack trace diagnosis, log parsing, and generates 
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List
+from typing import Any
 
 from src.multi_agent.base_agent import BaseAgent
 from src.multi_agent.contracts import AgentManifest, AgentRequest, AgentRole
@@ -29,7 +29,7 @@ class DebugAgent(BaseAgent):
         )
         super().__init__(role=AgentRole.DEBUG, manifest=manifest)
 
-    async def _execute_internal(self, request: AgentRequest) -> Dict[str, Any]:
+    async def _execute_internal(self, request: AgentRequest) -> dict[str, Any]:
         error_log = request.input_data.get("error_log", "")
         stack_trace = request.input_data.get("stack_trace", "")
 
@@ -41,7 +41,7 @@ class DebugAgent(BaseAgent):
         elif "TypeError" in error_log or "TypeError" in stack_trace:
             root_cause = "Invalid argument type supplied to function."
 
-        fix_proposal = f"# Recommended Fix:\n# Guard against null/missing values in input arguments."
+        fix_proposal = "# Recommended Fix:\n# Guard against null/missing values in input arguments."
 
         return {
             "root_cause": root_cause,

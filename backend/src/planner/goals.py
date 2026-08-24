@@ -21,14 +21,14 @@ class GoalParser:
     async def parse_goal(self, raw_goal: str) -> Goal:
         """Parse raw goal text into a validated Goal object."""
         logger.info(f"Parsing raw goal input: '{raw_goal[:60]}...'")
-        
+
         messages = [
             {"role": "system", "content": GOAL_PARSER_SYSTEM_PROMPT},
             {"role": "user", "content": f"Parse this goal: '{raw_goal}'"}
         ]
-        
+
         response_content = await self.provider.chat_complete(messages, json_output=True)
-        
+
         try:
             parsed_data = json.loads(response_content)
             # Strict validation through Pydantic model

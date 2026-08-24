@@ -3,6 +3,7 @@ Memory Router
 """
 
 import uuid
+
 from fastapi import APIRouter, Depends, status
 
 from src.api.dependencies import MemoryServiceDep
@@ -10,11 +11,10 @@ from src.api.schemas import (
     MemoryEntryCreate,
     MemoryEntryResponse,
     PaginatedResponse,
-    PaginationParams
+    PaginationParams,
 )
 from src.auth.decorators import RequirePermission
 from src.auth.permissions import Permission
-
 
 router = APIRouter(prefix="/memory", tags=["Memory"])
 
@@ -52,7 +52,7 @@ async def list_memory(
     start = pagination.offset
     end = start + pagination.limit
     paginated = memories[start:end]
-    
+
     return PaginatedResponse(
         items=paginated,
         total=len(memories),

@@ -10,13 +10,13 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Any, Callable, Dict, List, Optional
+from enum import StrEnum
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
-class CircuitState(str, Enum):
+class CircuitState(StrEnum):
     CLOSED = "CLOSED"
     OPEN = "OPEN"
     HALF_OPEN = "HALF_OPEN"
@@ -72,7 +72,7 @@ class DLQMessage:
     message_id: str
     execution_id: str
     component: str
-    payload: Dict[str, Any]
+    payload: dict[str, Any]
     error_reason: str
     timestamp: float = field(default_factory=time.time)
 
@@ -81,14 +81,14 @@ class DeadLetterQueue:
     """Dead Letter Queue for failed task executions requiring intervention."""
 
     def __init__(self) -> None:
-        self._dlq: List[DLQMessage] = []
+        self._dlq: list[DLQMessage] = []
 
     def enqueue(
         self,
         message_id: str,
         execution_id: str,
         component: str,
-        payload: Dict[str, Any],
+        payload: dict[str, Any],
         error_reason: str,
     ) -> DLQMessage:
         dlq_msg = DLQMessage(
@@ -102,11 +102,11 @@ class DeadLetterQueue:
         logger.error("Enqueued to DLQ [%s]: %s (reason: %s)", execution_id, message_id, error_reason)
         return dlq_msg
 
-    def list_messages(self) -> List[DLQMessage]:
+    def list_messages(self) -> list[DLQMessage]:
         return list(self._dlq)
 
 
-    def replay_message(self, message_id: str) -> Optional[DLQMessage]:
+    def replay_message(self, message_id: str) -> DLQMessage | None:
         for idx, msg in enumerate(self._dlq):
             if msg.message_id == message_id:
                 logger.info("Replaying DLQ message '%s'", message_id)

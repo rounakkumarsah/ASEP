@@ -4,13 +4,12 @@ ASEP — Reflection Generators
 
 import json
 import logging
-from typing import Any
 
 from src.evaluation.metrics import SessionMetrics
-from src.evaluation.trajectory import Trajectory
 from src.evaluation.scoring import AllScores
+from src.evaluation.trajectory import Trajectory
 from src.planner.provider import LLMProvider
-from src.reflection.models import FailureAnalysis, ReflectionItem, ReflectionReport
+from src.reflection.models import ReflectionReport
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +45,7 @@ class ReflectionGenerator:
 
         # Serialize inputs
         traj_data = [{"step": s.step_index, "event": s.event_type, "status": s.status, "tool": s.tool_name, "summary": s.payload_summary} for s in trajectory.steps]
-        
+
         # Build prompt
         prompt = f"""
 Session Analysis Request
@@ -87,7 +86,7 @@ Generate a ReflectionReport JSON object containing:
 
         logger.info(f"[{session_id}] Generating reflection report via LLM")
         raw_json = await self._provider.chat_complete(messages, json_output=True)
-        
+
         try:
             data = json.loads(raw_json)
             # Inject known IDs

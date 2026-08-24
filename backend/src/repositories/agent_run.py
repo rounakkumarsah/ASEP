@@ -19,11 +19,9 @@ Query hot-paths covered:
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
 from typing import Any
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.base import ExecutableOption
 
 from src.db.models.agent_run import AgentRun, RunStatus

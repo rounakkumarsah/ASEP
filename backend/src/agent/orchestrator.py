@@ -6,7 +6,8 @@ The Executor interacts with the ToolRouter exclusively through the HandlerRegist
 """
 
 import logging
-from typing import TYPE_CHECKING, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import TYPE_CHECKING
 
 from src.executor.dispatcher import HandlerRegistry
 from src.executor.executor import Executor
@@ -107,7 +108,8 @@ class AgentOrchestrator:
         """
         tool_router = self._tool_router
 
-        async def tool_router_handler(task, context) -> dict:
+        from typing import Any
+        async def tool_router_handler(task: Any, context: Any) -> dict[str, Any]:
             tool_name: str | None = getattr(task, "tool_name", None)
             if not tool_name:
                 logger.debug(f"[{task.id}] No tool_name configured — noop execution")

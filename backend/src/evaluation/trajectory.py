@@ -6,13 +6,12 @@ computes derived path metrics. Valid alternative execution paths are not penaliz
 the scorer rewards final success regardless of which route was taken.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 from src.agent.events import AgentEvent, AgentEventType
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Data models

@@ -1,18 +1,22 @@
 from __future__ import annotations
-import httpx
-import json
+
 import os
 import time
-from typing import AsyncGenerator, List, Dict, Any
-from src.ai_runtime.providers.base import BaseAIProvider
+from collections.abc import AsyncGenerator
+from typing import Any
+
+import httpx
+
 from src.ai_runtime.contracts import (
     CompletionRequest,
     CompletionResponse,
-    StreamChunk,
-    ProviderHealth,
     ProviderCapabilityMatrix,
+    ProviderHealth,
+    StreamChunk,
     UsageInfo,
 )
+from src.ai_runtime.providers.base import BaseAIProvider
+
 
 class OpenAIProvider(BaseAIProvider):
     def __init__(self, api_key: str | None = None) -> None:
@@ -30,7 +34,7 @@ class OpenAIProvider(BaseAIProvider):
 
         start_time = time.perf_counter()
         headers = {"Authorization": f"Bearer {self.api_key}"}
-        
+
         payload = {
             "model": request.model,
             "messages": [{"role": m.role, "content": m.content} for m in request.messages],
@@ -44,21 +48,21 @@ class OpenAIProvider(BaseAIProvider):
             response = await client.post("/chat/completions", headers=headers, json=payload)
             response.raise_for_status()
             data = response.json()
-            
+
             latency_ms = (time.perf_counter() - start_time) * 1000.0
-            
+
             text = data["choices"][0]["message"]["content"]
             meta = data.get("usage", {})
             prompt_tokens = meta.get("prompt_tokens", 0)
             completion_tokens = meta.get("completion_tokens", 0)
-            
+
             usage = UsageInfo(
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
                 total_tokens=prompt_tokens + completion_tokens,
                 latency_ms=round(latency_ms, 2)
             )
-            
+
             return CompletionResponse(
                 text=text,
                 usage=usage,
@@ -71,13 +75,13 @@ class OpenAIProvider(BaseAIProvider):
         res = await self.complete(request)
         yield StreamChunk(text=res.text, usage=res.usage, finish_reason=res.finish_reason)
 
-    async def complete_structured(self, request: CompletionRequest, schema: Dict[str, Any]) -> CompletionResponse:
+    async def complete_structured(self, request: CompletionRequest, schema: dict[str, Any]) -> CompletionResponse:
         if not self.api_key:
             raise ValueError("OPENAI_API_KEY environment variable is not configured.")
 
         start_time = time.perf_counter()
         headers = {"Authorization": f"Bearer {self.api_key}"}
-        
+
         payload = {
             "model": request.model,
             "messages": [{"role": m.role, "content": m.content} for m in request.messages],
@@ -92,21 +96,21 @@ class OpenAIProvider(BaseAIProvider):
             response = await client.post("/chat/completions", headers=headers, json=payload)
             response.raise_for_status()
             data = response.json()
-            
+
             latency_ms = (time.perf_counter() - start_time) * 1000.0
-            
+
             text = data["choices"][0]["message"]["content"]
             meta = data.get("usage", {})
             prompt_tokens = meta.get("prompt_tokens", 0)
             completion_tokens = meta.get("completion_tokens", 0)
-            
+
             usage = UsageInfo(
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
                 total_tokens=prompt_tokens + completion_tokens,
                 latency_ms=round(latency_ms, 2)
             )
-            
+
             return CompletionResponse(
                 text=text,
                 usage=usage,
@@ -115,7 +119,7 @@ class OpenAIProvider(BaseAIProvider):
                 finish_reason=data["choices"][0].get("finish_reason", "stop")
             )
 
-    async def embeddings(self, texts: List[str]) -> List[List[float]]:
+    async def embeddings(self, texts: list[str]) -> list[list[float]]:
         return [[0.0] * 1536 for _ in texts]
 
     async def check_health(self) -> ProviderHealth:

@@ -5,15 +5,15 @@ ASEP — Unit and Integration Tests for Enterprise Evaluation Framework
 import pytest
 from httpx import AsyncClient
 
-from src.evaluation.registry import get_evaluation_registry, EvaluationRegistry
-from src.evaluation.datasets import EvaluationDataset, EvaluationCase
+from src.evaluation.datasets import EvaluationCase, EvaluationDataset
+from src.evaluation.registry import EvaluationRegistry, get_evaluation_registry
 from src.evaluation.reports import ReportBuilder
 
 
 def test_evaluation_registry_registration():
     """Verify registry add, lookup, and metadata discovery flows."""
     registry = EvaluationRegistry()
-    
+
     custom_dataset = EvaluationDataset(
         name="test_dataset_alpha",
         version="1.0",
@@ -35,7 +35,7 @@ def test_evaluation_registry_registration():
     registry.register(custom_dataset)
     assert registry.lookup("test_dataset_alpha") is not None
     assert registry.version("test_dataset_alpha") == "1.0"
-    
+
     meta = registry.metadata("test_dataset_alpha")
     assert meta is not None
     assert meta["dataset_type"] == "golden"
@@ -49,7 +49,7 @@ def test_evaluation_registry_registration():
 def test_evaluation_exporters():
     """Verify Markdown and HTML reports are formatted correctly."""
     registry = get_evaluation_registry()
-    
+
     test_dataset = EvaluationDataset(
         name="test_export_dataset",
         version="1.0",
@@ -79,7 +79,7 @@ def test_evaluation_exporters():
 async def test_evaluation_api_endpoints(async_client: AsyncClient):
     """Test all five REST API endpoints for evaluations."""
     registry = get_evaluation_registry()
-    
+
     test_dataset = EvaluationDataset(
         name="test_api_dataset",
         version="1.0",
@@ -104,7 +104,7 @@ async def test_evaluation_api_endpoints(async_client: AsyncClient):
         assert resp_list.status_code == 200
         data = resp_list.json()
         assert len(data) >= 1
-        
+
         # Make sure our dataset is in the list
         dataset_names = [d["name"] for d in data]
         assert "test_api_dataset" in dataset_names

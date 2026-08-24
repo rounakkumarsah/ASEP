@@ -12,7 +12,6 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
 
 from src.cache.redis import get_redis_client
 from src.config.settings import get_settings
@@ -24,9 +23,9 @@ logger = logging.getLogger(__name__)
 class ResearchReport:
     topic_or_issue: str
     summary: str
-    code_solution: Optional[str] = None
-    sources: List[str] = field(default_factory=list)
-    search_queries_used: List[str] = field(default_factory=list)
+    code_solution: str | None = None
+    sources: list[str] = field(default_factory=list)
+    search_queries_used: list[str] = field(default_factory=list)
     latency_ms: float = 0.0
 
 
@@ -41,13 +40,14 @@ class RateLimitQueueWrapper:
         key = f"gemini_rpm:{int(time.time() // 60)}"
 
         try:
-            current = await redis.incr(key)
-            if current == 1:
-                await redis.expire(key, 65)
+            if redis:
+                current = await redis.incr(key)
+                if current == 1:
+                    await redis.expire(key, 65)
 
-            if current > self.rpm_limit:
-                logger.warning("Gemini 15 RPM limit reached (%d calls). Throttling 5 seconds...", current)
-                await asyncio.sleep(5.0)
+                if current > self.rpm_limit:
+                    logger.warning("Gemini 15 RPM limit reached (%d calls). Throttling 5 seconds...", current)
+                    await asyncio.sleep(5.0)
         except Exception as exc:
             logger.debug("Redis rate limiter check bypassed: %s", exc)
 
@@ -59,9 +59,9 @@ class ResearchSwarm:
         self.settings = get_settings()
         self.rate_limiter = RateLimitQueueWrapper(rpm_limit=15)
 
-    async def _duckduckgo_search(self, query: str, max_results: int = 5) -> List[Dict[str, str]]:
+    async def _duckduckgo_search(self, query: str, max_results: int = 5) -> list[dict[str, str]]:
         logger.info("Executing DuckDuckGo web search: '%s'", query)
-        results: List[Dict[str, str]] = []
+        results: list[dict[str, str]] = []
         try:
             from duckduckgo_search import DDGS
             with DDGS() as ddgs:
@@ -108,7 +108,7 @@ class ResearchSwarm:
     async def run_developer_copilot(
         self,
         error_or_code: str,
-        image_text_extracted: Optional[str] = None,
+        image_text_extracted: str | None = None,
     ) -> ResearchReport:
         """Multimodal Developer Copilot Swarm: error/screenshot -> DDG issue search -> Gemini fix."""
         start_time = time.perf_counter()
@@ -129,11 +129,11 @@ class ResearchSwarm:
         )
 
         code_solution = (
-            f"# Corrected Code Solution:\n"
-            f"def resolved_function(input_data):\n"
-            f"    if not input_data:\n"
-            f"        return None\n"
-            f"    return input_data.get('valid_key')\n"
+            "# Corrected Code Solution:\n"
+            "def resolved_function(input_data):\n"
+            "    if not input_data:\n"
+            "        return None\n"
+            "    return input_data.get('valid_key')\n"
         )
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000.0

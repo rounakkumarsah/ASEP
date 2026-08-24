@@ -8,18 +8,16 @@ Error Analytics, and Cost Tracking.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter
 from pydantic import BaseModel
-
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 
 from src.auth.dependencies import CurrentUser
-from src.db.postgres import DbSession
 from src.db.models.agent_run import AgentRun, RunStatus
-from src.db.models.task import Task
 from src.db.models.payment import Payment
+from src.db.models.task import Task
+from src.db.postgres import DbSession
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +58,7 @@ async def get_monitoring_dashboard(
     total_cost_usd = (captured_payments_paise / 100.0) * 0.012
 
     if total_cost_usd == 0:
-        runs_res = await db.execute(select(AgentRun.token_usage).where(AgentRun.token_usage != None))
+        runs_res = await db.execute(select(AgentRun.token_usage).where(AgentRun.token_usage is not None))
         total_token_cost = 0.0
         for row in runs_res.scalars():
             if isinstance(row, dict):
@@ -94,7 +92,7 @@ async def get_prometheus_metrics(db: DbSession) -> str:
     active_agents = await db.scalar(
         select(func.count(AgentRun.id)).where(AgentRun.status == RunStatus.RUNNING)
     ) or 0
-    
+
     total_runs = await db.scalar(select(func.count(AgentRun.id))) or 0
     failed_runs = await db.scalar(
         select(func.count(AgentRun.id)).where(AgentRun.status == RunStatus.FAILED)

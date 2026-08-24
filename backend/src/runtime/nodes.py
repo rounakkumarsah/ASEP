@@ -3,7 +3,7 @@ ASEP — Node Registry and Generic Graph Nodes
 """
 
 import logging
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from langgraph.types import interrupt
@@ -13,7 +13,7 @@ from src.runtime.state import AgentState
 logger = logging.getLogger(__name__)
 
 # Node function type: takes AgentState, returns updates dictionary
-NodeFunc = Callable[[AgentState], dict[str, Any]]
+NodeFunc = Callable[[AgentState], dict[str, Any] | Awaitable[dict[str, Any]]]
 
 
 class NodeRegistry:

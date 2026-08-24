@@ -27,6 +27,7 @@ venv/
 ENV/
 .venv/
 .env
+.env.*
 !.env.example
 .python-version
 pip-log.txt
@@ -88,7 +89,12 @@ Thumbs.db
 *.pem
 *.key
 *.cert
+*.crt
+*.p12
+*.pfx
 secrets/
+id_rsa
+id_ed25519
 
 # Logs
 logs/

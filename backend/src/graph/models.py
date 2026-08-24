@@ -2,7 +2,8 @@
 ASEP — Graph Models
 """
 
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from pydantic import BaseModel, Field
 

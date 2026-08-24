@@ -21,19 +21,19 @@ class TaskDecomposer:
     async def decompose(self, goal: Goal) -> DecomposedPlan:
         """Decompose a structured goal into a plan of logical subtasks."""
         logger.info(f"Decomposing goal: '{goal.parsed_title}'")
-        
+
         goal_summary = {
             "title": goal.parsed_title,
             "success_criteria": goal.success_criteria
         }
-        
+
         messages = [
             {"role": "system", "content": TASK_DECOMPOSER_SYSTEM_PROMPT},
             {"role": "user", "content": f"Decompose this Goal:\n{json.dumps(goal_summary, indent=2)}"}
         ]
-        
+
         response_content = await self.provider.chat_complete(messages, json_output=True)
-        
+
         try:
             parsed_data = json.loads(response_content)
             # Strict validation through Pydantic model

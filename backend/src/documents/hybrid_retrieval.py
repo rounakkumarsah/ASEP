@@ -7,10 +7,9 @@ and BM25 lexical keyword matching with Reciprocal Rank Fusion (RRF).
 
 from __future__ import annotations
 
-import math
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from src.documents.embedding_service import EmbeddingProvider
 from src.graph.expansion import ExpandedGraphNode, GraphExpansionEngine
@@ -26,14 +25,14 @@ class HybridSearchResult:
     score: float
     text: str
     document_id: str
-    parent_id: Optional[str] = None
-    filename: Optional[str] = None
-    file_path: Optional[str] = None
+    parent_id: str | None = None
+    filename: str | None = None
+    file_path: str | None = None
     source_type: str = "hybrid"
     vector_score: float = 0.0
     graph_score: float = 0.0
     bm25_score: float = 0.0
-    graph_connections: List[Dict[str, Any]] = field(default_factory=list)
+    graph_connections: list[dict[str, Any]] = field(default_factory=list)
 
 
 class ReciprocalRankFusion:
@@ -41,11 +40,11 @@ class ReciprocalRankFusion:
 
     @staticmethod
     def fuse(
-        rank_lists: List[List[Dict[str, Any]]],
+        rank_lists: list[list[dict[str, Any]]],
         k: int = 60,
-    ) -> List[Dict[str, Any]]:
-        scores: Dict[str, float] = {}
-        item_map: Dict[str, Dict[str, Any]] = {}
+    ) -> list[dict[str, Any]]:
+        scores: dict[str, float] = {}
+        item_map: dict[str, dict[str, Any]] = {}
 
         for rank_list in rank_lists:
             for rank, item in enumerate(rank_list, start=1):
@@ -59,7 +58,7 @@ class ReciprocalRankFusion:
                 scores[item_id] = scores.get(item_id, 0.0) + (1.0 / (k + rank))
 
         sorted_items = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-        results: List[Dict[str, Any]] = []
+        results: list[dict[str, Any]] = []
         for item_id, score in sorted_items:
             res = dict(item_map[item_id])
             res["rrf_score"] = round(score, 6)
@@ -71,9 +70,9 @@ class ReciprocalRankFusion:
 class LexicalBM25Retriever:
     """Token matching lexical search engine for keyword queries."""
 
-    def search_bm25(self, query: str, documents: List[Dict[str, Any]], limit: int = 10) -> List[Dict[str, Any]]:
+    def search_bm25(self, query: str, documents: list[dict[str, Any]], limit: int = 10) -> list[dict[str, Any]]:
         query_tokens = set(query.lower().split())
-        scored: List[Dict[str, Any]] = []
+        scored: list[dict[str, Any]] = []
 
         for doc in documents:
             text = (doc.get("text") or "").lower()
@@ -104,7 +103,7 @@ class HybridRetrievalPipeline:
         self,
         vector_service: VectorService,
         embedding_provider: EmbeddingProvider,
-        graph_service: Optional[GraphService] = None,
+        graph_service: GraphService | None = None,
         collection_name: str = "asep_documents",
     ) -> None:
         self.vector = vector_service
@@ -118,12 +117,12 @@ class HybridRetrievalPipeline:
         self,
         query: str,
         limit: int = 10,
-        filters: Optional[Dict[str, Any]] = None,
+        filters: dict[str, Any] | None = None,
         score_threshold: float = 0.0,
-    ) -> List[HybridSearchResult]:
+    ) -> list[HybridSearchResult]:
         # 1. Vector Search
         query_vector = await self.embedder.embed_query(query)
-        vector_hits: List[VectorSearchResult] = await self.vector.search(
+        vector_hits: list[VectorSearchResult] = await self.vector.search(
             collection_name=self.collection_name,
             query_vector=query_vector,
             limit=limit,
@@ -148,7 +147,7 @@ class HybridRetrievalPipeline:
         bm25_results = self.bm25.search_bm25(query, vector_results, limit=limit)
 
         # 3. Multi-hop Graph Search
-        graph_connections: List[ExpandedGraphNode] = []
+        graph_connections: list[ExpandedGraphNode] = []
         if self.graph_expansion and vector_results:
             seed_ids = [r["chunk_id"] for r in vector_results]
             graph_connections = await self.graph_expansion.expand_multi_hop(seed_ids, depth=2)
@@ -157,7 +156,7 @@ class HybridRetrievalPipeline:
         fused = ReciprocalRankFusion.fuse([vector_results, bm25_results], k=60)
 
         # 5. Format HybridSearchResult list
-        conn_map: Dict[str, List[Dict[str, Any]]] = {}
+        conn_map: dict[str, list[dict[str, Any]]] = {}
         for conn in graph_connections:
             if conn.parent_id:
                 conn_map.setdefault(conn.parent_id, []).append({
@@ -167,7 +166,7 @@ class HybridRetrievalPipeline:
                     "properties": conn.properties,
                 })
 
-        final_results: List[HybridSearchResult] = []
+        final_results: list[HybridSearchResult] = []
         for item in fused[:limit]:
             chunk_id = item["chunk_id"]
             final_results.append(

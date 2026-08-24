@@ -2,14 +2,14 @@
 ASEP — Knowledge Synchronization Engine
 """
 
+import logging
 import time
 import uuid
-import logging
-from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any
-from pydantic import BaseModel, Field
+from typing import Any
 
-from src.knowledge.sources import KnowledgeSource, get_source_registry
+from pydantic import BaseModel
+
+from src.knowledge.sources import get_source_registry
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class SyncedDocument(BaseModel):
     source_id: str
     source_name: str
     source_type: str
-    source_url: Optional[str] = None
+    source_url: str | None = None
     version: str
     checksum: str
     created_at: float
@@ -40,28 +40,28 @@ class SyncHistory(BaseModel):
     sync_type: str  # full, incremental, scheduled, manual
     status: str  # pending, completed, failed, interrupted
     start_time: float
-    end_time: Optional[float] = None
+    end_time: float | None = None
     documents_synced: int = 0
     changed_documents: int = 0
     skipped_documents: int = 0
     deleted_documents: int = 0
     retry_count: int = 0
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 class KnowledgeSyncEngine:
     """Core synchronization motor driving change-detection, extraction, mapping, and audit logging."""
 
     def __init__(self) -> None:
-        self.documents: Dict[str, SyncedDocument] = {}
-        self.history: List[SyncHistory] = []
-        self.checkpoints: Dict[str, int] = {}  # Tracks progress index of active runs
+        self.documents: dict[str, SyncedDocument] = {}
+        self.history: list[SyncHistory] = []
+        self.checkpoints: dict[str, int] = {}  # Tracks progress index of active runs
 
     async def full_sync(self, source_id: str) -> SyncHistory:
         """Run complete re-index of the knowledge source."""
         return await self._run_sync(source_id, "full")
 
-    async def incremental_sync(self, source_id: str, new_docs: List[Dict[str, Any]]) -> SyncHistory:
+    async def incremental_sync(self, source_id: str, new_docs: list[dict[str, Any]]) -> SyncHistory:
         """Run incremental sync processing only modified/new items."""
         return await self._run_sync(source_id, "incremental", new_docs)
 
@@ -97,7 +97,7 @@ class KnowledgeSyncEngine:
         hist.end_time = time.time()
         return hist
 
-    async def _run_sync(self, source_id: str, sync_type: str, new_docs: Optional[List[Dict[str, Any]]] = None) -> SyncHistory:
+    async def _run_sync(self, source_id: str, sync_type: str, new_docs: list[dict[str, Any]] | None = None) -> SyncHistory:
         registry = get_source_registry()
         src = registry.lookup(source_id)
         if not src:
@@ -172,7 +172,7 @@ class KnowledgeSyncEngine:
         return hist
 
 
-_global_sync_engine: Optional[KnowledgeSyncEngine] = None
+_global_sync_engine: KnowledgeSyncEngine | None = None
 
 def get_sync_engine() -> KnowledgeSyncEngine:
     global _global_sync_engine

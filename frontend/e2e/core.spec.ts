@@ -15,8 +15,10 @@ test.describe('Authentication and Core Flows', () => {
     });
   });
 
-  const testEmail = `admin@example.com`;
-  const testPass = 'SecurePass123!';
+  // Use same E2E user seeded in auth.setup.ts
+  const testEmail = 'e2e_admin@playwright.test';
+  const testPass = 'Playwright$Test123!';
+
 
   test('Signup - terms validation error when unchecked and clears on check', async ({ page }) => {
     const signupPage = new SignupPage(page);

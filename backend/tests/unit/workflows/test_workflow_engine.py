@@ -3,11 +3,10 @@ ASEP — Unit Tests for Workflow Engine
 """
 
 import pytest
+
 from src.workflows.engine import WorkflowEngine
 from src.workflows.models import (
-    CheckpointPolicy,
     ExecutionState,
-    RetryPolicy,
     WorkflowContext,
     WorkflowDefinition,
     WorkflowStep,

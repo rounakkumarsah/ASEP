@@ -18,12 +18,11 @@ import asyncio
 import enum
 import logging
 import time
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, AsyncGenerator, Callable, Coroutine, Dict, List, Optional, Set, Union
-from uuid import UUID, uuid4
-
-from pydantic import BaseModel, Field
+from datetime import UTC, datetime
+from typing import Any
+from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +31,7 @@ logger = logging.getLogger(__name__)
 # 1. Event System
 # ---------------------------------------------------------------------------
 
-class EventType(str, enum.Enum):
+class EventType(enum.StrEnum):
     RUN_SUBMITTED = "run_submitted"
     RUN_STARTED = "run_started"
     STEP_STARTED = "step_started"
@@ -51,17 +50,17 @@ class AgentEvent:
     event_type: EventType = EventType.RUN_SUBMITTED
     run_id: str = ""
     timestamp: float = field(default_factory=time.time)
-    payload: Dict[str, Any] = field(default_factory=dict)
+    payload: dict[str, Any] = field(default_factory=dict)
 
 
-EventHandler = Callable[[AgentEvent], Union[None, Coroutine[Any, Any, None]]]
+EventHandler = Callable[[AgentEvent], None | Coroutine[Any, Any, None]]
 
 
 class EventEmitter:
     """Thread-safe, async-compatible event emitter."""
 
     def __init__(self) -> None:
-        self._listeners: Dict[EventType, List[EventHandler]] = {}
+        self._listeners: dict[EventType, list[EventHandler]] = {}
         self._lock = asyncio.Lock()
 
     def on(self, event_type: EventType, handler: EventHandler) -> None:
@@ -94,15 +93,15 @@ class CancellationToken:
 
     def __init__(self) -> None:
         self._cancelled = False
-        self._reason: Optional[str] = None
-        self._callbacks: List[Callable[[], None]] = []
+        self._reason: str | None = None
+        self._callbacks: list[Callable[[], None]] = []
 
     @property
     def is_cancelled(self) -> bool:
         return self._cancelled
 
     @property
-    def reason(self) -> Optional[str]:
+    def reason(self) -> str | None:
         return self._reason
 
     def cancel(self, reason: str = "Execution cancelled by user") -> None:
@@ -134,14 +133,14 @@ class CancellationToken:
 class ExecutionContext:
     run_id: str = field(default_factory=lambda: str(uuid4()))
     session_id: str = ""
-    user_id: Optional[str] = None
-    org_id: Optional[str] = None
+    user_id: str | None = None
+    org_id: str | None = None
     goal: str = ""
     timeout_seconds: float = 300.0
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    variables: Dict[str, Any] = field(default_factory=dict)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    variables: dict[str, Any] = field(default_factory=dict)
     cancellation_token: CancellationToken = field(default_factory=CancellationToken)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def get_var(self, key: str, default: Any = None) -> Any:
         return self.variables.get(key, default)
@@ -154,7 +153,7 @@ class ExecutionContext:
 # 4. State Management
 # ---------------------------------------------------------------------------
 
-class ExecutionStatus(str, enum.Enum):
+class ExecutionStatus(enum.StrEnum):
     PENDING = "pending"
     RUNNING = "running"
     PAUSED = "paused"
@@ -167,27 +166,27 @@ class ExecutionStatus(str, enum.Enum):
 class StateSnapshot:
     step: int
     status: ExecutionStatus
-    state_data: Dict[str, Any]
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    state_data: dict[str, Any]
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 class StateManager:
     """Manages mutable agent state with historical audit snapshots."""
 
-    def __init__(self, initial_state: Optional[Dict[str, Any]] = None) -> None:
-        self._current_state: Dict[str, Any] = initial_state or {}
-        self._history: List[StateSnapshot] = []
+    def __init__(self, initial_state: dict[str, Any] | None = None) -> None:
+        self._current_state: dict[str, Any] = initial_state or {}
+        self._history: list[StateSnapshot] = []
         self._step_counter = 0
 
     @property
-    def current_state(self) -> Dict[str, Any]:
+    def current_state(self) -> dict[str, Any]:
         return dict(self._current_state)
 
     @property
-    def history(self) -> List[StateSnapshot]:
+    def history(self) -> list[StateSnapshot]:
         return list(self._history)
 
-    def update(self, updates: Dict[str, Any], status: ExecutionStatus = ExecutionStatus.RUNNING) -> Dict[str, Any]:
+    def update(self, updates: dict[str, Any], status: ExecutionStatus = ExecutionStatus.RUNNING) -> dict[str, Any]:
         self._current_state.update(updates)
         self._step_counter += 1
         snapshot = StateSnapshot(
@@ -218,7 +217,7 @@ class RetryPolicy:
     initial_delay: float = 0.5
     backoff_factor: float = 2.0
     max_delay: float = 10.0
-    retryable_exceptions: List[type[BaseException]] = field(
+    retryable_exceptions: list[type[BaseException]] = field(
         default_factory=lambda: [Exception]
     )
 
@@ -226,7 +225,7 @@ class RetryPolicy:
 class RetryHandler:
     """Executes callables with exponential backoff and retry rules."""
 
-    def __init__(self, policy: Optional[RetryPolicy] = None) -> None:
+    def __init__(self, policy: RetryPolicy | None = None) -> None:
         self.policy = policy or RetryPolicy()
 
     async def execute(self, func: Callable[[], Coroutine[Any, Any, Any]]) -> Any:
@@ -256,18 +255,18 @@ class AsyncExecutionEngine:
     def __init__(self, max_concurrency: int = 10) -> None:
         self.max_concurrency = max_concurrency
         self.events = EventEmitter()
-        self._active_runs: Dict[str, ExecutionContext] = {}
-        self._run_tasks: Dict[str, asyncio.Task[Any]] = {}
-        self._state_managers: Dict[str, StateManager] = {}
+        self._active_runs: dict[str, ExecutionContext] = {}
+        self._run_tasks: dict[str, asyncio.Task[Any]] = {}
+        self._state_managers: dict[str, StateManager] = {}
         self._semaphore = asyncio.Semaphore(max_concurrency)
 
     async def submit_run(
         self,
         goal: str,
         session_id: str = "",
-        user_id: Optional[str] = None,
-        org_id: Optional[str] = None,
-        initial_variables: Optional[Dict[str, Any]] = None,
+        user_id: str | None = None,
+        org_id: str | None = None,
+        initial_variables: dict[str, Any] | None = None,
         timeout_seconds: float = 300.0,
     ) -> ExecutionContext:
         ctx = ExecutionContext(
@@ -295,16 +294,16 @@ class AsyncExecutionEngine:
     async def execute_task(
         self,
         run_id: str,
-        task_coro_fn: Callable[[ExecutionContext, StateManager], Coroutine[Any, Any, Dict[str, Any]]],
-        retry_policy: Optional[RetryPolicy] = None,
-    ) -> Dict[str, Any]:
+        task_coro_fn: Callable[[ExecutionContext, StateManager], Coroutine[Any, Any, dict[str, Any]]],
+        retry_policy: RetryPolicy | None = None,
+    ) -> dict[str, Any]:
         ctx = self._active_runs.get(run_id)
         if not ctx:
             raise ValueError(f"Run ID '{run_id}' not found in active execution engine.")
 
         state_mgr = self._state_managers[run_id]
 
-        async def _runner() -> Dict[str, Any]:
+        async def _runner() -> dict[str, Any]:
             async with self._semaphore:
                 ctx.cancellation_token.raise_if_cancelled()
                 state_mgr.update({"status": ExecutionStatus.RUNNING.value}, ExecutionStatus.RUNNING)
@@ -312,7 +311,7 @@ class AsyncExecutionEngine:
 
                 retry_handler = RetryHandler(retry_policy)
 
-                async def _task_wrapper() -> Dict[str, Any]:
+                async def _task_wrapper() -> dict[str, Any]:
                     ctx.cancellation_token.raise_if_cancelled()
                     return await task_coro_fn(ctx, state_mgr)
 
@@ -368,7 +367,7 @@ class AsyncExecutionEngine:
             task.cancel()
         return True
 
-    def get_status(self, run_id: str) -> Dict[str, Any]:
+    def get_status(self, run_id: str) -> dict[str, Any]:
         state_mgr = self._state_managers.get(run_id)
         if not state_mgr:
             return {"run_id": run_id, "status": ExecutionStatus.PENDING.value, "found": False}

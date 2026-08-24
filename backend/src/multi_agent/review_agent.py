@@ -7,7 +7,7 @@ Performs code review, security vulnerability checks, performance auditing, and s
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List
+from typing import Any
 
 from src.multi_agent.base_agent import BaseAgent
 from src.multi_agent.contracts import AgentManifest, AgentRequest, AgentRole
@@ -29,13 +29,13 @@ class ReviewAgent(BaseAgent):
         )
         super().__init__(role=AgentRole.REVIEW, manifest=manifest)
 
-    async def _execute_internal(self, request: AgentRequest) -> Dict[str, Any]:
+    async def _execute_internal(self, request: AgentRequest) -> dict[str, Any]:
         code = request.input_data.get("code_content", "")
         review_type = request.input_data.get("review_type", "all")
 
         logger.info("ReviewAgent executing review_type '%s' on code snippet length %d", review_type, len(code))
 
-        issues: List[Dict[str, Any]] = []
+        issues: list[dict[str, Any]] = []
 
         # Simple security static check rules
         if "eval(" in code or "exec(" in code:

@@ -3,7 +3,10 @@ ASEP — Unit Tests for Memory Runtime
 """
 
 import time
+from datetime import UTC
+
 import pytest
+
 from src.memory.runtime import ConversationMemory, EvictionStrategy, MemoryEvictionPolicy
 
 
@@ -48,40 +51,41 @@ def test_memory_eviction_ttl():
 @pytest.mark.asyncio
 async def test_memory_retrieval_scoring():
     from unittest.mock import AsyncMock, MagicMock
+
     from src.memory.retrieval import MemoryRetrieval
-    
+
     # Mock memory dependencies
     working = MagicMock()
     working.get_messages = AsyncMock(return_value=[{"role": "user", "content": "hello"}])
-    
+
     # Mock episodic entries
-    from datetime import datetime, timezone
+    from datetime import datetime
     from decimal import Decimal
     episode_entry = MagicMock()
     episode_entry.id = "e-123"
     episode_entry.content = "Connection Refused database error trace"
     episode_entry.importance_score = Decimal("0.80")
-    episode_entry.created_at = datetime.now(timezone.utc)
-    
+    episode_entry.created_at = datetime.now(UTC)
+
     episodic = MagicMock()
     episodic.get_episodes = AsyncMock(return_value=[episode_entry])
-    
+
     # Mock semantic facts query
     semantic = MagicMock()
     semantic.query_facts = AsyncMock(return_value=[
         {"id": "s-456", "score": 0.85, "text": "database connectivity guidelines", "payload": {"importance": 0.90}}
     ])
-    
+
     procedural = MagicMock()
-    
+
     retrieval = MemoryRetrieval(working, episodic, semantic, procedural)
     res = await retrieval.retrieve_context("database error", "session-1", limit=5)
-    
+
     assert "working" in res
     assert "episodic" in res
     assert "semantic" in res
     assert "ranked_fusion" in res
-    
+
     # Check that scored matches are sorted descending by score
     scores = [m["score"] for m in res["ranked_fusion"]]
     assert scores == sorted(scores, reverse=True)

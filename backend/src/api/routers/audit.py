@@ -2,20 +2,15 @@
 Audit Router
 """
 
-from typing import Annotated
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
+
 from fastapi import APIRouter, Depends, Query
 
 from src.api.dependencies import AuditServiceDep
-from src.api.schemas import (
-    AuditLogResponse,
-    PaginatedResponse,
-    PaginationParams
-)
+from src.api.schemas import AuditLogResponse, PaginatedResponse, PaginationParams
 from src.auth.decorators import RequirePermission
 from src.auth.permissions import Permission
 from src.db.models.audit_log import ActorType
-
 
 router = APIRouter(prefix="/audit", tags=["Audit"])
 
@@ -48,7 +43,7 @@ async def list_audit_logs(
         # Default empty return or generic query if not implemented in service yet.
         # Audit service currently only exposes actor and resource history, not global history.
         logs = []
-        
+
     return PaginatedResponse(
         items=logs,
         total=len(logs),  # Mock total as count is not implemented for all filters
@@ -64,9 +59,9 @@ async def list_critical_failures(
     limit: int = Query(50, ge=1, le=1000),
 ) -> PaginatedResponse[AuditLogResponse]:
     """List critical severity failures within a timeframe."""
-    since = datetime.now(tz=timezone.utc) - timedelta(days=days)
+    since = datetime.now(tz=UTC) - timedelta(days=days)
     logs = await service.get_critical_failures(since=since, limit=limit)
-    
+
     return PaginatedResponse(
         items=logs,
         total=len(logs),

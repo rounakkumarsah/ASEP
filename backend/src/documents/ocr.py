@@ -2,9 +2,9 @@
 ASEP — Optical Character Recognition (OCR) Loader and Text Extractor
 """
 
-import os
 import logging
-from typing import Dict, Any, Tuple
+import os
+
 from src.documents.loaders import BaseLoader
 
 logger = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ class OCRImageLoader(BaseLoader):
         text, _ = self.load_with_confidence(file_path)
         return text
 
-    def load_with_confidence(self, file_path: str) -> Tuple[str, float]:
+    def load_with_confidence(self, file_path: str) -> tuple[str, float]:
         """Extracts text content and returns normalized text along with a confidence rating (0.0 - 1.0)."""
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"Image asset file not found at: {file_path}")
@@ -37,9 +37,9 @@ class OCRImageLoader(BaseLoader):
             except (ImportError, ModuleNotFoundError):
                 img = None
                 w, h = 1920, 1080
-            
+
             logger.debug(f"Input image resolution values: {w}x{h}")
-            
+
             # Attempt to import libraries (pytesseract or easyocr fallback)
             try:
                 import pytesseract

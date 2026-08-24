@@ -4,6 +4,7 @@ ASEP — Unit Tests for Tool Registry & Validation
 
 import pytest
 from pydantic import BaseModel, Field
+
 from src.tools.base import BaseTool
 from src.tools.permissions import ToolPermission, verify_tool_permissions
 from src.tools.registry import ToolRegistry
@@ -64,10 +65,11 @@ def test_tool_registry_management():
 
 from pydantic import ValidationError
 
+
 @pytest.mark.asyncio
 async def test_tool_validation_and_execution():
     tool = DummyTool()
-    
+
     # Valid input
     output = await tool.execute({"query": "test query"})
     assert output.success is True

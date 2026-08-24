@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class SharedStateContext:
     """Thread-safe state memory shared across all agents in an execution session."""
 
     session_id: str
-    _data: Dict[str, Any] = field(default_factory=dict)
+    _data: dict[str, Any] = field(default_factory=dict)
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
     async def get(self, key: str, default: Any = None) -> Any:
@@ -30,7 +30,7 @@ class SharedStateContext:
         async with self._lock:
             self._data[key] = value
 
-    async def snapshot(self) -> Dict[str, Any]:
+    async def snapshot(self) -> dict[str, Any]:
         async with self._lock:
             return dict(self._data)
 
@@ -38,7 +38,7 @@ class SharedStateContext:
 class ConsensusWorkflow:
     """Resolves conflicts and reaches consensus across multi-agent proposals."""
 
-    def resolve_consensus(self, proposals: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def resolve_consensus(self, proposals: list[dict[str, Any]]) -> dict[str, Any]:
         if not proposals:
             return {"status": "rejected", "reason": "No proposals provided"}
 

@@ -19,7 +19,6 @@ from src.api.app import create_app
 from src.auth.dependencies import get_current_user
 from src.db.models.user import User
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

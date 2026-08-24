@@ -5,9 +5,9 @@ ASEP — HITLSession ORM Model
 from __future__ import annotations
 
 import enum
+import uuid
 from datetime import datetime
 from typing import Any
-import uuid
 
 from sqlalchemy import (
     DateTime,
@@ -21,18 +21,18 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.db.postgres import Base
 from src.db.models.agent_run import TimestampMixin
+from src.db.postgres import Base
 
 
-class HITLStatus(str, enum.Enum):
+class HITLStatus(enum.StrEnum):
     PENDING = "pending"
     APPROVED = "approved"
     REJECTED = "rejected"
     EXPIRED = "expired"
 
 
-class HITLAction(str, enum.Enum):
+class HITLAction(enum.StrEnum):
     APPROVE = "Approve"
     REJECT = "Reject"
     MODIFY = "Modify"

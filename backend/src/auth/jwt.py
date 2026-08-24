@@ -3,7 +3,7 @@ ASEP — JWT Token Utilities
 """
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import jwt
@@ -20,19 +20,19 @@ def create_token(
 ) -> str:
     """Create a JWT token with strict standard claims."""
     settings = get_settings()
-    expire = datetime.now(timezone.utc) + expires_delta
-    
+    expire = datetime.now(UTC) + expires_delta
+
     to_encode = {
         "sub": str(subject),
         "role": role,
         "type": token_type,
         "exp": expire,
-        "iat": datetime.now(timezone.utc),
+        "iat": datetime.now(UTC),
         "jti": str(uuid.uuid4()),
         "iss": "asep-auth",
         "aud": "asep-app",
     }
-    
+
     encoded_jwt = jwt.encode(to_encode, secret_key, algorithm=settings.JWT_ALGORITHM)
     return encoded_jwt
 

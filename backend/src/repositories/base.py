@@ -25,8 +25,7 @@ Design notes:
 
 from __future__ import annotations
 
-import uuid
-from typing import Any, Generic, TypeVar
+from typing import Any, TypeVar
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import NoResultFound
@@ -67,7 +66,7 @@ def _clamp_limit(limit: int) -> int:
 # ---------------------------------------------------------------------------
 
 
-class BaseRepository(Generic[M, PK]):
+class BaseRepository[M: DeclarativeBase, PK]:
     """Generic async repository providing CRUD primitives for an ORM model.
 
     All domain repositories inherit from this class and extend it with

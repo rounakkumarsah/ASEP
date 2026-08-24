@@ -6,15 +6,14 @@ DB/OTEL export hooks are reserved for a future phase.
 """
 
 import uuid
-from contextlib import asynccontextmanager
-from datetime import datetime, timezone
-from enum import Enum
-from typing import Any, AsyncGenerator
+from datetime import UTC, datetime
+from enum import StrEnum
+from typing import Any
 
 from pydantic import BaseModel, Field
 
 
-class SpanStatus(str, Enum):
+class SpanStatus(StrEnum):
     OK = "ok"
     ERROR = "error"
     CANCELLED = "cancelled"
@@ -26,7 +25,7 @@ class TraceSpan(BaseModel):
     span_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     parent_span_id: str | None = None
     name: str
-    start_time: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    start_time: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
     end_time: datetime | None = None
     status: SpanStatus = SpanStatus.RUNNING
     attributes: dict[str, Any] = Field(default_factory=dict)
@@ -45,7 +44,7 @@ class Trace(BaseModel):
     thread_id: str
     run_id: str
     spans: list[TraceSpan] = Field(default_factory=list)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
 
     def add_span(self, span: TraceSpan) -> None:
         self.spans.append(span)
@@ -80,7 +79,7 @@ class _SpanContext:
         return self._span
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
-        self._span.end_time = datetime.now(tz=timezone.utc)
+        self._span.end_time = datetime.now(tz=UTC)
         if exc_type is not None:
             self._span.status = SpanStatus.ERROR
             self._span.attributes["error"] = str(exc_val)

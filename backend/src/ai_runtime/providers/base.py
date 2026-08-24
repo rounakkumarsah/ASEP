@@ -1,13 +1,17 @@
 from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import AsyncGenerator, List, Dict, Any
+from collections.abc import AsyncGenerator
+from typing import Any
+
 from src.ai_runtime.contracts import (
     CompletionRequest,
     CompletionResponse,
-    StreamChunk,
-    ProviderHealth,
     ProviderCapabilityMatrix,
+    ProviderHealth,
+    StreamChunk,
 )
+
 
 class BaseAIProvider(ABC):
     @property
@@ -27,12 +31,12 @@ class BaseAIProvider(ABC):
         pass
 
     @abstractmethod
-    async def complete_structured(self, request: CompletionRequest, schema: Dict[str, Any]) -> CompletionResponse:
+    async def complete_structured(self, request: CompletionRequest, schema: dict[str, Any]) -> CompletionResponse:
         """Execute a complete call forcing json schemas conformance matching the output."""
         pass
 
     @abstractmethod
-    async def embeddings(self, texts: List[str]) -> List[List[float]]:
+    async def embeddings(self, texts: list[str]) -> list[list[float]]:
         """Scaffold interface generating float vectors from text chunks."""
         pass
 

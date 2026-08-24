@@ -4,7 +4,7 @@ ASEP — Control Plane Approvals
 
 import asyncio
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from pydantic import BaseModel, Field
 
@@ -17,9 +17,9 @@ logger = logging.getLogger(__name__)
 class PendingApproval(BaseModel):
     intent: ActionIntent
     state: ApprovalState = ApprovalState.PENDING
-    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
     expires_at: datetime
-    
+
     # We cannot store an asyncio.Event in Pydantic easily without arbitrary_types_allowed,
     # so we manage the event separately in the Queue
 
@@ -36,15 +36,15 @@ class ApprovalQueue:
     async def enqueue_and_wait(self, intent: ActionIntent) -> DecisionResult:
         """Called by Governance ApprovalManager to wait for human review."""
         intent_id = intent.intent_id
-        
+
         # Register the pending approval
-        expires = datetime.now(tz=timezone.utc) + timedelta(minutes=self.default_timeout_minutes)
+        expires = datetime.now(tz=UTC) + timedelta(minutes=self.default_timeout_minutes)
         self._pending[intent_id] = PendingApproval(intent=intent, expires_at=expires)
         event = asyncio.Event()
         self._events[intent_id] = event
 
         logger.info(f"[{intent.session_id}] Intent {intent_id} added to ApprovalQueue. Waiting...")
-        
+
         # Wait for admin to resolve or timeout
         try:
             # We don't use asyncio.wait_for directly here to keep it simple,
@@ -60,7 +60,7 @@ class ApprovalQueue:
             self._decisions.pop(intent_id, None)
 
     def list_pending(self, session_id: str | None = None) -> list[PendingApproval]:
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         results = []
         for p in self._pending.values():
             if session_id and p.intent.session_id != session_id:

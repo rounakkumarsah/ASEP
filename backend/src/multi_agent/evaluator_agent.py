@@ -1,7 +1,10 @@
 from __future__ import annotations
-from typing import Dict, Any
-from src.multi_agent.contracts import AgentRole, AgentManifest, AgentRequest
+
+from typing import Any
+
 from src.multi_agent.base_agent import BaseAgent
+from src.multi_agent.contracts import AgentManifest, AgentRequest, AgentRole
+
 
 class EvaluationAgent(BaseAgent):
     """Evaluation Agent scoring execution quality, confidence metrics, and checking for hallucination hooks."""
@@ -17,14 +20,14 @@ class EvaluationAgent(BaseAgent):
         )
         super().__init__(role=AgentRole.EVALUATOR, manifest=manifest)
 
-    async def _execute_internal(self, request: AgentRequest) -> Dict[str, Any]:
+    async def _execute_internal(self, request: AgentRequest) -> dict[str, Any]:
         result = request.input_data.get("candidate_result", "")
         context = request.input_data.get("context", "")
-        
+
         # Estimate quality score based on word overlapping or length checks
         quality_score = min(1.0, max(0.2, len(result.split()) / 20.0))
         confidence = 0.85
-        
+
         # Hallucination check stub: search context words
         hallucinations_detected = False
         if context and result:

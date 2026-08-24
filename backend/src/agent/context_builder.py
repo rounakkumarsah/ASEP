@@ -69,41 +69,33 @@ class ContextBuilder:
     async def build(self, goal: str, session_id: str) -> ContextSnapshot:
         """Assemble context by querying all four memory layers and the tool catalog."""
 
-        # ── 1. Working memory ────────────────────────────────────────────────
         working_vars: dict[str, Any] = {}
-        try:
-            working_vars = await self._memory.working.get_state(session_id) or {}
-        except Exception as exc:
-            logger.warning(f"[{session_id}] Working memory fetch failed: {exc}")
+        recent_episodes: list[dict[str, Any]] = []
+        relevant_concepts: list[dict[str, Any]] = []
+        relevant_procedures: list[dict[str, Any]] = []
 
-        # ── 2. Episodic memory ───────────────────────────────────────────────
-        recent_episodes: list[dict] = []
+        # 1. Fetch memory context via MemoryRetrieval subsystem
         try:
-            entries = await self._memory.episodic.list_entries(
-                session_id=session_id, limit=_MAX_EPISODES
+            import uuid
+            try:
+                run_uuid = uuid.UUID(session_id)
+            except ValueError:
+                run_uuid = uuid.uuid4()
+
+            retrieved = await self._memory.retrieval.retrieve_context(
+                query=goal,
+                session_id=session_id,
+                run_id=run_uuid,
+                limit=_MAX_EPISODES
             )
-            recent_episodes = [e.model_dump() if hasattr(e, "model_dump") else dict(e) for e in entries]
+            working_vars = {"messages": retrieved.get("working", [])}
+            recent_episodes = retrieved.get("episodic", [])
+            relevant_concepts = retrieved.get("semantic", [])
         except Exception as exc:
-            logger.warning(f"[{session_id}] Episodic memory fetch failed: {exc}")
+            logger.warning(f"[{session_id}] Memory retrieval failed: {exc}")
 
-        # ── 3. Semantic memory — retrieve concepts relevant to the goal ──────
-        relevant_concepts: list[dict] = []
-        try:
-            hits = await self._memory.semantic.search(query=goal, top_k=_MAX_CONCEPTS)
-            relevant_concepts = [h if isinstance(h, dict) else h.model_dump() for h in hits]
-        except Exception as exc:
-            logger.warning(f"[{session_id}] Semantic memory fetch failed: {exc}")
-
-        # ── 4. Procedural memory ─────────────────────────────────────────────
-        relevant_procedures: list[dict] = []
-        try:
-            procs = await self._memory.procedural.list_procedures(limit=_MAX_PROCEDURES)
-            relevant_procedures = [p if isinstance(p, dict) else p.model_dump() for p in procs]
-        except Exception as exc:
-            logger.warning(f"[{session_id}] Procedural memory fetch failed: {exc}")
-
-        # ── 5. Tool catalog ──────────────────────────────────────────────────
-        available_tools: list[dict] = []
+        # 2. Tool catalog
+        available_tools: list[dict[str, Any]] = []
         try:
             all_tools = await self._tools.list_available_tools()
             available_tools = [
@@ -111,7 +103,7 @@ class ContextBuilder:
                     "name": t.name,
                     "description": t.description,
                     "required_permissions": t.required_permissions,
-                    "tool_type": t.tool_type.value,
+                    "tool_type": getattr(t, "tool_type", "python"),
                 }
                 for t in all_tools
             ]
@@ -125,11 +117,5 @@ class ContextBuilder:
             relevant_concepts=relevant_concepts,
             relevant_procedures=relevant_procedures,
             available_tools=available_tools,
-        )
-
-        logger.info(
-            f"[{session_id}] Context built — "
-            f"episodes={len(recent_episodes)}, concepts={len(relevant_concepts)}, "
-            f"tools={len(available_tools)}"
         )
         return snapshot

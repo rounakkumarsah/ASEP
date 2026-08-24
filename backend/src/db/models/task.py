@@ -57,18 +57,16 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.sql import func
 
 from src.db.models.agent_run import AgentRun, TimestampMixin
 from src.db.postgres import Base
-
 
 # ---------------------------------------------------------------------------
 # TaskStatus
 # ---------------------------------------------------------------------------
 
 
-class TaskStatus(str, enum.Enum):
+class TaskStatus(enum.StrEnum):
     """Lifecycle states of a single ``Task``.
 
     Inheriting from ``str`` means every member is simultaneously a plain
@@ -114,7 +112,7 @@ class TaskStatus(str, enum.Enum):
 # ---------------------------------------------------------------------------
 
 
-class TaskPriority(str, enum.Enum):
+class TaskPriority(enum.StrEnum):
     """Priority weights for ``Task`` queue ordering within an ``AgentRun``.
 
     Inheriting from ``str`` follows the same pattern as ``TaskStatus`` and

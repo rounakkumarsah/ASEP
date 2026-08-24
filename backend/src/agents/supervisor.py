@@ -36,61 +36,71 @@ WORKER_AGENTS: list[str] = [
 ]
 
 
-async def supervisor_node(state: AgentState) -> AgentState:
+from typing import Any
+
+
+async def executor_node(state: AgentState) -> dict[str, Any]:
+    """Mock executor node until full agent runtime is implemented."""
+    current = state.get("current_step", 0)
+    logger.info("Executor node: executing step %d", current)
+    return {"current_step": current + 1}
+
+async def supervisor_node(state: AgentState) -> dict[str, Any]:
     """
     LangGraph node: Supervisor.
 
     Decides the next worker agent to invoke, or terminates the graph
     if all plan steps are complete.
-
-    Args:
-        state: Current agent state.
-
-    Returns:
-        Updated state indicating next action or completion.
     """
+    run_id = str(state.get("run_id"))
+    current_step = state.get("current_step", 0)
+    plan = state.get("plan", [])
+
     logger.info(
         "Supervisor node invoked",
         extra={
-            "run_id": str(state.run_id),
-            "current_step": state.current_step,
-            "plan_length": len(state.plan),
+            "run_id": run_id,
+            "current_step": current_step,
+            "plan_length": len(plan),
         },
     )
 
-    if state.current_step >= len(state.plan):
-        logger.info("Supervisor: all plan steps complete", extra={"run_id": str(state.run_id)})
-        return state.model_copy(update={"is_complete": True})
+    if current_step >= len(plan):
+        logger.info("Supervisor: all plan steps complete", extra={"run_id": run_id})
+        return {"is_complete": True}
 
-    # TODO (Phase 0.2): LLM-based routing to appropriate worker agent
-    next_step = state.plan[state.current_step]
+    next_step = plan[current_step]
     logger.info(
         "Supervisor: dispatching step",
-        extra={"run_id": str(state.run_id), "step": next_step},
+        extra={"run_id": run_id, "step": next_step},
     )
 
-    # Stub: just advance to the next step
-    return state.model_copy(update={"current_step": state.current_step + 1})
+    # For now, we rely on the executor_node to increment the step.
+    return {"is_complete": False}
 
 
-def build_supervisor_graph():  # type: ignore[return]
+def build_supervisor_graph() -> Any:
     """
     Constructs and compiles the LangGraph StateGraph.
-
-    TODO (Phase 0.2):
-        from langgraph.graph import StateGraph, END
-        graph = StateGraph(AgentState)
-        graph.add_node("planner", planner_node)
-        graph.add_node("supervisor", supervisor_node)
-        graph.add_node("executor", executor_node)
-        graph.set_entry_point("planner")
-        graph.add_edge("planner", "supervisor")
-        graph.add_conditional_edges(
-            "supervisor",
-            lambda s: "executor" if not s.is_complete else END,
-        )
-        graph.add_edge("executor", "supervisor")
-        return graph.compile()
     """
-    # TODO (Phase 0.2): implement full graph
-    raise NotImplementedError("Supervisor graph not yet implemented — Phase 0.2")
+    from langgraph.graph import END, StateGraph
+
+    from src.agents.planner import planner_node
+
+    graph = StateGraph(AgentState)
+    graph.add_node("planner", planner_node)
+    graph.add_node("supervisor", supervisor_node)
+    graph.add_node("executor", executor_node)
+
+    graph.set_entry_point("planner")
+    graph.add_edge("planner", "supervisor")
+
+    def supervisor_condition(state: AgentState) -> str:
+        if state.get("is_complete"):
+            return END
+        return "executor"
+
+    graph.add_conditional_edges("supervisor", supervisor_condition)
+    graph.add_edge("executor", "supervisor")
+
+    return graph.compile()

@@ -2,18 +2,17 @@ from __future__ import annotations
 
 import time
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 
 import pytest
 
-from src.db.models.hitl_session import HITLAction, HITLSession, HITLStatus
+from src.db.models.hitl_session import HITLSession, HITLStatus
 from src.db.models.user import User
 from src.governance.hitl import (
     ApprovalAction,
     HITLEngine,
     ReviewerRole,
-    ReviewSession,
     RiskLevel,
 )
 
@@ -67,7 +66,7 @@ async def test_hitl_session_lifecycle(uow_factory, mock_uow):
         justification=session.justification,
         ttl_seconds=300,
     )
-    db_session_mock.created_at = datetime.now(timezone.utc)
+    db_session_mock.created_at = datetime.now(UTC)
 
     mock_uow.hitl_sessions.get = AsyncMock(return_value=db_session_mock)
 
@@ -121,7 +120,7 @@ async def test_hitl_session_expiration(uow_factory, mock_uow):
         justification=session.justification,
         ttl_seconds=-10,
     )
-    db_session_mock.created_at = datetime.now(timezone.utc) - timedelta(
+    db_session_mock.created_at = datetime.now(UTC) - timedelta(
         seconds=20
     )
 
@@ -141,7 +140,9 @@ async def test_hitl_session_expiration(uow_factory, mock_uow):
 @pytest.mark.asyncio
 async def test_hitl_endpoints(uow_factory, mock_uow):
     from unittest.mock import MagicMock, patch
+
     from fastapi.testclient import TestClient
+
     from src.api.app import create_app
     from src.api.dependencies import get_audit_service
     from src.auth.dependencies import get_current_user
@@ -201,7 +202,7 @@ async def test_hitl_endpoints(uow_factory, mock_uow):
         justification=session.justification,
         ttl_seconds=300,
     )
-    db_sess_obj.created_at = datetime.now(timezone.utc)
+    db_sess_obj.created_at = datetime.now(UTC)
     mock_uow.hitl_sessions.list = AsyncMock(return_value=[db_sess_obj])
     mock_uow.hitl_sessions.get = AsyncMock(return_value=db_sess_obj)
 

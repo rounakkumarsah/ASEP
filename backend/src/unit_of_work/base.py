@@ -96,7 +96,7 @@ class AbstractUnitOfWork(ABC):
     # ------------------------------------------------------------------
 
     @abstractmethod
-    async def __aenter__(self) -> "AbstractUnitOfWork":
+    async def __aenter__(self) -> AbstractUnitOfWork:
         """Open the database session and initialise all repositories.
 
         Returns:

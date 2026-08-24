@@ -10,8 +10,8 @@ Status lifecycle:
 
 from __future__ import annotations
 
-import uuid
 import datetime
+import uuid
 
 from sqlalchemy import DateTime, ForeignKey, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column

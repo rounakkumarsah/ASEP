@@ -1,19 +1,21 @@
 from __future__ import annotations
-import httpx
-import json
-import time
-import os
+
 import logging
-from typing import AsyncGenerator, List, Dict, Any
-from src.ai_runtime.providers.base import BaseAIProvider
+import time
+from collections.abc import AsyncGenerator
+from typing import Any
+
+import httpx
+
 from src.ai_runtime.contracts import (
     CompletionRequest,
     CompletionResponse,
-    StreamChunk,
-    ProviderHealth,
     ProviderCapabilityMatrix,
+    ProviderHealth,
+    StreamChunk,
     UsageInfo,
 )
+from src.ai_runtime.providers.base import BaseAIProvider
 from src.config.settings import get_settings
 
 logger = logging.getLogger(__name__)
@@ -32,7 +34,7 @@ class VisionModelProvider(BaseAIProvider):
 
     async def complete(self, request: CompletionRequest) -> CompletionResponse:
         start_time = time.perf_counter()
-        
+
         # Build messages payload checking for images metadata lists
         formatted_messages = []
         for m in request.messages:
@@ -60,18 +62,18 @@ class VisionModelProvider(BaseAIProvider):
                 response = await client.post("/api/chat", json=payload)
                 response.raise_for_status()
                 data = response.json()
-                
+
                 latency_ms = (time.perf_counter() - start_time) * 1000.0
                 prompt_tokens = data.get("prompt_eval_count", 0)
                 completion_tokens = data.get("eval_count", 0)
-                
+
                 usage = UsageInfo(
                     prompt_tokens=prompt_tokens,
                     completion_tokens=completion_tokens,
                     total_tokens=prompt_tokens + completion_tokens,
                     latency_ms=round(latency_ms, 2)
                 )
-                
+
                 return CompletionResponse(
                     text=data["message"]["content"],
                     usage=usage,
@@ -96,10 +98,10 @@ class VisionModelProvider(BaseAIProvider):
         yield StreamChunk(text="Analyzing image layout...")
         yield StreamChunk(text=" Done.")
 
-    async def complete_structured(self, request: CompletionRequest, schema: Dict[str, Any]) -> CompletionResponse:
+    async def complete_structured(self, request: CompletionRequest, schema: dict[str, Any]) -> CompletionResponse:
         return await self.complete(request)
 
-    async def embeddings(self, texts: List[str]) -> List[List[float]]:
+    async def embeddings(self, texts: list[str]) -> list[list[float]]:
         return [[0.0] * 128 for _ in texts]
 
     async def check_health(self) -> ProviderHealth:

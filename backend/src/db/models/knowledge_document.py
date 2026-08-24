@@ -52,18 +52,16 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.sql import func
 
 from src.db.models.agent_run import TimestampMixin
 from src.db.postgres import Base
-
 
 # ---------------------------------------------------------------------------
 # Enums
 # ---------------------------------------------------------------------------
 
 
-class DocumentSourceType(str, enum.Enum):
+class DocumentSourceType(enum.StrEnum):
     """Origin format or system for a ingested document."""
 
     WEB = "web"
@@ -76,7 +74,7 @@ class DocumentSourceType(str, enum.Enum):
     DOCS = "docs"
 
 
-class DocumentStatus(str, enum.Enum):
+class DocumentStatus(enum.StrEnum):
     """Overall readiness state of the document in the Knowledge Layer."""
 
     PENDING = "pending"
@@ -86,7 +84,7 @@ class DocumentStatus(str, enum.Enum):
     ARCHIVED = "archived"
 
 
-class CrawlStatus(str, enum.Enum):
+class CrawlStatus(enum.StrEnum):
     """Lifecycle state of the external fetching/crawling phase."""
 
     PENDING = "pending"

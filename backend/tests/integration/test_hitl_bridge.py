@@ -3,7 +3,7 @@ ASEP — Integration Tests for LangGraph ↔ HITL Bridge
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
 import pytest
@@ -81,7 +81,7 @@ async def test_hitl_bridge_full_lifecycle():
         justification=session.justification,
         ttl_seconds=300,
     )
-    db_session_mock.created_at = datetime.now(timezone.utc)
+    db_session_mock.created_at = datetime.now(UTC)
     mock_uow.hitl_sessions.get = AsyncMock(return_value=db_session_mock)
 
     # 3. Simulate human approval decision and trigger resumption

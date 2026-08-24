@@ -32,6 +32,7 @@ from src.api.routers.ai_runtime import router as ai_runtime_router
 from src.api.routers.api_keys import router as api_keys_router
 from src.api.routers.audit import router as audit_router
 from src.api.routers.auth import router as auth_router
+from src.api.routers.conversations import router as conversations_router
 from src.api.routers.diagnostics import router as diagnostics_router
 from src.api.routers.evaluation import router as evaluation_router
 from src.api.routers.health import router as health_router
@@ -46,9 +47,8 @@ from src.api.routers.payments import router as payments_router
 from src.api.routers.projects import router as projects_router
 from src.api.routers.rag import router as rag_router
 from src.api.routers.tasks import router as tasks_router
-from src.api.routers.workflows import router as workflows_router
-from src.api.routers.conversations import router as conversations_router
 from src.api.routers.users import router as users_router
+from src.api.routers.workflows import router as workflows_router
 from src.cache.redis import close_redis, init_redis
 from src.config.settings import get_settings
 from src.db.postgres import close_db, init_db
@@ -79,17 +79,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     Handles startup and shutdown of all critical services:
       - Structured logging configuration
-      - Database connection pool initialization
-      - Graceful shutdown of all services
-
+      Lifecycle actions:
     Startup:
         1. Configure structured logging
         2. Initialize PostgreSQL connection pool
-        3. TODO: warm up LangGraph supervisor
-        4. TODO: connect to Redis
-        5. TODO: connect to Neo4j
-        6. TODO: connect to Qdrant
-        7. TODO: warm up Ollama
+        3. Initialize Redis connection pool
+        4. Initialize Neo4j driver
+        5. Initialize Qdrant client
+        6. Initialize Postgres checkpointer (LangGraph durable persistence)
 
     Shutdown:
         1. Close all connections gracefully
@@ -228,8 +225,11 @@ def create_app() -> FastAPI:
 
     app.add_middleware(StructuredLoggingMiddleware)
 
+    from collections.abc import Awaitable, Callable
+
+    from fastapi import Request, Response
     @app.middleware("http")
-    async def add_security_headers(request, call_next):
+    async def add_security_headers(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         response = await call_next(request)
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
@@ -287,6 +287,12 @@ def create_app() -> FastAPI:
     app.include_router(evaluation_router, prefix="/api/v1")
     app.include_router(knowledge_sync_router, prefix="/api/v1")
     app.include_router(conversations_router, prefix="/api/v1")
+
+    # -----------------------------------------------------------------------
+    # Observability (Prometheus Metrics)
+    # -----------------------------------------------------------------------
+    from prometheus_fastapi_instrumentator import Instrumentator
+    Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
     logger.info("FastAPI application created", extra={"routes": len(app.routes)})
     return app

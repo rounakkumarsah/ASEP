@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set
+from dataclasses import dataclass
+from typing import Any
 
 from src.documents.hybrid_retrieval import HybridSearchResult
 
@@ -19,8 +19,8 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class MergedContext:
-    chunks: List[Dict[str, Any]]
-    graph_facts: List[Dict[str, Any]]
+    chunks: list[dict[str, Any]]
+    graph_facts: list[dict[str, Any]]
     formatted_context: str
     token_estimate: int
     deduplicated_count: int
@@ -38,12 +38,12 @@ class ContextMergeEngine:
 
     def merge_contexts(
         self,
-        hybrid_results: List[HybridSearchResult],
-        extra_graph_nodes: Optional[List[Any]] = None,
+        hybrid_results: list[HybridSearchResult],
+        extra_graph_nodes: list[Any] | None = None,
     ) -> MergedContext:
-        seen_hashes: Set[str] = set()
-        unique_chunks: List[Dict[str, Any]] = []
-        unique_graph_facts: List[Dict[str, Any]] = []
+        seen_hashes: set[str] = set()
+        unique_chunks: list[dict[str, Any]] = []
+        unique_graph_facts: list[dict[str, Any]] = []
         dedup_count = 0
 
         # 1. Deduplicate & filter vector chunks
@@ -82,9 +82,9 @@ class ContextMergeEngine:
                     })
 
         # 3. Token-budget-aware context packing
-        packed_chunks: List[Dict[str, Any]] = []
+        packed_chunks: list[dict[str, Any]] = []
         accumulated_tokens = 0
-        context_lines: List[str] = ["=== DOCUMENT CONTEXT ==="]
+        context_lines: list[str] = ["=== DOCUMENT CONTEXT ==="]
 
         for chunk in unique_chunks:
             tokens = len(chunk["text"].split()) * 4 // 3  # Rough token estimate

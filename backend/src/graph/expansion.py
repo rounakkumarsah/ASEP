@@ -8,8 +8,8 @@ and cost/depth safety bounding for Hybrid GraphRAG.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set
+from dataclasses import dataclass
+from typing import Any
 
 from src.graph.graph_service import GraphService
 
@@ -21,17 +21,17 @@ class GraphExpansionConfig:
     max_depth: int = 3
     max_nodes_per_hop: int = 25
     total_node_limit: int = 150
-    relationship_types: Optional[List[str]] = None
+    relationship_types: list[str] | None = None
 
 
 @dataclass
 class ExpandedGraphNode:
     node_id: str
-    labels: List[str]
-    properties: Dict[str, Any]
+    labels: list[str]
+    properties: dict[str, Any]
     depth: int
-    parent_id: Optional[str] = None
-    relationship: Optional[str] = None
+    parent_id: str | None = None
+    relationship: str | None = None
 
 
 class GraphExpansionEngine:
@@ -40,23 +40,23 @@ class GraphExpansionEngine:
     def __init__(
         self,
         graph_service: GraphService,
-        config: Optional[GraphExpansionConfig] = None,
+        config: GraphExpansionConfig | None = None,
     ) -> None:
         self.graph = graph_service
         self.config = config or GraphExpansionConfig()
 
     async def expand_multi_hop(
         self,
-        seed_node_ids: List[str],
-        depth: Optional[int] = None,
-    ) -> List[ExpandedGraphNode]:
+        seed_node_ids: list[str],
+        depth: int | None = None,
+    ) -> list[ExpandedGraphNode]:
         """Perform multi-hop BFS traversal from seed nodes up to max_depth."""
         if not seed_node_ids:
             return []
 
         target_depth = min(depth or self.config.max_depth, self.config.max_depth)
-        visited_ids: Set[str] = set(seed_node_ids)
-        expanded_nodes: List[ExpandedGraphNode] = []
+        visited_ids: set[str] = set(seed_node_ids)
+        expanded_nodes: list[ExpandedGraphNode] = []
         current_layer = seed_node_ids
 
         for current_depth in range(1, target_depth + 1):
@@ -82,7 +82,7 @@ class GraphExpansionEngine:
                 logger.warning("Graph multi-hop Cypher error at depth %d: %s", current_depth, exc)
                 break
 
-            next_layer: List[str] = []
+            next_layer: list[str] = []
             for rec in result.records:
                 target_id = rec.get("target_id") or rec.get("source_id", "")
                 if not target_id or target_id in visited_ids:
@@ -109,11 +109,11 @@ class GraphExpansionEngine:
 
         return expanded_nodes
 
-    async def expand_neighbors(self, node_id: str, limit: int = 20) -> List[ExpandedGraphNode]:
+    async def expand_neighbors(self, node_id: str, limit: int = 20) -> list[ExpandedGraphNode]:
         """Perform 1-hop immediate neighbor expansion."""
         return await self.expand_multi_hop([node_id], depth=1)
 
-    async def expand_community(self, community_id: str) -> List[ExpandedGraphNode]:
+    async def expand_community(self, community_id: str) -> list[ExpandedGraphNode]:
         """Traverse all nodes belonging to a designated community cluster."""
         cypher = """
         MATCH (n)

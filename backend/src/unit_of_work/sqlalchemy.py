@@ -51,11 +51,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from src.db.postgres import _get_session_factory
 from src.repositories.agent_run import AgentRunRepository
 from src.repositories.audit_log import AuditLogRepository
+from src.repositories.hitl_session import HITLSessionRepository
 from src.repositories.knowledge_document import KnowledgeDocumentRepository
 from src.repositories.memory_entry import MemoryEntryRepository
 from src.repositories.task import TaskRepository
 from src.repositories.user import UserRepository
-from src.repositories.hitl_session import HITLSessionRepository
 from src.unit_of_work.base import AbstractUnitOfWork
 
 logger = logging.getLogger(__name__)
@@ -125,7 +125,7 @@ class SQLAlchemyUnitOfWork(AbstractUnitOfWork):
     # Async context manager
     # ------------------------------------------------------------------
 
-    async def __aenter__(self) -> "SQLAlchemyUnitOfWork":
+    async def __aenter__(self) -> SQLAlchemyUnitOfWork:
         """Open a new ``AsyncSession`` and bind all repositories to it.
 
         Returns:

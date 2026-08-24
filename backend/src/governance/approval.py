@@ -5,8 +5,8 @@ ASEP — Human Approval Management
 import asyncio
 import logging
 
+from src.governance.decision import DecisionResult
 from src.governance.intent import ActionIntent
-from src.governance.decision import ApprovalState, DecisionResult
 
 logger = logging.getLogger(__name__)
 
@@ -20,11 +20,11 @@ class ApprovalManager:
         Queue the action intent in the human review session tracker.
         """
         logger.info(f"[{intent.session_id}] Approval requested for {intent.action_type} on {intent.target}")
-        
+
         # Create a real HITL review session
-        from src.governance.hitl import get_hitl_engine, ApprovalAction, ReviewerRole
+        from src.governance.hitl import ApprovalAction, ReviewerRole, get_hitl_engine
         engine = get_hitl_engine()
-        
+
         session = engine.create_session(
             request_id=intent.intent_id,
             execution_id=intent.run_id,
@@ -35,10 +35,10 @@ class ApprovalManager:
             arguments=intent.payload,
             justification=intent.justification
         )
-        
+
         # Simulate delay
         await asyncio.sleep(0.01)
-        
+
         # simulated logic for test cases compatibility
         if "destructive" in intent.justification.lower():
             engine.submit_decision(
@@ -50,7 +50,7 @@ class ApprovalManager:
             )
             logger.info(f"[{intent.session_id}] Human DENIED destructive action.")
             return DecisionResult.DENY
-            
+
         engine.submit_decision(
             session_id=session.session_id,
             action=ApprovalAction.APPROVE,

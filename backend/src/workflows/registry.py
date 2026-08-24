@@ -3,7 +3,8 @@ ASEP — Workflows Registry
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from src.workflows.models import WorkflowDefinition
 
 logger = logging.getLogger(__name__)
@@ -13,7 +14,7 @@ class WorkflowRegistry:
     """Thread-safe registry for dynamically managing workflow graphs and schemas."""
 
     def __init__(self) -> None:
-        self._workflows: Dict[str, WorkflowDefinition] = {}
+        self._workflows: dict[str, WorkflowDefinition] = {}
 
     def register_workflow(self, definition: WorkflowDefinition) -> None:
         """Register a new workflow definition."""
@@ -26,11 +27,11 @@ class WorkflowRegistry:
             del self._workflows[workflow_id]
             logger.info(f"Unregistered workflow: {workflow_id}")
 
-    def discover_workflows(self) -> List[WorkflowDefinition]:
+    def discover_workflows(self) -> list[WorkflowDefinition]:
         """List all currently registered workflow definitions."""
         return list(self._workflows.values())
 
-    def lookup(self, workflow_id: str) -> Optional[WorkflowDefinition]:
+    def lookup(self, workflow_id: str) -> WorkflowDefinition | None:
         """Fetch workflow details by unique identifier."""
         return self._workflows.get(workflow_id)
 
@@ -48,12 +49,12 @@ class WorkflowRegistry:
             wf.is_enabled = False
             logger.info(f"Disabled workflow: {workflow_id}")
 
-    def version(self, workflow_id: str) -> Optional[str]:
+    def version(self, workflow_id: str) -> str | None:
         """Gets semantic version of a workflow."""
         wf = self.lookup(workflow_id)
         return wf.version if wf else None
 
-    def metadata(self, workflow_id: str) -> Optional[Dict[str, Any]]:
+    def metadata(self, workflow_id: str) -> dict[str, Any] | None:
         """Gets capability and registration metadata."""
         wf = self.lookup(workflow_id)
         if not wf:
@@ -67,7 +68,7 @@ class WorkflowRegistry:
         }
 
 
-_global_workflow_registry: Optional[WorkflowRegistry] = None
+_global_workflow_registry: WorkflowRegistry | None = None
 
 def get_workflow_registry() -> WorkflowRegistry:
     global _global_workflow_registry

@@ -1,18 +1,23 @@
 from __future__ import annotations
-import httpx
+
 import json
 import time
-from typing import AsyncGenerator, List, Dict, Any
-from src.ai_runtime.providers.base import BaseAIProvider
+from collections.abc import AsyncGenerator
+from typing import Any
+
+import httpx
+
 from src.ai_runtime.contracts import (
     CompletionRequest,
     CompletionResponse,
-    StreamChunk,
-    ProviderHealth,
     ProviderCapabilityMatrix,
+    ProviderHealth,
+    StreamChunk,
     UsageInfo,
 )
+from src.ai_runtime.providers.base import BaseAIProvider
 from src.config.settings import get_settings
+
 
 class OllamaProvider(BaseAIProvider):
     def __init__(self, base_url: str | None = None) -> None:
@@ -26,7 +31,7 @@ class OllamaProvider(BaseAIProvider):
 
     async def complete(self, request: CompletionRequest) -> CompletionResponse:
         start_time = time.perf_counter()
-        
+
         payload = {
             "model": request.model,
             "messages": [{"role": m.role, "content": m.content} for m in request.messages],
@@ -42,19 +47,19 @@ class OllamaProvider(BaseAIProvider):
             response = await client.post("/api/chat", json=payload)
             response.raise_for_status()
             data = response.json()
-            
+
             latency_ms = (time.perf_counter() - start_time) * 1000.0
-            
+
             prompt_tokens = data.get("prompt_eval_count", 0)
             completion_tokens = data.get("eval_count", 0)
-            
+
             usage = UsageInfo(
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
                 total_tokens=prompt_tokens + completion_tokens,
                 latency_ms=round(latency_ms, 2)
             )
-            
+
             return CompletionResponse(
                 text=data["message"]["content"],
                 usage=usage,
@@ -76,22 +81,22 @@ class OllamaProvider(BaseAIProvider):
             payload["options"]["num_predict"] = request.max_tokens
 
         start_time = time.perf_counter()
-        
+
         async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
             async with client.stream("POST", "/api/chat", json=payload) as response:
                 response.raise_for_status()
                 async for line in response.aiter_lines():
                     if not line:
                         continue
-                    
+
                     data = json.loads(line)
                     chunk_text = data.get("message", {}).get("content", "")
-                    
+
                     if data.get("done", False):
                         latency_ms = (time.perf_counter() - start_time) * 1000.0
                         prompt_tokens = data.get("prompt_eval_count", 0)
                         completion_tokens = data.get("eval_count", 0)
-                        
+
                         usage = UsageInfo(
                             prompt_tokens=prompt_tokens,
                             completion_tokens=completion_tokens,
@@ -102,10 +107,10 @@ class OllamaProvider(BaseAIProvider):
                     else:
                         yield StreamChunk(text=chunk_text)
 
-    async def complete_structured(self, request: CompletionRequest, schema: Dict[str, Any]) -> CompletionResponse:
+    async def complete_structured(self, request: CompletionRequest, schema: dict[str, Any]) -> CompletionResponse:
         # Structured output in Ollama requires setting JSON format option or schema options
         start_time = time.perf_counter()
-        
+
         payload = {
             "model": request.model,
             "messages": [{"role": m.role, "content": m.content} for m in request.messages],
@@ -122,19 +127,19 @@ class OllamaProvider(BaseAIProvider):
             response = await client.post("/api/chat", json=payload)
             response.raise_for_status()
             data = response.json()
-            
+
             latency_ms = (time.perf_counter() - start_time) * 1000.0
-            
+
             prompt_tokens = data.get("prompt_eval_count", 0)
             completion_tokens = data.get("eval_count", 0)
-            
+
             usage = UsageInfo(
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
                 total_tokens=prompt_tokens + completion_tokens,
                 latency_ms=round(latency_ms, 2)
             )
-            
+
             return CompletionResponse(
                 text=data["message"]["content"],
                 usage=usage,
@@ -143,7 +148,7 @@ class OllamaProvider(BaseAIProvider):
                 finish_reason="stop"
             )
 
-    async def embeddings(self, texts: List[str]) -> List[List[float]]:
+    async def embeddings(self, texts: list[str]) -> list[list[float]]:
         # Scaffold implementation talking to local embeddings API
         vectors = []
         async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
@@ -166,7 +171,7 @@ class OllamaProvider(BaseAIProvider):
                 loaded_models = []
                 if is_healthy:
                     loaded_models = [m["name"] for m in response.json().get("models", [])]
-                
+
                 latency = (time.perf_counter() - start) * 1000.0
                 return ProviderHealth(
                     provider_name=self.name,

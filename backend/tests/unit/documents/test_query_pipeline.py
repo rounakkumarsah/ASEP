@@ -2,8 +2,10 @@
 ASEP — Unit Tests for Retrieval Pipeline
 """
 
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
+
 from src.documents.hybrid_retrieval import HybridSearchResult
 from src.documents.query_pipeline import QueryIntentAnalyzer, RetrievalPipeline, RetrievalStrategy
 

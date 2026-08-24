@@ -23,7 +23,7 @@ from collections.abc import AsyncGenerator
 from typing import Annotated
 
 from fastapi import Depends
-from sqlalchemy import event, text
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -31,7 +31,6 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.pool import NullPool
 
 from src.config.settings import get_settings
 
@@ -231,7 +230,7 @@ async def init_db() -> None:
     This is called from the FastAPI lifespan context manager.
     It ensures the engine is created and the connection pool is ready.
     """
-    engine = _get_engine()
+    _get_engine()
     logger.info("Database pool initialized")
 
     # Verify connectivity immediately

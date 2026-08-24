@@ -2,7 +2,6 @@
 ASEP — Unit Tests for GraphRAG Evaluation Engine
 """
 
-import pytest
 from src.documents.context_merge import MergedContext
 from src.documents.graphrag_evaluation import GraphRAGEvaluator
 from src.documents.query_pipeline import Citation, RetrievalPipelineOutput, RetrievalStrategy

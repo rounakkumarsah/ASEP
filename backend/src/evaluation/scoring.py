@@ -7,10 +7,9 @@ Weights and thresholds are defined as module-level constants for transparency.
 
 from pydantic import BaseModel, Field
 
-from src.evaluation.metrics import LatencyMetrics, MemoryMetrics, SessionMetrics
-from src.evaluation.trajectory import Trajectory, TrajectoryAnalysis
+from src.evaluation.metrics import LatencyMetrics, SessionMetrics
+from src.evaluation.trajectory import TrajectoryAnalysis
 from src.planner.models import DecomposedPlan
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Score dimension models  (each 0.0 – 1.0)
@@ -78,7 +77,7 @@ class AllScores(BaseModel):
     latency: LatencyScore = Field(default_factory=LatencyScore)
     overall: float = 0.0
     passed: bool = False
-    
+
     # Subsystem scores for Phase 4.7
     rag_score: float = 0.0
     agent_score: float = 0.0
@@ -142,7 +141,6 @@ class Scorer:
     def score_execution(self, metrics: SessionMetrics) -> ExecutionScore:
         n = metrics.task_count or 1
         succeeded = metrics.succeeded
-        failed = metrics.failed
         skipped = metrics.skipped
 
         # Count retried tasks (attempts > 1) from per_task list
@@ -300,7 +298,7 @@ class Scorer:
             latency=latency,
             overall=overall,
             passed=overall >= pass_threshold,
-            
+
             # Derived subsystem scores for Phase 4.7
             rag_score=0.92,
             agent_score=round(plan.score * 0.5 + memory.score * 0.5, 4),

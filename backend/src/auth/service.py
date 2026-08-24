@@ -2,32 +2,30 @@
 ASEP — Authentication Service
 """
 
-import uuid
-import datetime
-import logging
-from typing import Optional
-from collections.abc import Callable
-import jwt
-
 import base64
-import hmac
+import contextlib
+import datetime
 import hashlib
+import hmac
 import json
+import logging
 import random
 import re
 import secrets
 import time
 import urllib.parse
+import uuid
 
-from fastapi import HTTPException
+import jwt
+
 from src.auth.jwt import create_access_token, create_refresh_token, decode_token
-from src.auth.password import verify_password, get_password_hash
-from src.auth.schemas import RefreshTokenResponse, TokenPayload, SignupRequest
+from src.auth.password import get_password_hash, verify_password
+from src.auth.schemas import RefreshTokenResponse, SignupRequest, TokenPayload
+from src.cache.redis import get_redis_client
 from src.config.settings import get_settings
 from src.db.models.user import User
-from src.services.user_service import UserService
 from src.services.email_service import EmailService
-from src.cache.redis import get_redis_client
+from src.services.user_service import UserService
 
 logger = logging.getLogger(__name__)
 
@@ -122,10 +120,10 @@ class AuthService:
         self.email_service = email_service
 
     async def authenticate_user(
-        self, email: str, password: str, code: Optional[str] = None
-    ) -> tuple[Optional[User], Optional[str]]:
+        self, email: str, password: str, code: str | None = None
+    ) -> tuple[User | None, str | None]:
         """Authenticate a user. Returns (user, status_code_or_error).
-        
+
         status_code_or_error can be:
           - None: success
           - "MFA_REQUIRED": valid password, but MFA OTP code is needed
@@ -168,10 +166,11 @@ class AuthService:
                 if not is_valid:
                     return None, "INVALID_MFA_CODE"
 
-            # Update last login timestamp
-            user.last_login = datetime.datetime.now(datetime.timezone.utc)
+            # Update last login timestamp (stored as UTC without timezone to match DB column type)
+            user.last_login = datetime.datetime.utcnow()
             await uow.commit()
             return user, None
+
 
     async def create_user(self, data: SignupRequest) -> User:
         """Create and register a new user in the database with strict normalization and validation."""
@@ -258,38 +257,38 @@ class AuthService:
                 raise
             except Exception:
                 pass
-        
+
         try:
             payload = decode_token(refresh_token, settings.JWT_REFRESH_SECRET_KEY)
             token_data = TokenPayload(**payload)
         except jwt.PyJWTError as e:
             raise ValueError(f"Invalid refresh token: {e!s}") from e
-            
+
         if token_data.type != "refresh":
             raise ValueError("Invalid token type")
-            
+
         try:
             user_id = uuid.UUID(token_data.sub)
             user = await self.user_service.get_user(user_id)
         except Exception as e:
             raise ValueError("User not found") from e
-            
+
         if not user.is_active or user.status != "active":
             raise ValueError("Inactive user")
 
         # Rotate refresh token: blacklist the old one and generate a fresh pair
         if redis:
             try:
-                now = datetime.datetime.now(datetime.timezone.utc).timestamp()
+                now = datetime.datetime.now(datetime.UTC).timestamp()
                 remaining_ttl = int(token_data.exp - now)
                 if remaining_ttl > 0:
                     await redis.setex(f"revoked_token:{refresh_token}", remaining_ttl, "true")
             except Exception:
                 pass
-            
+
         return self.create_login_tokens(user)
 
-    async def verify_email_code(self, email: Optional[str] = None, code: Optional[str] = None, token: Optional[str] = None) -> bool:
+    async def verify_email_code(self, email: str | None = None, code: str | None = None, token: str | None = None) -> bool:
         """Verify the email activation code or token and mark user as verified."""
         clean_email = email.strip().lower() if email else None
         clean_code = str(code).strip() if code is not None else None
@@ -302,7 +301,7 @@ class AuthService:
             logger.warning("Redis client unavailable during email verification: %s", exc)
 
         is_mock_provider = not self.email_service.api_key or self.email_service.api_key in ("mock", "", "None")
-        resolved_email: Optional[str] = None
+        resolved_email: str | None = None
 
         # 1. Check Token First
         if clean_token:
@@ -322,7 +321,7 @@ class AuthService:
         # 2. Check 6-digit Code
         elif clean_email and clean_code:
             resolved_email = clean_email
-            stored_code: Optional[str] = None
+            stored_code: str | None = None
             if redis:
                 try:
                     stored_code_bytes = await redis.get(f"email_verify_code:{clean_email}")
@@ -366,10 +365,8 @@ class AuthService:
                 return False
 
             if redis:
-                try:
+                with contextlib.suppress(Exception):
                     await redis.delete(f"email_verify_code:{clean_email}")
-                except Exception:
-                    pass
         else:
             logger.warning("Email verification called without token or email+code")
             return False
@@ -389,10 +386,8 @@ class AuthService:
 
         # 4. Clean up any remaining code in Redis
         if redis:
-            try:
+            with contextlib.suppress(Exception):
                 await redis.delete(f"email_verify_code:{resolved_email}")
-            except Exception:
-                pass
 
         # 5. Send Welcome Email
         try:
@@ -404,7 +399,6 @@ class AuthService:
 
     async def generate_email_verify_code(self, email: str) -> str:
         """Generate verification code, store in Redis, and send verify email."""
-        import random
         import uuid
         clean_email = email.strip().lower()
         settings = get_settings()
@@ -452,7 +446,6 @@ class AuthService:
                 logger.info("Resend verification bypassed (user not found or already verified): %s", clean_email)
                 return False
 
-        import random
         import uuid
         settings = get_settings()
         redis = None
@@ -483,14 +476,14 @@ class AuthService:
         await self.email_service.send_resend_verification_email(clean_email, user.username, code, token)
         return True
 
-    async def generate_password_reset_token(self, email: str) -> Optional[str]:
+    async def generate_password_reset_token(self, email: str) -> str | None:
         """Generate and store password reset token in Redis, and send forgot password email."""
         clean_email = email.strip().lower()
         async with self.user_service._uow_factory() as uow:
             user = await uow.users.get_by_email(clean_email)
             if not user:
                 return None
-            
+
         token = str(uuid.uuid4())
         redis = get_redis_client()
         if redis:
@@ -499,7 +492,7 @@ class AuthService:
                 await redis.setex(f"password_reset_token:{token}", 3600, clean_email)
             except Exception as exc:
                 logger.warning("Failed to store password reset token in Redis: %s", exc)
-        
+
         # Send forgot password email
         await self.email_service.send_reset_password_email(clean_email, token)
         return token
@@ -507,7 +500,7 @@ class AuthService:
     async def reset_password(self, token: str, password: str) -> bool:
         """Verify reset token, update password, and send confirmation email."""
         redis = get_redis_client()
-        email: Optional[str] = None
+        email: str | None = None
         if redis:
             try:
                 email_bytes = await redis.get(f"password_reset_token:{token}")
@@ -518,30 +511,28 @@ class AuthService:
 
         if not email:
             return False
-            
+
         async with self.user_service._uow_factory() as uow:
             user = await uow.users.get_by_email(email)
             if not user:
                 return False
             user.hashed_password = get_password_hash(password)
             await uow.commit()
-            
+
         # Revoke the reset token immediately (single use)
         if redis:
-            try:
+            with contextlib.suppress(Exception):
                 await redis.delete(f"password_reset_token:{token}")
-            except Exception:
-                pass
-        
+
         # Send password changed confirmation email
         await self.email_service.send_password_changed_email(email)
         return True
 
-    async def revoke_tokens(self, access_token: str, refresh_token: Optional[str] = None) -> None:
+    async def revoke_tokens(self, access_token: str, refresh_token: str | None = None) -> None:
         """Revoke active access and refresh tokens by blacklisting them in Redis."""
         redis = get_redis_client()
         settings = get_settings()
-        
+
         if not redis:
             return
 
@@ -549,7 +540,7 @@ class AuthService:
         try:
             payload = decode_token(access_token, settings.JWT_SECRET_KEY)
             token_data = TokenPayload(**payload)
-            now = datetime.datetime.now(datetime.timezone.utc).timestamp()
+            now = datetime.datetime.now(datetime.UTC).timestamp()
             remaining = int(token_data.exp - now)
             if remaining > 0:
                 await redis.setex(f"revoked_token:{access_token}", remaining, "true")
@@ -561,17 +552,16 @@ class AuthService:
             try:
                 payload = decode_token(refresh_token, settings.JWT_REFRESH_SECRET_KEY)
                 token_data = TokenPayload(**payload)
-                now = datetime.datetime.now(datetime.timezone.utc).timestamp()
+                now = datetime.datetime.now(datetime.UTC).timestamp()
                 remaining = int(token_data.exp - now)
                 if remaining > 0:
                     await redis.setex(f"revoked_token:{refresh_token}", remaining, "true")
             except Exception:
                 pass
 
-    async def check_username_availability(self, username: str, current_user_id: Optional[uuid.UUID] = None) -> tuple[bool, list[str]]:
+    async def check_username_availability(self, username: str, current_user_id: uuid.UUID | None = None) -> tuple[bool, list[str]]:
         """Validate format, check reserved names, and check uniqueness of username. Returns (is_available, suggestions)."""
         import re
-        import random
 
         cleaned = username.strip()
         # Validation rules: 3-30 chars, alphanumeric + underscores
@@ -708,6 +698,7 @@ class AuthService:
         All OAuth users get email_verified=True and hashed_password=None.
         """
         from sqlalchemy import select
+
         from src.db.models.user import User as UserModel
 
         async with self.user_service._uow_factory() as uow:
@@ -721,7 +712,7 @@ class AuthService:
             if user:
                 if profile.avatar_url and user.avatar_url != profile.avatar_url:
                     user.avatar_url = profile.avatar_url
-                user.last_login = datetime.datetime.now(datetime.timezone.utc)
+                user.last_login = datetime.datetime.now(datetime.UTC)
                 await uow.commit()
                 return user
 
@@ -733,7 +724,7 @@ class AuthService:
                     user.avatar_url = profile.avatar_url
                 if not user.email_verified:
                     user.email_verified = True
-                user.last_login = datetime.datetime.now(datetime.timezone.utc)
+                user.last_login = datetime.datetime.now(datetime.UTC)
                 await uow.commit()
                 return user
 
@@ -762,7 +753,7 @@ class AuthService:
                 role="developer",
                 status="active",
                 is_active=True,
-                last_login=datetime.datetime.now(datetime.timezone.utc),
+                last_login=datetime.datetime.now(datetime.UTC),
             )
             created = await uow.users.create(new_user)
             await uow.commit()

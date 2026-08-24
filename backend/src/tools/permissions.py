@@ -22,7 +22,7 @@ def verify_tool_permissions(
     user_granted: list[str],
 ) -> tuple[bool, str | None]:
     """Validates if the user's granted permissions satisfy all tool requirements.
-    
+
     Returns:
         Tuple of (is_authorized, error_reason)
     """

@@ -28,7 +28,7 @@ class RuntimeAuthorizer:
         Evaluate intent through Guardrails -> Policy -> Approval -> Final Decision.
         """
         logger.debug(f"[{intent.session_id}] Evaluating intent {intent.intent_id} for {intent.action_type}")
-        
+
         decision = GovernanceDecision(
             intent_id=intent.intent_id,
             session_id=intent.session_id,

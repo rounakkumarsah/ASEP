@@ -14,18 +14,16 @@ Design constraints:
 """
 
 import logging
-from datetime import datetime, timezone
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
 
 from src.agent.context_builder import ContextBuilder, ContextSnapshot
 from src.agent.events import AgentEvent, AgentEventType, make_event
 from src.agent.orchestrator import AgentOrchestrator
 from src.agent.reasoning import ReasoningEngine
-from src.agent.session import AgentSession, SessionManager
+from src.agent.session import SessionManager
 from src.agent.state import AgentSessionStatus
-from src.auth.policies import ROLE_PERMISSIONS
 from src.auth.roles import Role
-from src.executor.result import TaskStatus
 from src.memory.memory_manager import MemoryManager
 from src.planner.planner import Planner
 from src.tools.discovery import ToolDiscovery
@@ -155,10 +153,15 @@ class Agent:
 
             # Record plan in episodic memory
             try:
-                await self._memory.episodic.record(
-                    session_id=session.session_id,
+                import uuid
+                try:
+                    run_uuid = uuid.UUID(session.session_id)
+                except ValueError:
+                    run_uuid = uuid.uuid4()
+                await self._memory.episodic.add_episode(
+                    run_id=run_uuid,
+                    namespace="plan_creation",
                     content=f"Plan created with {len(plan.tasks)} tasks: {plan.rationale}",
-                    memory_type="episodic",
                 )
                 yield make_event(AgentEventType.MEMORY_UPDATED, session.session_id, layer="episodic", event="plan_recorded")
             except Exception as exc:
@@ -194,10 +197,15 @@ class Agent:
                     f"Tasks: {report.total_tasks}, Succeeded: {report.succeeded}, "
                     f"Failed: {report.failed}, Cancelled: {report.cancelled}."
                 )
-                await self._memory.episodic.record(
-                    session_id=session.session_id,
+                import uuid
+                try:
+                    run_uuid = uuid.UUID(session.session_id)
+                except ValueError:
+                    run_uuid = uuid.uuid4()
+                await self._memory.episodic.add_episode(
+                    run_id=run_uuid,
+                    namespace="session_completion",
                     content=summary,
-                    memory_type="episodic",
                 )
                 yield make_event(AgentEventType.MEMORY_UPDATED, session.session_id, layer="episodic", event="session_summary_recorded")
             except Exception as exc:
@@ -205,7 +213,7 @@ class Agent:
 
             # ── 7. Session completed ─────────────────────────────────────────
             final_status = AgentSessionStatus.COMPLETED
-            if self._orchestrator._executor and self._orchestrator._executor.context.is_cancelled():  # type: ignore[union-attr]
+            if self._orchestrator._executor and self._orchestrator._executor.context.is_cancelled():
                 final_status = AgentSessionStatus.CANCELLED
 
             await self._session_manager.update_status(session, final_status)
@@ -218,7 +226,7 @@ class Agent:
                 outcome_event,
                 session.session_id,
                 run_id=session.run_id,
-                end_time=datetime.now(tz=timezone.utc).isoformat(),
+                end_time=datetime.now(tz=UTC).isoformat(),
             )
 
         except Exception as exc:

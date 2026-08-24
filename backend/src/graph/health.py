@@ -4,23 +4,23 @@ ASEP — Neo4j Health Check
 
 import logging
 
+from src.config.settings import get_settings
 from src.graph.neo4j import get_neo4j_driver
 from src.graph.queries import PING_QUERY
-from src.config.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
 
 async def neo4j_health_check() -> bool:
     """Perform a ping against the global Neo4j driver to verify health.
-    
+
     Returns:
         True if Neo4j responds and the database is accessible, False otherwise.
     """
     try:
         driver = get_neo4j_driver()
         settings = get_settings()
-        
+
         # Use None for database on Aura (lets driver use default routing).
         # Named-database routing is not available on Aura Free tier.
         db = settings.NEO4J_DATABASE or None

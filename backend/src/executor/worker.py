@@ -4,8 +4,9 @@ ASEP — Task Worker
 
 import asyncio
 import logging
-from datetime import datetime, timezone
-from typing import Any, Callable, Coroutine
+from collections.abc import Callable, Coroutine
+from datetime import UTC, datetime
+from typing import Any
 
 from src.executor.context import ExecutionContext
 from src.executor.result import TaskResult, TaskStatus
@@ -58,7 +59,7 @@ class TaskWorker:
 
         # ── 3. Mark RUNNING ──────────────────────────────────────────────────
         result.status = TaskStatus.RUNNING
-        result.start_time = datetime.now(tz=timezone.utc)
+        result.start_time = datetime.now(tz=UTC)
         logger.info(f"[{task.id}] Starting — '{task.title}'")
 
         # ── 4. Execute with retry ────────────────────────────────────────────
@@ -71,12 +72,12 @@ class TaskWorker:
         except asyncio.CancelledError:
             result.status = TaskStatus.CANCELLED
             result.error = "Cancelled during execution"
-            result.end_time = datetime.now(tz=timezone.utc)
+            result.end_time = datetime.now(tz=UTC)
             logger.warning(f"[{task.id}] Cancelled during execution")
             return result
 
         result.attempts = attempts
-        result.end_time = datetime.now(tz=timezone.utc)
+        result.end_time = datetime.now(tz=UTC)
 
         if error is None:
             result.status = TaskStatus.SUCCEEDED

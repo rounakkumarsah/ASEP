@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 async def embedding_health_check() -> bool:
     """Perform a query against the embedding provider to verify health.
-    
+
     Returns:
         True if the provider successfully generates a test embedding, False otherwise.
     """

@@ -14,7 +14,7 @@ class PlanValidator:
 
     def validate_plan(self, plan: DecomposedPlan) -> tuple[bool, str | None]:
         """Validate that the plan has no cyclic dependencies or dangling parent references.
-        
+
         Returns:
             Tuple of (is_valid, error_message)
         """
@@ -22,7 +22,7 @@ class PlanValidator:
             return False, "Plan contains no subtasks."
 
         task_ids = {t.id for t in plan.tasks}
-        
+
         # 1. Check for duplicate task IDs and empty IDs
         seen_ids = set()
         for task in plan.tasks:
@@ -49,16 +49,14 @@ class PlanValidator:
                 if state[neighbor] == 1:
                     # Found a loop back to a node in the current path
                     return True
-                if state[neighbor] == 0:
-                    if has_cycle(neighbor):
-                        return True
+                if state[neighbor] == 0 and has_cycle(neighbor):
+                    return True
             state[node] = 2  # Mark as fully visited
             return False
 
         for task in plan.tasks:
-            if state[task.id] == 0:
-                if has_cycle(task.id):
-                    return False, f"Cyclic dependency loop detected starting from task '{task.id}'"
+            if state[task.id] == 0 and has_cycle(task.id):
+                return False, f"Cyclic dependency loop detected starting from task '{task.id}'"
 
         logger.info("Plan validation completed successfully. Plan is a valid DAG.")
         return True, None

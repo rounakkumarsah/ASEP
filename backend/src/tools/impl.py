@@ -40,8 +40,14 @@ class FilesystemTool(BaseTool):
             inputs = self.input_model.model_validate(arguments)
             path = os.path.abspath(inputs.path)
 
-            # Simple sandbox path check (e.g. must remain inside workspace or safe paths)
-            # In production, this would be highly restricted.
+            # Strict sandbox workspace boundary check to prevent path traversal
+            workspace_root = os.path.abspath(os.environ.get("WORKSPACE_ROOT", os.getcwd()))
+            if not path.startswith(workspace_root) and not path.startswith(os.path.abspath(os.path.dirname(os.getcwd()))):
+                return ToolExecutionOutput(
+                    success=False,
+                    error=f"Security Policy Violation: Access denied to path outside workspace boundary: {path}",
+                )
+
             if inputs.action == "read":
                 if not os.path.exists(path):
                     return ToolExecutionOutput(success=False, error=f"File not found: {path}")
@@ -137,6 +143,13 @@ class TerminalTool(BaseTool):
                     nano_cpus=500000000,  # Limit to 0.5 CPU
                     mem_limit="512m",  # Limit to 512MB RAM
                     detach=True,
+                    # --- Sandbox Hardening ---
+                    user="1000:1000",                  # Run as non-root user
+                    cap_drop=["ALL"],                  # Drop all Linux capabilities
+                    security_opt=["no-new-privileges:true"], # Prevent privilege escalation
+                    read_only=True,                    # Read-only root filesystem
+                    tmpfs={"/tmp": "size=64m,noexec,nosuid,nodev"}, # Secure scratch space
+                    pids_limit=100,                    # Fork bomb mitigation
                 )
             except Exception as run_exc:
                 return ToolExecutionOutput(

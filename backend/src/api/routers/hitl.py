@@ -92,7 +92,7 @@ async def submit_review_decision(
                 logger.error("Error resuming graph execution context: %s", e, exc_info=True)
 
         # Enqueue background task safely using FastAPI BackgroundTasks
-        background_tasks.add_task(_consume_stream, session.execution_id, session.decision.value)
+        background_tasks.add_task(_consume_stream, session.execution_id, session.decision.value if session.decision else "unknown")
 
         # Log audit trail event
         await audit_service.log_event(
@@ -109,7 +109,7 @@ async def submit_review_decision(
             ),
             log_details={
                 "session_id": session.session_id,
-                "decision": session.decision.value,
+                "decision": session.decision.value if session.decision else None,
                 "reviewer_role": session.reviewer_role.value if session.reviewer_role else None,
                 "notes": req.notes,
             },

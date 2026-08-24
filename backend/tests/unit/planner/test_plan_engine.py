@@ -2,11 +2,9 @@
 ASEP — Unit Tests for Planner Module
 """
 
-import pytest
 from src.planner.plan import (
     DependencyGraph,
     DynamicReplanner,
-    ExecutionPlan,
     PlanGenerator,
     PlanTask,
     TaskStatus,
@@ -23,7 +21,7 @@ def test_dependency_graph_batches():
 
     batches = graph.get_executable_batches()
     assert len(batches) == 2
-    assert set(t.id for t in batches[0]) == {"1", "2"}
+    assert {t.id for t in batches[0]} == {"1", "2"}
     assert [t.id for t in batches[1]] == ["3"]
 
 

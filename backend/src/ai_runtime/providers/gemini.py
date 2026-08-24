@@ -1,18 +1,23 @@
 from __future__ import annotations
-import httpx
-import json
+
+import contextlib
 import os
 import time
-from typing import AsyncGenerator, List, Dict, Any
-from src.ai_runtime.providers.base import BaseAIProvider
+from collections.abc import AsyncGenerator
+from typing import Any
+
+import httpx
+
 from src.ai_runtime.contracts import (
     CompletionRequest,
     CompletionResponse,
-    StreamChunk,
-    ProviderHealth,
     ProviderCapabilityMatrix,
+    ProviderHealth,
+    StreamChunk,
     UsageInfo,
 )
+from src.ai_runtime.providers.base import BaseAIProvider
+
 
 class GeminiProvider(BaseAIProvider):
     def __init__(self, api_key: str | None = None) -> None:
@@ -24,7 +29,7 @@ class GeminiProvider(BaseAIProvider):
     def name(self) -> str:
         return "gemini"
 
-    def _convert_messages(self, messages: List[Any]) -> List[Dict[str, Any]]:
+    def _convert_messages(self, messages: list[Any]) -> list[dict[str, Any]]:
         contents = []
         for msg in messages:
             # Map roles: 'system' -> 'system', 'user' -> 'user', 'assistant' -> 'model'
@@ -33,7 +38,7 @@ class GeminiProvider(BaseAIProvider):
                 role = "model"
             elif msg.role == "system":
                 role = "system"
-                
+
             contents.append({
                 "role": role,
                 "parts": [{"text": msg.content}]
@@ -46,7 +51,7 @@ class GeminiProvider(BaseAIProvider):
 
         start_time = time.perf_counter()
         contents = self._convert_messages(request.messages)
-        
+
         # Pull out system instruction if present
         system_instruction = None
         filtered_contents = []
@@ -68,32 +73,30 @@ class GeminiProvider(BaseAIProvider):
             payload["generationConfig"]["maxOutputTokens"] = request.max_tokens
 
         url = f"/models/{request.model}:generateContent?key={self.api_key}"
-        
+
         async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
             response = await client.post(url, json=payload)
             response.raise_for_status()
             data = response.json()
-            
+
             latency_ms = (time.perf_counter() - start_time) * 1000.0
-            
+
             # Extract generated content text
             text = ""
-            try:
+            with contextlib.suppress(KeyError, IndexError):
                 text = data["candidates"][0]["content"]["parts"][0]["text"]
-            except (KeyError, IndexError):
-                pass
-                
+
             meta = data.get("usageMetadata", {})
             prompt_tokens = meta.get("promptTokenCount", 0)
             completion_tokens = meta.get("candidatesTokenCount", 0)
-            
+
             usage = UsageInfo(
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
                 total_tokens=prompt_tokens + completion_tokens,
                 latency_ms=round(latency_ms, 2)
             )
-            
+
             return CompletionResponse(
                 text=text,
                 usage=usage,
@@ -108,14 +111,14 @@ class GeminiProvider(BaseAIProvider):
         res = await self.complete(request)
         yield StreamChunk(text=res.text, usage=res.usage, finish_reason=res.finish_reason)
 
-    async def complete_structured(self, request: CompletionRequest, schema: Dict[str, Any]) -> CompletionResponse:
+    async def complete_structured(self, request: CompletionRequest, schema: dict[str, Any]) -> CompletionResponse:
         # Gemini structured output can be forced by setting responseMimeType to application/json
         if not self.api_key:
             raise ValueError("GEMINI_API_KEY environment variable is not configured.")
 
         start_time = time.perf_counter()
         contents = self._convert_messages(request.messages)
-        
+
         filtered_contents = [c for c in contents if c["role"] != "system"]
         system_prompt = next((c["parts"] for c in contents if c["role"] == "system"), None)
 
@@ -132,31 +135,29 @@ class GeminiProvider(BaseAIProvider):
             payload["generationConfig"]["maxOutputTokens"] = request.max_tokens
 
         url = f"/models/{request.model}:generateContent?key={self.api_key}"
-        
+
         async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
             response = await client.post(url, json=payload)
             response.raise_for_status()
             data = response.json()
-            
+
             latency_ms = (time.perf_counter() - start_time) * 1000.0
-            
+
             text = ""
-            try:
+            with contextlib.suppress(KeyError):
                 text = data["candidates"][0]["content"]["parts"][0]["text"]
-            except KeyError:
-                pass
-                
+
             meta = data.get("usageMetadata", {})
             prompt_tokens = meta.get("promptTokenCount", 0)
             completion_tokens = meta.get("candidatesTokenCount", 0)
-            
+
             usage = UsageInfo(
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
                 total_tokens=prompt_tokens + completion_tokens,
                 latency_ms=round(latency_ms, 2)
             )
-            
+
             return CompletionResponse(
                 text=text,
                 usage=usage,
@@ -165,7 +166,7 @@ class GeminiProvider(BaseAIProvider):
                 finish_reason="stop"
             )
 
-    async def embeddings(self, texts: List[str]) -> List[List[float]]:
+    async def embeddings(self, texts: list[str]) -> list[list[float]]:
         return [[0.0] * 1536 for _ in texts]
 
     async def check_health(self) -> ProviderHealth:

@@ -28,7 +28,7 @@ class ToolClient(ABC):
 
 class MCPClient(ToolClient):
     """Model Context Protocol (MCP) client managing transport states.
-    
+
     This class is configured as a virtual client for the infrastructure-only phase.
     """
 
@@ -46,7 +46,7 @@ class MCPClient(ToolClient):
     async def list_tools(self) -> list[ToolMetadata]:
         if not self.connected:
             return []
-        
+
         # Returns virtual remote tool metadata
         return [
             ToolMetadata(
@@ -67,7 +67,7 @@ class MCPClient(ToolClient):
     async def execute_tool(self, name: str, arguments: dict[str, Any]) -> ToolExecutionOutput:
         if not self.connected:
             return ToolExecutionOutput(success=False, error="MCP Client is not connected.")
-            
+
         if name != "mcp_web_search":
             return ToolExecutionOutput(success=False, error=f"Tool '{name}' not found on remote server.")
 

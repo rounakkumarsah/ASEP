@@ -2,15 +2,16 @@
 ASEP — Unit Tests for Hybrid Retrieval Pipeline
 """
 
+from unittest.mock import AsyncMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+
 from src.documents.hybrid_retrieval import (
     HybridRetrievalPipeline,
     LexicalBM25Retriever,
     ReciprocalRankFusion,
 )
 from src.vector import VectorSearchResult
-
 
 
 def test_reciprocal_rank_fusion():

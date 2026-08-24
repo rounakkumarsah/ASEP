@@ -1,6 +1,9 @@
 from __future__ import annotations
+
+from typing import Any, Literal
+
 from pydantic import BaseModel, Field
-from typing import Dict, Any, List, Optional, Literal
+
 
 class Message(BaseModel):
     role: Literal["system", "user", "assistant"]
@@ -26,23 +29,23 @@ class ProviderCapabilityMatrix(BaseModel):
     context_window: int = 4096
 
 class CompletionRequest(BaseModel):
-    messages: List[Message]
+    messages: list[Message]
     model: str
     temperature: float = 0.7
-    max_tokens: Optional[int] = None
-    response_format: Optional[Dict[str, Any]] = None  # Structured output schema if required
+    max_tokens: int | None = None
+    response_format: dict[str, Any] | None = None  # Structured output schema if required
 
 class CompletionResponse(BaseModel):
     text: str
     usage: UsageInfo
     provider: str
     model: str
-    finish_reason: Optional[str] = None
+    finish_reason: str | None = None
 
 class StreamChunk(BaseModel):
     text: str
-    usage: Optional[UsageInfo] = None
-    finish_reason: Optional[str] = None
+    usage: UsageInfo | None = None
+    finish_reason: str | None = None
 
 class ProviderHealth(BaseModel):
     provider_name: str
@@ -51,14 +54,14 @@ class ProviderHealth(BaseModel):
     circuit_breaker_state: str
     error_count: int
     latency_ms: float
-    loaded_models: List[str] = Field(default_factory=list)
-    last_error: Optional[str] = None
+    loaded_models: list[str] = Field(default_factory=list)
+    last_error: str | None = None
 
 # Tool Calling Scaffold for Phase 4.4
 class ToolDefinition(BaseModel):
     name: str
     description: str
-    parameters: Dict[str, Any]
+    parameters: dict[str, Any]
 
 class ToolCall(BaseModel):
     id: str

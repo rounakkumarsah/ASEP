@@ -8,11 +8,11 @@ by querying Neo4j for connected metadata, and yields integrated results.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from src.documents.embedding_service import EmbeddingProvider
 from src.graph import GraphService
-from src.vector import VectorService, VectorSearchResult
+from src.vector import VectorSearchResult, VectorService
 from src.vector.collections import DEFAULT_COLLECTION
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ class QueryRewriterInterface:
 class RerankerInterface:
     """Interface for ranking/re-scoring retrieved chunks (Scaffold Only)."""
 
-    def rerank(self, query: str, results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def rerank(self, query: str, results: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Return reordered results with recalculated scores."""
         return results
 
@@ -37,28 +37,28 @@ class RerankerInterface:
 class BM25RetrieverInterface:
     """Interface for lexical token matching search (Scaffold Only)."""
 
-    def search_bm25(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+    def search_bm25(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
         return []
 
 
 class HybridRetrieverInterface:
     """Interface for combining dense vectors with lexical BM25 queries (Scaffold Only)."""
 
-    def search_hybrid(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+    def search_hybrid(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
         return []
 
 
 class MultiQueryRetrieverInterface:
     """Interface for expanding a single query into multiple LLM variants (Scaffold Only)."""
 
-    def search_multiquery(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+    def search_multiquery(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
         return []
 
 
 class ParentRetrieverInterface:
     """Interface for returning parent documents containing matched child chunks (Scaffold Only)."""
 
-    def search_parent(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+    def search_parent(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
         return []
 
 
@@ -104,8 +104,8 @@ class Retriever:
         query: str,
         limit: int = 10,
         score_threshold: float = 0.0,
-        filters: Optional[Dict[str, Any]] = None,
-    ) -> List[Dict[str, Any]]:
+        filters: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
         """
         Main retrieval method:
         1. Optionally rewrites the query.
@@ -121,7 +121,7 @@ class Retriever:
         query_vector = await self.embedder.embed_query(rewritten_query)
 
         # Step 3: Dense vector retrieval
-        hits: List[VectorSearchResult] = await self.vector.search(
+        hits: list[VectorSearchResult] = await self.vector.search(
             collection_name=self.collection_name,
             query_vector=query_vector,
             limit=limit,

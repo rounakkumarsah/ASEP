@@ -1,15 +1,22 @@
 from __future__ import annotations
+
 import logging
-import uuid
-import time
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from src.documents.chunking import ChunkingEngine
 from src.documents.embedding_service import EmbeddingProvider
 from src.documents.loaders import get_loader_for_file
-from src.documents.metadata import extract_file_metadata, compute_hash, DocumentMetadata, ChunkRecord
+from src.documents.metadata import (
+    compute_hash,
+    extract_file_metadata,
+)
 from src.graph import GraphService
-from src.graph.queries import CREATE_CHUNK_QUERY, CREATE_DOCUMENT_QUERY, LINK_CHUNK_TO_DOCUMENT_QUERY
-from src.vector import VectorService, VectorRecord
+from src.graph.queries import (
+    CREATE_CHUNK_QUERY,
+    CREATE_DOCUMENT_QUERY,
+    LINK_CHUNK_TO_DOCUMENT_QUERY,
+)
+from src.vector import VectorRecord, VectorService
 from src.vector.collections import DEFAULT_COLLECTION
 
 logger = logging.getLogger(__name__)
@@ -18,8 +25,8 @@ class IngestionService:
     """Orchestrates document parsing, chunking, embedding, and storage across Graph and Vector DBs."""
 
     # Thread-safe/process-safe placeholders for incremental caches
-    _embedding_cache: Dict[str, List[float]] = {}
-    _ingested_documents: Dict[str, str] = {}  # file_path -> content_hash
+    _embedding_cache: dict[str, list[float]] = {}
+    _ingested_documents: dict[str, str] = {}  # file_path -> content_hash
 
     def __init__(
         self,
@@ -38,18 +45,18 @@ class IngestionService:
         collection_name: str = DEFAULT_COLLECTION,
         chunk_size: int = 800,
         chunk_overlap: int = 150,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Ingests a document from disk into Neo4j and Qdrant with change detection.
-        
+
         Returns:
             Ingestion summary with document metadata and processing details.
         """
         logger.info(f"Starting ingestion for: {file_path}")
-        
+
         # 1. Parse document content
         loader = get_loader_for_file(file_path)
         content = loader.load(file_path)
-        
+
         # 2. Incremental Indexing Check
         doc_hash = compute_hash(content)
         if self._ingested_documents.get(file_path) == doc_hash:
@@ -59,14 +66,14 @@ class IngestionService:
                 "chunks_ingested": 0,
                 "status": "unchanged"
             }
-            
+
         self._ingested_documents[file_path] = doc_hash
-        
+
         # 3. Extract document-level metadata
         doc_metadata = extract_file_metadata(file_path, content)
         doc_id = compute_hash(file_path + "_" + doc_hash)[:16]
         doc_metadata["id"] = doc_id
-        
+
         # 4. Generate hierarchical parent-child ChunkRecords
         chunk_records = self.chunker.chunk_document(
             document_id=doc_id,
@@ -75,18 +82,18 @@ class IngestionService:
             file_path=file_path,
             collection=collection_name,
         )
-        
+
         if not chunk_records:
             logger.warning(f"No chunks extracted from document: {file_path}")
             return {"document_id": doc_id, "chunks_ingested": 0, "metadata": doc_metadata}
 
         logger.info(f"Splitting generated {len(chunk_records)} chunks for {file_path}")
-        
+
         # 5. Embedding Generation with Caching
-        embeddings: List[List[float]] = []
-        texts_to_embed: List[str] = []
-        texts_indices: List[int] = []
-        
+        embeddings: list[list[float]] = []
+        texts_to_embed: list[str] = []
+        texts_indices: list[int] = []
+
         for idx, chunk in enumerate(chunk_records):
             # Check embedding cache
             cached_vec = self._embedding_cache.get(chunk.content_hash)
@@ -97,7 +104,7 @@ class IngestionService:
                 embeddings.append([])
                 texts_to_embed.append(chunk.content)
                 texts_indices.append(idx)
-                
+
         if texts_to_embed:
             new_embeddings = await self.embedder.embed_documents(texts_to_embed)
             for relative_idx, real_idx in enumerate(texts_indices):
@@ -111,29 +118,29 @@ class IngestionService:
             CREATE_DOCUMENT_QUERY,
             {"doc_id": doc_id, "properties": doc_metadata}
         )
-        
-        vector_records: List[VectorRecord] = []
-        
+
+        vector_records: list[VectorRecord] = []
+
         # 7. Symmetrically write Chunks and Relationships to Neo4j & prepare Qdrant records
-        for i, (chunk, vector) in enumerate(zip(chunk_records, embeddings)):
+        for i, (chunk, vector) in enumerate(zip(chunk_records, embeddings, strict=False)):
             chunk_metadata_dict = chunk.metadata.dict()
             chunk_metadata_dict["id"] = chunk.chunk_id
             chunk_metadata_dict["parent_id"] = chunk.parent_id
             chunk_metadata_dict["text"] = chunk.content
             chunk_metadata_dict["content_hash"] = chunk.content_hash
-            
+
             # Neo4j: Write chunk node
             await self.graph.execute_write(
                 CREATE_CHUNK_QUERY,
                 {"chunk_id": chunk.chunk_id, "properties": chunk_metadata_dict}
             )
-            
+
             # Neo4j: Link chunk to parent document
             await self.graph.execute_write(
                 LINK_CHUNK_TO_DOCUMENT_QUERY,
                 {"doc_id": doc_id, "chunk_id": chunk.chunk_id, "index": i}
             )
-            
+
             # Qdrant payload preserving full metadata fields
             vector_records.append(
                 VectorRecord(
@@ -152,10 +159,10 @@ class IngestionService:
                     }
                 )
             )
-            
+
         # 8. Upsert all embeddings in batch to Qdrant
         await self.vector.batch_upsert(collection_name, vector_records)
-        
+
         logger.info(f"Ingestion completed successfully for '{file_path}'. Chunks: {len(chunk_records)}")
         return {
             "document_id": doc_id,

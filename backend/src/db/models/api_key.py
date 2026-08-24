@@ -13,8 +13,8 @@ Security design:
 
 from __future__ import annotations
 
-import uuid
 import datetime
+import uuid
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Uuid
 from sqlalchemy.dialects.postgresql import JSONB

@@ -2,9 +2,8 @@
 ASEP — Redis Client & Connection Pool
 """
 
-import asyncio
 import logging
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 from urllib.parse import urlparse
 
 from redis.asyncio import Redis, from_url
@@ -34,7 +33,7 @@ async def init_redis() -> None:
     if _redis_client is None:
         settings = get_settings()
         logger.info("Connecting to Redis at %s", _safe_redis_host(settings.REDIS_URL))
-        
+
         # 'decode_responses=True' parses strings directly instead of returning bytes.
         # This is generally more convenient for standard caching.
         kwargs = {
@@ -49,12 +48,12 @@ async def init_redis() -> None:
             kwargs["ssl_cert_reqs"] = ssl.CERT_NONE
 
         _redis_client = from_url(settings.REDIS_URL, **kwargs)
-        
+
         # Test connection
         try:
             await _redis_client.ping()
             logger.info("Successfully connected to Redis.")
-        except Exception as e:
+        except Exception:
             # Fallback for plain redis connection if TLS fails on cloud proxy
             if settings.REDIS_URL.startswith("rediss://"):
                 plain_url = settings.REDIS_URL.replace("rediss://", "redis://", 1)
@@ -74,7 +73,7 @@ async def init_redis() -> None:
                 await _redis_client.ping()
                 logger.info("Successfully connected to local container Redis.")
                 return
-            except Exception as local_e:
+            except Exception:
                 logger.warning(
                     "Redis is unavailable at startup. "
                     "The application will start in degraded mode — rate-limiting, "

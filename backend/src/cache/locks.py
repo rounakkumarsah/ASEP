@@ -5,8 +5,8 @@ ASEP — Distributed Lock Abstraction
 import asyncio
 import logging
 import uuid
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 from redis.asyncio import Redis
 
@@ -28,23 +28,23 @@ async def distributed_lock(
 ) -> AsyncGenerator[str, None]:
     """
     Acquire a distributed lock using Redis SET NX PX.
-    
+
     Args:
         redis_client: The async Redis client.
         lock_key: The string key to lock on (e.g. 'lock:task:123').
         timeout_ms: How long the lock should be held before automatic expiry.
         retry_delay_ms: Milliseconds to wait between acquisition attempts.
         max_retries: Maximum number of attempts before raising an error.
-        
+
     Yields:
         The unique token associated with this lock session.
-        
+
     Raises:
         LockAcquisitionError: If the lock could not be acquired after max_retries.
     """
     token = str(uuid.uuid4())
     acquired = False
-    
+
     for _ in range(max_retries):
         # SET key value NX PX timeout
         # NX = Only set if it does not exist
@@ -58,7 +58,7 @@ async def distributed_lock(
         if result:
             acquired = True
             break
-            
+
         await asyncio.sleep(retry_delay_ms / 1000.0)
 
     if not acquired:
@@ -71,7 +71,7 @@ async def distributed_lock(
     finally:
         # We only delete the lock if our token matches to avoid releasing a lock
         # that expired and was subsequently acquired by someone else.
-        
+
         # Redis Lua script to perform atomic verify-and-delete:
         script = """
         if redis.call("get", KEYS[1]) == ARGV[1] then

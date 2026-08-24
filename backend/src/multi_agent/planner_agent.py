@@ -1,7 +1,10 @@
 from __future__ import annotations
-from typing import Dict, Any, List
-from src.multi_agent.contracts import AgentRole, AgentManifest, AgentRequest
+
+from typing import Any
+
 from src.multi_agent.base_agent import BaseAgent
+from src.multi_agent.contracts import AgentManifest, AgentRequest, AgentRole
+
 
 class PlannerAgent(BaseAgent):
     """Planner Agent analyzing complex task requirements and mapping dependency execution nodes."""
@@ -17,12 +20,12 @@ class PlannerAgent(BaseAgent):
         )
         super().__init__(role=AgentRole.PLANNER, manifest=manifest)
 
-    async def _execute_internal(self, request: AgentRequest) -> Dict[str, Any]:
+    async def _execute_internal(self, request: AgentRequest) -> dict[str, Any]:
         goal = request.input_data.get("request", "")
-        
+
         # Deconstruct and analyze requirements
         complexity_score = min(1.0, max(0.1, len(goal.split()) / 50.0))
-        
+
         subtasks = [
             {
                 "task_id": "knowledge_retrieval",
@@ -49,7 +52,7 @@ class PlannerAgent(BaseAgent):
                 "dependencies": ["agent_execution"]
             }
         ]
-        
+
         return {
             "subtasks": subtasks,
             "complexity_score": complexity_score,

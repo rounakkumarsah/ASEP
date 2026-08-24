@@ -1,0 +1,186 @@
+name: Comprehensive Security Audit & SCA Gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+  id-token: write # Required for Sigstore Cosign OIDC authentication & Attestations
+  actions: read
+  attestations: write
+
+jobs:
+  python-security:
+    name: Python SAST & Supply Chain Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pip-audit bandit ruff mypy
+          pip install -r backend/requirements.txt
+
+      - name: Run pip check
+        run: python -m pip check
+
+      - name: Run pip-audit (Vulnerability Scanner)
+        run: pip-audit -r backend/requirements.txt
+
+      - name: Run Bandit (SAST Scanner)
+        run: bandit -r backend/src/ -ll -ii
+
+      - name: Run Ruff Static Linter
+        run: ruff check backend/
+
+      - name: Run Mypy Type Checker
+        run: mypy backend/src/agents backend/src/agent
+
+  node-security:
+    name: Node.js Frontend SCA & Secret Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Frontend Dependencies
+        run: npm --prefix frontend ci
+
+      - name: Run Typecheck
+        run: npm --prefix frontend run typecheck
+
+      - name: Run ESLint
+        run: npm --prefix frontend run lint
+
+      - name: Run npm audit (Fail on Critical)
+        run: npm --prefix frontend audit --audit-level=critical
+
+  semgrep-scan:
+    name: Semgrep SAST Scanning
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Run Semgrep
+        run: semgrep scan --config auto --error --sarif > semgrep.sarif
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
+        if: always()
+
+  codeql-scan:
+    name: CodeQL Advanced Security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python, javascript, typescript
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:python,javascript,typescript"
+
+  gitleaks-scan:
+    name: Gitleaks Secret Detection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+
+  dependency-review:
+    name: GitHub Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+
+  docker-provenance:
+    name: Sigstore Cosign, Trivy & Artifact Attestations (SLSA Level 3)
+    runs-on: ubuntu-latest
+    needs: [python-security, node-security, semgrep-scan, codeql-scan, gitleaks-scan]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+        with:
+          cosign-release: 'v2.2.4'
+          
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Log into Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Build and Push image
+        id: build-and-push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/${{ github.repository }}/asep:latest
+
+      - name: Run Trivy Vulnerability Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'ghcr.io/${{ github.repository }}/asep:latest'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+        if: always()
+          
+      - name: Sign the published Docker image
+        env:
+          TAGS: ghcr.io/${{ github.repository }}/asep:latest
+          DIGEST: ${{ steps.build-and-push.outputs.digest }}
+        run: cosign sign --yes "${TAGS}@${DIGEST}"
+
+      - name: Generate Artifact Attestation
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: ghcr.io/${{ github.repository }}/asep
+          subject-digest: ${{ steps.build-and-push.outputs.digest }}
+          push-to-registry: true

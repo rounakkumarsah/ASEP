@@ -16,7 +16,7 @@ os.environ["APP_ENV"] = "development"
 
 import pytest
 from fastapi.testclient import TestClient
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 
 from src.api.app import create_app
 

@@ -2,7 +2,9 @@ import { test as setup, expect } from '@playwright/test';
 import { LoginPage } from './pom/login-page';
 import { STORAGE_STATE } from '../playwright.config';
 
-import { SignupPage } from './pom/signup-page';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+const E2E_EMAIL = 'e2e_admin@playwright.test';
+const E2E_PASSWORD = 'Playwright$Test123!';
 
 setup('authenticate user and save storage state', async ({ page, request }) => {
   await page.addInitScript(() => {
@@ -10,25 +12,30 @@ setup('authenticate user and save storage state', async ({ page, request }) => {
     (window as any).__PLAYWRIGHT_TEST__ = true;
   });
 
-  // Ensure user exists via API
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-  await request.post(`${API_URL}/api/v1/auth/signup`, {
+  // Seed or refresh the E2E test user (email already verified, rate limit cleared)
+  // This endpoint is only active in development/test environments
+  const seedRes = await request.post(`${API_URL}/api/v1/auth/e2e/seed-user`, {
     data: {
-      firstName: 'Admin',
-      lastName: 'User',
-      email: 'admin@example.com',
-      password: 'SecurePass123!',
-      acceptTerms: true,
-      captchaToken: 'mock-turnstile-token'
-    }
+      email: E2E_EMAIL,
+      password: E2E_PASSWORD,
+      firstName: 'E2E',
+      lastName: 'Admin',
+    },
   });
 
-  // Now login via UI
+  // Accept 200 (created/updated) or 409 (already exists — still ok)
+  expect(
+    seedRes.status() === 200 || seedRes.status() === 201 || seedRes.status() === 204,
+    `Seed user failed with status ${seedRes.status()}: ${await seedRes.text()}`,
+  ).toBeTruthy();
+
+  // Login via UI
   const loginPage = new LoginPage(page);
   await loginPage.goto();
-  await loginPage.login('admin@example.com', 'SecurePass123!');
-  await page.waitForURL(/\/overview/);
-  
-  // Save credentials state to local filesystem
+  await loginPage.login(E2E_EMAIL, E2E_PASSWORD);
+  await page.waitForURL(/\/overview/, { timeout: 20000 });
+
+  // Persist cookies/localStorage for authenticated tests
   await page.context().storageState({ path: STORAGE_STATE });
 });
+

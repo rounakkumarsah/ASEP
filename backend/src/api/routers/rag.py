@@ -1,12 +1,14 @@
 import time
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional
+
+from src.documents.context_builder import ContextBuilder
 from src.documents.embedding_service import RuntimeEmbeddingProvider
 from src.documents.retrieval import Retriever
-from src.documents.context_builder import ContextBuilder
-from src.vector.qdrant import get_qdrant_client
 from src.vector import VectorService
+from src.vector.qdrant import get_qdrant_client
 
 router = APIRouter()
 
@@ -15,7 +17,7 @@ class RAGQueryRequest(BaseModel):
     query: str
     limit: int = Field(default=5, ge=1, le=50)
     score_threshold: float = Field(default=0.0, ge=0.0, le=1.0)
-    filters: Optional[Dict[str, Any]] = None
+    filters: dict[str, Any] | None = None
 
 class ContextSegment(BaseModel):
     chunk_id: str
@@ -27,7 +29,7 @@ class ContextSegment(BaseModel):
 class RAGSearchResponse(BaseModel):
     query: str
     context: str
-    segments: List[ContextSegment]
+    segments: list[ContextSegment]
     citations: str
     latency_ms: float
     estimated_tokens: int
@@ -37,7 +39,7 @@ def get_retriever() -> Retriever:
     client = get_qdrant_client()
     vector_service = VectorService(client=client)
     embedder = RuntimeEmbeddingProvider()
-    
+
     # Optional GraphService injection to support degraded Neo4j startup
     graph_service = None
     try:
@@ -48,7 +50,7 @@ def get_retriever() -> Retriever:
     except Exception:
         # Graceful fallback: run RAG with Vector-only results
         pass
-        
+
     return Retriever(
         vector_service=vector_service,
         embedding_provider=embedder,
@@ -64,8 +66,8 @@ async def semantic_rag_search(
     """Execute a hybrid vector + graph RAG query with strict rate-limiting."""
     # Production Rate Limiting — 30 RAG searches / 1 min per client
     try:
-        from src.cache.redis import get_redis_client
         from src.auth.rate_limit import check_rate_limit
+        from src.cache.redis import get_redis_client
         redis = get_redis_client()
         rate_key = f"rate_limit:rag:search:{hash(request.query) % 10000}"
         allowed = await check_rate_limit(redis, rate_key, max_attempts=30, window_seconds=60)
@@ -88,13 +90,13 @@ async def semantic_rag_search(
             score_threshold=request.score_threshold,
             filters=request.filters
         )
-        
+
         # Step 2: Build formatted context blocks and citations
         builder = ContextBuilder()
         context_str, selected, citations_str = builder.build_context_and_citations(hits)
-        
+
         latency_ms = (time.perf_counter() - start_time) * 1000.0
-        
+
         segments = [
             ContextSegment(
                 chunk_id=c["chunk_id"],
@@ -105,7 +107,7 @@ async def semantic_rag_search(
             )
             for c in selected
         ]
-        
+
         return RAGSearchResponse(
             query=request.query,
             context=context_str,

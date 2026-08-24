@@ -30,13 +30,13 @@ class Planner:
         """Parse raw goals, decompose them, validate DAG integrity, and sort topologically."""
         goal = await self.goals.parse_goal(raw_goal)
         plan = await self.decomposer.decompose(goal)
-        
+
         # 1. Validate graph integrity
         is_valid, err = self.validator.validate_plan(plan)
         if not is_valid:
             logger.error(f"Planner generated an invalid execution plan: {err}")
             raise ValueError(f"Generated plan is structurally invalid: {err}")
-            
+
         # 2. Reorder topologically to ensure dependencies run first
         return self.manager.reorder_plan_tasks(plan)
 
@@ -53,7 +53,7 @@ class Replanner(Planner):
     ) -> DecomposedPlan:
         """Inject failure contexts into the LLM loop to output an adapted, validated DecomposedPlan."""
         logger.info(f"Replanning triggered for failed task: '{failed_task_id}'")
-        
+
         context = {
             "original_goal": {
                 "title": goal.parsed_title,
@@ -63,24 +63,24 @@ class Replanner(Planner):
             "failure_report": failure_report,
             "current_plan": current_plan.model_dump()
         }
-        
+
         messages = [
             {"role": "system", "content": REPLANER_SYSTEM_PROMPT},
             {"role": "user", "content": f"Replan based on this failure state:\n{json.dumps(context, indent=2)}"}
         ]
-        
+
         response_content = await self.provider.chat_complete(messages, json_output=True)
-        
+
         try:
             parsed_data = json.loads(response_content)
             new_plan = DecomposedPlan.model_validate(parsed_data)
-            
+
             # Validate integrity of the adjusted plan
             is_valid, err = self.validator.validate_plan(new_plan)
             if not is_valid:
                 logger.error(f"Replanner generated an invalid execution plan: {err}")
                 raise ValueError(f"Replanned plan is structurally invalid: {err}")
-                
+
             return self.manager.reorder_plan_tasks(new_plan)
         except Exception as e:
             logger.error(f"Failed to validate replanned output: {e}. Raw response: {response_content}")

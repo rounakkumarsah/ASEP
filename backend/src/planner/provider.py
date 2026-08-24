@@ -2,7 +2,6 @@
 ASEP — Provider-Agnostic LLM Client
 """
 
-import json
 import logging
 from abc import ABC, abstractmethod
 
@@ -34,11 +33,11 @@ class OpenAICompatibleLLMProvider(LLMProvider):
         self.api_url = api_url or settings.LLM_API_URL
         self.api_key = api_key or settings.LLM_API_KEY
         self.model = model or settings.LLM_MODEL
-        
+
         headers = {}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
-            
+
         self.client = httpx.AsyncClient(headers=headers, timeout=timeout)
 
     async def chat_complete(
@@ -50,16 +49,16 @@ class OpenAICompatibleLLMProvider(LLMProvider):
             "model": self.model,
             "messages": messages,
         }
-        
+
         if json_output:
             payload["response_format"] = {"type": "json_object"}
-            
+
         try:
             logger.debug(f"Calling LLM provider at {self.api_url} with model {self.model}")
             response = await self.client.post(self.api_url, json=payload)
             response.raise_for_status()
             data = response.json()
-            
+
             content = data["choices"][0]["message"]["content"]
             return content.strip()
         except Exception as e:

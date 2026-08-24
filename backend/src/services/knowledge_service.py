@@ -38,7 +38,7 @@ from __future__ import annotations
 import logging
 import uuid
 from collections.abc import Callable
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -345,7 +345,6 @@ class KnowledgeService:
             NoResultFound:    If no document with ``doc_id`` exists.
             InvalidStateError: If the document is not in ``INDEXING`` state.
         """
-        from datetime import timezone as _tz
 
         updates: dict[str, Any] = {"status": DocumentStatus.READY}
         if chunk_count is not None:
@@ -364,7 +363,7 @@ class KnowledgeService:
             updates["graph_namespace"] = graph_namespace
         if graph_version is not None:
             updates["graph_version"] = graph_version
-        updates["last_indexed_at"] = last_indexed_at or datetime.now(tz=_tz.utc)
+        updates["last_indexed_at"] = last_indexed_at or datetime.now(tz=UTC)
 
         async with self._uow_factory() as uow:
             doc = await uow.knowledge_documents.get_or_raise(doc_id)

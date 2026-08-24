@@ -8,8 +8,8 @@ hallucination detection, citation verification, and agent scorecards.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -40,9 +40,9 @@ class EvaluationFramework:
     """Enterprise evaluation engine for benchmarking agent outputs."""
 
     def __init__(self) -> None:
-        self._golden_dataset: List[Dict[str, Any]] = []
+        self._golden_dataset: list[dict[str, Any]] = []
 
-    def load_golden_dataset(self, samples: List[Dict[str, Any]]) -> None:
+    def load_golden_dataset(self, samples: list[dict[str, Any]]) -> None:
         self._golden_dataset = samples
         logger.info("Loaded %d golden dataset test samples.", len(samples))
 
@@ -50,8 +50,8 @@ class EvaluationFramework:
         self,
         test_id: str,
         generated_response: str,
-        context_sources: List[str],
-        expected_output: Optional[str] = None,
+        context_sources: list[str],
+        expected_output: str | None = None,
         agent_name: str = "Agent",
     ) -> EvalResult:
         # Groundedness & Hallucination heuristic calculation

@@ -2,13 +2,13 @@
 ASEP — Reflection Models
 """
 
-from datetime import datetime, timezone
-from enum import Enum
-from typing import Any
+from datetime import UTC, datetime
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
-class LessonCategory(str, Enum):
+
+class LessonCategory(StrEnum):
     PLANNING = "planning"
     TOOL_USAGE = "tool_usage"
     MEMORY = "memory"
@@ -17,7 +17,7 @@ class LessonCategory(str, Enum):
     POLICY = "policy"
     PERFORMANCE = "performance"
 
-class RootCauseCategory(str, Enum):
+class RootCauseCategory(StrEnum):
     TOOL_FAILURE = "tool_failure"
     PLANNING_ERROR = "planning_error"
     TIMEOUT = "timeout"
@@ -45,4 +45,4 @@ class ReflectionReport(BaseModel):
     passed: bool
     failure_analysis: FailureAnalysis | None = None
     items: list[ReflectionItem] = Field(default_factory=list)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))

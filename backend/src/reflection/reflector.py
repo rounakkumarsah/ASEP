@@ -38,9 +38,7 @@ class Reflector:
             return False
         if policy.trigger == ReflectionTrigger.ON_SUCCESS and passed:
             return True
-        if policy.trigger == ReflectionTrigger.ON_FAILURE and not passed:
-            return True
-        return False
+        return bool(policy.trigger == ReflectionTrigger.ON_FAILURE and not passed)
 
     async def reflect(
         self,

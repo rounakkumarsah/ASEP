@@ -1,14 +1,17 @@
 from __future__ import annotations
-from typing import Dict, Any, Optional
-from src.multi_agent.contracts import AgentRole, AgentManifest, AgentRequest
-from src.multi_agent.base_agent import BaseAgent
-from src.ai_runtime.service import AIRuntimeService
+
+from typing import Any
+
 from src.ai_runtime.contracts import CompletionRequest, Message
+from src.ai_runtime.service import AIRuntimeService
+from src.multi_agent.base_agent import BaseAgent
+from src.multi_agent.contracts import AgentManifest, AgentRequest, AgentRole
+
 
 class ExecutionAgent(BaseAgent):
     """Execution Agent invoking AIRuntimeService, running prompts, and capturing usage telemetry."""
 
-    def __init__(self, service: Optional[AIRuntimeService] = None) -> None:
+    def __init__(self, service: AIRuntimeService | None = None) -> None:
         manifest = AgentManifest(
             name="ExecutionAgent",
             version="1.0.0",
@@ -20,9 +23,9 @@ class ExecutionAgent(BaseAgent):
         super().__init__(role=AgentRole.EXECUTOR, manifest=manifest)
         self.service = service or AIRuntimeService()
 
-    async def _execute_internal(self, request: AgentRequest) -> Dict[str, Any]:
+    async def _execute_internal(self, request: AgentRequest) -> dict[str, Any]:
         prompt = request.input_data.get("prompt", "")
-        
+
         # Prepare runtime request matching CompletionRequest contracts
         runtime_req = CompletionRequest(
             messages=[Message(role="user", content=prompt)],
@@ -30,10 +33,10 @@ class ExecutionAgent(BaseAgent):
             max_tokens=256,
             temperature=0.7
         )
-        
+
         # Run AI completions
         resp = await self.service.complete(runtime_req)
-        
+
         return {
             "result": resp.text,
             "tokens_used": resp.usage.total_tokens,

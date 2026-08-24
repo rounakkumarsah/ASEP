@@ -3,8 +3,8 @@ Integration Tests for AgentRunRepository
 """
 
 import uuid
+
 import pytest
-import pytest_asyncio
 from sqlalchemy.exc import NoResultFound
 
 from src.db.models.agent_run import AgentRun, RunStatus
@@ -26,12 +26,12 @@ async def test_create_and_get(repo, db_session):
         status=RunStatus.PENDING,
         session_id="test_sys"
     )
-    
+
     # Create
     created_run = await repo.create(run)
     await db_session.flush()
     assert created_run.id == run_id
-    
+
     # Get
     fetched_run = await repo.get_or_raise(run_id)
     assert fetched_run.id == run_id
@@ -55,10 +55,10 @@ async def test_get_active_runs(repo, db_session):
     for r in runs:
         await repo.create(r)
     await db_session.flush()
-    
+
     running_runs = await repo.get_running()
     pending_runs = await repo.get_pending_oldest_first()
-    
+
     # Assert
     assert len(running_runs) >= 1
     assert len(pending_runs) >= 1

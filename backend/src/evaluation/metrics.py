@@ -3,12 +3,10 @@ ASEP — Evaluation Metrics Models & Collector
 """
 
 from datetime import datetime
-from typing import Any
 
 from pydantic import BaseModel, Field
 
 from src.agent.events import AgentEvent, AgentEventType
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Fine-grained metric models
@@ -180,17 +178,17 @@ class MetricsCollector:
             metrics.latency.total_ms = (_session_end - _session_start).total_seconds() * 1000
 
         metrics.memory.layers_used = sorted(_memory_layers)
-        
+
         # Calculate derived metrics for Phase 4.7
         total_tasks = metrics.task_count or len(metrics.per_task)
         metrics.task_success = (metrics.succeeded / total_tasks) if total_tasks > 0 else 1.0
         metrics.workflow_completion = metrics.task_success
-        
+
         # Check tool outcomes
         tool_success = len([t for t in metrics.per_task if t.status == "success"])
         metrics.tool_success_rate = (tool_success / len(metrics.per_task)) if metrics.per_task else 1.0
         metrics.tool_selection_accuracy = metrics.tool_success_rate
-        
+
         # Default RAG and planning scores
         metrics.retrieval_precision = 0.95
         metrics.retrieval_recall = 0.90
@@ -199,7 +197,7 @@ class MetricsCollector:
         metrics.hallucination_risk = 0.05
         metrics.memory_accuracy = 0.96
         metrics.planning_quality = 0.90
-        
+
         # Default usage metrics
         metrics.token_usage = 1250
         metrics.cost = 0.025

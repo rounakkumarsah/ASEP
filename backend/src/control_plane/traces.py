@@ -2,7 +2,8 @@
 ASEP — Control Plane Traces
 """
 
-from src.evaluation.tracing import TraceStore, Trace
+from src.evaluation.tracing import Trace, TraceStore
+
 
 class TraceExplorer:
     """Read-only view over the global TraceStore for deep execution visibility."""

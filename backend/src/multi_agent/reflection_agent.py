@@ -1,7 +1,10 @@
 from __future__ import annotations
-from typing import Dict, Any
-from src.multi_agent.contracts import AgentRole, AgentManifest, AgentRequest
+
+from typing import Any
+
 from src.multi_agent.base_agent import BaseAgent
+from src.multi_agent.contracts import AgentManifest, AgentRequest, AgentRole
+
 
 class ReflectionAgent(BaseAgent):
     """Reflection Agent critiquing generated agent actions and suggesting iterative improvements."""
@@ -17,15 +20,15 @@ class ReflectionAgent(BaseAgent):
         )
         super().__init__(role=AgentRole.REFLECTOR, manifest=manifest)
 
-    async def _execute_internal(self, request: AgentRequest) -> Dict[str, Any]:
+    async def _execute_internal(self, request: AgentRequest) -> dict[str, Any]:
         output = request.input_data.get("candidate_output", "")
-        
+
         # Simple critique: if result is empty or too short, request refinement
         needs_revision = len(output.split()) < 3
         suggestions = []
         if needs_revision:
             suggestions.append("Result is too brief. Provide more background details.")
-            
+
         return {
             "needs_revision": needs_revision,
             "suggestions": suggestions

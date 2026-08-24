@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -17,17 +18,17 @@ logger = logging.getLogger(__name__)
 @dataclass
 class AgentMessage:
     sender_role: str
-    recipient_role: Optional[str]
+    recipient_role: str | None
     topic: str
-    payload: Dict[str, Any]
+    payload: dict[str, Any]
 
 
 class AgentMessageBus:
     """Async message bus facilitating agent messaging and broadcasting."""
 
     def __init__(self) -> None:
-        self._subscribers: Dict[str, List[Callable[[AgentMessage], Any]]] = {}
-        self._history: List[AgentMessage] = []
+        self._subscribers: dict[str, list[Callable[[AgentMessage], Any]]] = {}
+        self._history: list[AgentMessage] = []
 
     def subscribe(self, topic: str, handler: Callable[[AgentMessage], Any]) -> None:
         self._subscribers.setdefault(topic, []).append(handler)
@@ -50,7 +51,7 @@ class AgentMessageBus:
             except Exception as exc:
                 logger.error("Error executing subscriber for topic '%s': %s", message.topic, exc)
 
-    def get_history(self, topic: Optional[str] = None) -> List[AgentMessage]:
+    def get_history(self, topic: str | None = None) -> list[AgentMessage]:
         if topic:
             return [m for m in self._history if m.topic == topic]
         return list(self._history)

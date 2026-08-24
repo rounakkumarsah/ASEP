@@ -3,15 +3,14 @@ ASEP -- Organizations Router
 """
 from __future__ import annotations
 
+import contextlib
 import logging
 import re
 import uuid
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.auth.dependencies import CurrentUser
 from src.db.models.organization import Organization
@@ -246,7 +245,7 @@ async def invite_member(
 
     import datetime
     invite_id = str(uuid.uuid4())
-    now_str = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    now_str = datetime.datetime.now(datetime.UTC).isoformat()
 
     from src.cache.redis import get_redis_client
     redis = get_redis_client()
@@ -298,10 +297,8 @@ async def revoke_invite(
     from src.cache.redis import get_redis_client
     redis = get_redis_client()
     if redis:
-        try:
+        with contextlib.suppress(Exception):
             await redis.hdel(f"org_invites:{current_user.org_id}", invite_id)
-        except Exception:
-            pass
     return {"status": "success", "message": "Invitation revoked successfully."}
 
 

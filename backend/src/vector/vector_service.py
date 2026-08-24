@@ -28,11 +28,7 @@ if TYPE_CHECKING:
     from qdrant_client import AsyncQdrantClient
     from qdrant_client.http.models import (
         Distance,
-        FieldCondition,
         Filter,
-        MatchValue,
-        PointStruct,
-        VectorParams,
     )
 from tenacity import (
     before_sleep_log,
@@ -51,13 +47,13 @@ logger = logging.getLogger(__name__)
 # Retry policy — shared across all network-bound operations
 # ---------------------------------------------------------------------------
 
-_RETRY_POLICY = dict(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=1, max=8),
-    retry=retry_if_exception_type(Exception),
-    reraise=True,
-    before_sleep=before_sleep_log(logger, logging.WARNING),
-)
+_RETRY_POLICY = {
+    "stop": stop_after_attempt(3),
+    "wait": wait_exponential(multiplier=1, min=1, max=8),
+    "retry": retry_if_exception_type(Exception),
+    "reraise": True,
+    "before_sleep": before_sleep_log(logger, logging.WARNING),
+}
 
 
 class VectorService:
@@ -69,7 +65,7 @@ class VectorService:
         service = VectorService(client=get_qdrant_client())
     """
 
-    def __init__(self, client: "AsyncQdrantClient") -> None:
+    def __init__(self, client: AsyncQdrantClient) -> None:
         """Initialise with a shared Qdrant async client."""
         self._client = client
 
@@ -82,7 +78,7 @@ class VectorService:
         self,
         collection_name: str | None = None,
         vector_size: int | None = None,
-        distance: "Distance | None" = None,
+        distance: Distance | None = None,
     ) -> bool:
         """
         Create a Qdrant collection if it does not already exist.
@@ -241,7 +237,7 @@ class VectorService:
         """
         # Lazy import — qdrant_client is an optional heavy dependency
         from qdrant_client.http.models import FieldCondition, Filter, MatchValue  # noqa: PLC0415
-        query_filter: "Filter | None" = None
+        query_filter: Filter | None = None
         if payload_filters:
             conditions = [
                 FieldCondition(key=k, match=MatchValue(value=v))

@@ -3,7 +3,7 @@ ASEP — Tool Registry
 """
 
 import logging
-from typing import Dict, List, Optional
+
 from src.tools.base import BaseTool
 
 logger = logging.getLogger(__name__)
@@ -13,8 +13,8 @@ class ToolRegistry:
     """Manages system-wide registration, discovery, enabling/disabling of tools."""
 
     def __init__(self) -> None:
-        self._tools: Dict[str, BaseTool] = {}
-        self._enabled_states: Dict[str, bool] = {}
+        self._tools: dict[str, BaseTool] = {}
+        self._enabled_states: dict[str, bool] = {}
 
     def register(self, tool: BaseTool) -> None:
         """Register a tool instance."""
@@ -32,11 +32,11 @@ class ToolRegistry:
                 del self._enabled_states[name]
             logger.debug(f"ToolRegistry: unregistered tool '{name}'")
 
-    def lookup(self, name: str) -> Optional[BaseTool]:
+    def lookup(self, name: str) -> BaseTool | None:
         """Lookup a registered tool instance by name."""
         return self._tools.get(name)
 
-    def discover(self, capability: Optional[str] = None) -> List[BaseTool]:
+    def discover(self, capability: str | None = None) -> list[BaseTool]:
         """Discover tools matching a specific capability or category."""
         results = []
         for tool in self._tools.values():
@@ -45,8 +45,8 @@ class ToolRegistry:
             if capability:
                 caps = tool.capabilities()
                 if (
-                    caps.get(capability) is True or 
-                    capability in tool.metadata().required_permissions or 
+                    caps.get(capability) is True or
+                    capability in tool.metadata().required_permissions or
                     tool.category.lower() == capability.lower()
                 ):
                     results.append(tool)
@@ -70,11 +70,11 @@ class ToolRegistry:
         """Check if a tool is enabled."""
         return self._enabled_states.get(name, False)
 
-    def get_all(self) -> Dict[str, BaseTool]:
+    def get_all(self) -> dict[str, BaseTool]:
         """Get all registered tool instances."""
         return self._tools
 
-    def health(self) -> Dict[str, dict]:
+    def health(self) -> dict[str, dict]:
         """Get diagnostic health of all active tools."""
         statuses = {}
         for name, tool in self._tools.items():
@@ -85,22 +85,32 @@ class ToolRegistry:
                     statuses[name] = {"status": "unhealthy", "available": False, "error": str(e)}
         return statuses
 
-    def version(self, name: str) -> Optional[str]:
+    def version(self, name: str) -> str | None:
         """Get version of a registered tool."""
         tool = self._tools.get(name)
         return tool.version if tool else None
 
 
-_global_tool_registry: Optional[ToolRegistry] = None
+_global_tool_registry: ToolRegistry | None = None
 
 def get_tool_registry() -> ToolRegistry:
     global _global_tool_registry
     if _global_tool_registry is None:
         _global_tool_registry = ToolRegistry()
         from src.tools.impl import (
-            FilesystemTool, TerminalTool, GitTool, GitHubTool, DockerTool,
-            HTTPTool, PostgresTool, Neo4jTool, QdrantTool, RedisTool,
-            EnvironmentTool, ConfigurationTool, BrowserTool
+            BrowserTool,
+            ConfigurationTool,
+            DockerTool,
+            EnvironmentTool,
+            FilesystemTool,
+            GitHubTool,
+            GitTool,
+            HTTPTool,
+            Neo4jTool,
+            PostgresTool,
+            QdrantTool,
+            RedisTool,
+            TerminalTool,
         )
         _global_tool_registry.register(FilesystemTool())
         _global_tool_registry.register(TerminalTool())

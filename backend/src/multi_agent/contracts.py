@@ -1,9 +1,12 @@
 from __future__ import annotations
-from enum import Enum
-from typing import Any, Dict, List, Optional
+
+from enum import StrEnum
+from typing import Any
+
 from pydantic import BaseModel, Field
 
-class AgentRole(str, Enum):
+
+class AgentRole(StrEnum):
     SUPERVISOR = "supervisor"
     PLANNER = "planner"
     KNOWLEDGE = "knowledge"
@@ -19,7 +22,7 @@ class AgentRole(str, Enum):
     DEBUG = "debug"
 
 
-class AgentState(str, Enum):
+class AgentState(StrEnum):
     IDLE = "Idle"
     QUEUED = "Queued"
     RUNNING = "Running"
@@ -30,7 +33,7 @@ class AgentState(str, Enum):
     CANCELLED = "Cancelled"
     TIMED_OUT = "TimedOut"
 
-class AgentEventName(str, Enum):
+class AgentEventName(StrEnum):
     SUPERVISOR_STARTED = "SupervisorStarted"
     SUPERVISOR_COMPLETED = "SupervisorCompleted"
     AGENT_STARTED = "AgentStarted"
@@ -45,9 +48,9 @@ class AgentManifest(BaseModel):
     name: str
     version: str = "1.0.0"
     description: str
-    capabilities: List[str] = Field(default_factory=list)
-    supported_inputs: List[str] = Field(default_factory=list)
-    supported_outputs: List[str] = Field(default_factory=list)
+    capabilities: list[str] = Field(default_factory=list)
+    supported_inputs: list[str] = Field(default_factory=list)
+    supported_outputs: list[str] = Field(default_factory=list)
 
 class AgentEvent(BaseModel):
     event_id: str
@@ -57,18 +60,18 @@ class AgentEvent(BaseModel):
     agent_role: AgentRole
     message: str
     timestamp: float
-    payload: Dict[str, Any] = Field(default_factory=dict)
+    payload: dict[str, Any] = Field(default_factory=dict)
 
 class AgentRequest(BaseModel):
     execution_id: str
     correlation_id: str
-    input_data: Dict[str, Any] = Field(default_factory=dict)
+    input_data: dict[str, Any] = Field(default_factory=dict)
     timeout_seconds: float = 30.0
 
 class AgentResponse(BaseModel):
     execution_id: str
     correlation_id: str
     status: AgentState
-    output_data: Dict[str, Any] = Field(default_factory=dict)
-    error_message: Optional[str] = None
-    usage_metrics: Dict[str, Any] = Field(default_factory=dict)
+    output_data: dict[str, Any] = Field(default_factory=dict)
+    error_message: str | None = None
+    usage_metrics: dict[str, Any] = Field(default_factory=dict)

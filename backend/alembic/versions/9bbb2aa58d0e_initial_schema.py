@@ -5,17 +5,18 @@ Revises: 2802f86835b1
 Create Date: 2026-07-13 13:11:09.337542
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
+from alembic import op
+
 # revision identifiers, used by Alembic.
 revision: str = '9bbb2aa58d0e'
-down_revision: Union[str, Sequence[str], None] = '2802f86835b1'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = '2802f86835b1'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -240,7 +241,7 @@ def downgrade() -> None:
     op.drop_index('ix_agent_run_session_id', table_name='agent_runs')
     op.drop_index('ix_agent_run_created_at', table_name='agent_runs')
     op.drop_table('agent_runs')
-    
+
     # Drop ENUM types
     op.execute("DROP TYPE IF EXISTS run_status CASCADE")
     op.execute("DROP TYPE IF EXISTS task_status CASCADE")

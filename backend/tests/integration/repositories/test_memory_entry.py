@@ -4,6 +4,7 @@ Integration Tests for MemoryEntryRepository
 
 import uuid
 from decimal import Decimal
+
 import pytest
 
 from src.db.models.memory_entry import MemoryEntry, MemoryType
@@ -17,6 +18,7 @@ def repo(db_session):
 
 from src.db.models.agent_run import AgentRun, RunStatus
 
+
 @pytest.mark.asyncio
 async def test_get_by_run(repo, db_session):
     run_id = uuid.uuid4()
@@ -29,7 +31,7 @@ async def test_get_by_run(repo, db_session):
     )
     db_session.add(run)
     await db_session.flush()
-    
+
     m1 = MemoryEntry(
         id=uuid.uuid4(),
         agent_run_id=run_id,
@@ -44,14 +46,14 @@ async def test_get_by_run(repo, db_session):
         content="test 2",
         importance_score=Decimal("0.900")
     )
-    
+
     await repo.create(m1)
     await repo.create(m2)
     await db_session.flush()
-    
+
     memories = await repo.get_by_agent_run(run_id)
     assert len(memories) == 2
-    
+
     # Test get_top_by_importance
     top_memories = await repo.get_top_by_importance(namespace="default", memory_type=MemoryType.SEMANTIC, limit=1)
     assert len(top_memories) == 1

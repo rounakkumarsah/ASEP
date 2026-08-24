@@ -4,14 +4,14 @@ Tasks Router
 
 import uuid
 from typing import Any
-from fastapi import APIRouter, Depends, status
+
+from fastapi import APIRouter, status
 from pydantic import BaseModel
 
 from src.api.dependencies import TaskServiceDep
 from src.api.schemas import TaskResponse
 from src.auth.decorators import RequirePermission
 from src.auth.permissions import Permission
-
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
 

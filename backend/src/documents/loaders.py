@@ -4,7 +4,7 @@ ASEP — Native Document Loaders
 
 import os
 from abc import ABC, abstractmethod
-from typing import Any
+
 
 class BaseLoader(ABC):
     """Abstract base class for document loaders."""
@@ -49,8 +49,8 @@ class TextLoader(BaseLoader):
     def load(self, file_path: str) -> str:
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"File not found: {file_path}")
-        
-        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+
+        with open(file_path, encoding="utf-8", errors="ignore") as f:
             return f.read()
 
 
@@ -81,8 +81,8 @@ class LogLoader(BaseLoader):
     def load(self, file_path: str) -> str:
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"Log file not found: {file_path}")
-        
-        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+
+        with open(file_path, encoding="utf-8", errors="ignore") as f:
             lines = f.readlines()
             # Simple trace extraction filter: keep errors and trace lines
             filtered = [line.strip() for line in lines if any(x in line.lower() for x in ("err", "fail", "traceback", "exception"))]

@@ -1,8 +1,10 @@
-import time
-import sys
 import platform
 import subprocess
+import sys
+import time
+
 from fastapi import APIRouter
+
 from src.config.settings import get_settings
 
 router = APIRouter()
@@ -15,13 +17,12 @@ def get_git_commit() -> str:
     except Exception:
         return "unknown"
 
-import os
 
 @router.get("/diagnostics")
 async def get_diagnostics():
     settings = get_settings()
     uptime = time.time() - START_TIME
-    
+
     return {
         "build_version": settings.APP_VERSION,
         "git_commit": get_git_commit(),

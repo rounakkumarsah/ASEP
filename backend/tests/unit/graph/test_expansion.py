@@ -2,8 +2,10 @@
 ASEP — Unit Tests for Graph Expansion Engine
 """
 
+from unittest.mock import AsyncMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+
 from src.graph.expansion import GraphExpansionConfig, GraphExpansionEngine
 from src.graph.models import GraphResult
 

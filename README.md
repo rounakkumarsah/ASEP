@@ -18,7 +18,7 @@
 ---
 
 [![CI/CD Pipeline](https://github.com/rounakkumarsah/ASEP/actions/workflows/push-main.yml/badge.svg)](https://github.com/rounakkumarsah/ASEP/actions)
-[![Next.js 15](https://img.shields.io/badge/Next.js-15.1.0-black?style=flat&logo=next.js)](https://nextjs.org/)
+[![Next.js 15](https://img.shields.io/badge/Next.js-15.5.23-black?style=flat&logo=next.js)](https://nextjs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
 [![LangGraph](https://img.shields.io/badge/LangGraph-Multi--Agent-FF6F00?style=flat)](https://github.com/langchain-ai/langgraph)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16.0-336791?style=flat&logo=postgresql)](https://www.postgresql.org/)
@@ -27,7 +27,7 @@
 [![Docker](https://img.shields.io/badge/Docker-Sandboxed_Exec-2496ED?style=flat&logo=docker)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-[Live Landing Page](http://localhost:3000) • [API Documentation](http://localhost:8000/docs) • [Architecture Report](01_REPOSITORY_OVERVIEW.md) • [Enterprise Due Diligence](11_ENTERPRISE_FEATURES.md)
+[Data Room Index](docs/DATA_ROOM_INDEX.md) • [Investment Memorandum](docs/sales_package/17_EXECUTIVE_SUMMARY_AND_INVESTMENT_MEMORANDUM.md) • [Benchmark Report](docs/sales_package/20_TECHNICAL_BENCHMARK_REPORT.md) • [Architecture Specs](docs/sales_package/01_TECHNICAL_ARCHITECTURE.md) • [Deployment Guide](docs/DEPLOYMENT_GUIDE.md)
 
 </div>
 

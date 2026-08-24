@@ -4,8 +4,8 @@ ASEP — Executor Facade
 
 import asyncio
 import logging
-from datetime import datetime, timezone
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
 
 from src.executor.context import ExecutionContext
 from src.executor.dispatcher import HandlerRegistry, TaskDispatcher
@@ -86,7 +86,7 @@ class Executor:
             async for event in executor.execute():
                 print(event.event_type, event.task_id, event.status)
         """
-        start_time = datetime.now(tz=timezone.utc)
+        datetime.now(tz=UTC)
 
         while not self.scheduler.is_complete():
             # Abort on cancellation
@@ -146,7 +146,7 @@ class Executor:
                         detail=result.error or "Unknown error",
                     )
 
-        end_time = datetime.now(tz=timezone.utc)
+        datetime.now(tz=UTC)
 
         # Build final report
         results_map = self.context.results

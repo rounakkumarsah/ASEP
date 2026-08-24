@@ -17,7 +17,7 @@ All operations run inside automatic retry contexts and include structured loggin
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Mapping
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from neo4j import AsyncDriver
@@ -38,13 +38,13 @@ logger = logging.getLogger(__name__)
 # Retry policy for transient network/DB failures
 # ---------------------------------------------------------------------------
 
-_RETRY_POLICY = dict(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=1, max=8),
-    retry=retry_if_exception_type(Exception),
-    reraise=True,
-    before_sleep=before_sleep_log(logger, logging.WARNING),
-)
+_RETRY_POLICY = {
+    "stop": stop_after_attempt(3),
+    "wait": wait_exponential(multiplier=1, min=1, max=8),
+    "retry": retry_if_exception_type(Exception),
+    "reraise": True,
+    "before_sleep": before_sleep_log(logger, logging.WARNING),
+}
 
 
 class GraphService:
@@ -57,7 +57,7 @@ class GraphService:
         await service.create_nodes([GraphNode(id="x", labels=["User"])])
     """
 
-    def __init__(self, driver: "AsyncDriver") -> None:
+    def __init__(self, driver: AsyncDriver) -> None:
         """Initialise with an async Neo4j driver."""
         self._driver = driver
         # None = use driver's default routing (required for Neo4j Aura Free)
@@ -252,7 +252,7 @@ class GraphService:
         LIMIT 100
         """
         # Simple fallback matching any relationship if 'RELATED' is not standard
-        fallback_query = f"""
+        fallback_query = """
         MATCH (n) WHERE n.id IN $ids
         MATCH (n)-[r]-(m)
         RETURN n.id AS source_id, labels(n) AS source_labels, properties(n) AS source_props,

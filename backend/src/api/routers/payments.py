@@ -24,10 +24,9 @@ import json
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.auth.dependencies import CurrentUser
 from src.config.settings import get_settings
@@ -189,8 +188,8 @@ async def create_order(
     """
     # Production Rate Limiting — 10 order creations / 5 mins per user
     try:
-        from src.cache.redis import get_redis_client
         from src.auth.rate_limit import check_rate_limit
+        from src.cache.redis import get_redis_client
         redis = get_redis_client()
         rate_key = f"rate_limit:payments:create_order:{current_user.id}"
         allowed = await check_rate_limit(redis, rate_key, max_attempts=10, window_seconds=300)
@@ -410,15 +409,17 @@ async def razorpay_webhook(
                 # Activate/upsert org subscription if payment has a plan note
                 notes_plan = entity.get("notes", {}).get("plan") if isinstance(entity.get("notes"), dict) else None
                 if notes_plan and payment.user_id:
+                    import datetime
+
                     from sqlalchemy import select as _select
+
                     from src.db.models.subscription import Subscription
                     from src.db.models.user import User as UserModel
-                    import datetime
 
                     user_result = await db.execute(_select(UserModel).where(UserModel.id == payment.user_id))
                     user = user_result.scalar_one_or_none()
                     if user and user.org_id:
-                        now = datetime.datetime.now(datetime.timezone.utc)
+                        now = datetime.datetime.now(datetime.UTC)
                         sub_result = await db.execute(
                             _select(Subscription).where(
                                 Subscription.org_id == user.org_id,
@@ -483,8 +484,9 @@ async def get_subscription(
     db: DbSession,
 ) -> dict:
     """Return the active subscription for the current user's organization."""
-    from src.db.models.subscription import Subscription
     from sqlalchemy import select
+
+    from src.db.models.subscription import Subscription
     if not current_user.org_id:
         return {"subscription": None}
     result = await db.execute(

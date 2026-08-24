@@ -15,7 +15,8 @@ No source code modifications needed.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Annotated, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import TYPE_CHECKING, Annotated
 from urllib.parse import urlparse
 
 from fastapi import Depends
@@ -29,7 +30,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # Module-level singleton — typed via string annotation to avoid eager import
-_qdrant_client: "AsyncQdrantClient | None" = None
+_qdrant_client: AsyncQdrantClient | None = None
 
 
 def _safe_qdrant_host(url: str) -> str:
@@ -44,6 +45,7 @@ def _safe_qdrant_host(url: str) -> str:
 
 
 import os
+
 
 @retry(
     stop=stop_after_attempt(1 if (os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV")) else 2),
@@ -113,7 +115,7 @@ async def close_qdrant() -> None:
         _qdrant_client = None
 
 
-def get_qdrant_client() -> "AsyncQdrantClient":
+def get_qdrant_client() -> AsyncQdrantClient:
     """
     Return the initialised Qdrant client singleton.
 
@@ -127,7 +129,7 @@ def get_qdrant_client() -> "AsyncQdrantClient":
     return _qdrant_client
 
 
-async def qdrant_dependency() -> AsyncGenerator["AsyncQdrantClient", None]:
+async def qdrant_dependency() -> AsyncGenerator[AsyncQdrantClient, None]:
     """FastAPI dependency generator that yields the shared Qdrant client."""
     yield get_qdrant_client()
 

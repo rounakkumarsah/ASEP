@@ -7,8 +7,6 @@ import logging
 
 from src.executor.dispatcher import HandlerRegistry
 from src.executor.retries import RetryPolicy
-from src.executor.scheduler import DependencyScheduler
-from src.executor.worker import TaskWorker
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +26,7 @@ async def executor_health_check() -> bool:
         from src.executor.retries import with_retry
         policy = RetryPolicy(max_attempts=1, timeout_seconds=1.0)
 
-        async def always_succeeds() -> dict:
+        async def always_succeeds() -> dict[str, bool]:
             return {"ok": True}
 
         result, error, attempts = await with_retry(always_succeeds, policy, task_id="health")

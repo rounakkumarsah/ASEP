@@ -11,9 +11,9 @@ Endpoints:
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel
 
 from src.agents.research_swarm import ResearchReport, ResearchSwarm
@@ -50,7 +50,7 @@ class TeacherChatRequest(BaseModel):
 
 
 @router.post("/research/topic")
-async def research_topic(payload: TopicRequest, current_user: CurrentUser) -> Dict[str, Any]:
+async def research_topic(payload: TopicRequest, current_user: CurrentUser) -> dict[str, Any]:
     """Trigger General Research Swarm (DuckDuckGo + Web Scrape + Gemini)."""
     # Rate limit check
     rl = await rate_limiter.check_rate_limit(str(current_user.id))
@@ -61,7 +61,7 @@ async def research_topic(payload: TopicRequest, current_user: CurrentUser) -> Di
         )
 
     cid = otel.create_correlation_id()
-    span = tracer.start_span("span_res_1", cid, "research_swarm", "research_topic")
+    tracer.start_span("span_res_1", cid, "research_swarm", "research_topic")
 
     report: ResearchReport = await research_swarm.run_general_research(payload.topic)
 
@@ -80,9 +80,9 @@ async def research_topic(payload: TopicRequest, current_user: CurrentUser) -> Di
 @router.post("/research/code_issue")
 async def research_code_issue(
     current_user: CurrentUser,
-    error_text: Optional[str] = Form(default=None),
-    image_file: Optional[UploadFile] = File(default=None),
-) -> Dict[str, Any]:
+    error_text: str | None = Form(default=None),
+    image_file: UploadFile | None = File(default=None),
+) -> dict[str, Any]:
     """Trigger Multimodal Developer Copilot Swarm (Text error OR Code screenshot image)."""
     rl = await rate_limiter.check_rate_limit(str(current_user.id))
     if not rl.allowed:
@@ -92,7 +92,7 @@ async def research_code_issue(
         )
 
     cid = otel.create_correlation_id()
-    span = tracer.start_span("span_copilot_1", cid, "developer_copilot", "code_issue_diagnostic")
+    tracer.start_span("span_copilot_1", cid, "developer_copilot", "code_issue_diagnostic")
 
     image_ocr_text = None
     cloud_url = None
@@ -148,10 +148,10 @@ async def research_code_issue(
 async def upload_document(
     current_user: CurrentUser,
     file: UploadFile = File(...),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Universal Document Ingestion Pipeline (PDF, DOCX, TXT, CSV)."""
     cid = otel.create_correlation_id()
-    span = tracer.start_span("span_ingest_1", cid, "ingestion_pipeline", "parse_document")
+    tracer.start_span("span_ingest_1", cid, "ingestion_pipeline", "parse_document")
 
     file_bytes = await file.read()
     cloud_url = upload_to_cloudinary(file_bytes, resource_type="raw", filename=file.filename)
@@ -177,7 +177,7 @@ async def upload_document(
 
 
 @router.post("/chat/teacher")
-async def chat_teacher(payload: TeacherChatRequest, current_user: CurrentUser) -> Dict[str, Any]:
+async def chat_teacher(payload: TeacherChatRequest, current_user: CurrentUser) -> dict[str, Any]:
     """GraphRAG Q&A Engine answering user query."""
     rl = await rate_limiter.check_rate_limit(str(current_user.id))
     if not rl.allowed:
@@ -187,7 +187,7 @@ async def chat_teacher(payload: TeacherChatRequest, current_user: CurrentUser) -
         )
 
     cid = otel.create_correlation_id()
-    span = tracer.start_span("span_chat_1", cid, "graphrag_qa", "chat_teacher")
+    tracer.start_span("span_chat_1", cid, "graphrag_qa", "chat_teacher")
 
     answer = f"GraphRAG Answer for '{payload.query}': Derived via local Qdrant vector embeddings and local Neo4j 2-hop graph expansion."
 

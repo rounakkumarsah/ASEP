@@ -4,7 +4,13 @@ ASEP — Reflection Health Check
 
 import logging
 
-from src.reflection.models import ReflectionReport, ReflectionItem, LessonCategory, RootCauseCategory, FailureAnalysis
+from src.reflection.models import (
+    FailureAnalysis,
+    LessonCategory,
+    ReflectionItem,
+    ReflectionReport,
+    RootCauseCategory,
+)
 from src.reflection.policies import ReflectionPolicy, ReflectionTrigger
 
 logger = logging.getLogger(__name__)

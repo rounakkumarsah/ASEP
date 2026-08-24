@@ -14,6 +14,6 @@ class SystemVersion:
 
     @classmethod
     def is_compatible(cls, required_major: int, required_minor: int) -> bool:
-        if cls.MAJOR != required_major:
+        if required_major != cls.MAJOR:
             return False
-        return cls.MINOR >= required_minor
+        return required_minor <= cls.MINOR

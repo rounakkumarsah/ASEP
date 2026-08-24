@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 async def qdrant_health_check() -> bool:
     """Perform a ping against the global Qdrant client to verify health.
-    
+
     Returns:
         True if Qdrant responds and cluster info is accessible, False otherwise.
     """

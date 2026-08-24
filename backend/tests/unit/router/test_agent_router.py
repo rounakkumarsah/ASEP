@@ -2,7 +2,6 @@
 ASEP — Unit Tests for Agent Router Engine
 """
 
-import pytest
 from src.multi_agent.router_engine import (
     AgentProfile,
     AgentRouterEngine,

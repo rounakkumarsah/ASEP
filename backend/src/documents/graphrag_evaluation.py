@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List
 
 from src.documents.query_pipeline import RetrievalPipelineOutput
 
@@ -35,7 +34,7 @@ class GraphRAGEvaluator:
     def evaluate_run(
         self,
         output: RetrievalPipelineOutput,
-        ground_truth_chunk_ids: List[str] | None = None,
+        ground_truth_chunk_ids: list[str] | None = None,
     ) -> EvaluationMetrics:
         retrieved_ids = [c.chunk_id for c in output.citations]
         precision = 0.0

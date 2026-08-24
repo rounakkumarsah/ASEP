@@ -34,14 +34,14 @@ class MemoryManager:
             embedding_provider=embedding_provider,
         )
         self.procedural = ProceduralMemory(uow, graph_service)
-        
+
         self.retrieval = MemoryRetrieval(
             working=self.working,
             episodic=self.episodic,
             semantic=self.semantic,
             procedural=self.procedural,
         )
-        
+
         self.consolidator = MemoryConsolidator(
             working=self.working,
             episodic=self.episodic,

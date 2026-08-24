@@ -2,7 +2,7 @@
 ASEP — Evaluation Report Builder
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -33,7 +33,7 @@ class EvaluationReport(BaseModel):
     """Full typed report aggregating summary and all individual results."""
     summary: EvaluationSummary
     results: list[EvaluationResult] = Field(default_factory=list)
-    generated_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    generated_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
 
 
 class ReportBuilder:
@@ -64,10 +64,9 @@ class ReportBuilder:
             dim_avgs[dim] = round(sum(scores_for_dim) / len(scores_for_dim), 4) if scores_for_dim else 0.0
 
         # Tag breakdown
-        tag_breakdown: dict[str, dict[str, int]] = {}
-        for r in results:
+        for _r in results:
             # Find tags from the dataset — we reconstruct from result attributes if present
-            # Since EvaluationResult doesn't store tags (to keep it lean), 
+            # Since EvaluationResult doesn't store tags (to keep it lean),
             # we collect them if the evaluator attaches them in future phases.
             pass  # tag_breakdown populated by enrichment below
 
@@ -117,6 +116,5 @@ class ReportBuilder:
 
     def to_html(self, report: EvaluationReport) -> str:
         """Generate a basic HTML summary report."""
-        s = report.summary
         md_text = self.to_markdown(report).replace("\n", "<br>")
         return f"<html><body>{md_text}</body></html>"

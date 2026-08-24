@@ -18,12 +18,12 @@ class MessageRouter:
             AgentRole.EVALUATOR,
             AgentRole.REFLECTOR,
         ]
-        
+
         try:
             idx = pipeline.index(current_role)
             if idx + 1 < len(pipeline):
                 return pipeline[idx + 1]
         except ValueError:
             pass
-            
+
         return None

@@ -15,14 +15,15 @@ Credentials and URLs are read exclusively from settings/environment.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Annotated, Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import TYPE_CHECKING, Annotated, Any
 from urllib.parse import urlparse
 
 from fastapi import Depends
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 if TYPE_CHECKING:
-    from neo4j import AsyncDriver
+    pass
 
 from src.config.settings import get_settings
 
@@ -44,6 +45,7 @@ def _safe_neo4j_host(url: str) -> str:
 
 
 import os
+
 
 @retry(
     stop=stop_after_attempt(1 if (os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV")) else 2),

@@ -3,15 +3,14 @@ ASEP — Unit Tests for Enterprise Multi-Agent System (Phase P1)
 """
 
 import pytest
+
 from src.multi_agent.coding_agent import CodingAgent
-from src.multi_agent.collaboration import ConsensusWorkflow, SharedStateContext
-from src.multi_agent.contracts import AgentRequest, AgentRole, AgentState
+from src.multi_agent.collaboration import SharedStateContext
+from src.multi_agent.contracts import AgentRequest, AgentState
 from src.multi_agent.debug_agent import DebugAgent
 from src.multi_agent.hitl_engine import ApprovalStatus, HITLEngine
 from src.multi_agent.message_bus import AgentMessage, AgentMessageBus
-from src.multi_agent.registry import AgentRegistry
 from src.multi_agent.review_agent import ReviewAgent
-from src.multi_agent.supervisor import SupervisorAgent
 from src.multi_agent.testing_agent import TestingAgent
 
 

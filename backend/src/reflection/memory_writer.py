@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class ProceduralMemoryWriter:
     """Writes high-confidence reflection lessons into Procedural Memory.
-    
+
     Never overwrites existing procedures — instead, versions them to maintain an audit trail.
     """
 
@@ -42,7 +42,7 @@ class ProceduralMemoryWriter:
                     f"Failure/Issue: {item.failure_description}\n"
                     f"Rule: {item.recommendation}"
                 )
-                
+
                 try:
                     # add_procedure generates a new version naturally, preserving history
                     await self._memory.procedural.add_procedure(

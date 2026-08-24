@@ -7,18 +7,18 @@ operator interacting with the platform.
 
 from __future__ import annotations
 
+import datetime
 import uuid
 
 from sqlalchemy import (
     Boolean,
-    String,
-    Uuid,
     DateTime,
     ForeignKey,
     Index,
+    String,
+    Uuid,
     func,
 )
-import datetime
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.db.models.agent_run import TimestampMixin

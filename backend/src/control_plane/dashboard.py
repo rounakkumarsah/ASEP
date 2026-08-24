@@ -2,9 +2,9 @@
 ASEP — Control Plane Dashboard
 """
 
-from src.control_plane.sessions import SessionManager
 from src.control_plane.approvals import ApprovalQueue
 from src.control_plane.metrics import MetricsDashboard
+from src.control_plane.sessions import SessionManager
 
 
 class DashboardManager:

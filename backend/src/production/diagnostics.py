@@ -3,8 +3,9 @@ ASEP — Production Diagnostics
 """
 
 import logging
-from src.production.versioning import SystemVersion
+
 from src.control_plane.control_api import ControlPlaneAPI
+from src.production.versioning import SystemVersion
 
 logger = logging.getLogger(__name__)
 

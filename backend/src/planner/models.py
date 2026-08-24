@@ -2,19 +2,18 @@
 ASEP — Structured Planning Models
 """
 
-from enum import Enum
-from typing import Any
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
 
-class Complexity(str, Enum):
+class Complexity(StrEnum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
 
 
-class TaskPriority(str, Enum):
+class TaskPriority(StrEnum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -26,7 +25,7 @@ class Goal(BaseModel):
     raw_goal: str = Field(description="The original unstructured user goal")
     parsed_title: str = Field(description="A clean, descriptive title for the target execution")
     success_criteria: list[str] = Field(
-        default_factory=list, 
+        default_factory=list,
         description="Explicit parameters verifying that the goal has been met"
     )
 

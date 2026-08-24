@@ -4,7 +4,7 @@ ASEP — Agent Session Lifecycle Management
 
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
@@ -29,7 +29,7 @@ class AgentSession(BaseModel):
     status: AgentSessionStatus = AgentSessionStatus.IDLE
     # thread_id equals session_id — used as the LangGraph checkpoint key
     thread_id: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
 
 
 class SessionManager:
@@ -87,5 +87,5 @@ class SessionManager:
     async def _persist(self, session: AgentSession) -> None:
         key = _SESSION_KEY_PREFIX + session.session_id
         await self._memory.working.cache.set_json(
-            key, session.model_dump(mode="json"), ttl=_SESSION_TTL_SECONDS
+            key, session.model_dump(mode="json"), ttl_seconds=_SESSION_TTL_SECONDS
         )

@@ -1,0 +1,112 @@
+{
+  "timestamp": "2026-08-24T16:38:20Z",
+  "total_runs": 10,
+  "successful_runs": 10,
+  "success_rate_pct": 100.0,
+  "avg_latency_seconds": 0.2993,
+  "p95_latency_seconds": 0.3526,
+  "avg_tokens_per_task": 1129.1,
+  "avg_cost_per_task_usd": {
+    "gpt-4o": 0.008015,
+    "claude-3-5-sonnet": 0.011695,
+    "gemini-1-5-pro": 0.004007,
+    "qwen-2-5-coder-local": 0.0
+  },
+  "task_results": [
+    {
+      "task_id": "TASK-01",
+      "category": "Architecture Planning",
+      "difficulty": "High",
+      "status": "PASSED",
+      "duration_seconds": 0.3112,
+      "planning_time_seconds": 0.1107,
+      "execution_time_seconds": 0.1701,
+      "prompt_tokens": 420,
+      "completion_tokens": 680,
+      "total_tokens": 1100,
+      "cost_usd": {
+        "gpt-4o": 0.00785,
+        "claude-3-5-sonnet": 0.01146,
+        "gemini-1-5-pro": 0.003925,
+        "qwen-2-5-coder-local": 0.0
+      },
+      "score": 100.0
+    },
+    {
+      "task_id": "TASK-02",
+      "category": "Security Remediation",
+      "difficulty": "Medium",
+      "status": "PASSED",
+      "duration_seconds": 0.2766,
+      "planning_time_seconds": 0.0929,
+      "execution_time_seconds": 0.1532,
+      "prompt_tokens": 310,
+      "completion_tokens": 490,
+      "total_tokens": 800,
+      "cost_usd": {
+        "gpt-4o": 0.005675,
+        "claude-3-5-sonnet": 0.00828,
+        "gemini-1-5-pro": 0.002837,
+        "qwen-2-5-coder-local": 0.0
+      },
+      "score": 100.0
+    },
+    {
+      "task_id": "TASK-03",
+      "category": "Full Code Generation",
+      "difficulty": "High",
+      "status": "PASSED",
+      "duration_seconds": 0.3412,
+      "planning_time_seconds": 0.1223,
+      "execution_time_seconds": 0.1881,
+      "prompt_tokens": 580,
+      "completion_tokens": 920,
+      "total_tokens": 1500,
+      "cost_usd": {
+        "gpt-4o": 0.01065,
+        "claude-3-5-sonnet": 0.01554,
+        "gemini-1-5-pro": 0.005325,
+        "qwen-2-5-coder-local": 0.0
+      },
+      "score": 100.0
+    },
+    {
+      "task_id": "TASK-04",
+      "category": "AST Refactoring",
+      "difficulty": "Medium",
+      "status": "PASSED",
+      "duration_seconds": 0.2786,
+      "planning_time_seconds": 0.0921,
+      "execution_time_seconds": 0.1553,
+      "prompt_tokens": 480,
+      "completion_tokens": 610,
+      "total_tokens": 1090,
+      "cost_usd": {
+        "gpt-4o": 0.0073,
+        "claude-3-5-sonnet": 0.01059,
+        "gemini-1-5-pro": 0.00365,
+        "qwen-2-5-coder-local": 0.0
+      },
+      "score": 100.0
+    },
+    {
+      "task_id": "TASK-05",
+      "category": "Unit Test Suite Creation",
+      "difficulty": "Medium",
+      "status": "PASSED",
+      "duration_seconds": 0.2928,
+      "planning_time_seconds": 0.0914,
+      "execution_time_seconds": 0.1698,
+      "prompt_tokens": 390,
+      "completion_tokens": 750,
+      "total_tokens": 1140,
+      "cost_usd": {
+        "gpt-4o": 0.008475,
+        "claude-3-5-sonnet": 0.01242,
+        "gemini-1-5-pro": 0.004237,
+        "qwen-2-5-coder-local": 0.0
+      },
+      "score": 100.0
+    }
+  ]
+}

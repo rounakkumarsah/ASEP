@@ -1,9 +1,11 @@
 import asyncio
-from src.reflection import Reflector, ReflectionPolicy, ReflectionTrigger, ReflectionReport
+
 from src.evaluation.metrics import SessionMetrics
 from src.evaluation.scoring import AllScores
 from src.evaluation.trajectory import Trajectory
 from src.planner.provider import LLMProvider
+from src.reflection import ReflectionPolicy, ReflectionTrigger, Reflector
+
 
 class MockLLM(LLMProvider):
     async def chat_complete(self, messages, json_output=False):
@@ -60,7 +62,7 @@ async def run_integration_test():
     assert len(report.items) == 1
     assert report.items[0].confidence == 0.95
     assert memory.procedural.added == 1, "Memory writer should have added 1 procedure"
-    
+
     policy_never = ReflectionPolicy(trigger=ReflectionTrigger.NEVER)
     report_none = await reflector.reflect("s1", "r1", traj, metrics, scores, policy_never)
     assert report_none is None

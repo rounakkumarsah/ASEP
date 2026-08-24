@@ -33,7 +33,7 @@ import dataclasses
 import logging
 import uuid
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from src.db.models.task import Task, TaskPriority, TaskStatus
@@ -302,7 +302,7 @@ class TaskService:
             task = await uow.tasks.update(
                 task,
                 status=TaskStatus.RUNNING,
-                started_at=datetime.now(tz=timezone.utc),
+                started_at=datetime.now(tz=UTC),
             )
             await uow.commit()
 
@@ -335,7 +335,7 @@ class TaskService:
             task = await uow.tasks.update(
                 task,
                 status=TaskStatus.COMPLETED,
-                finished_at=datetime.now(tz=timezone.utc),
+                finished_at=datetime.now(tz=UTC),
                 result=result,
             )
             await uow.commit()
@@ -375,7 +375,7 @@ class TaskService:
             task = await uow.tasks.update(
                 task,
                 status=TaskStatus.FAILED,
-                finished_at=datetime.now(tz=timezone.utc),
+                finished_at=datetime.now(tz=UTC),
                 error_message=error_message,
             )
             await uow.commit()
@@ -405,7 +405,7 @@ class TaskService:
             task = await uow.tasks.update(
                 task,
                 status=TaskStatus.SKIPPED,
-                finished_at=datetime.now(tz=timezone.utc),
+                finished_at=datetime.now(tz=UTC),
             )
             await uow.commit()
 
@@ -433,7 +433,7 @@ class TaskService:
             task = await uow.tasks.update(
                 task,
                 status=TaskStatus.CANCELLED,
-                finished_at=datetime.now(tz=timezone.utc),
+                finished_at=datetime.now(tz=UTC),
             )
             await uow.commit()
 
@@ -521,7 +521,7 @@ class TaskService:
                 kwargs["task_metadata"] = task_metadata
             if tool_name is not None:
                 kwargs["tool_name"] = tool_name
-                
+
             if kwargs:
                 task = await uow.tasks.update(task, **kwargs)
                 await uow.commit()

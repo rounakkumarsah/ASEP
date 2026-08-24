@@ -1,9 +1,11 @@
 import time
 import uuid
+
 import structlog
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
+
 from src.utils.metrics import metrics_store
 
 logger = structlog.get_logger(__name__)
@@ -27,11 +29,11 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
         )
 
         start_time = time.perf_counter()
-        
+
         try:
             response: Response = await call_next(request)
             process_time = time.perf_counter() - start_time
-            
+
             # Record metrics
             metrics_store.record_request(
                 path=request.url.path,
@@ -46,12 +48,12 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
                 duration_seconds=round(process_time, 4),
                 client_host=request.client.host if request.client else "unknown",
             )
-            
+
             # Inject headers back into response
             response.headers["X-Correlation-ID"] = correlation_id
             response.headers["X-Request-ID"] = request_id
             return response
-            
+
         except Exception as exc:
             process_time = time.perf_counter() - start_time
             metrics_store.record_request(
@@ -59,7 +61,7 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
                 latency=process_time,
                 status_code=500
             )
-            
+
             logger.error(
                 "Request failed",
                 exc_info=exc,

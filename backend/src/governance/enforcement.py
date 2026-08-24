@@ -3,7 +3,8 @@ ASEP — Governance Enforcement
 """
 
 import logging
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from src.governance.decision import DecisionResult
 from src.governance.intent import ActionIntent
@@ -26,7 +27,7 @@ class Enforcer:
     async def enforce(self, intent: ActionIntent, action: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """Evaluate intent and execute action if ALLOWED, else raise AuthorizationError."""
         decision = await self.authorizer.authorize(intent)
-        
+
         if decision.result in (DecisionResult.ALLOW, DecisionResult.READ_ONLY, DecisionResult.SANDBOX_ONLY):
             # In a fuller implementation, READ_ONLY / SANDBOX_ONLY might wrap the action in specific contexts
             return await action(*args, **kwargs)

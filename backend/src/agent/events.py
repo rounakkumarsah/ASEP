@@ -2,14 +2,14 @@
 ASEP — Agent Typed Event System
 """
 
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 
-class AgentEventType(str, Enum):
+class AgentEventType(StrEnum):
     # Session lifecycle
     SESSION_STARTED = "session_started"
     SESSION_COMPLETED = "session_completed"
@@ -42,7 +42,7 @@ class AgentEvent(BaseModel):
     event_type: AgentEventType
     session_id: str
     payload: dict[str, Any] = Field(default_factory=dict)
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
 
 
 def make_event(

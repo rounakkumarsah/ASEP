@@ -2,10 +2,11 @@
 ASEP — Tool Routing, Dispatching and Permission Enforcement
 """
 
+import asyncio
 import logging
 import time
-import asyncio
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from pydantic import ValidationError
 
 from src.tools.permissions import verify_tool_permissions
@@ -32,7 +33,7 @@ class ToolDispatcher:
     def __init__(self, registry: ToolRegistry) -> None:
         self.registry = registry
         # Metrics storage by tool name
-        self.metrics: Dict[str, Dict[str, Any]] = {}
+        self.metrics: dict[str, dict[str, Any]] = {}
 
     def _init_metrics(self, tool_name: str) -> None:
         if tool_name not in self.metrics:
@@ -54,16 +55,16 @@ class ToolDispatcher:
         count = m["execution_count"]
         # Running average
         m["average_latency"] = ((m["average_latency"] * (count - 1)) + latency) / count
-        
+
         if not success:
             m["failures"] += 1
             m["last_failure"] = time.time()
         else:
             m["last_success"] = time.time()
-            
+
         if is_timeout:
             m["timeouts"] += 1
-            
+
         m["failure_rate"] = m["failures"] / count
         m["timeout_rate"] = m["timeouts"] / count
 
@@ -72,14 +73,14 @@ class ToolDispatcher:
         tool_name: str,
         arguments: dict[str, Any],
         granted_permissions: list[str],
-        timeout: Optional[float] = 30.0,
+        timeout: float | None = 30.0,
         retries: int = 0,
-        session_id: Optional[str] = None
+        session_id: str | None = None
     ) -> ToolExecutionOutput:
         """Route tool execution requests and enforce safety controls."""
         self._init_metrics(tool_name)
         logger.info(f"ToolStarted: '{tool_name}' with session_id='{session_id}'")
-        
+
         # 1. Resolve Tool
         tool = self.registry.lookup(tool_name)
         if not tool:
@@ -116,17 +117,17 @@ class ToolDispatcher:
             start_time = time.time()
             if attempt > 0:
                 logger.info(f"ToolRetry: Retrying '{tool_name}' (attempt {attempt}/{retries})")
-            
+
             try:
                 # Wrap with asyncio.wait_for to handle timeout
                 if timeout:
                     output = await asyncio.wait_for(tool.execute(validated_args, session_id=session_id), timeout=timeout)
                 else:
                     output = await tool.execute(validated_args, session_id=session_id)
-                
+
                 latency = time.time() - start_time
                 self._update_metrics(tool_name, latency, output.success)
-                
+
                 if output.success:
                     logger.info(f"ToolCompleted: '{tool_name}' executed successfully in {latency:.4f}s.")
                     return output
@@ -134,7 +135,7 @@ class ToolDispatcher:
                     logger.warning(f"ToolFailed: '{tool_name}' returned failure: {output.error}")
                     if attempt == retries:
                         return output
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 latency = time.time() - start_time
                 self._update_metrics(tool_name, latency, success=False, is_timeout=True)
                 logger.error(f"ToolTimeout: '{tool_name}' timed out after {timeout}s.")
@@ -146,7 +147,7 @@ class ToolDispatcher:
                 logger.error(f"ToolFailed: Internal error during '{tool_name}' execution: {e}")
                 if attempt == retries:
                     return ToolExecutionOutput(success=False, error=f"{ToolErrorCode.INTERNAL_TOOL_ERROR}: {e}")
-            
+
             attempt += 1
 
         return ToolExecutionOutput(success=False, error=ToolErrorCode.INTERNAL_TOOL_ERROR)

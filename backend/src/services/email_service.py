@@ -3,9 +3,10 @@ ASEP — Email Service (Resend SDK Implementation)
 """
 
 import logging
+
 from src.config.settings import get_settings
-from src.services.audit_service import AuditService
 from src.db.models.audit_log import ActorType, AuditOutcome, AuditSeverity
+from src.services.audit_service import AuditService
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +100,7 @@ class EmailService:
         self.audit_service = audit_service
         self.settings = get_settings()
         self.api_key = os.getenv("RESEND_API_KEY") or self.settings.RESEND_API_KEY
-        
+
         # Configure the Resend SDK
         if self.api_key and self.api_key not in ("mock", "", "None"):
             try:
@@ -116,7 +117,7 @@ class EmailService:
         # If API key is missing or mock, simulate delivery and write to audit logs
         if not self.api_key or self.api_key in ("mock", "", "None"):
             logger.info(f"Email sent: [MOCK SDK EMAIL] To: {to_email} | Type: {email_type} | Subject: {subject}")
-            
+
             # Audit log mock delivery
             await self.audit_service.log_event(
                 actor_type=ActorType.SYSTEM,
@@ -147,7 +148,7 @@ class EmailService:
                 # Send email via Resend SDK in thread pool to avoid blocking
                 import resend
                 response = await asyncio.to_thread(resend.Emails.send, params)
-                
+
                 logger.info(f"Email sent: SDK Email {email_type} successfully sent to {to_email} on attempt {attempt}")
                 await self.audit_service.log_event(
                     actor_type=ActorType.SYSTEM,
@@ -162,7 +163,7 @@ class EmailService:
             except Exception as e:
                 err_msg = str(e).lower()
                 is_invalid_key = "unauthorized" in err_msg or "api key" in err_msg or "invalid" in err_msg
-                
+
                 if attempt < max_retries and not is_invalid_key:
                     logger.warning(f"Retry: Failed to send {email_type} email to {to_email} (attempt {attempt}/{max_retries}): {e}")
                     await asyncio.sleep(2 ** attempt)
@@ -236,7 +237,7 @@ class EmailService:
         """
         html = HTML_TEMPLATE_WRAPPER.format(CONTENT=content)
         return await self._send_email(to_email, "Reset your password", html, "forgot_password")
-    
+
     async def send_resend_verification_email(self, email: str, username: str, code: str, token: str) -> bool:
         """Resend verification code and link email."""
         verify_link = f"{self.settings.FRONTEND_URL}/verify-email?token={token}"
@@ -258,7 +259,7 @@ class EmailService:
         """
         html = HTML_TEMPLATE_WRAPPER.format(CONTENT=content)
         return await self._send_email(email, "Your ASEP verification code", html, "resend_verification")
-    
+
     async def send_password_changed_email(self, to_email: str) -> bool:
         """Send confirmation email after password change."""
         content = """

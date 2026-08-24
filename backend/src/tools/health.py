@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 async def tool_infrastructure_health_check() -> bool:
     """Validates that local registry and MCP client transport layers are functional.
-    
+
     Returns:
         True if tooling configurations resolve and mock handshakes succeed, False otherwise.
     """
@@ -23,13 +23,13 @@ async def tool_infrastructure_health_check() -> bool:
         registry.register(ConfigurationTool())
         if not registry.lookup("configuration"):
             return False
-            
+
         # 2. Remote Client Lifecycle Validation
         client = MCPClient(server_url="http://mock-mcp-server:8000")
         connected = await client.connect()
         if not connected:
             return False
-            
+
         await client.disconnect()
         logger.info("Tool infrastructure health check passed.")
         return True

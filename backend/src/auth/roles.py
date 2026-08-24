@@ -2,12 +2,12 @@
 ASEP — Authorization Roles
 """
 
-from enum import Enum
+from enum import StrEnum
 
 
-class Role(str, Enum):
+class Role(StrEnum):
     """Available static roles in the system."""
-    
+
     ADMIN = "admin"
     DEVELOPER = "developer"
     OPERATOR = "operator"

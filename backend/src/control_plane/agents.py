@@ -3,7 +3,6 @@ ASEP — Control Plane Agents
 """
 
 from src.multi_agent.registry import AgentRegistry
-from src.multi_agent.contracts import AgentRole
 
 
 class AgentManager:

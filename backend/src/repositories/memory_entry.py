@@ -19,11 +19,10 @@ Query hot-paths covered:
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.base import ExecutableOption
 
 from src.db.models.memory_entry import MemoryEntry, MemoryType
@@ -312,5 +311,5 @@ class MemoryEntryRepository(BaseRepository[MemoryEntry, uuid.UUID]):
         return await self.update(
             entry,
             access_count=entry.access_count + 1,
-            accessed_at=datetime.now(tz=timezone.utc),
+            accessed_at=datetime.now(tz=UTC),
         )

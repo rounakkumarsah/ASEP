@@ -4,6 +4,7 @@ ASEP — Control Plane Metrics
 
 from src.evaluation.metrics import MetricsCollector, SessionMetrics
 
+
 class MetricsDashboard:
     """Aggregates performance data system-wide."""
 
@@ -28,7 +29,7 @@ class MetricsDashboard:
         succeeded = sum(s.succeeded for s in sessions)
         failed = sum(s.failed for s in sessions)
         tool_invocations = sum(s.tool_invocations for s in sessions)
-        
+
         avg_latency_ms = sum(s.latency.total_ms for s in sessions) / total_sessions
 
         return {

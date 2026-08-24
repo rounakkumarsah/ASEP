@@ -1,15 +1,19 @@
 from __future__ import annotations
+
 import time
-from typing import AsyncGenerator, List, Dict, Any
-from src.ai_runtime.providers.base import BaseAIProvider
+from collections.abc import AsyncGenerator
+from typing import Any
+
 from src.ai_runtime.contracts import (
     CompletionRequest,
     CompletionResponse,
-    StreamChunk,
-    ProviderHealth,
     ProviderCapabilityMatrix,
+    ProviderHealth,
+    StreamChunk,
     UsageInfo,
 )
+from src.ai_runtime.providers.base import BaseAIProvider
+
 
 class MockProvider(BaseAIProvider):
     @property
@@ -20,14 +24,14 @@ class MockProvider(BaseAIProvider):
         start_time = time.perf_counter()
         text = f"Mock completion response for: '{request.messages[-1].content}'"
         latency_ms = (time.perf_counter() - start_time) * 1000.0
-        
+
         usage = UsageInfo(
             prompt_tokens=len(request.messages[-1].content) // 4 + 1,
             completion_tokens=len(text) // 4 + 1,
             total_tokens=(len(request.messages[-1].content) + len(text)) // 4 + 2,
             latency_ms=round(latency_ms, 2)
         )
-        
+
         return CompletionResponse(
             text=text,
             usage=usage,
@@ -37,13 +41,13 @@ class MockProvider(BaseAIProvider):
         )
 
     async def stream(self, request: CompletionRequest) -> AsyncGenerator[StreamChunk, None]:
-        text = f"Mock streaming response: "
+        text = "Mock streaming response: "
         yield StreamChunk(text=text)
-        
+
         words = request.messages[-1].content.split()
         for word in words:
             yield StreamChunk(text=word + " ")
-            
+
         yield StreamChunk(
             text="",
             usage=UsageInfo(
@@ -55,19 +59,19 @@ class MockProvider(BaseAIProvider):
             finish_reason="stop"
         )
 
-    async def complete_structured(self, request: CompletionRequest, schema: Dict[str, Any]) -> CompletionResponse:
+    async def complete_structured(self, request: CompletionRequest, schema: dict[str, Any]) -> CompletionResponse:
         start_time = time.perf_counter()
         # Simply return dummy mock json structure matching a generic schema representation
         text = '{"status": "completed", "result": "mock_structured_value"}'
         latency_ms = (time.perf_counter() - start_time) * 1000.0
-        
+
         usage = UsageInfo(
             prompt_tokens=len(request.messages[-1].content) // 4 + 1,
             completion_tokens=len(text) // 4 + 1,
             total_tokens=(len(request.messages[-1].content) + len(text)) // 4 + 2,
             latency_ms=round(latency_ms, 2)
         )
-        
+
         return CompletionResponse(
             text=text,
             usage=usage,
@@ -76,7 +80,7 @@ class MockProvider(BaseAIProvider):
             finish_reason="stop"
         )
 
-    async def embeddings(self, texts: List[str]) -> List[List[float]]:
+    async def embeddings(self, texts: list[str]) -> list[list[float]]:
         # Return mock float vector
         return [[0.1] * 128 for _ in texts]
 

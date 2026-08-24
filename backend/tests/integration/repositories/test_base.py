@@ -3,6 +3,7 @@ Integration Tests for BaseRepository
 """
 
 import uuid
+
 import pytest
 
 from src.db.models.agent_run import AgentRun, RunStatus
@@ -40,10 +41,10 @@ async def test_base_update(repo, db_session):
     )
     await repo.create(run)
     await db_session.flush()
-    
+
     updated = await repo.update(run, goal="Updated goal")
     await db_session.flush()
-    
+
     assert updated.goal == "Updated goal"
 
 
@@ -58,9 +59,9 @@ async def test_base_delete(repo, db_session):
     )
     await repo.create(run)
     await db_session.flush()
-    
+
     await repo.delete(run)
     await db_session.flush()
-    
+
     fetched = await repo.get(run.id)
     assert fetched is None

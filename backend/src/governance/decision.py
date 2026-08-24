@@ -2,19 +2,20 @@
 ASEP — Governance Decisions
 """
 
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
-class DecisionResult(str, Enum):
+
+class DecisionResult(StrEnum):
     ALLOW = "ALLOW"
     DENY = "DENY"
     REQUIRE_APPROVAL = "REQUIRE_APPROVAL"
     SANDBOX_ONLY = "SANDBOX_ONLY"
     READ_ONLY = "READ_ONLY"
 
-class ApprovalState(str, Enum):
+class ApprovalState(StrEnum):
     PENDING = "PENDING"
     APPROVED = "APPROVED"
     DENIED = "DENIED"
@@ -27,12 +28,12 @@ class GovernanceDecision(BaseModel):
     run_id: str
     thread_id: str
     trace_id: str
-    
+
     result: DecisionResult
     reason: str = Field(default="")
     policy_id: str = Field(default="default")
-    
+
     # State tracking if approval is requested
     approval_state: ApprovalState | None = None
-    
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))

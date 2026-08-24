@@ -13,7 +13,6 @@ from sqlalchemy.orm import DeclarativeBase
 
 from src.db.postgres import (
     Base,
-    DbSession,
     check_db_health,
     close_db,
     get_db_session,
@@ -119,7 +118,7 @@ class TestDatabaseErrorHandling:
     async def test_session_rollback_on_exception(self) -> None:
         """Session should rollback if an exception occurs."""
         try:
-            async for session in get_db_session():
+            async for _session in get_db_session():
                 # Simulate an error
                 raise ValueError("Simulated error")
         except ValueError:

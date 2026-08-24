@@ -5,8 +5,8 @@ ASEP — Unit and Integration Tests for Knowledge Synchronization Engine
 import pytest
 from httpx import AsyncClient
 
-from src.knowledge.sources import get_source_registry, SourceRegistry, KnowledgeSource
-from src.knowledge.sync import get_sync_engine, KnowledgeSyncEngine
+from src.knowledge.sources import KnowledgeSource, SourceRegistry, get_source_registry
+from src.knowledge.sync import KnowledgeSyncEngine
 
 
 def test_source_registry_crud():
@@ -24,7 +24,7 @@ def test_source_registry_crud():
     registry.register_source(src)
     assert registry.lookup("test_git") is not None
     assert registry.version("test_git") == "1.4.2"
-    
+
     meta = registry.metadata("test_git")
     assert meta is not None
     assert meta["trust_level"] == 0.9
@@ -84,7 +84,7 @@ async def test_incremental_sync_change_detection():
 async def test_sync_recovery_retry():
     """Verify sync runner checkpoints can be paused, resumed, and retried."""
     engine = KnowledgeSyncEngine()
-    
+
     # 1. Simulate a sync failure
     # Ensure source registered
     registry = get_source_registry()
@@ -96,10 +96,10 @@ async def test_sync_recovery_retry():
             source_url="https://asep.internal/docs",
             version="1.2.0"
         ))
-    
+
     hist = await engine.full_sync("default_docs")
     sync_id = hist.sync_id
-    
+
     # 2. Test retry sync
     retry_hist = await engine.retry_sync(sync_id)
     assert retry_hist.retry_count == 1

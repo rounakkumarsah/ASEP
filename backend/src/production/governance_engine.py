@@ -9,7 +9,6 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -37,9 +36,9 @@ class GovernanceEngine:
     """Manages compliance policies, audit logging, and versioning history."""
 
     def __init__(self) -> None:
-        self._violations: List[PolicyViolation] = []
-        self._prompt_history: Dict[str, List[PromptVersion]] = {}
-        self._model_history: Dict[str, str] = {"default": "gemini-2.5-flash"}
+        self._violations: list[PolicyViolation] = []
+        self._prompt_history: dict[str, list[PromptVersion]] = {}
+        self._model_history: dict[str, str] = {"default": "gemini-2.5-flash"}
 
     def record_violation(
         self,
@@ -78,10 +77,10 @@ class GovernanceEngine:
         logger.info("Prompt version registered: %s v%s", prompt_id, version)
         return pv
 
-    def get_prompt_history(self, prompt_id: str) -> List[PromptVersion]:
+    def get_prompt_history(self, prompt_id: str) -> list[PromptVersion]:
         return self._prompt_history.get(prompt_id, [])
 
-    def get_violations(self, execution_id: Optional[str] = None) -> List[PolicyViolation]:
+    def get_violations(self, execution_id: str | None = None) -> list[PolicyViolation]:
         if execution_id:
             return [v for v in self._violations if v.execution_id == execution_id]
         return list(self._violations)

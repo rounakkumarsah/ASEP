@@ -31,12 +31,12 @@ class CacheService:
 
     async def set(self, key: str, value: str, ttl_seconds: int | None = None) -> bool:
         """Set a string value with an optional TTL.
-        
+
         Args:
             key: The cache key.
             value: The string value.
             ttl_seconds: Optional expiration in seconds.
-            
+
         Returns:
             True if successful.
         """
@@ -52,7 +52,7 @@ class CacheService:
 
     async def delete(self, key: str) -> bool:
         """Delete a key from the cache.
-        
+
         Returns:
             True if the key existed and was deleted, False otherwise.
         """

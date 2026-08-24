@@ -9,13 +9,13 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Any, Dict, List, Optional
+from enum import StrEnum
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
-class ApprovalStatus(str, Enum):
+class ApprovalStatus(StrEnum):
     PENDING = "pending"
     APPROVED = "approved"
     REJECTED = "rejected"
@@ -27,9 +27,9 @@ class HumanApprovalGate:
     gate_id: str
     execution_id: str
     action_type: str
-    payload: Dict[str, Any]
+    payload: dict[str, Any]
     status: ApprovalStatus = ApprovalStatus.PENDING
-    reviewer_notes: Optional[str] = None
+    reviewer_notes: str | None = None
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
 
@@ -38,15 +38,15 @@ class HITLEngine:
     """Manages Human-in-the-Loop gates, interrupts, manual reviews, and audit trails."""
 
     def __init__(self) -> None:
-        self._gates: Dict[str, HumanApprovalGate] = {}
-        self._audit_log: List[Dict[str, Any]] = []
+        self._gates: dict[str, HumanApprovalGate] = {}
+        self._audit_log: list[dict[str, Any]] = []
 
     def create_gate(
         self,
         gate_id: str,
         execution_id: str,
         action_type: str,
-        payload: Dict[str, Any],
+        payload: dict[str, Any],
     ) -> HumanApprovalGate:
         gate = HumanApprovalGate(
             gate_id=gate_id,
@@ -62,7 +62,7 @@ class HITLEngine:
         self,
         gate_id: str,
         approved: bool,
-        reviewer_notes: Optional[str] = None,
+        reviewer_notes: str | None = None,
     ) -> HumanApprovalGate:
         gate = self._gates.get(gate_id)
         if not gate:
@@ -91,7 +91,7 @@ class HITLEngine:
         self._audit_log.append(entry)
         logger.info("HITL Audit Entry: [%s] %s", execution_id, message)
 
-    def get_audit_trail(self, execution_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_audit_trail(self, execution_id: str | None = None) -> list[dict[str, Any]]:
         if execution_id:
             return [e for e in self._audit_log if e["execution_id"] == execution_id]
         return list(self._audit_log)

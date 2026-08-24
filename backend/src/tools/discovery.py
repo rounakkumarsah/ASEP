@@ -21,11 +21,11 @@ class ToolDiscovery:
     async def list_available_tools(self) -> list[ToolMetadata]:
         """Aggregate metadata of all local and remote tools."""
         available_tools: list[ToolMetadata] = []
-        
+
         # 1. Local tools
         for tool in self.registry.get_all().values():
             available_tools.append(tool.get_metadata())
-            
+
         # 2. Remote MCP tools
         for client in self.mcp_clients:
             try:
@@ -33,5 +33,5 @@ class ToolDiscovery:
                 available_tools.extend(remote_tools)
             except Exception as e:
                 logger.error(f"Failed to fetch tools from remote client: {e}")
-                
+
         return available_tools

@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 async def runtime_health_check() -> bool:
     """Verifies that the LangGraph runtime compiler and state checkpointers are functional.
-    
+
     Returns:
         True if basic state workflow graphs can compile successfully, False otherwise.
     """
@@ -22,15 +22,15 @@ async def runtime_health_check() -> bool:
         nodes = NodeRegistry()
         edges = EdgeRegistry()
         checkpoints = CheckpointManager()
-        
+
         # Dummy callbacks to verify graph compilation pathways
         nodes.register("start", lambda x: {})
         nodes.register("process", lambda x: {})
         nodes.register("validate", lambda x: {})
         nodes.register("end", lambda x: {})
-        
+
         edges.register("human_validation_router", lambda x: "end")
-        
+
         wrapper = StateGraphWrapper(
             node_registry=nodes,
             edge_registry=edges,

@@ -1,12 +1,12 @@
-import pytest
 import uuid
-import datetime
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
+from src.auth.policies import Permission, get_permissions_for_role
 from src.auth.service import AuthService
-from src.auth.schemas import SignupRequest
 from src.auth.turnstile import verify_turnstile_token
-from src.auth.policies import get_permissions_for_role, Permission
+
 
 @pytest.mark.asyncio
 async def test_verify_turnstile_token_mock():

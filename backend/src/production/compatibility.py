@@ -3,6 +3,7 @@ ASEP — Cross-Module Compatibility
 """
 
 import logging
+
 from src.production.versioning import SystemVersion
 
 logger = logging.getLogger(__name__)
@@ -30,7 +31,7 @@ class CompatibilityChecker:
                     f"found {SystemVersion.get_version()}"
                 )
                 is_valid = False
-        
+
         if is_valid:
             logger.info("Startup compatibility check passed for all modules.")
         return is_valid

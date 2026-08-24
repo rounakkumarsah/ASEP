@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -22,18 +22,18 @@ class ObservabilitySpan:
     component: str  # planner, workflow, tool, memory, graphrag, agent
     name: str
     start_time: float
-    end_time: Optional[float] = None
+    end_time: float | None = None
     status: str = "ok"
     tokens_used: int = 0
     estimated_cost_usd: float = 0.0
-    attributes: Dict[str, Any] = field(default_factory=dict)
+    attributes: dict[str, Any] = field(default_factory=dict)
 
 
 class AgentObservabilityTracer:
     """Central tracer for agent operations, metrics, and cost aggregation."""
 
     def __init__(self) -> None:
-        self._spans: List[ObservabilitySpan] = []
+        self._spans: list[ObservabilitySpan] = []
 
     def start_span(
         self,
@@ -41,7 +41,7 @@ class AgentObservabilityTracer:
         trace_id: str,
         component: str,
         name: str,
-        attributes: Optional[Dict[str, Any]] = None,
+        attributes: dict[str, Any] | None = None,
     ) -> ObservabilitySpan:
         span = ObservabilitySpan(
             span_id=span_id,
@@ -80,7 +80,7 @@ class AgentObservabilityTracer:
                 )
                 break
 
-    def get_trace_summary(self, trace_id: str) -> Dict[str, Any]:
+    def get_trace_summary(self, trace_id: str) -> dict[str, Any]:
         trace_spans = [s for s in self._spans if s.trace_id == trace_id]
         total_tokens = sum(s.tokens_used for s in trace_spans)
         total_cost = sum(s.estimated_cost_usd for s in trace_spans)
@@ -89,5 +89,5 @@ class AgentObservabilityTracer:
             "span_count": len(trace_spans),
             "total_tokens": total_tokens,
             "total_cost_usd": round(total_cost, 6),
-            "components": list(set(s.component for s in trace_spans)),
+            "components": list({s.component for s in trace_spans}),
         }

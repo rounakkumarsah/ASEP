@@ -19,20 +19,24 @@ Import ORDER matters for FK resolution:
 """
 
 # ── Multi-tenancy (import first — other models depend on these) ────────────
-from src.db.models.organization import Organization
-from src.db.models.user import User
-from src.db.models.project import Project
-from src.db.models.subscription import Subscription
-from src.db.models.api_key import ApiKey
-
 # ── Agent runtime ──────────────────────────────────────────────────────────
 from src.db.models.agent_run import AgentRun, RunStatus, TimestampMixin
+from src.db.models.api_key import ApiKey
 from src.db.models.audit_log import ActorType, AuditLog, AuditOutcome, AuditSeverity
-from src.db.models.knowledge_document import CrawlStatus, DocumentSourceType, DocumentStatus, KnowledgeDocument
+from src.db.models.hitl_session import HITLAction, HITLSession, HITLStatus
+from src.db.models.knowledge_document import (
+    CrawlStatus,
+    DocumentSourceType,
+    DocumentStatus,
+    KnowledgeDocument,
+)
 from src.db.models.memory_entry import MemoryEntry, MemoryType
+from src.db.models.organization import Organization
 from src.db.models.payment import Payment
+from src.db.models.project import Project
+from src.db.models.subscription import Subscription
 from src.db.models.task import Task, TaskPriority, TaskStatus
-from src.db.models.hitl_session import HITLSession, HITLStatus, HITLAction
+from src.db.models.user import User
 
 __all__: list[str] = [
     # multi-tenancy

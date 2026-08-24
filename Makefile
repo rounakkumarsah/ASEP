@@ -89,6 +89,26 @@ migrate-create:
 	cd $(BACKEND) && alembic revision --autogenerate -m "$(name)"
 
 # ---------------------------------------------------------------------------
+# Production Docker (from DEPLOYMENT_GUIDE.md)
+# ---------------------------------------------------------------------------
+prod-up:
+	docker compose -f docker-compose.prod.yml up -d --build
+
+prod-down:
+	docker compose -f docker-compose.prod.yml down
+
+prod-logs:
+	docker compose -f docker-compose.prod.yml logs -f
+
+prod-ps:
+	docker compose -f docker-compose.prod.yml ps
+
+update:
+	git pull origin main
+	docker compose -f docker-compose.prod.yml up -d --build --no-deps backend frontend
+	docker compose -f docker-compose.prod.yml run --rm migrate
+
+# ---------------------------------------------------------------------------
 # Cleanup
 # ---------------------------------------------------------------------------
 clean:

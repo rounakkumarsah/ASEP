@@ -5,8 +5,10 @@ Tests document parsing, image extraction, Redis rate limiting, GraphRAG semantic
 and Razorpay webhook signature verification under zero-cost constraints.
 """
 
-import pytest
 from unittest.mock import AsyncMock, patch
+
+import pytest
+
 from src.agents.research_swarm import ResearchSwarm
 from src.production.graphrag_engine import LocalGraphRAGEngine
 from src.production.ingestion_service import UniversalIngestionService

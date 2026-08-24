@@ -1,18 +1,20 @@
 from __future__ import annotations
+
 import abc
 import asyncio
-import time
 import logging
+import time
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from src.multi_agent.contracts import (
+    AgentEvent,
+    AgentEventName,
+    AgentManifest,
+    AgentRequest,
+    AgentResponse,
     AgentRole,
     AgentState,
-    AgentManifest,
-    AgentEventName,
-    AgentEvent,
-    AgentRequest,
-    AgentResponse
 )
 
 logger = logging.getLogger(__name__)
@@ -31,7 +33,7 @@ class BaseAgent(abc.ABC):
     def metadata(self) -> AgentManifest:
         return self._manifest
 
-    def capabilities(self) -> List[str]:
+    def capabilities(self) -> list[str]:
         return self._manifest.capabilities
 
     def health(self) -> bool:
@@ -45,7 +47,7 @@ class BaseAgent(abc.ABC):
         self._is_enabled = False
         self.state = AgentState.CANCELLED
 
-    def validate_inputs(self, data: Dict[str, Any]) -> bool:
+    def validate_inputs(self, data: dict[str, Any]) -> bool:
         """Verify request contains all required schema keys."""
         for field in self._manifest.supported_inputs:
             if field not in data:
@@ -53,7 +55,7 @@ class BaseAgent(abc.ABC):
                 return False
         return True
 
-    def validate_outputs(self, data: Dict[str, Any]) -> bool:
+    def validate_outputs(self, data: dict[str, Any]) -> bool:
         """Verify response contains all required output schema keys."""
         for field in self._manifest.supported_outputs:
             if field not in data:
@@ -67,7 +69,7 @@ class BaseAgent(abc.ABC):
         correlation_id: str,
         event_name: AgentEventName,
         message: str,
-        payload: Optional[Dict[str, Any]] = None
+        payload: dict[str, Any] | None = None
     ) -> None:
         event = AgentEvent(
             event_id=str(uuid.uuid4()),
@@ -117,7 +119,7 @@ class BaseAgent(abc.ABC):
 
         attempt = 0
         last_error = None
-        
+
         while attempt <= self.max_retries:
             if attempt > 0:
                 self.state = AgentState.RETRYING
@@ -137,7 +139,7 @@ class BaseAgent(abc.ABC):
                     self._execute_internal(request),
                     timeout=request.timeout_seconds
                 )
-                
+
                 # Validate Outputs
                 if not self.validate_outputs(output_data):
                     raise ValueError("Output validation failed.")
@@ -156,7 +158,7 @@ class BaseAgent(abc.ABC):
                     output_data=output_data
                 )
 
-            except asyncio.TimeoutError as te:
+            except TimeoutError:
                 last_error = f"Execution timed out after {request.timeout_seconds}s"
                 self._emit_event(
                     execution_id=request.execution_id,
@@ -183,6 +185,6 @@ class BaseAgent(abc.ABC):
         )
 
     @abc.abstractmethod
-    async def _execute_internal(self, request: AgentRequest) -> Dict[str, Any]:
+    async def _execute_internal(self, request: AgentRequest) -> dict[str, Any]:
         """Internal operation flow override."""
         pass

@@ -1,17 +1,20 @@
 from __future__ import annotations
-from typing import Dict, Any, Optional
-from src.multi_agent.contracts import AgentRole, AgentManifest, AgentRequest
-from src.multi_agent.base_agent import BaseAgent
+
+from typing import Any
+
+from src.documents.context_builder import ContextBuilder
 from src.documents.embedding_service import RuntimeEmbeddingProvider
 from src.documents.retrieval import Retriever
-from src.documents.context_builder import ContextBuilder
-from src.vector.qdrant import get_qdrant_client
+from src.multi_agent.base_agent import BaseAgent
+from src.multi_agent.contracts import AgentManifest, AgentRequest, AgentRole
 from src.vector import VectorService
+from src.vector.qdrant import get_qdrant_client
+
 
 class KnowledgeAgent(BaseAgent):
     """Knowledge Agent pulling context segments and citations from the Production RAG Engine."""
 
-    def __init__(self, retriever: Optional[Retriever] = None) -> None:
+    def __init__(self, retriever: Retriever | None = None) -> None:
         manifest = AgentManifest(
             name="KnowledgeAgent",
             version="1.0.0",
@@ -33,13 +36,13 @@ class KnowledgeAgent(BaseAgent):
             self._retriever = Retriever(vector_service=vector_service, embedding_provider=embedder)
         return self._retriever
 
-    async def _execute_internal(self, request: AgentRequest) -> Dict[str, Any]:
+    async def _execute_internal(self, request: AgentRequest) -> dict[str, Any]:
         query = request.input_data.get("query", "")
-        
+
         # Retrieve documents
         hits = await self.retriever.retrieve(query=query, limit=5)
         context_str, selected, citations_str = self.builder.build_context_and_citations(hits)
-        
+
         return {
             "context": context_str,
             "citations": citations_str,

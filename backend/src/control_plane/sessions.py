@@ -3,8 +3,7 @@ ASEP — Control Plane Sessions
 """
 
 import logging
-from typing import Any
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 
@@ -15,8 +14,8 @@ class SessionMetadata(BaseModel):
     session_id: str
     status: str = "running" # running, paused, completed, failed, cancelled
     goal: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
     error: str | None = None
 
 
@@ -33,7 +32,7 @@ class SessionManager:
         if session := self._sessions.get(session_id):
             session.status = status
             session.error = error
-            session.updated_at = datetime.now(tz=timezone.utc)
+            session.updated_at = datetime.now(tz=UTC)
 
     def get_session(self, session_id: str) -> SessionMetadata | None:
         return self._sessions.get(session_id)

@@ -73,18 +73,16 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.sql import func
 
 from src.db.models.agent_run import AgentRun, TimestampMixin
 from src.db.postgres import Base
-
 
 # ---------------------------------------------------------------------------
 # MemoryType
 # ---------------------------------------------------------------------------
 
 
-class MemoryType(str, enum.Enum):
+class MemoryType(enum.StrEnum):
     """Cognitive classification of a ``MemoryEntry``.
 
     Inheriting from ``str`` means every member is simultaneously a plain

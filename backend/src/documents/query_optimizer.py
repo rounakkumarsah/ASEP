@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -17,16 +17,16 @@ logger = logging.getLogger(__name__)
 @dataclass
 class QueryExpansionResult:
     original_query: str
-    expanded_queries: List[str]
-    sub_queries: List[str]
+    expanded_queries: list[str]
+    sub_queries: list[str]
     is_cached: bool = False
-    cached_response: Optional[Dict[str, Any]] = None
+    cached_response: dict[str, Any] | None = None
 
 
 class QueryOptimizer:
     """Optimizes input queries through expansion, rewriting, and cache checks."""
 
-    def __init__(self, cache_client: Optional[Any] = None) -> None:
+    def __init__(self, cache_client: Any | None = None) -> None:
         self.cache = cache_client
 
     async def optimize_query(self, query: str) -> QueryExpansionResult:
@@ -58,7 +58,7 @@ class QueryOptimizer:
             expanded.append(f"{original} implementation details")
 
         # 3. Sub-query Decomposition
-        sub_queries: List[str] = []
+        sub_queries: list[str] = []
         if " and " in original.lower():
             sub_queries = [s.strip() for s in original.split(" and ") if len(s.strip()) > 3]
 
