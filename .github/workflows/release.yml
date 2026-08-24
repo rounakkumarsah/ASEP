@@ -1,0 +1,31 @@
+name: Enterprise Release & Assets
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+  packages: read
+
+jobs:
+  create-release:
+    name: Create GitHub Release & Attach Assets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Generate Checksums
+        run: |
+          find . -type f -not -path "*/\.git/*" -exec sha256sum {} + > SHA256SUMS.txt
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            SHA256SUMS.txt
+            docs/security/artifacts/sbom.json
+            docs/security/PENETRATION_TESTING_REPORT.md
+          generate_release_notes: true
