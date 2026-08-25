@@ -58,6 +58,12 @@ Scores are derived deterministically across 5 core security pillars. To maintain
 
 | Numeric Score | Qualitative Rating | Technical Due Diligence Assessment |
 | :---: | :---: | :--- |
-| **90 – 100** | **HIGH (Tier 1)** | Suitable for enterprise technical due diligence based on the documented evidence contained in this repository. |
+| **90 – 100** | **HIGH (Tier 1)** | Repository Technical Due Diligence Readiness: High, based on repository evidence and documented verification procedures. |
 | **75 – 89** | **MEDIUM (Tier 2)** | Functional security controls present, but lacks deterministic lockfiles, action pinning, or complete provenance. Requires remediation prior to technical due diligence. |
 | **< 75** | **LOW (Tier 3)** | Significant architectural or supply chain gaps detected. Not suitable for enterprise deployment without overhaul. |
+
+---
+
+## 4. Scope Boundary & Audit Limitations
+
+> **Scope Boundary:** This evidence package represents repository-contained evidence and documented verification procedures. It does not by itself establish independent certification, regulatory compliance, or verification of external production infrastructure.
