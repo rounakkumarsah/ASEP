@@ -3,6 +3,7 @@
 **Document ID:** ASEP-TDD-REC-001  
 **Classification:** Enterprise M&A / Technical Due Diligence Governance  
 **Template Standard:** Supply Chain Security Evidence Package Decision Record  
+**Description:** A repository-scoped Technical Due Diligence Evidence Package comprising documented repository artifacts, cryptographic evidence manifests, machine-readable audit records, objective scoring methodology, evidence traceability, deterministic build controls, CI/CD security documentation, release governance documentation, documented verification procedures, scope boundaries, known limitations, and residual-risk documentation.
 
 ---
 
