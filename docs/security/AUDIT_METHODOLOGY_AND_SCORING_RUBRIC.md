@@ -58,9 +58,9 @@ Scores are derived deterministically across 5 core security pillars. To maintain
 
 | Numeric Score | Qualitative Rating | Technical Due Diligence Assessment |
 | :---: | :---: | :--- |
-| **90 – 100** | **HIGH (Tier 1)** | Repository Technical Due Diligence Readiness: High, based on repository evidence and documented verification procedures. |
-| **75 – 89** | **MEDIUM (Tier 2)** | Functional security controls present, but lacks deterministic lockfiles, action pinning, or complete provenance. Requires remediation prior to technical due diligence. |
-| **< 75** | **LOW (Tier 3)** | Significant architectural or supply chain gaps detected. Not suitable for enterprise deployment without overhaul. |
+| **90 – 100** | **HIGH** | High repository maturity according to the documented scoring methodology. Suitable for enterprise technical due diligence based on documented repository evidence. |
+| **75 – 89** | **MEDIUM** | Moderate repository maturity. Functional security controls present, but requires remediation on specific supply chain or build controls prior to technical due diligence. |
+| **< 75** | **LOW** | Low repository maturity. Significant architectural or supply chain gaps detected. |
 
 ---
 

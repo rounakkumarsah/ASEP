@@ -12,7 +12,7 @@
     "technical_due_diligence_readiness": "High (Evidence-Based Assessment)",
     "slsa_build_provenance": "Demonstrates SLSA v1 Build Level 2 build provenance via GitHub Actions",
     "overall_score": 93,
-    "qualitative_maturity": "High, based on repository evidence and documented verification procedures"
+    "qualitative_maturity": "High repository maturity according to the documented scoring methodology"
   },
   "scores_by_pillar": {
     "application_and_api_security": {
