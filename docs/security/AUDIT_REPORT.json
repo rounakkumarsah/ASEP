@@ -1,43 +1,47 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "audit_version": "1.1.0",
-  "timestamp": "2026-08-25T22:06:00Z",
+  "audit_version": "1.2.0",
+  "timestamp": "2026-08-25T22:09:00Z",
   "target": "ASEP Autonomous Software Engineering Platform",
-  "evaluated_revision": "fe0e4fb",
+  "evaluated_revision": "724e595",
   "release_tag": "v1.0.0",
   "methodology_reference": "docs/security/AUDIT_METHODOLOGY_AND_SCORING_RUBRIC.md",
   "audit_verdict": {
-    "status": "PASS_SUITABLE_FOR_TECHNICAL_DUE_DILIGENCE",
+    "status": "SUITABLE_FOR_ENTERPRISE_TECHNICAL_DUE_DILIGENCE",
     "technical_due_diligence_readiness": "HIGH",
-    "acquisition_readiness": "HIGH",
-    "slsa_build_level": "SLSA Build Level 2",
-    "overall_score": 97,
-    "qualitative_maturity": "HIGH (Tier 1 Enterprise Asset)"
+    "slsa_build_provenance": "Demonstrates SLSA v1 Build Level 2 build provenance via GitHub Actions",
+    "overall_score": 93,
+    "qualitative_maturity": "HIGH (Tier 1 Mature Technical Asset)"
   },
   "scores_by_pillar": {
     "application_and_api_security": {
-      "score": 25,
+      "score": 24,
       "max_score": 25,
+      "deduction_rationale": "Minus 1 point for live production WAF / DDoS runtime verification pending deployment infrastructure",
       "qualitative_rating": "HIGH"
     },
     "supply_chain_security": {
-      "score": 24,
+      "score": 23,
       "max_score": 25,
+      "deduction_rationale": "Minus 2 points for implementing SLSA Build Level 2 rather than isolated reusable workflow Level 3",
       "qualitative_rating": "HIGH"
     },
     "devsecops_and_ci_cd": {
-      "score": 20,
+      "score": 19,
       "max_score": 20,
+      "deduction_rationale": "Minus 1 point for third-party anonymous signature verification requiring owner PAT authentication",
       "qualitative_rating": "HIGH"
     },
     "ai_and_agentic_governance": {
-      "score": 15,
+      "score": 14,
       "max_score": 15,
+      "deduction_rationale": "Minus 1 point for continuous red-teaming operational pipeline boundary",
       "qualitative_rating": "HIGH"
     },
     "release_engineering_and_docs": {
       "score": 13,
       "max_score": 15,
+      "deduction_rationale": "Minus 2 points for initial documentation sanitization overhead",
       "qualitative_rating": "HIGH"
     }
   },
@@ -86,7 +90,7 @@
     },
     {
       "control_id": "SEC-07",
-      "name": "GitHub SLSA Artifact Attestation",
+      "name": "GitHub SLSA v1 Build Level 2 Provenance Attestation",
       "evidence": ".github/workflows/security-scan.yml:181-186",
       "verification_modality": "MOD-CI (CI/CD Execution Evidence)",
       "status": "PASS"
