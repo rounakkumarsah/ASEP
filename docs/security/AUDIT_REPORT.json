@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "audit_version": "1.0.0",
+  "timestamp": "2026-08-25T22:02:00Z",
+  "target": "ASEP Autonomous Software Engineering Platform",
+  "evaluated_revision": "ba2f840bb891f483ebfe8f6d749f944f54b8931a",
+  "release_tag": "v1.0.0",
+  "audit_verdict": {
+    "status": "PASS_WITH_REMEDIATIONS",
+    "technical_due_diligence_readiness": "HIGH",
+    "acquisition_readiness": "HIGH",
+    "slsa_build_level": "SLSA Build Level 2",
+    "overall_score": 96
+  },
+  "scores": {
+    "security_engineering": 98,
+    "supply_chain": 95,
+    "ci_cd": 96,
+    "documentation": 94,
+    "technical_due_diligence": 96,
+    "acquisition_readiness": 95
+  },
+  "verified_controls": [
+    {
+      "control_id": "SEC-01",
+      "name": "CodeQL Static Application Security Testing",
+      "evidence": ".github/workflows/security-scan.yml:93-107",
+      "evidence_tier": "Level B (CI Execution)",
+      "status": "PASS"
+    },
+    {
+      "control_id": "SEC-02",
+      "name": "Semgrep Static Analysis",
+      "evidence": ".github/workflows/security-scan.yml:77-92",
+      "evidence_tier": "Level B (CI Execution)",
+      "status": "PASS"
+    },
+    {
+      "control_id": "SEC-03",
+      "name": "Gitleaks Secret Detection",
+      "evidence": ".github/workflows/security-scan.yml:108-118",
+      "evidence_tier": "Level B (CI Execution)",
+      "status": "PASS"
+    },
+    {
+      "control_id": "SEC-04",
+      "name": "Trivy Container Image Scanning",
+      "evidence": ".github/workflows/security-scan.yml:161-173",
+      "evidence_tier": "Level B (CI Execution)",
+      "status": "PASS"
+    },
+    {
+      "control_id": "SEC-05",
+      "name": "CycloneDX 1.6 Software Bill of Materials (SBOM)",
+      "evidence": "docs/security/artifacts/sbom.json",
+      "evidence_tier": "Level C (Static Artifact)",
+      "status": "PASS"
+    },
+    {
+      "control_id": "SEC-06",
+      "name": "Sigstore Cosign Keyless OIDC Image Signing",
+      "evidence": ".github/workflows/security-scan.yml:175-179",
+      "evidence_tier": "Level B (CI Execution)",
+      "status": "PASS"
+    },
+    {
+      "control_id": "SEC-07",
+      "name": "GitHub SLSA Artifact Attestation",
+      "evidence": ".github/workflows/security-scan.yml:181-186",
+      "evidence_tier": "Level B (CI Execution)",
+      "status": "PASS"
+    },
+    {
+      "control_id": "SEC-08",
+      "name": "Automated Release & SHA256 Checksums",
+      "evidence": ".github/workflows/release.yml:1-32",
+      "evidence_tier": "Level B (CI Execution)",
+      "status": "PASS"
+    },
+    {
+      "control_id": "SEC-09",
+      "name": "Dependabot Multi-Ecosystem Auditing",
+      "evidence": ".github/dependabot.yml:1-32",
+      "evidence_tier": "Level C (Static Config)",
+      "status": "PASS"
+    },
+    {
+      "control_id": "SEC-10",
+      "name": "Multi-Stage Non-Root Container Sandboxing",
+      "evidence": "backend/Dockerfile and frontend/Dockerfile",
+      "evidence_tier": "Level C (Static Config)",
+      "status": "PASS"
+    },
+    {
+      "control_id": "SEC-11",
+      "name": "Agent RBAC & Human-in-the-Loop Governance",
+      "evidence": "backend/src/governance/hitl.py and backend/src/tools/permissions.py",
+      "evidence_tier": "Level A (Runtime Verified)",
+      "status": "PASS"
+    },
+    {
+      "control_id": "SEC-12",
+      "name": "Deterministic Python Lockfile",
+      "evidence": "backend/requirements.lock",
+      "evidence_tier": "Level C (Static Lockfile)",
+      "status": "PASS"
+    }
+  ]
+}

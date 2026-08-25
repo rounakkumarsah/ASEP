@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ASEP Cryptographic Evidence Manifest",
+  "version": "1.0.0",
+  "timestamp": "2026-08-25T22:02:00Z",
+  "repository": "https://github.com/rounakkumarsah/ASEP",
+  "release_tag": "v1.0.0",
+  "commit_sha": "ba2f840bb891f483ebfe8f6d749f944f54b8931a",
+  "artifacts": [
+    {
+      "name": "sbom.json",
+      "format": "CycloneDX v1.6 JSON",
+      "path": "docs/security/artifacts/sbom.json",
+      "sha256": "97D1A87BB5FD75B1918856F653432E41FA85C94DACEA55E1CF618DEEC99602C5",
+      "purpose": "Software Bill of Materials for dependency risk tracking"
+    },
+    {
+      "name": "bandit_output.txt",
+      "format": "Text / JSON Summary",
+      "path": "docs/security/artifacts/bandit_output.txt",
+      "sha256": "321E85BBF8FA70420A211003496ABAC1CF5D1E0BF3C1397FF53CD86C787C1748",
+      "purpose": "Python AST Static Code Security Scan output"
+    },
+    {
+      "name": "ruff_output.txt",
+      "format": "Text Log",
+      "path": "docs/security/artifacts/ruff_output.txt",
+      "sha256": "DA867C5292322BA43A0815F67639EF426927EE2BCCE854FD9A5693C044673B82",
+      "purpose": "Python static linting analysis log"
+    },
+    {
+      "name": "mypy_output.txt",
+      "format": "Text Log",
+      "path": "docs/security/artifacts/mypy_output.txt",
+      "sha256": "F97818D5972AA4715A3FFFFF3166BD6D807BD210E6DC77C57E6D7EBEF3971E1C",
+      "purpose": "Static type checker validation log"
+    },
+    {
+      "name": "npm_audit_output.txt",
+      "format": "Text Log",
+      "path": "docs/security/artifacts/npm_audit_output.txt",
+      "sha256": "398FA773BFF7103AB3BF1D81E7ED439BC05336AE88DFEBFBF17937A598F657DE",
+      "purpose": "Frontend npm dependency security audit log"
+    },
+    {
+      "name": "tsc_output.txt",
+      "format": "Text Log",
+      "path": "docs/security/artifacts/tsc_output.txt",
+      "sha256": "61954864EEED6E9D5256A41D1CD7A8CF3ECD3520CA6E9FBCECF24AF13F108DE4",
+      "purpose": "TypeScript compiler static validation log"
+    },
+    {
+      "name": "coverage_report.txt",
+      "format": "Coverage Summary",
+      "path": "docs/security/artifacts/coverage_report.txt",
+      "sha256": "9D8BD6694FC0E45FE3E41700456AB7890584109167A24EDC9D558064F2EEB501",
+      "purpose": "Unit and adversarial security test suite coverage output"
+    }
+  ]
+}

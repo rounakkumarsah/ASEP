@@ -44,7 +44,7 @@ container_config = {
 ### Consequences
 
 * **Positive:**
-  * Eliminates 99.9% of container escape vectors.
+  * Significantly mitigates standard container privilege escalation and breakout vectors by dropping all Linux kernel capabilities and enforcing read-only root filesystems.
   * Ensures multi-tenant isolation and prevents malicious code from accessing cloud metadata endpoints.
 * **Negative:**
   * Some packages requiring root installation must be pre-baked into the base sandbox image.

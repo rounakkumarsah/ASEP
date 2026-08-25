@@ -155,11 +155,12 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: backend/Dockerfile
           push: true
           tags: ghcr.io/${{ github.repository }}/asep:latest
 
       - name: Run Trivy Vulnerability Scanner
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.29.0
         with:
           image-ref: 'ghcr.io/${{ github.repository }}/asep:latest'
           format: 'sarif'
