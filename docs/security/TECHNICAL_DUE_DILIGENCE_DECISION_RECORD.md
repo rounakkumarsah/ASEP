@@ -13,9 +13,8 @@
 | **Review Scope** | ASEP Repository (Full Source Code, CI/CD, Container Profiles, Dependency Manifests, AI Governance) |
 | **Repository Revision** | `75005bf` / Tag `v1.0.0` |
 | **Decision Supported** | Enterprise Technical Due Diligence & M&A Asset Quality Assessment |
-| **Lead Auditor / Reviewer** | Independent Principal Security Architect & M&A Due Diligence Lead |
-| **Assessment Outcome** | **Internal repository assessment confirms suitability for technical due diligence review based on documented repository evidence.** |
-| **Assessed By** | Rounak Kumar Sah (Lead Maintainer & System Architect) under Documented Scoring Rubric |
+| **Assessment Outcome** | **The repository contains documentation and evidence intended to support a technical due diligence review within the stated scope.** |
+| **Assessment Author** | Rounak Kumar Sah (Lead Maintainer) under Documented Scoring Rubric |
 | **Composite Score** | **93 / 100** according to the repository's documented scoring methodology |
 | **Qualitative Rating** | **High repository maturity according to the documented scoring methodology** |
 

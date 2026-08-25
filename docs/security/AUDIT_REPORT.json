@@ -8,7 +8,7 @@
   "methodology_reference": "docs/security/AUDIT_METHODOLOGY_AND_SCORING_RUBRIC.md",
   "scope_boundary": "This evidence package represents repository-contained evidence and documented verification procedures. It does not by itself establish independent certification, regulatory compliance, or verification of external production infrastructure.",
   "audit_verdict": {
-    "status": "SUITABLE_FOR_ENTERPRISE_TECHNICAL_DUE_DILIGENCE",
+    "status": "DOCUMENTATION_AND_EVIDENCE_PREPARED_FOR_TECHNICAL_DUE_DILIGENCE",
     "technical_due_diligence_readiness": "High (Evidence-Based Assessment)",
     "slsa_build_provenance": "Demonstrates SLSA v1 Build Level 2 build provenance via GitHub Actions",
     "overall_score": 93,
