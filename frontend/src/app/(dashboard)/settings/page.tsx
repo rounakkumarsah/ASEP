@@ -163,6 +163,15 @@ export default function SettingsPage() {
       return;
     }
 
+    const RESERVED_NAMES = ["admin", "root", "system", "superuser", "administrator", "support", "security", "api"];
+    if (RESERVED_NAMES.includes(trimmed.toLowerCase())) {
+      setUsernameChecking(false);
+      setUsernameAvailable(false);
+      setUsernameError("This username is reserved by system policy.");
+      setUsernameSuggestions([`${trimmed}_dev`, `${trimmed}_user`]);
+      return;
+    }
+
     setUsernameChecking(true);
     setUsernameError(null);
 
@@ -184,7 +193,7 @@ export default function SettingsPage() {
       } finally {
         setUsernameChecking(false);
       }
-    }, 500);
+    }, 350);
 
     return () => clearTimeout(timer);
   }, [username, user]);

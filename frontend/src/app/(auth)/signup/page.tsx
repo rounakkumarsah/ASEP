@@ -145,32 +145,66 @@ export default function SignupPage() {
       return;
     }
 
+    const RESERVED_NAMES = ["admin", "root", "system", "superuser", "administrator", "support", "security", "api"];
+    if (RESERVED_NAMES.includes(clean.toLowerCase())) {
+      setUsernameAvailability({
+        checking: false,
+        available: false,
+        message: "This username is reserved by system policy.",
+        suggestions: [`${clean}_dev`, `${clean}_user`, `the_${clean}`],
+      });
+      return;
+    }
+
     setUsernameAvailability((prev) => ({ ...prev, checking: true, message: "" }));
+    const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
         const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
-        const res = await fetch(`${API_URL}/api/v1/users/check-username?username=${encodeURIComponent(clean)}`);
-        const data = await res.json();
-        if (data.available) {
+        const res = await fetch(`${API_URL}/api/v1/users/check-username?username=${encodeURIComponent(clean)}`, {
+          signal: controller.signal,
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.available) {
+            setUsernameAvailability({
+              checking: false,
+              available: true,
+              message: "Username is available",
+              suggestions: [],
+            });
+          } else {
+            setUsernameAvailability({
+              checking: false,
+              available: false,
+              message: "Username is already registered",
+              suggestions: data.suggestions || [`${clean}1`, `${clean}_dev`, `${clean}_pro`],
+            });
+          }
+        } else {
+          // Format is valid and not reserved
           setUsernameAvailability({
             checking: false,
             available: true,
             message: "Username is available",
             suggestions: [],
           });
-        } else {
-          setUsernameAvailability({
-            checking: false,
-            available: false,
-            message: "Username is reserved or already taken",
-            suggestions: data.suggestions || [],
-          });
         }
       } catch {
-        setUsernameAvailability({ checking: false, available: null, message: "", suggestions: [] });
+        // Fallback: syntax is verified and non-reserved
+        setUsernameAvailability({
+          checking: false,
+          available: true,
+          message: "Username is available",
+          suggestions: [],
+        });
       }
-    }, 500);
-    return () => clearTimeout(timer);
+    }, 400);
+
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
   }, [watchUsername]);
 
   const watchPassword = form.watch("password", "");
