@@ -163,32 +163,6 @@ export default function SettingsPage() {
       return;
     }
 
-    const TAKEN_USERNAMES = [
-      "rounak",
-      "rounakkumar",
-      "rounakkumarsah",
-      "admin",
-      "administrator",
-      "root",
-      "system",
-      "superuser",
-      "support",
-      "security",
-      "api",
-      "sachin",
-      "lead_architect",
-      "operator",
-      "demo",
-      "demo_evaluator"
-    ];
-    if (TAKEN_USERNAMES.includes(trimmed.toLowerCase())) {
-      setUsernameChecking(false);
-      setUsernameAvailable(false);
-      setUsernameError("Username is already registered or taken.");
-      setUsernameSuggestions([`${trimmed}_dev`, `${trimmed}_tech`, `the_${trimmed}`]);
-      return;
-    }
-
     setUsernameChecking(true);
     setUsernameError(null);
 
@@ -201,7 +175,7 @@ export default function SettingsPage() {
           setUsernameSuggestions([]);
         } else {
           setUsernameAvailable(false);
-          setUsernameError("Username already taken.");
+          setUsernameError(res.data?.message || "Username is already taken.");
           setUsernameSuggestions(res.data?.suggestions || []);
         }
       } catch {
@@ -210,7 +184,7 @@ export default function SettingsPage() {
       } finally {
         setUsernameChecking(false);
       }
-    }, 350);
+    }, 300);
 
     return () => clearTimeout(timer);
   }, [username, user]);

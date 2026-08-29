@@ -145,35 +145,6 @@ export default function SignupPage() {
       return;
     }
 
-    const TAKEN_USERNAMES = [
-      "rounak",
-      "rounakkumar",
-      "rounakkumarsah",
-      "admin",
-      "administrator",
-      "root",
-      "system",
-      "superuser",
-      "support",
-      "security",
-      "api",
-      "sachin",
-      "lead_architect",
-      "operator",
-      "demo",
-      "demo_evaluator"
-    ];
-
-    if (TAKEN_USERNAMES.includes(clean.toLowerCase())) {
-      setUsernameAvailability({
-        checking: false,
-        available: false,
-        message: "Username is already registered or taken",
-        suggestions: [`${clean}_dev`, `${clean}_tech`, `the_${clean}`, `${clean}99`],
-      });
-      return;
-    }
-
     setUsernameAvailability((prev) => ({ ...prev, checking: true, message: "" }));
     const controller = new AbortController();
     const timer = setTimeout(async () => {
@@ -188,19 +159,18 @@ export default function SignupPage() {
             setUsernameAvailability({
               checking: false,
               available: true,
-              message: "Username is available",
+              message: data.message || "Username is available",
               suggestions: [],
             });
           } else {
             setUsernameAvailability({
               checking: false,
               available: false,
-              message: "Username is already registered",
-              suggestions: data.suggestions || [`${clean}1`, `${clean}_dev`, `${clean}_pro`],
+              message: data.message || "Username is already registered or taken",
+              suggestions: data.suggestions || [`${clean}_dev`, `${clean}_tech`, `${clean}99`],
             });
           }
         } else {
-          // If server check is offline, verify against format and taken usernames
           setUsernameAvailability({
             checking: false,
             available: true,
