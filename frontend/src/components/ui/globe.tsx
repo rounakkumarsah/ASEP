@@ -55,7 +55,7 @@ export function Globe({ className }: { className?: string }) {
   const startGlobe = useCallback((size: number) => {
     if (!canvasRef.current || size < 10) return () => {};
 
-    const dpr = Math.min(typeof window !== "undefined" ? window.devicePixelRatio : 2, 2);
+    const dpr = Math.min(typeof window !== "undefined" ? window.devicePixelRatio : 1, 1.25);
 
     const options: ExtendedCOBEOptions = {
       devicePixelRatio: dpr,
@@ -64,9 +64,9 @@ export function Globe({ className }: { className?: string }) {
       phi:    phi.current,
       theta:  0.28,
       dark:   1,
-      diffuse: 1.4,
-      mapSamples:    20000,
-      mapBrightness: 8,
+      diffuse: 1.2,
+      mapSamples:    12000,
+      mapBrightness: 7,
       baseColor:   [0.03, 0.05, 0.09],
       markerColor: [0.13, 0.83, 0.93],   // #22D3EE
       glowColor:   [0.04, 0.28, 0.38],
@@ -74,7 +74,7 @@ export function Globe({ className }: { className?: string }) {
       onRender: (state: GlobeRenderState) => {
         if (!dragging.current) {
           // Auto-rotate + decay inertia
-          phi.current += 0.0025 + phiVelocity.current;
+          phi.current += 0.002 + phiVelocity.current;
           phiVelocity.current *= 0.92;           // friction
         } else {
           // While dragging, blend spring into phi

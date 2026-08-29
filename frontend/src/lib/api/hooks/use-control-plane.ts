@@ -13,6 +13,7 @@ export function useSystemOverview() {
       const response = await controlPlaneService.getSystemOverview();
       return response.data;
     },
-    refetchInterval: 3000, // Poll every 3 seconds
+    refetchInterval: 15000, // Efficient 15s refresh
+    refetchOnWindowFocus: false,
   });
 }
