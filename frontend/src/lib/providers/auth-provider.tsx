@@ -32,7 +32,7 @@ export type AuthContextType = {
 
 export const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
@@ -40,6 +40,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   const initAuth = async () => {
+    // Check localStorage first for demo/active session
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("asep_user_session");
+      if (stored) {
+        try {
+          const parsedUser = JSON.parse(stored);
+          setUser(parsedUser);
+          setIsLoading(false);
+          return;
+        } catch {
+          localStorage.removeItem("asep_user_session");
+        }
+      }
+    }
+
     try {
       const res = await fetch(`${API_URL}/api/v1/auth/me`, {
         headers: {
@@ -50,6 +65,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (res.ok) {
         const userData = await res.json();
         setUser(userData);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("asep_user_session", JSON.stringify(userData));
+        }
       } else {
         setUser(null);
       }
@@ -66,15 +84,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = (token: string, userData: User) => {
     setUser(userData);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("asep_user_session", JSON.stringify(userData));
+      if (token) {
+        localStorage.setItem("asep_auth_token", token);
+      }
+    }
     router.push("/overview");
   };
 
   const updateUser = (userData: Partial<User>) => {
-    setUser((prev) => (prev ? { ...prev, ...userData } : null));
+    setUser((prev) => {
+      if (!prev) return null;
+      const updated = { ...prev, ...userData };
+      if (typeof window !== "undefined") {
+        localStorage.setItem("asep_user_session", JSON.stringify(updated));
+      }
+      return updated;
+    });
   };
 
   const logout = async () => {
     setUser(null);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("asep_user_session");
+      localStorage.removeItem("asep_auth_token");
+    }
     router.push("/login");
 
     try {
