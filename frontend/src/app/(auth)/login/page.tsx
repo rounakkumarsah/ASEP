@@ -77,13 +77,13 @@ export default function LoginPage() {
   const handleDemoAccess = () => {
     setIsSubmitting(true);
     const demoUser = {
-      id: "usr_demo_admin_001",
-      username: "admin",
-      email: "admin@asep.io",
+      id: "usr_guest_demo_001",
+      username: "demo_evaluator",
+      email: "demo@asep.dev",
       role: "admin",
-      first_name: "Rounak",
-      last_name: "Sah",
-      company: "ASEP Sovereign Systems",
+      first_name: "Demo",
+      last_name: "Evaluator",
+      company: "Sovereign Systems Preview",
       email_verified: true,
       mfa_enabled: false,
       account_type: "enterprise",
@@ -92,8 +92,8 @@ export default function LoginPage() {
       locale: "en-US",
     };
     setTimeout(() => {
-      login("demo-jwt-token-asep-enterprise", demoUser);
-    }, 400);
+      login("demo-guest-token-evaluator", demoUser);
+    }, 300);
   };
 
   const form = useForm<LoginValues>({
@@ -146,7 +146,7 @@ export default function LoginPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email: values.username,
+          email: values.username.trim(),
           password: values.password,
           rememberMe: values.rememberMe,
           captchaToken: freshToken,
@@ -155,23 +155,6 @@ export default function LoginPage() {
       });
 
       if (!res.ok) {
-        // If backend responds with error, or if running demo credentials, check for demo login
-        if (values.username.includes("admin") || values.username.includes("@")) {
-          const demoUser = {
-            id: "usr_admin_001",
-            username: values.username.includes("@") ? values.username.split("@")[0] : values.username,
-            email: values.username.includes("@") ? values.username : `${values.username}@asep.io`,
-            role: "admin",
-            first_name: "Lead",
-            last_name: "Architect",
-            company: "ASEP Sovereign Systems",
-            email_verified: true,
-            account_type: "enterprise",
-            current_plan: "Enterprise Scale",
-          };
-          login("mock-token", demoUser);
-          return;
-        }
         const errorData = await res.json().catch(() => ({}));
         setError(errorData.detail || "Invalid email or password");
         turnstileRef.current?.reset();
@@ -199,20 +182,9 @@ export default function LoginPage() {
       pendingValuesRef.current = null;
       login(tokenData.access_token, userData);
     } catch {
-      // Fallback: If network connection is unavailable on static host, log in as Demo User so evaluator can access control plane
-      const demoUser = {
-        id: "usr_admin_001",
-        username: values.username.includes("@") ? values.username.split("@")[0] : values.username,
-        email: values.username.includes("@") ? values.username : `${values.username}@asep.io`,
-        role: "admin",
-        first_name: "Lead",
-        last_name: "Architect",
-        company: "ASEP Sovereign Systems",
-        email_verified: true,
-        account_type: "enterprise",
-        current_plan: "Enterprise Scale",
-      };
-      login("mock-token", demoUser);
+      setError("Unable to connect to the authentication server. Please check your network or try again.");
+      turnstileRef.current?.reset();
+      setIsSubmitting(false);
     }
   }, [login]);
 
