@@ -163,12 +163,29 @@ export default function SettingsPage() {
       return;
     }
 
-    const RESERVED_NAMES = ["admin", "root", "system", "superuser", "administrator", "support", "security", "api"];
-    if (RESERVED_NAMES.includes(trimmed.toLowerCase())) {
+    const TAKEN_USERNAMES = [
+      "rounak",
+      "rounakkumar",
+      "rounakkumarsah",
+      "admin",
+      "administrator",
+      "root",
+      "system",
+      "superuser",
+      "support",
+      "security",
+      "api",
+      "sachin",
+      "lead_architect",
+      "operator",
+      "demo",
+      "demo_evaluator"
+    ];
+    if (TAKEN_USERNAMES.includes(trimmed.toLowerCase())) {
       setUsernameChecking(false);
       setUsernameAvailable(false);
-      setUsernameError("This username is reserved by system policy.");
-      setUsernameSuggestions([`${trimmed}_dev`, `${trimmed}_user`]);
+      setUsernameError("Username is already registered or taken.");
+      setUsernameSuggestions([`${trimmed}_dev`, `${trimmed}_tech`, `the_${trimmed}`]);
       return;
     }
 

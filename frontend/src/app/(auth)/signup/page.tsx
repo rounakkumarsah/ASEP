@@ -145,13 +145,31 @@ export default function SignupPage() {
       return;
     }
 
-    const RESERVED_NAMES = ["admin", "root", "system", "superuser", "administrator", "support", "security", "api"];
-    if (RESERVED_NAMES.includes(clean.toLowerCase())) {
+    const TAKEN_USERNAMES = [
+      "rounak",
+      "rounakkumar",
+      "rounakkumarsah",
+      "admin",
+      "administrator",
+      "root",
+      "system",
+      "superuser",
+      "support",
+      "security",
+      "api",
+      "sachin",
+      "lead_architect",
+      "operator",
+      "demo",
+      "demo_evaluator"
+    ];
+
+    if (TAKEN_USERNAMES.includes(clean.toLowerCase())) {
       setUsernameAvailability({
         checking: false,
         available: false,
-        message: "This username is reserved by system policy.",
-        suggestions: [`${clean}_dev`, `${clean}_user`, `the_${clean}`],
+        message: "Username is already registered or taken",
+        suggestions: [`${clean}_dev`, `${clean}_tech`, `the_${clean}`, `${clean}99`],
       });
       return;
     }
@@ -182,7 +200,7 @@ export default function SignupPage() {
             });
           }
         } else {
-          // Format is valid and not reserved
+          // If server check is offline, verify against format and taken usernames
           setUsernameAvailability({
             checking: false,
             available: true,
@@ -191,7 +209,6 @@ export default function SignupPage() {
           });
         }
       } catch {
-        // Fallback: syntax is verified and non-reserved
         setUsernameAvailability({
           checking: false,
           available: true,
@@ -199,7 +216,7 @@ export default function SignupPage() {
           suggestions: [],
         });
       }
-    }, 400);
+    }, 300);
 
     return () => {
       controller.abort();
