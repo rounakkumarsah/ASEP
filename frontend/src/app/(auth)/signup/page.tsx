@@ -173,16 +173,16 @@ export default function SignupPage() {
         } else {
           setUsernameAvailability({
             checking: false,
-            available: true,
-            message: "Username is available",
+            available: null,
+            message: "",
             suggestions: [],
           });
         }
       } catch {
         setUsernameAvailability({
           checking: false,
-          available: true,
-          message: "Username is available",
+          available: null,
+          message: "",
           suggestions: [],
         });
       }
