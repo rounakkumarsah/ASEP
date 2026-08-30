@@ -178,7 +178,8 @@ export default function SignupPage() {
             suggestions: [],
           });
         }
-      } catch {
+      } catch (err: any) {
+        if (err.name === "AbortError") return;
         setUsernameAvailability({
           checking: false,
           available: null,
