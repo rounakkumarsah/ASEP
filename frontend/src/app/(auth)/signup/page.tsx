@@ -75,7 +75,7 @@ export default function SignupPage() {
 
   const handleOAuthLogin = async (provider: "github" | "google") => {
     setOauthLoading(true);
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
+    const API_URL = "";
     try {
       const response = await fetch(`${API_URL}/api/v1/auth/oauth/${provider}`, {
         credentials: "include",
@@ -203,7 +203,7 @@ export default function SignupPage() {
     const firstName = nameParts[0] || "";
     const lastName = nameParts.slice(1).join(" ") || "User";
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
+    const API_URL = "";
     try {
       const res = await fetch(`${API_URL}/api/v1/auth/signup`, {
         method: "POST",

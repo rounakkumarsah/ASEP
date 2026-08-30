@@ -9,6 +9,7 @@ const envSchema = z.object({
   // Client-side (exposed via NEXT_PUBLIC_ prefix)
   NEXT_PUBLIC_API_URL: z
     .string()
+    .transform(() => "")
     .default(""),
 
   NEXT_PUBLIC_ENABLE_TURNSTILE: z

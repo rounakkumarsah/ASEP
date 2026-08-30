@@ -53,7 +53,7 @@ export default function LoginPage() {
 
   const handleOAuthLogin = async (provider: "github" | "google") => {
     setOauthLoading(true);
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
+    const API_URL = "";
     try {
       const response = await fetch(`${API_URL}/api/v1/auth/oauth/${provider}`, {
         credentials: "include",
@@ -138,7 +138,7 @@ export default function LoginPage() {
       return;
     }
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
+    const API_URL = "";
     try {
       const res = await fetch(`${API_URL}/api/v1/auth/login`, {
         method: "POST",

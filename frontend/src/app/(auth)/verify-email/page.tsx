@@ -36,7 +36,7 @@ export default function VerifyEmailPage() {
     setVerifying(true);
     setError("");
     setResendMsg("");
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
+    const API_URL = "";
     try {
       const res = await fetch(`${API_URL}/api/v1/auth/verify-email`, {
         method: "POST",
@@ -71,7 +71,7 @@ export default function VerifyEmailPage() {
     setResending(true);
     setResendMsg("");
     setError("");
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
+    const API_URL = "";
     try {
       const res = await fetch(`${API_URL}/api/v1/auth/resend-verification`, {
         method: "POST",

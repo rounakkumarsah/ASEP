@@ -32,7 +32,7 @@ export type AuthContextType = {
 
 export const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
+const API_URL = "";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
