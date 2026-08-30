@@ -174,7 +174,7 @@ export function SidebarNav({ onClick }: { onClick?: () => void }) {
           <div className="flex items-center justify-between text-[#9CA6B5] mb-2 font-mono text-[10px]">
             <span>Daily Quota:</span>
             <span className="font-bold text-[#F5F7FA]">
-              {quota.tier.toLowerCase() === "free" ? `${quota.remaining} / ${quota.limit} Left` : "Unlimited"}
+              {quota.tier.toLowerCase() === "free" ? `${quota.used} / ${quota.limit} Used` : "Unlimited"}
             </span>
           </div>
           {quota.tier.toLowerCase() === "free" && (
