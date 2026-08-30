@@ -255,31 +255,31 @@ export default function AuditPage() {
 
               <TimelineContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-                  <div>
+                  <div className="min-w-0">
                     <span className="block font-semibold text-[10px] uppercase text-muted-foreground/60 mb-1">Actor</span>
-                    <span className="flex items-center gap-1.5 text-foreground">
-                      <User className="h-3.5 w-3.5 text-primary" />
-                      {log.actor_type.toUpperCase()}: {log.actor_id}
+                    <span className="flex items-start gap-1.5 text-foreground">
+                      <User className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                      <span className="break-all">{log.actor_type.toUpperCase()}: {log.actor_id}</span>
                     </span>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <span className="block font-semibold text-[10px] uppercase text-muted-foreground/60 mb-1">Resource</span>
-                    <span className="flex items-center gap-1.5 text-foreground">
-                      <FileText className="h-3.5 w-3.5 text-primary" />
-                      {log.resource_type}
+                    <span className="flex items-start gap-1.5 text-foreground">
+                      <FileText className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                      <span className="break-all">{log.resource_type}</span>
                     </span>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <span className="block font-semibold text-[10px] uppercase text-muted-foreground/60 mb-1">Outcome</span>
-                    <span className={`font-semibold flex items-center gap-1.5 ${log.outcome === "success" ? "text-green-500" : "text-red-500"}`}>
-                      {log.outcome.toUpperCase()}
+                    <span className={`font-semibold flex items-start gap-1.5 ${log.outcome === "SUCCESS" || log.outcome === "APPROVED" ? "text-green-500" : "text-red-500"}`}>
+                      <span className="break-all">{log.outcome.toUpperCase()}</span>
                     </span>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <span className="block font-semibold text-[10px] uppercase text-muted-foreground/60 mb-1">Client IP</span>
-                    <span className="flex items-center gap-1.5 text-foreground">
-                      <Globe className="h-3.5 w-3.5 text-primary" />
-                      {log.ip_address || "unknown"}
+                    <span className="flex items-start gap-1.5 text-foreground">
+                      <Globe className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                      <span className="break-all">{log.ip_address || "unknown"}</span>
                     </span>
                   </div>
                 </div>
