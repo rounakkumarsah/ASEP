@@ -6,7 +6,8 @@
   "functions": {
     "api/index.py": {
       "runtime": "python3.12",
-      "maxDuration": 300
+      "maxDuration": 300,
+      "includeFiles": "backend/**"
     }
   },
   "rewrites": [
