@@ -72,14 +72,13 @@ export default function SignupPage() {
   const [error, setError] = React.useState("");
   const [termsError, setTermsError] = React.useState<string | null>(null);
   const [accountExistsEmail, setAccountExistsEmail] = React.useState<string | null>(null);
-  const [usernameAvailability, setUsernameAvailability] = React.useState<{
-    checking: boolean;
-    available: boolean | null;
+  type UsernameState = "idle" | "invalid" | "checking" | "available" | "taken" | "network_error";
+  const [usernameStatus, setUsernameStatus] = React.useState<{
+    state: UsernameState;
     message: string;
     suggestions: string[];
   }>({
-    checking: false,
-    available: null,
+    state: "idle",
     message: "",
     suggestions: [],
   });
@@ -129,25 +128,35 @@ export default function SignupPage() {
 
   const watchUsername = form.watch("username", "");
 
-    React.useEffect(() => {
-    if (!watchUsername || watchUsername.trim().length < 3) {
-      setUsernameAvailability({ checking: false, available: null, message: "", suggestions: [] });
+  React.useEffect(() => {
+    if (!watchUsername || watchUsername.trim().length === 0) {
+      setUsernameStatus({ state: "idle", message: "", suggestions: [] });
       return;
     }
+    
+    if (watchUsername.trim().length < 3) {
+      setUsernameStatus({ state: "invalid", message: "Username must be at least 3 characters.", suggestions: [] });
+      return;
+    }
+    if (watchUsername.trim().length > 30) {
+      setUsernameStatus({ state: "invalid", message: "Username cannot exceed 30 characters.", suggestions: [] });
+      return;
+    }
+
     const clean = watchUsername.trim().toLowerCase();
     
     // Quick frontend check before network request
     if (watchUsername.includes(" ") || !/^[a-z0-9_.]+$/.test(clean)) {
-      setUsernameAvailability({
-        checking: false,
-        available: false,
+      setUsernameStatus({
+        state: "invalid",
         message: "Letters, numbers, underscores, and periods only (no spaces).",
         suggestions: [],
       });
       return;
     }
 
-    setUsernameAvailability((prev) => ({ ...prev, checking: true, message: "" }));
+    setUsernameStatus({ state: "checking", message: "Checking availability...", suggestions: [] });
+    
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
@@ -158,34 +167,36 @@ export default function SignupPage() {
         if (res.ok) {
           const data = await res.json();
           if (data.valid && data.available) {
-            setUsernameAvailability({
-              checking: false,
-              available: true,
+            setUsernameStatus({
+              state: "available",
               message: data.message || "Username is available",
               suggestions: [],
             });
+          } else if (!data.valid) {
+            setUsernameStatus({
+              state: "invalid",
+              message: data.message || "Invalid username",
+              suggestions: [],
+            });
           } else {
-            setUsernameAvailability({
-              checking: false,
-              available: false,
-              message: data.message || "Username is unavailable",
+            setUsernameStatus({
+              state: "taken",
+              message: data.message || "Username already taken",
               suggestions: data.suggestions || [],
             });
           }
         } else {
-          setUsernameAvailability({
-            checking: false,
-            available: null,
-            message: "",
+          setUsernameStatus({
+            state: "network_error",
+            message: "Unable to check username. Try again.",
             suggestions: [],
           });
         }
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") return;
-        setUsernameAvailability({
-          checking: false,
-          available: null,
-          message: "",
+        setUsernameStatus({
+          state: "network_error",
+          message: "Unable to check username. Try again.",
           suggestions: [],
         });
       }
@@ -264,7 +275,7 @@ export default function SignupPage() {
       return;
     }
 
-    if (usernameAvailability.available === false) {
+    if (usernameStatus.state !== "idle" && usernameStatus.state !== "available") {
       form.setError("username", {
         type: "manual",
         message: "Please choose an available username.",
@@ -473,38 +484,42 @@ export default function SignupPage() {
                     <FormItem>
                       <div className="flex justify-between items-center">
                         <FormLabel className="text-xs font-mono font-semibold uppercase text-[#9CA6B5]">Username</FormLabel>
-                        {usernameAvailability.checking ? (
+                        {usernameStatus.state === "checking" ? (
                           <span className="text-[10px] font-mono text-[#9CA6B5] flex items-center gap-1">
                             <Loader2 className="w-2.5 h-2.5 animate-spin" /> Checking...
                           </span>
-                        ) : usernameAvailability.available === true ? (
-                          <span className="text-[10px] font-mono text-[#2DD4A3]">✓ Available</span>
-                        ) : usernameAvailability.available === false ? (
-                          <span className="text-[10px] font-mono text-[#F05252]">✗ Unavailable</span>
+                        ) : usernameStatus.state === "available" ? (
+                          <span className="text-[10px] font-mono text-[#2DD4A3]">✓ Username available</span>
+                        ) : usernameStatus.state === "invalid" ? (
+                          <span className="text-[10px] font-mono text-[#F05252]">✗ Invalid username</span>
+                        ) : usernameStatus.state === "taken" ? (
+                          <span className="text-[10px] font-mono text-[#F05252]">✗ Username already taken</span>
+                        ) : usernameStatus.state === "network_error" ? (
+                          <span className="text-[10px] font-mono text-[#F05252]">✗ Network Error</span>
                         ) : null}
                       </div>
                       <FormControl>
                         <Input
                           placeholder="janedoe"
                           className={`border-[#202833] bg-[#090B0F] text-[#F5F7FA] h-9 text-xs font-mono ${
-                            usernameAvailability.available === true
+                            usernameStatus.state === "available"
                               ? "border-[#2DD4A3]/50 focus-visible:ring-[#2DD4A3]"
-                              : usernameAvailability.available === false
+                              : ["invalid", "taken", "network_error"].includes(usernameStatus.state)
                               ? "border-[#F05252]/50 focus-visible:ring-[#F05252]"
                               : ""
                           }`}
                           {...field}
                         />
                       </FormControl>
-                      {usernameAvailability.message && (
-                        <p className={`text-[11px] font-mono ${usernameAvailability.available ? "text-[#2DD4A3]" : "text-[#F05252]"}`}>
-                          {usernameAvailability.message}
+                      {usernameStatus.message && (
+                        <p className={`text-[11px] font-mono ${usernameStatus.state === "available" ? "text-[#2DD4A3]" : "text-[#F05252]"}`}>
+                          {usernameStatus.message}
                         </p>
                       )}
-                      {usernameAvailability.suggestions.length > 0 && (
+                      {usernameStatus.suggestions.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 pt-1 items-center">
                           <span className="text-[10px] font-mono text-[#667085]">Suggestions:</span>
-                          {usernameAvailability.suggestions.map((sug) => (
+                          {usernameStatus.suggestions.map((sug) => (
                             <button
                               key={sug}
                               type="button"
@@ -706,8 +721,8 @@ export default function SignupPage() {
                       termsCheckboxRef.current?.focus();
                     }
                   }}
-                  className="w-full text-xs font-mono font-semibold bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9] h-10"
-                  disabled={isSubmitting}
+                  className="w-full text-xs font-mono font-semibold bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9] h-10 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isSubmitting || ["invalid", "checking", "taken", "network_error"].includes(usernameStatus.state)}
                 >
                   {isSubmitting ? (
                     <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Verifying…</>
