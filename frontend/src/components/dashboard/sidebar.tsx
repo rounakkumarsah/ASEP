@@ -17,7 +17,8 @@ import {
   ClipboardList,
   Settings,
   Terminal,
-  Cpu
+  Cpu,
+  ExternalLink,
 } from "lucide-react";
 
 const navigationGroups = [
@@ -55,7 +56,10 @@ const navigationGroups = [
   },
   {
     name: "System",
-    items: [{ name: "Settings", href: "/settings", icon: Settings }],
+    items: [
+      { name: "Settings", href: "/settings", icon: Settings },
+      { name: "Documentation", href: "/documentation", icon: BookOpen, external: true },
+    ],
   },
 ];
 
@@ -95,11 +99,14 @@ export function SidebarNav({ onClick }: { onClick?: () => void }) {
               {group.items.map((item) => {
                 const isActive = pathname === item.href || (item.href !== "/overview" && pathname.startsWith(item.href));
                 const Icon = item.icon;
+                const isExternal = (item as { external?: boolean }).external;
                 return (
                   <Link
                     key={item.name}
                     href={item.href}
                     onClick={onClick}
+                    target={isExternal ? "_blank" : undefined}
+                    rel={isExternal ? "noopener noreferrer" : undefined}
                     className={cn(
                       "flex items-center justify-between rounded-md px-2.5 py-1.5 text-xs font-medium transition-all duration-150 group outline-none",
                       isActive
@@ -116,6 +123,7 @@ export function SidebarNav({ onClick }: { onClick?: () => void }) {
                       />
                       <span>{item.name}</span>
                     </div>
+                    {isExternal && <ExternalLink className="h-3 w-3 text-[#667085] group-hover:text-[#9CA6B5]" />}
                   </Link>
                 );
               })}
