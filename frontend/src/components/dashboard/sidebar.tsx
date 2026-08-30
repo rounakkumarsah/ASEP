@@ -186,7 +186,7 @@ export function SidebarNav({ onClick }: { onClick?: () => void }) {
             </div>
           )}
           <Link
-            href="/pricing"
+            href="/billing"
             className="block w-full py-1.5 px-3 text-center rounded-lg bg-[#22D3EE] hover:bg-[#67E8F9] transition text-xs font-bold text-[#090B0F] shadow-md shadow-[#22D3EE]/10"
           >
             Upgrade to Pro
