@@ -8,6 +8,7 @@ Create Date: 2026-08-23 21:58:31.128303
 from collections.abc import Sequence
 
 from alembic import op
+import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = '37c46316c0a8'
@@ -17,6 +18,11 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    # 0. Add org_id to agent_runs
+    op.add_column('agent_runs', sa.Column('org_id', sa.Uuid(as_uuid=True), nullable=True))
+    op.create_index('ix_agent_runs_org_id', 'agent_runs', ['org_id'])
+    # For existing rows we can't easily populate org_id, but future inserts will require it.
+    
     # 1. Enable RLS on core multi-tenant tables
     op.execute("ALTER TABLE projects ENABLE ROW LEVEL SECURITY;")
     op.execute("ALTER TABLE agent_runs ENABLE ROW LEVEL SECURITY;")
@@ -58,3 +64,5 @@ def downgrade() -> None:
     op.execute("ALTER TABLE agent_runs DISABLE ROW LEVEL SECURITY;")
     op.execute("DROP POLICY IF EXISTS tenant_isolation_projects ON projects;")
     op.execute("DROP POLICY IF EXISTS tenant_isolation_agent_runs ON agent_runs;")
+    op.drop_index('ix_agent_runs_org_id', table_name='agent_runs')
+    op.drop_column('agent_runs', 'org_id')

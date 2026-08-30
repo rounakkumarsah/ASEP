@@ -275,6 +275,7 @@ class Settings(BaseSettings):
     @classmethod
     def validate_database_url(cls, v: str) -> str:
         import os
+        from urllib.parse import urlencode, urlparse, parse_qs
         is_prod = os.getenv("APP_ENV", "development") == "production"
 
         # Enforce that in production a production-grade database URL is provided
@@ -285,15 +286,41 @@ class Settings(BaseSettings):
                 "Local fallback database credentials are not permitted in production."
             )
 
-        # Standardize connection scheme to AsyncPG or Psycopg async engine format
+        # Standardize connection scheme to AsyncPG format
         if v.startswith("postgres://"):
             v = v.replace("postgres://", "postgresql+asyncpg://", 1)
-        elif v.startswith("postgresql://"):
+        elif v.startswith("postgresql://") and "+asyncpg" not in v:
             v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
 
-        # Strip query parameters like sslmode=require that asyncpg rejects as unsupported kwargs
+        # Selectively handle query parameters:
+        # asyncpg supports: ssl=require|disable|allow|prefer|verify-ca|verify-full
+        # asyncpg does NOT support: sslmode (libpq style)
+        # So we convert sslmode=require -> ssl=require and drop unknown params.
         if "?" in v:
-            v = v.split("?")[0]
+            base, qs = v.split("?", 1)
+            params = parse_qs(qs, keep_blank_values=True)
+            new_params: dict[str, str] = {}
+            # Convert sslmode -> ssl
+            if "sslmode" in params:
+                sslmode_val = params.pop("sslmode")[0]
+                # map libpq sslmode values to asyncpg ssl values
+                ssl_map = {
+                    "require": "require",
+                    "verify-ca": "verify_ca",
+                    "verify-full": "verify_full",
+                    "disable": "disable",
+                    "allow": "allow",
+                    "prefer": "allow",
+                }
+                new_params["ssl"] = ssl_map.get(sslmode_val, "require")
+            # Keep ssl if already present
+            if "ssl" in params:
+                new_params["ssl"] = params["ssl"][0]
+            # Drop channel_binding and other unsupported asyncpg params
+            if new_params:
+                v = base + "?" + urlencode(new_params)
+            else:
+                v = base
         return v
 
     @field_validator("QDRANT_URL")
