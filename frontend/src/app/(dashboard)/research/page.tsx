@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import { AppLayout } from "@/components/layout/app-layout";
 import { apiClient } from "@/lib/api/client";
 import { AnimatedCard } from "@/components/ui/animated-card";
 
@@ -49,8 +48,8 @@ export default function ResearchPage() {
   };
 
   return (
-    <AppLayout>
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className="h-full flex flex-col">
+      <div className="max-w-4xl mx-auto space-y-6 w-full">
         <div>
           <h1 className="text-2xl font-bold text-zinc-100">Autonomous Deep Research Swarm</h1>
           <p className="text-sm text-zinc-400">
@@ -169,6 +168,6 @@ export default function ResearchPage() {
           </AnimatedCard>
         )}
       </div>
-    </AppLayout>
+    </div>
   );
 }

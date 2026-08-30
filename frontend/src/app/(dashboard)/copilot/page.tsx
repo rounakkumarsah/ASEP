@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import { AppLayout } from "@/components/layout/app-layout";
 import { apiClient } from "@/lib/api/client";
 
 export default function CopilotPage() {
@@ -70,12 +69,12 @@ export default function CopilotPage() {
 
 
   return (
-    <AppLayout>
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className="h-full flex flex-col">
+      <div className="max-w-4xl mx-auto space-y-6 w-full">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-100">Multimodal Developer Copilot Swarm</h1>
+          <h1 className="text-2xl font-bold text-zinc-100">Developer Copilot</h1>
           <p className="text-sm text-zinc-400">
-            Paste error log / code or upload a screenshot of your code traceback.
+            Multimodal debugging powered by Gemini Vision. Upload a screenshot or paste your stack trace.
           </p>
         </div>
 
@@ -192,7 +191,7 @@ export default function CopilotPage() {
         )}
 
       </div>
-    </AppLayout>
+    </div>
   );
 }
 

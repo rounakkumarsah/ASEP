@@ -69,7 +69,7 @@ export function SidebarNav({ onClick }: { onClick?: () => void }) {
   return (
     <div className="flex flex-col h-full bg-[#0D1117] text-[#F5F7FA]">
       {/* Brand Header */}
-      <div className="px-5 py-4 border-b border-[#202833] flex items-center justify-between">
+      <div className="px-5 py-4 border-b border-[#202833] flex items-center">
         <Link href="/overview" className="flex items-center space-x-2.5 group">
           <div className="p-1.5 rounded-md bg-[#111720] border border-[#202833] text-[#22D3EE] group-hover:border-[#22D3EE]/40 transition-colors">
             <Cpu className="h-5 w-5" />
@@ -78,14 +78,16 @@ export function SidebarNav({ onClick }: { onClick?: () => void }) {
             <span className="text-sm font-bold tracking-wider uppercase font-mono text-[#F5F7FA]">
               ASEP
             </span>
-            <span className="text-[10px] text-[#9CA6B5] font-mono tracking-tight">
-              v0.1.0 • Control Plane
-            </span>
+            <div className="flex items-center space-x-2">
+              <span className="text-[10px] text-[#9CA6B5] font-mono tracking-tight">
+                v0.1.0 • Control Plane
+              </span>
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-mono font-medium bg-[#22D3EE]/10 text-[#22D3EE] border border-[#22D3EE]/20">
+                PROD
+              </span>
+            </div>
           </div>
         </Link>
-        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-[#22D3EE]/10 text-[#22D3EE] border border-[#22D3EE]/20">
-          PROD
-        </span>
       </div>
 
       {/* Navigation Links */}
