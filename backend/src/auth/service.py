@@ -29,33 +29,7 @@ from src.services.user_service import UserService
 
 logger = logging.getLogger(__name__)
 
-RESERVED_USERNAMES = {
-    "admin",
-    "administrator",
-    "root",
-    "support",
-    "api",
-    "billing",
-    "system",
-    "asep",
-    "owner",
-    "bot",
-    "dev",
-    "operator",
-    "null",
-    "undefined",
-    "security",
-    "help",
-    "moderator",
-    "auth",
-    "login",
-    "signup",
-    "settings",
-    "overview",
-    "workspace",
-    "organization",
-    "dashboard",
-}
+from src.auth.username import RESERVED_USERNAMES
 
 
 def normalize_email(email: str) -> str:
@@ -231,7 +205,16 @@ class AuthService:
                 current_plan="free",
             )
             created = await uow.users.create(new_user)
-            await uow.commit()
+            try:
+                await uow.commit()
+            except Exception as e:
+                err_str = str(e).lower()
+                if "unique" in err_str or "duplicate key" in err_str:
+                    if "username" in err_str:
+                        raise ValueError("Username already exists.")
+                    if "email" in err_str:
+                        raise ValueError("Account already exists with this email address.")
+                raise e
             return created
 
     def create_login_tokens(self, user: User) -> RefreshTokenResponse:
@@ -581,21 +564,22 @@ class AuthService:
             if not existing or (current_user_id and existing.id == current_user_id):
                 return True, []
 
-            # Generate 3 valid suggestions
+            # Generate valid suggestions
             suggestions: list[str] = []
+            current_year = datetime.datetime.now().year
             candidates = [
-                f"{cleaned}_1",
-                f"{cleaned}_dev",
-                f"{cleaned}{random.randint(100, 9999)}",
-                f"{cleaned}_ai",
-                f"{cleaned}_pro",
+                f"{normalized}01",
+                f"{normalized}_07",
+                f"{normalized}.dev",
+                f"{normalized}{current_year}",
+                f"{normalized}{random.randint(10, 99)}",
             ]
             for cand in candidates:
-                if len(suggestions) >= 3:
+                if len(suggestions) >= 4:
                     break
                 if (
                     len(cand) <= 30
-                    and cand.lower() not in RESERVED_USERNAMES
+                    and cand not in RESERVED_USERNAMES
                     and not await uow.users.get_by_username(cand)
                 ):
                     suggestions.append(cand)

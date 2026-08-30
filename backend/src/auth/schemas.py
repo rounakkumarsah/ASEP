@@ -113,6 +113,7 @@ class CheckUsernameResponse(BaseModel):
     valid: bool
     available: bool
     message: str
+    suggestions: list[str] | None = None
 
 
 class UserQuotaResponse(BaseModel):

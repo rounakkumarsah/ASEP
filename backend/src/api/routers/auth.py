@@ -56,9 +56,14 @@ async def check_username_availability_endpoint(
         return CheckUsernameResponse(valid=False, available=False, message=err_msg)
 
     # Check database
-    is_available, _ = await auth_service.check_username_availability(normalized)
+    is_available, suggestions = await auth_service.check_username_availability(normalized)
     if not is_available:
-        return CheckUsernameResponse(valid=True, available=False, message="Username already exists.")
+        return CheckUsernameResponse(
+            valid=True, 
+            available=False, 
+            message="Username already exists.", 
+            suggestions=suggestions
+        )
 
     return CheckUsernameResponse(valid=True, available=True, message="Username is available.")
 
