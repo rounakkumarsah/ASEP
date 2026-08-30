@@ -181,10 +181,11 @@ export function RazorpayCheckout({
           } else {
             throw new Error("Verification returned success=false");
           }
-        } catch {
+        } catch (err: unknown) {
           setState("failed");
+          const apiErr = err as { message?: string };
           setErrorMessage(
-            "Payment was received but verification failed. Please contact support."
+            `Verification failed: ${apiErr.message || "Unknown error"}. Please contact support.`
           );
           onFailure?.("verification_failed");
         }

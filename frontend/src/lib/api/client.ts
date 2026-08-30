@@ -31,7 +31,9 @@ apiClient.interceptors.response.use(
 
     const { status, data } = error.response;
     const message =
-      ((data as Record<string, unknown>)?.message as string) || error.message;
+      ((data as Record<string, unknown>)?.detail as string) ||
+      ((data as Record<string, unknown>)?.message as string) ||
+      error.message;
 
     switch (status) {
       case 401:

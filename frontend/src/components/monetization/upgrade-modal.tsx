@@ -40,10 +40,14 @@ export function UpgradeModal({ isOpen: externalOpen, onClose: externalClose }: U
       (window as unknown as { posthog: { capture: (evt: string, props?: Record<string, unknown>) => void } }).posthog.capture("upgrade_clicked", { tier });
     }
     try {
-      const response = await apiClient.post("/payments/create-order", { plan: tier });
+      const response = await apiClient.post("/api/v1/payments/create-order", { 
+        amount: tier === "pro" ? 199900 : 499900,
+        currency: "INR",
+        description: `Upgrade to ${tier} plan`
+      });
 
-      const { razorpay_order_id, key_id, amount } = response.data as {
-        razorpay_order_id: string;
+      const { order_id: razorpay_order_id, key_id, amount } = response.data as {
+        order_id: string;
         key_id?: string;
         amount?: number;
       };
