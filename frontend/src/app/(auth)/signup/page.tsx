@@ -178,8 +178,8 @@ export default function SignupPage() {
             suggestions: [],
           });
         }
-      } catch (err: any) {
-        if (err.name === "AbortError") return;
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") return;
         setUsernameAvailability({
           checking: false,
           available: null,
