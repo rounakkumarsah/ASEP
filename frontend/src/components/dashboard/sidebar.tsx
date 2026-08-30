@@ -1,8 +1,10 @@
 "use client";
 
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { apiClient } from "@/lib/api/client";
 import {
   LayoutDashboard,
   FolderKanban,
@@ -65,6 +67,32 @@ const navigationGroups = [
 
 export function SidebarNav({ onClick }: { onClick?: () => void }) {
   const pathname = usePathname();
+  const [quota, setQuota] = useState<{ tier: string; limit: number; used: number; remaining: number }>({
+    tier: "free",
+    limit: 10,
+    used: 0,
+    remaining: 10,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+    apiClient
+      .get("/api/v1/users/quota")
+      .then((res) => {
+        if (isMounted && res.data) {
+          setQuota({
+            tier: res.data.tier || "free",
+            limit: res.data.limit ?? 10,
+            used: res.data.used ?? 0,
+            remaining: res.data.remaining ?? 10,
+          });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, [pathname]);
 
   return (
     <div className="flex flex-col h-full bg-[#0D1117] text-[#F5F7FA]">
@@ -134,8 +162,40 @@ export function SidebarNav({ onClick }: { onClick?: () => void }) {
         ))}
       </div>
 
+      {/* Quota Box */}
+      <div className="px-4 pb-4 shrink-0">
+        <div className="p-3 rounded-xl bg-[#111720] border border-[#202833]">
+          <div className="flex items-center justify-between text-xs mb-2">
+            <span className="text-[#9CA6B5]">Current Plan:</span>
+            <span className="font-semibold font-mono bg-[#22D3EE]/10 text-[#22D3EE] border border-[#22D3EE]/20 px-2 py-0.5 rounded uppercase text-[10px]">
+              {quota.tier}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-[#9CA6B5] mb-2 font-mono text-[10px]">
+            <span>Daily Quota:</span>
+            <span className="font-bold text-[#F5F7FA]">
+              {quota.tier.toLowerCase() === "free" ? `${quota.remaining} / ${quota.limit} Left` : "Unlimited"}
+            </span>
+          </div>
+          {quota.tier.toLowerCase() === "free" && (
+            <div className="h-1.5 w-full bg-[#090B0F] rounded-full overflow-hidden mb-3">
+              <div
+                className="h-full bg-[#22D3EE] rounded-full"
+                style={{ width: `${Math.max(0, (quota.used / quota.limit) * 100)}%` }}
+              />
+            </div>
+          )}
+          <Link
+            href="/pricing"
+            className="block w-full py-1.5 px-3 text-center rounded-lg bg-[#22D3EE] hover:bg-[#67E8F9] transition text-xs font-bold text-[#090B0F] shadow-md shadow-[#22D3EE]/10"
+          >
+            Upgrade to Pro
+          </Link>
+        </div>
+      </div>
+
       {/* Footer System Status */}
-      <div className="px-4 py-3 border-t border-[#202833] bg-[#090B0F] flex items-center justify-between text-[11px] font-mono text-[#9CA6B5]">
+      <div className="px-4 py-3 border-t border-[#202833] bg-[#090B0F] flex items-center justify-between text-[11px] font-mono text-[#9CA6B5] shrink-0">
         <div className="flex items-center space-x-2">
           <span className="h-2 w-2 rounded-full bg-[#2DD4A3] animate-pulse" />
           <span>System Healthy</span>
