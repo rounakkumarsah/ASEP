@@ -38,7 +38,7 @@ export const knowledgeService = {
   ): Promise<ApiResponse<PaginatedResponse<KnowledgeDocument>>> {
     try {
       const response = await apiClient.get('/api/v1/knowledge/documents', { params: { query } });
-      const items = response.data?.items && response.data.items.length > 0 ? response.data.items : DEFAULT_DEMO_DOCS;
+      const items = response.data?.items || [];
       return {
         status: "success",
         data: {
@@ -50,10 +50,9 @@ export const knowledgeService = {
         }
       };
     } catch {
-      const items = query ? DEFAULT_DEMO_DOCS.filter(d => d.title.toLowerCase().includes(query.toLowerCase()) || d.snippet.toLowerCase().includes(query.toLowerCase())) : DEFAULT_DEMO_DOCS;
       return {
         status: "success",
-        data: { items, total: items.length, page: 1, size: 50, pages: 1 }
+        data: { items: [], total: 0, page: 1, size: 50, pages: 1 }
       };
     }
   },
