@@ -43,6 +43,24 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
+from src.auth.username import validate_username
+
+@router.get("/check-username", response_model=CheckUsernameResponse)
+async def check_username_availability_endpoint(
+    username: str,
+    auth_service: AuthServiceDep,
+) -> CheckUsernameResponse:
+    """Validate format and check uniqueness of username."""
+    is_valid, normalized, err_msg = validate_username(username)
+    if not is_valid:
+        return CheckUsernameResponse(valid=False, available=False, message=err_msg)
+
+    # Check database
+    is_available, _ = await auth_service.check_username_availability(normalized)
+    if not is_available:
+        return CheckUsernameResponse(valid=True, available=False, message="Username already exists.")
+
+    return CheckUsernameResponse(valid=True, available=True, message="Username is available.")
 
 def _set_auth_cookies(response: Response, tokens: RefreshTokenResponse, app_env: str) -> None:
     """Sets secure HttpOnly cookies for access and refresh tokens.

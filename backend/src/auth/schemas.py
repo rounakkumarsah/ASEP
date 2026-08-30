@@ -110,8 +110,9 @@ class ProfileUpdateRequest(BaseModel):
 
 
 class CheckUsernameResponse(BaseModel):
+    valid: bool
     available: bool
-    suggestions: list[str] = []
+    message: str
 
 
 class UserQuotaResponse(BaseModel):

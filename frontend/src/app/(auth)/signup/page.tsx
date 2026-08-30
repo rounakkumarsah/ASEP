@@ -36,7 +36,7 @@ const signupSchema = z
       .string()
       .min(3, "Username must be at least 3 characters")
       .max(30, "Username cannot exceed 30 characters")
-      .regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores")
+      .regex(/^[a-zA-Z0-9_.]+$/, "Username can only contain letters, numbers, underscores, and periods")
       .optional()
       .or(z.literal("")),
     email: z.string().email("Invalid email address"),
@@ -129,17 +129,19 @@ export default function SignupPage() {
 
   const watchUsername = form.watch("username", "");
 
-  React.useEffect(() => {
+    React.useEffect(() => {
     if (!watchUsername || watchUsername.trim().length < 3) {
       setUsernameAvailability({ checking: false, available: null, message: "", suggestions: [] });
       return;
     }
-    const clean = watchUsername.trim();
-    if (!/^[a-zA-Z0-9_]{3,30}$/.test(clean)) {
+    const clean = watchUsername.trim().toLowerCase();
+    
+    // Quick frontend check before network request
+    if (watchUsername.includes(" ") || !/^[a-z0-9_.]+$/.test(clean)) {
       setUsernameAvailability({
         checking: false,
         available: false,
-        message: "Letters, numbers, and underscores only (3-30 chars).",
+        message: "Letters, numbers, underscores, and periods only (no spaces).",
         suggestions: [],
       });
       return;
@@ -150,12 +152,12 @@ export default function SignupPage() {
     const timer = setTimeout(async () => {
       try {
         const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
-        const res = await fetch(`${API_URL}/api/v1/users/check-username?username=${encodeURIComponent(clean)}`, {
+        const res = await fetch(`${API_URL}/api/v1/auth/check-username?username=${encodeURIComponent(clean)}`, {
           signal: controller.signal,
         });
         if (res.ok) {
           const data = await res.json();
-          if (data.available) {
+          if (data.valid && data.available) {
             setUsernameAvailability({
               checking: false,
               available: true,
@@ -166,8 +168,8 @@ export default function SignupPage() {
             setUsernameAvailability({
               checking: false,
               available: false,
-              message: data.message || "Username is already registered or taken",
-              suggestions: data.suggestions || [`${clean}_dev`, `${clean}_tech`, `${clean}99`],
+              message: data.message || "Username is unavailable",
+              suggestions: data.suggestions || [],
             });
           }
         } else {
@@ -187,7 +189,7 @@ export default function SignupPage() {
           suggestions: [],
         });
       }
-    }, 300);
+    }, 500);
 
     return () => {
       controller.abort();

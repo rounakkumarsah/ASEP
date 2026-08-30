@@ -180,17 +180,19 @@ class AuthService:
             existing_user = await uow.users.get_by_email(clean_email)
             if existing_user:
                 raise ValueError("Account already exists with this email address.")
-
+            
             # Validate or generate username
             if data.username and data.username.strip():
-                clean_username = data.username.strip()
-                if not re.match(r"^[a-zA-Z0-9_]{3,30}$", clean_username):
-                    raise ValueError("Username must be 3–30 characters using letters, numbers, and underscores only.")
-                if clean_username.lower() in RESERVED_USERNAMES:
-                    raise ValueError(f"Username '{clean_username}' is reserved.")
-                if await uow.users.get_by_username(clean_username):
+                from src.auth.username import validate_username
+                is_valid, normalized, err_msg = validate_username(data.username)
+                if not is_valid:
+                    raise ValueError(err_msg)
+                
+                if normalized in RESERVED_USERNAMES:
+                    raise ValueError(f"Username '{normalized}' is reserved.")
+                if await uow.users.get_by_username(normalized):
                     raise ValueError("Username already taken.")
-                unique_username = clean_username
+                unique_username = normalized
             else:
                 # Generate robust unique username
                 first = re.sub(r"[^a-zA-Z0-9_]", "", data.firstName.lower())
@@ -561,23 +563,21 @@ class AuthService:
 
     async def check_username_availability(self, username: str, current_user_id: uuid.UUID | None = None) -> tuple[bool, list[str]]:
         """Validate format, check reserved names, and check uniqueness of username. Returns (is_available, suggestions)."""
-        import re
-
-        cleaned = username.strip()
-        # Validation rules: 3-30 chars, alphanumeric + underscores
-        if not re.match(r"^[a-zA-Z0-9_]{3,30}$", cleaned):
+        from src.auth.username import validate_username
+        is_valid, normalized, _ = validate_username(username)
+        if not is_valid:
             return False, []
 
-        if cleaned.lower() in RESERVED_USERNAMES:
+        if normalized in RESERVED_USERNAMES:
             suggestions = [
-                f"{cleaned}_dev",
-                f"{cleaned}_user",
-                f"{cleaned}{random.randint(100, 9999)}",
+                f"{normalized}_dev",
+                f"{normalized}_user",
+                f"{normalized}{random.randint(100, 9999)}",
             ]
             return False, suggestions
 
         async with self.user_service._uow_factory() as uow:
-            existing = await uow.users.get_by_username(cleaned)
+            existing = await uow.users.get_by_username(normalized)
             if not existing or (current_user_id and existing.id == current_user_id):
                 return True, []
 

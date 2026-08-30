@@ -21,14 +21,7 @@ router = APIRouter(prefix="/users", tags=["Users"])
 _rate_limiter = FreemiumRateLimiter(free_daily_limit=10)
 
 
-@router.get("/check-username", response_model=CheckUsernameResponse)
-async def check_username_availability(
-    username: Annotated[str, Query(..., min_length=1, max_length=50, description="Username to check")],
-    auth_service: AuthServiceDep,
-) -> CheckUsernameResponse:
-    """Check whether a username is valid and available (case-insensitive)."""
-    available, suggestions = await auth_service.check_username_availability(username)
-    return CheckUsernameResponse(available=available, suggestions=suggestions)
+
 
 
 @router.patch("/profile", response_model=UserResponse)
