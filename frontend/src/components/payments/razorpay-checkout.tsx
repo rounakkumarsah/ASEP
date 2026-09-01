@@ -147,9 +147,10 @@ export function RazorpayCheckout({
     let orderData: Awaited<ReturnType<typeof createOrder>>;
     try {
       orderData = await createOrder({ amount, currency, description, notes });
-    } catch {
+    } catch (err: unknown) {
       setState("failed");
-      setErrorMessage("Could not create payment order. Please try again.");
+      const apiErr = err as { message?: string };
+      setErrorMessage(apiErr.message || "Could not create payment order. Please try again.");
       onFailure?.("order_creation_failed");
       return;
     }
