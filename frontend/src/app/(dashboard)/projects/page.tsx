@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { apiClient } from "@/lib/api/client";
 import { 
   Loader2, 
@@ -196,35 +197,40 @@ export default function ProjectsPage() {
           }
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredProjects.map(project => (
-            <AnimatedCard key={project.id} className="flex flex-col justify-between">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <Folder className="h-5 w-5 text-primary" />
-                    <CardTitle className="text-base font-bold">{project.name}</CardTitle>
-                  </div>
-                  <Badge variant="outline" className="text-xs">Active</Badge>
-                </div>
-                <CardDescription className="text-xs line-clamp-2 mt-1">
-                  {project.description || "Autonomous workspace project."}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-0 flex items-center justify-between border-t border-border/30 mt-4 py-3 text-xs text-muted-foreground">
-                <span className="font-mono">{project.slug}</span>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-8 w-8 text-destructive hover:bg-destructive/10 relative z-10"
-                  onClick={() => handleDelete(project.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </CardContent>
-            </AnimatedCard>
-          ))}
-        </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredProjects.map(project => (
+              <Link href="/playground" key={project.id} className="block group">
+                <AnimatedCard className="flex flex-col justify-between h-full group-hover:border-[#22D3EE]/50 transition-colors cursor-pointer">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2">
+                        <Folder className="h-5 w-5 text-[#22D3EE]" />
+                        <CardTitle className="text-base font-bold group-hover:text-[#22D3EE] transition-colors">{project.name}</CardTitle>
+                      </div>
+                      <Badge variant="outline" className="text-xs border-[#2DD4A3]/30 text-[#2DD4A3] bg-[#2DD4A3]/10">Active</Badge>
+                    </div>
+                    <CardDescription className="text-xs line-clamp-2 mt-1">
+                      {project.description || "Autonomous workspace project."}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-0 flex items-center justify-between border-t border-border/30 mt-4 py-3 text-xs text-muted-foreground">
+                    <span className="font-mono">{project.slug}</span>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 text-destructive hover:bg-destructive/10 relative z-10"
+                      onClick={(e) => {
+                        e.preventDefault(); // Prevent navigating when deleting
+                        handleDelete(project.id);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </CardContent>
+                </AnimatedCard>
+              </Link>
+            ))}
+          </div>
       )}
     </div>
   );
