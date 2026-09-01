@@ -37,43 +37,18 @@ export default function ProjectsPage() {
   const [newDesc, setNewDesc] = React.useState("");
   const [creating, setCreating] = React.useState(false);
 
-  const DEFAULT_DEMO_PROJECTS: Project[] = [
-    {
-      id: "prj_asep_core_01",
-      name: "ASEP Core Orchestrator",
-      slug: "asep-core",
-      description: "Autonomous multi-agent DAG execution engine & supervisor runtime.",
-      is_active: true,
-    },
-    {
-      id: "prj_langgraph_agents_02",
-      name: "LangGraph StateGraph Agents",
-      slug: "langgraph-agents",
-      description: "Multi-agent collaborative coding and review pipelines with HITL governance.",
-      is_active: true,
-    },
-    {
-      id: "prj_qdrant_rag_03",
-      name: "Qdrant Vector Codebase Memory",
-      slug: "qdrant-memory",
-      description: "Semantic codebase search, embeddings cache, and episodic knowledge sync.",
-      is_active: true,
-    },
-  ];
-
   const fetchProjects = async () => {
     setLoading(true);
     setError("");
     try {
       const res = await apiClient.get("/api/v1/projects");
-      if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+      if (res.data && Array.isArray(res.data)) {
         setProjects(res.data);
       } else {
-        setProjects(DEFAULT_DEMO_PROJECTS);
+        setProjects([]);
       }
     } catch {
-      // Graceful fallback to rich demo projects on serverless / preview
-      setProjects(DEFAULT_DEMO_PROJECTS);
+      setProjects([]);
     } finally {
       setLoading(false);
     }
