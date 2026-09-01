@@ -57,12 +57,12 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    # 1. Resolve token from HttpOnly Cookie first
-    token = request.cookies.get("access_token")
+    # 1. Resolve token from Authorization Header first (takes precedence during retries)
+    token = token_from_header
 
-    # 2. Fall back to Authorization Header
+    # 2. Fall back to HttpOnly Cookie
     if not token:
-        token = token_from_header
+        token = request.cookies.get("access_token")
 
     if not token:
         raise credentials_exception
