@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UpgradeModal } from "../monetization/upgrade-modal";
 import { apiClient } from "@/lib/api/client";
+import { useAuth } from "@/lib/providers/auth-provider";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -12,9 +13,10 @@ interface LayoutProps {
 
 export function AppLayout({ children }: LayoutProps) {
   const pathname = usePathname();
+  const { user } = useAuth();
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
   const [quota, setQuota] = useState<{ tier: string; limit: number; used: number; remaining: number }>({
-    tier: "free",
+    tier: user?.current_plan || "free",
     limit: 10,
     used: 0,
     remaining: 10,

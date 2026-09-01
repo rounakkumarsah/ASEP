@@ -52,7 +52,9 @@ async def get_user_quota(
     current_user: CurrentUser,
 ) -> UserQuotaResponse:
     """Get current daily AI quota usage without decrementing or consuming credits."""
-    user_tier = getattr(current_user, "role", "free") or "free"
+    user_tier = getattr(current_user, "current_plan", "free") or "free"
+    user_tier = user_tier.lower()
+    
     result = await _rate_limiter.get_usage(str(current_user.id), tier=user_tier)
     limit = 10 if user_tier == "free" else 999999
     used = max(0, limit - result.remaining_queries) if user_tier == "free" else 0
