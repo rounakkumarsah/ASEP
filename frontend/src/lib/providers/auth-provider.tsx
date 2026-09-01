@@ -78,9 +78,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const logout = React.useCallback(async () => {
+    setUser(null);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("asep_user_session");
+      localStorage.removeItem("asep_auth_token");
+    }
+    router.push("/login");
+
+    try {
+      await fetch(`${API_URL}/api/v1/auth/logout`, { method: "POST" });
+    } catch {
+      // ignore
+    }
+  }, [router]);
+
   React.useEffect(() => {
     initAuth();
   }, []);
+
+  React.useEffect(() => {
+    const handleUnauthorized = () => logout();
+    window.addEventListener("auth:unauthorized", handleUnauthorized);
+    return () => window.removeEventListener("auth:unauthorized", handleUnauthorized);
+  }, [logout]);
 
   const login = (token: string, userData: User) => {
     setUser(userData);
@@ -104,22 +125,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const logout = async () => {
-    setUser(null);
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("asep_user_session");
-      localStorage.removeItem("asep_auth_token");
-    }
-    router.push("/login");
-
-    try {
-      await fetch(`${API_URL}/api/v1/auth/logout`, {
-        method: "POST",
-        credentials: "include",
-      });
-    } catch (e) {
-      console.error("Logout request failed:", e);
-    }
+  const refreshUser = async () => {
+    await initAuth();
   };
 
   return (
@@ -130,7 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         login,
         logout,
-        refreshUser: initAuth,
+        refreshUser,
         updateUser,
       }}
     >

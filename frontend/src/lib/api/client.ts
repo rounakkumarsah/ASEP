@@ -20,6 +20,17 @@ export const apiClient = axios.create({
   withCredentials: true, // Enable cookie transmission across cross-origin requests
 });
 
+// Request interceptor to attach token from localStorage if present
+apiClient.interceptors.request.use((config) => {
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("asep_auth_token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  }
+  return config;
+});
+
 // Response interceptor for unified error handling
 apiClient.interceptors.response.use(
   (response) => response,
