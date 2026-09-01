@@ -17,6 +17,7 @@ import * as React from "react";
 import { Loader2, CreditCard, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createOrder, verifyPayment } from "@/lib/api/services/payments";
+import { useAuth } from "@/lib/providers/auth-provider";
 
 // ---------------------------------------------------------------------------
 // Razorpay global type (loaded via CDN script tag)
@@ -27,7 +28,6 @@ declare global {
     Razorpay?: new (options: RazorpayOptions) => RazorpayInstance;
   }
 }
-
 
 interface RazorpayOptions {
   key: string;
@@ -58,6 +58,7 @@ interface RazorpaySuccessResponse {
 interface RazorpayInstance {
   open: () => void;
   close: () => void;
+  on: (event: string, callback: () => void) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -126,11 +127,18 @@ export function RazorpayCheckout({
   className,
   disabled = false,
 }: RazorpayCheckoutProps) {
+  const { user } = useAuth();
   const [state, setState] = React.useState<CheckoutState>("idle");
   const [errorMessage, setErrorMessage] = React.useState("");
   const [paidId, setPaidId] = React.useState("");
 
   const handlePayment = async () => {
+    if (user?.id === "usr_guest_demo_001") {
+      setState("failed");
+      setErrorMessage("Payments are disabled in Instant Demo mode. Please create a full account to test checkout.");
+      return;
+    }
+
     setState("loading");
     setErrorMessage("");
 
