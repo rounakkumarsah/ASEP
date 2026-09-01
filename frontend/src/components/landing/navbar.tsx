@@ -15,6 +15,7 @@ import {
   SheetTrigger,
   SheetClose,
 } from "@/components/ui/sheet";
+import { useAuth } from "@/lib/providers/auth-provider";
 
 const NAV_LINKS = [
   { name: "Platform", href: "/platform" },
@@ -29,6 +30,7 @@ export function LandingNavbar() {
   const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
   const pathname = usePathname();
   const { scrollYProgress, scrollY } = useScroll();
+  const { isAuthenticated } = useAuth();
 
   // Smooth scroll progress bar at top of viewport
   const scaleX = useSpring(scrollYProgress, {
@@ -138,26 +140,37 @@ export function LandingNavbar() {
               <span className="text-foreground font-bold">128</span>
             </Link>
 
-            {/* Login */}
-            <Link href="/login">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs font-mono font-medium text-muted-foreground hover:text-foreground hover:bg-accent/60 h-10 px-3.5 rounded-xl min-h-[44px]"
-              >
-                Login
-              </Button>
-            </Link>
+            {isAuthenticated ? (
+              <Link href="/overview">
+                <Button
+                  size="sm"
+                  className="h-10 px-4 text-xs font-mono font-bold bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9] shadow-[0_0_18px_rgba(34,211,238,0.25)] hover:shadow-[0_0_28px_rgba(34,211,238,0.45)] transition-all duration-200 rounded-xl min-h-[44px]"
+                >
+                  Go to Dashboard
+                </Button>
+              </Link>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs font-mono font-medium text-muted-foreground hover:text-foreground hover:bg-accent/60 h-10 px-3.5 rounded-xl min-h-[44px]"
+                  >
+                    Login
+                  </Button>
+                </Link>
 
-            {/* Get Started */}
-            <Link href="/signup">
-              <Button
-                size="sm"
-                className="h-10 px-4 text-xs font-mono font-bold bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9] shadow-[0_0_18px_rgba(34,211,238,0.25)] hover:shadow-[0_0_28px_rgba(34,211,238,0.45)] hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 rounded-xl min-h-[44px]"
-              >
-                Get Started
-              </Button>
-            </Link>
+                <Link href="/signup">
+                  <Button
+                    size="sm"
+                    className="h-10 px-4 text-xs font-mono font-bold bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9] shadow-[0_0_18px_rgba(34,211,238,0.25)] hover:shadow-[0_0_28px_rgba(34,211,238,0.45)] hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 rounded-xl min-h-[44px]"
+                  >
+                    Get Started
+                  </Button>
+                </Link>
+              </>
+            )}
 
             {/* Theme Toggle */}
             <ThemeToggle />
@@ -230,23 +243,35 @@ export function LandingNavbar() {
                   </nav>
 
                   <div className="mt-8 pt-6 border-t border-border space-y-3">
-                    <SheetClose asChild>
-                      <Link href="/signup" className="block w-full">
-                        <Button className="w-full h-11 min-h-[44px] bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9] font-mono font-bold text-xs shadow-[0_0_20px_rgba(34,211,238,0.3)] rounded-xl">
-                          Get Started Free
-                        </Button>
-                      </Link>
-                    </SheetClose>
-                    <SheetClose asChild>
-                      <Link href="/login" className="block w-full">
-                        <Button
-                          variant="outline"
-                          className="w-full h-11 min-h-[44px] border-border text-foreground hover:bg-accent font-mono text-xs rounded-xl"
-                        >
-                          Sign In
-                        </Button>
-                      </Link>
-                    </SheetClose>
+                    {isAuthenticated ? (
+                      <SheetClose asChild>
+                        <Link href="/overview" className="block w-full">
+                          <Button className="w-full h-11 min-h-[44px] bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9] font-mono font-bold text-xs shadow-[0_0_20px_rgba(34,211,238,0.3)] rounded-xl">
+                            Go to Dashboard
+                          </Button>
+                        </Link>
+                      </SheetClose>
+                    ) : (
+                      <>
+                        <SheetClose asChild>
+                          <Link href="/signup" className="block w-full">
+                            <Button className="w-full h-11 min-h-[44px] bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9] font-mono font-bold text-xs shadow-[0_0_20px_rgba(34,211,238,0.3)] rounded-xl">
+                              Get Started Free
+                            </Button>
+                          </Link>
+                        </SheetClose>
+                        <SheetClose asChild>
+                          <Link href="/login" className="block w-full">
+                            <Button
+                              variant="outline"
+                              className="w-full h-11 min-h-[44px] border-border text-foreground hover:bg-accent font-mono text-xs rounded-xl"
+                            >
+                              Sign In
+                            </Button>
+                          </Link>
+                        </SheetClose>
+                      </>
+                    )}
                   </div>
                 </div>
 

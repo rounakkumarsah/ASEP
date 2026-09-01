@@ -58,7 +58,7 @@ export function DashboardHeader() {
       {/* Breadcrumb Area */}
       <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
         <div className="flex flex-1 items-center space-x-2 text-xs font-mono">
-          <Link href="/overview" className="text-[#667085] hover:text-[#F5F7FA] transition-colors">ASEP</Link>
+          <Link href="/" className="text-[#667085] hover:text-[#F5F7FA] transition-colors">ASEP</Link>
           <span className="text-[#667085]">/</span>
           <span className="text-[#F5F7FA] font-semibold tracking-wide">{breadcrumb}</span>
         </div>
