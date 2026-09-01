@@ -35,10 +35,10 @@ apiClient.interceptors.request.use((config) => {
 let isRefreshing = false;
 let failedQueue: Array<{
   resolve: (value?: unknown) => void;
-  reject: (reason?: any) => void;
+  reject: (reason?: unknown) => void;
 }> = [];
 
-const processQueue = (error: any, token: string | null = null) => {
+const processQueue = (error: unknown, token: string | null = null) => {
   failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);
@@ -53,7 +53,7 @@ const processQueue = (error: any, token: string | null = null) => {
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config as any;
+    const originalRequest = error.config as import("axios").InternalAxiosRequestConfig & { _retry?: boolean };
 
     if (!error.response) {
       return Promise.reject(new ApiError(0, error.message));
@@ -65,7 +65,7 @@ apiClient.interceptors.response.use(
       ((data as Record<string, unknown>)?.message as string) ||
       error.message;
 
-    if (status === 401 && !originalRequest._retry) {
+    if (status === 401 && originalRequest && !originalRequest._retry) {
       if (isRefreshing) {
         return new Promise(function (resolve, reject) {
           failedQueue.push({ resolve, reject });
