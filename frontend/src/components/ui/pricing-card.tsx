@@ -51,13 +51,13 @@ export function PricingCard({
       <motion.div
         className="pointer-events-none absolute -inset-px rounded-3xl opacity-0 transition duration-300 group-hover:opacity-100"
         style={{
-          background: useMotionTemplate\
+          background: useMotionTemplate`
             radial-gradient(
-              400px circle at \px \px,
+              400px circle at ${mouseX}px ${mouseY}px,
               rgba(34, 211, 238, 0.1),
               transparent 80%
             )
-          \,
+          `,
         }}
       />
       
