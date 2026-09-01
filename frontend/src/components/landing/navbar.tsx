@@ -141,14 +141,25 @@ export function LandingNavbar() {
             </Link>
 
             {isAuthenticated ? (
-              <Link href="/overview">
-                <Button
-                  size="sm"
-                  className="h-10 px-4 text-xs font-mono font-bold bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9] shadow-[0_0_18px_rgba(34,211,238,0.25)] hover:shadow-[0_0_28px_rgba(34,211,238,0.45)] transition-all duration-200 rounded-xl min-h-[44px]"
-                >
-                  Go to Dashboard
-                </Button>
-              </Link>
+              <>
+                <Link href="/login">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs font-mono font-medium text-muted-foreground hover:text-foreground hover:bg-accent/60 h-10 px-3.5 rounded-xl min-h-[44px]"
+                  >
+                    Login
+                  </Button>
+                </Link>
+                <Link href="/overview">
+                  <Button
+                    size="sm"
+                    className="h-10 px-4 text-xs font-mono font-bold bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9] shadow-[0_0_18px_rgba(34,211,238,0.25)] hover:shadow-[0_0_28px_rgba(34,211,238,0.45)] transition-all duration-200 rounded-xl min-h-[44px]"
+                  >
+                    Go to Dashboard
+                  </Button>
+                </Link>
+              </>
             ) : (
               <>
                 <Link href="/login">
@@ -244,13 +255,25 @@ export function LandingNavbar() {
 
                   <div className="mt-8 pt-6 border-t border-border space-y-3">
                     {isAuthenticated ? (
-                      <SheetClose asChild>
-                        <Link href="/overview" className="block w-full">
-                          <Button className="w-full h-11 min-h-[44px] bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9] font-mono font-bold text-xs shadow-[0_0_20px_rgba(34,211,238,0.3)] rounded-xl">
-                            Go to Dashboard
-                          </Button>
-                        </Link>
-                      </SheetClose>
+                      <>
+                        <SheetClose asChild>
+                          <Link href="/login" className="block w-full">
+                            <Button
+                              variant="outline"
+                              className="w-full h-11 min-h-[44px] border-border text-foreground hover:bg-accent font-mono text-xs rounded-xl"
+                            >
+                              Login
+                            </Button>
+                          </Link>
+                        </SheetClose>
+                        <SheetClose asChild>
+                          <Link href="/overview" className="block w-full">
+                            <Button className="w-full h-11 min-h-[44px] bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9] font-mono font-bold text-xs shadow-[0_0_20px_rgba(34,211,238,0.3)] rounded-xl">
+                              Go to Dashboard
+                            </Button>
+                          </Link>
+                        </SheetClose>
+                      </>
                     ) : (
                       <>
                         <SheetClose asChild>
