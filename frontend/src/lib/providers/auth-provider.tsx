@@ -98,7 +98,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   React.useEffect(() => {
-    const handleUnauthorized = () => logout();
+    const handleUnauthorized = () => {
+      // Prevent demo user from being logged out on API errors during preview
+      if (typeof window !== "undefined") {
+        const stored = localStorage.getItem("asep_user_session");
+        if (stored && stored.includes("usr_guest_demo_001")) {
+          return;
+        }
+      }
+      logout();
+    };
     window.addEventListener("auth:unauthorized", handleUnauthorized);
     return () => window.removeEventListener("auth:unauthorized", handleUnauthorized);
   }, [logout]);
