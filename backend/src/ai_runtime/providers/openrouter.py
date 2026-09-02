@@ -33,7 +33,7 @@ class OpenRouterProvider(BaseAIProvider):
             raise ValueError("OPENROUTER_API_KEY environment variable is not configured.")
 
         start_time = time.perf_counter()
-        headers = {"Authorization": f"Bearer {self.api_key}"}
+        headers = {"Authorization": f"Bearer {self.api_key}", "HTTP-Referer": "https://asep-ai.vercel.app", "X-Title": "ASEP AI"}
 
         payload = {
             "model": "deepseek/deepseek-r1" if request.model == "deepseek-r1" else request.model,
@@ -80,7 +80,7 @@ class OpenRouterProvider(BaseAIProvider):
             raise ValueError("OPENROUTER_API_KEY environment variable is not configured.")
 
         start_time = time.perf_counter()
-        headers = {"Authorization": f"Bearer {self.api_key}"}
+        headers = {"Authorization": f"Bearer {self.api_key}", "HTTP-Referer": "https://asep-ai.vercel.app", "X-Title": "ASEP AI"}
 
         payload = {
             "model": "deepseek/deepseek-r1" if request.model == "deepseek-r1" else request.model,
@@ -135,7 +135,7 @@ class OpenRouterProvider(BaseAIProvider):
             )
         start = time.perf_counter()
         try:
-            headers = {"Authorization": f"Bearer {self.api_key}"}
+            headers = {"Authorization": f"Bearer {self.api_key}", "HTTP-Referer": "https://asep-ai.vercel.app", "X-Title": "ASEP AI"}
             async with httpx.AsyncClient(base_url=self.base_url, timeout=3.0) as client:
                 response = await client.get("/models", headers=headers)
                 is_healthy = response.status_code == 200
