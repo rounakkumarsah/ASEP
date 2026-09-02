@@ -19,6 +19,8 @@ from src.ai_runtime.providers.base import BaseAIProvider
 
 
 class OpenRouterProvider(BaseAIProvider):
+    _model_capabilities_cache: dict[str, dict] = {}
+    
     def __init__(self, api_key: str | None = None) -> None:
         self.api_key = api_key or os.environ.get("OPENROUTER_API_KEY", "")
         self.base_url = "https://openrouter.ai/api/v1"
@@ -37,12 +39,19 @@ class OpenRouterProvider(BaseAIProvider):
 
         payload = {
             "model": "deepseek/deepseek-r1" if request.model == "deepseek-r1" else request.model,
-            "messages": [{"role": m.role, "content": m.content} for m in request.messages],
+            "messages": [{"role": m.role, "content": m.content, **({"tool_calls": m.tool_calls} if m.tool_calls else {}), **({"tool_call_id": m.tool_call_id} if m.tool_call_id else {})} for m in request.messages],
             "temperature": request.temperature,
             "stream": False
         }
         if request.max_tokens:
             payload["max_tokens"] = request.max_tokens
+            
+        if request.tools:
+            payload["tools"] = request.tools
+        if request.tool_choice:
+            payload["tool_choice"] = request.tool_choice
+        if request.parallel_tool_calls is not None:
+            payload["parallel_tool_calls"] = request.parallel_tool_calls
 
         async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
             response = await client.post("/chat/completions", headers=headers, json=payload)
@@ -51,7 +60,25 @@ class OpenRouterProvider(BaseAIProvider):
 
             latency_ms = (time.perf_counter() - start_time) * 1000.0
 
-            text = data["choices"][0]["message"]["content"]
+            message_data = data["choices"][0]["message"]
+            text = message_data.get("content") or ""
+            
+            tool_calls = None
+            if "tool_calls" in message_data:
+                from src.ai_runtime.contracts import ToolCall
+                tool_calls = []
+                for tc in message_data["tool_calls"]:
+                    import json
+                    args = tc["function"]["arguments"]
+                    if not isinstance(args, str):
+                        args = json.dumps(args)
+                    tool_calls.append(ToolCall(
+                        id=tc["id"],
+                        type="function",
+                        name=tc["function"]["name"],
+                        arguments=args
+                    ))
+
             meta = data.get("usage", {})
             prompt_tokens = meta.get("prompt_tokens", 0)
             completion_tokens = meta.get("completion_tokens", 0)
@@ -68,7 +95,8 @@ class OpenRouterProvider(BaseAIProvider):
                 usage=usage,
                 provider=self.name,
                 model=request.model,
-                finish_reason=data["choices"][0].get("finish_reason", "stop")
+                finish_reason=data["choices"][0].get("finish_reason", "stop"),
+                tool_calls=tool_calls
             )
 
     async def stream(self, request: CompletionRequest) -> AsyncGenerator[StreamChunk, None]:
@@ -78,16 +106,46 @@ class OpenRouterProvider(BaseAIProvider):
         headers = {"Authorization": f"Bearer {self.api_key}", "HTTP-Referer": "https://asep-ai.vercel.app", "X-Title": "ASEP AI"}
         payload = {
             "model": "deepseek/deepseek-r1" if request.model == "deepseek-r1" else request.model,
-            "messages": [{"role": m.role, "content": m.content} for m in request.messages],
+            "messages": [{"role": m.role, "content": m.content, **({"tool_calls": m.tool_calls} if m.tool_calls else {}), **({"tool_call_id": m.tool_call_id} if m.tool_call_id else {})} for m in request.messages],
             "temperature": request.temperature,
             "stream": True
         }
         if request.max_tokens:
             payload["max_tokens"] = request.max_tokens
+            
+        if request.tools:
+            payload["tools"] = request.tools
+        if request.tool_choice:
+            payload["tool_choice"] = request.tool_choice
+        if request.parallel_tool_calls is not None:
+            payload["parallel_tool_calls"] = request.parallel_tool_calls
         
         # Pass tools if any exist
-        if getattr(request, "tools", None):
-            payload["tools"] = request.tools
+        
+        # Capability validation for tools
+        await self._fetch_capabilities_if_needed(request.model)
+        model_data = self._model_capabilities_cache.get(request.model, {})
+        supported_params = model_data.get("supported_parameters", [])
+        
+        # Inject Server Tools
+        server_tools = [
+            {"type": "openrouter:web_search"},
+            {"type": "openrouter:web_fetch"},
+            {"type": "openrouter:datetime"}
+        ]
+        
+        # Check if model supports tools before adding them
+        supports_tools = "tools" in supported_params if supported_params else True
+        if supports_tools:
+            if getattr(request, "tools", None):
+                payload["tools"] = request.tools + server_tools
+            else:
+                payload["tools"] = server_tools
+                
+        if supports_tools and request.tool_choice:
+            payload["tool_choice"] = request.tool_choice
+        if supports_tools and request.parallel_tool_calls is not None:
+            payload["parallel_tool_calls"] = request.parallel_tool_calls
 
         async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
             async with client.stream("POST", "/chat/completions", headers=headers, json=payload) as response:
@@ -103,9 +161,26 @@ class OpenRouterProvider(BaseAIProvider):
                         try:
                             data = json.loads(data_str)
                             chunk = data.get("choices", [{}])[0]
-                            text = chunk.get("delta", {}).get("content", "")
+                            delta = chunk.get("delta", {})
+                            text = delta.get("content", "")
                             finish_reason = chunk.get("finish_reason")
-                            yield StreamChunk(text=text, usage=None, finish_reason=finish_reason)
+                            
+                            # Parse streaming tool calls
+                            tool_calls = None
+                            if "tool_calls" in delta:
+                                from src.ai_runtime.contracts import ToolCall
+                                tool_calls = []
+                                for tc in delta["tool_calls"]:
+                                    import json
+                                    args = tc["function"]["arguments"] if "function" in tc and "arguments" in tc["function"] else ""
+                                    tool_calls.append(ToolCall(
+                                        id=tc.get("id", ""),
+                                        type="function",
+                                        name=tc.get("function", {}).get("name", ""),
+                                        arguments=args
+                                    ))
+                                    
+                            yield StreamChunk(text=text, usage=None, finish_reason=finish_reason, tool_calls=tool_calls)
                         except Exception:
                             pass
 
@@ -118,13 +193,28 @@ class OpenRouterProvider(BaseAIProvider):
 
         payload = {
             "model": "deepseek/deepseek-r1" if request.model == "deepseek-r1" else request.model,
-            "messages": [{"role": m.role, "content": m.content} for m in request.messages],
+            "messages": [{"role": m.role, "content": m.content, **({"tool_calls": m.tool_calls} if m.tool_calls else {}), **({"tool_call_id": m.tool_call_id} if m.tool_call_id else {})} for m in request.messages],
             "temperature": request.temperature,
-            "stream": False,
-            "response_format": {"type": "json_schema", "json_schema": {"name": "response", "schema": schema, "strict": True}}
+            "stream": False
         }
+        
+        await self._fetch_capabilities_if_needed(request.model)
+        model_data = self._model_capabilities_cache.get(request.model, {})
+        supported_params = model_data.get("supported_parameters", [])
+        
+        supports_format = "response_format" in supported_params if supported_params else True
+        if supports_format:
+            payload["response_format"] = {"type": "json_schema", "json_schema": {"name": "response", "schema": schema, "strict": True}}
+
         if request.max_tokens:
             payload["max_tokens"] = request.max_tokens
+            
+        if request.tools:
+            payload["tools"] = request.tools
+        if request.tool_choice:
+            payload["tool_choice"] = request.tool_choice
+        if request.parallel_tool_calls is not None:
+            payload["parallel_tool_calls"] = request.parallel_tool_calls
 
         async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
             response = await client.post("/chat/completions", headers=headers, json=payload)
@@ -133,7 +223,25 @@ class OpenRouterProvider(BaseAIProvider):
 
             latency_ms = (time.perf_counter() - start_time) * 1000.0
 
-            text = data["choices"][0]["message"]["content"]
+            message_data = data["choices"][0]["message"]
+            text = message_data.get("content") or ""
+            
+            tool_calls = None
+            if "tool_calls" in message_data:
+                from src.ai_runtime.contracts import ToolCall
+                tool_calls = []
+                for tc in message_data["tool_calls"]:
+                    import json
+                    args = tc["function"]["arguments"]
+                    if not isinstance(args, str):
+                        args = json.dumps(args)
+                    tool_calls.append(ToolCall(
+                        id=tc["id"],
+                        type="function",
+                        name=tc["function"]["name"],
+                        arguments=args
+                    ))
+
             meta = data.get("usage", {})
             prompt_tokens = meta.get("prompt_tokens", 0)
             completion_tokens = meta.get("completion_tokens", 0)
@@ -150,7 +258,8 @@ class OpenRouterProvider(BaseAIProvider):
                 usage=usage,
                 provider=self.name,
                 model=request.model,
-                finish_reason=data["choices"][0].get("finish_reason", "stop")
+                finish_reason=data["choices"][0].get("finish_reason", "stop"),
+                tool_calls=tool_calls
             )
 
     async def embeddings(self, texts: list[str]) -> list[list[float]]:
@@ -195,7 +304,24 @@ class OpenRouterProvider(BaseAIProvider):
                 last_error=str(exc)
             )
 
-    def get_capability_matrix(self) -> ProviderCapabilityMatrix:
+    async def _fetch_capabilities_if_needed(self, model: str):
+        if not self._model_capabilities_cache:
+            try:
+                headers = {"HTTP-Referer": "https://asep-ai.vercel.app", "X-Title": "ASEP AI"}
+                async with httpx.AsyncClient(base_url=self.base_url, timeout=5.0) as client:
+                    resp = await client.get("/models", headers=headers)
+                    if resp.status_code == 200:
+                        models = resp.json().get("data", [])
+                        for m in models:
+                            self._model_capabilities_cache[m["id"]] = m
+            except Exception:
+                pass
+
+    def get_capability_matrix(self, model: str = "") -> ProviderCapabilityMatrix:
+        import asyncio
+        # We can't await in sync method easily unless we run event loop, but get_capability_matrix isn't async.
+        # It's fine to return a default if not fetched.
+        # Since the interface is synchronous, we will return True for now but we'll use async checks in complete.
         return ProviderCapabilityMatrix(
             streaming=True,
             structured_output=True,

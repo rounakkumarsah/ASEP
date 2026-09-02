@@ -6,8 +6,10 @@ from pydantic import BaseModel, Field
 
 
 class Message(BaseModel):
-    role: Literal["system", "user", "assistant"]
-    content: str
+    role: Literal["system", "user", "assistant", "tool"]
+    content: str | None = None
+    tool_calls: list[dict[str, Any]] | None = None
+    tool_call_id: str | None = None
 
 class UsageInfo(BaseModel):
     prompt_tokens: int = 0
@@ -34,6 +36,10 @@ class CompletionRequest(BaseModel):
     temperature: float = 0.7
     max_tokens: int | None = None
     response_format: dict[str, Any] | None = None  # Structured output schema if required
+    tools: list[dict[str, Any]] | None = None
+    tool_choice: str | dict[str, Any] | None = None
+    parallel_tool_calls: bool | None = None
+    tool_callables: dict[str, Any] | None = None
 
 class CompletionResponse(BaseModel):
     text: str
@@ -41,11 +47,13 @@ class CompletionResponse(BaseModel):
     provider: str
     model: str
     finish_reason: str | None = None
+    tool_calls: list[ToolCall] | None = None
 
 class StreamChunk(BaseModel):
     text: str
     usage: UsageInfo | None = None
     finish_reason: str | None = None
+    tool_calls: list[ToolCall] | None = None
 
 class ProviderHealth(BaseModel):
     provider_name: str

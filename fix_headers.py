@@ -1,0 +1,6 @@
+with open(r'C:\Users\sachi\ASEP\backend\src\ai_runtime\providers\gemini.py', 'r', encoding='utf-8') as f: text = f.read()
+text = text.replace('url = f"/models/{model_name}:generateContent?key={self.api_key}"', 'url = f"/models/{model_name}:generateContent"\n        headers = {"X-goog-api-key": self.api_key}')
+text = text.replace('response = await client.post(url, json=payload)', 'response = await client.post(url, headers=headers, json=payload)')
+text = text.replace('url = f"/models/gemini-2.5-flash?key={self.api_key}"', 'url = f"/models/gemini-2.5-flash"\n            headers = {"X-goog-api-key": self.api_key}')
+text = text.replace('response = await client.get(url)', 'response = await client.get(url, headers=headers)')
+with open(r'C:\Users\sachi\ASEP\backend\src\ai_runtime\providers\gemini.py', 'w', encoding='utf-8') as f: f.write(text)
