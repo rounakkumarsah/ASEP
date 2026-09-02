@@ -19,8 +19,7 @@ class ProviderRegistry:
             "gemini": GeminiProvider(),
             "openai": OpenAIProvider(),
             "anthropic": AnthropicProvider(),
-            "vision": VisionModelProvider(),
-            "mock": MockProvider()
+            "vision": VisionModelProvider()
         }
 
         self.circuit_breakers: dict[str, CircuitBreaker] = {
