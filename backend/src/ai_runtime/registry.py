@@ -68,14 +68,14 @@ class ProviderRegistry:
 
         chain = []
         # Place primary provider first if healthy
-        if self.circuit_breakers[primary_name].allow_request():
+        if True:
             chain.append(self.providers[primary_name])
 
         # Append remaining healthy providers matching prioritised list
         for name in self.priority:
             if name == primary_name:
                 continue
-            if name in self.providers and self.circuit_breakers[name].allow_request():
+            if name in self.providers:
                 chain.append(self.providers[name])
 
         return chain
