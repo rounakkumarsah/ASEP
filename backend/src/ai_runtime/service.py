@@ -77,6 +77,8 @@ class AIRuntimeService:
                 breaker.record_failure(last_error)
 
             logger.warn("Failover", provider=provider.name, error=str(last_error))
+            if provider.name == "gemini":
+                raise RuntimeError(f"Gemini API Error: {str(last_error)}") from last_error
 
         logger.error("RuntimeError", error="All providers in priority chain failed")
         raise RuntimeError("AI runtime failed to process request. All providers exhausted.") from last_error
