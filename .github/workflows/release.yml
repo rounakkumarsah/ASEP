@@ -15,14 +15,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Generate Checksums
         run: |
           find . -type f -not -path "*/\.git/*" -exec sha256sum {} + > SHA256SUMS.txt
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             SHA256SUMS.txt
