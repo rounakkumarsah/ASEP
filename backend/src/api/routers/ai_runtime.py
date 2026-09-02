@@ -27,14 +27,17 @@ async def get_ai_capabilities():
 
 @router.post("/ai-runtime/chat/completions")
 async def chat_completions(request: CompletionRequest):
-    """Proxy AI requests to the underlying AIRuntimeService (used by the Agent Playground)."""
-    # The frontend expects an OpenAI-like response object structure, 
-    # but currently client extracts: res.data?.choices?.[0]?.message?.content || res.data?.content
-    # The service returns a CompletionResponse with `text`. We will format it to match what frontend expects.
-    response = await runtime_service.complete(request)
-    return {
-        "content": response.text,
-        "model": response.model,
-        "provider": response.provider,
-        "usage": response.usage.model_dump()
-    }
+    from fastapi import HTTPException
+    try:
+        response = await runtime_service.complete(request)
+        return {
+            "content": response.text,
+            "model": response.model,
+            "provider": response.provider,
+            "usage": response.usage.model_dump()
+        }
+    except Exception as e:
+        error_msg = str(e)
+        if hasattr(e, "__cause__") and e.__cause__:
+            error_msg += f" (Cause: {str(e.__cause__)})"
+        raise HTTPException(status_code=400, detail=error_msg)

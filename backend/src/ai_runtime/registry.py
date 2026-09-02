@@ -33,7 +33,7 @@ class ProviderRegistry:
         }
 
         # Load priority from env
-        priority_env = os.environ.get("AI_PROVIDER_PRIORITY", "ollama,gemini,openai,mock")
+        priority_env = os.environ.get("AI_PROVIDER_PRIORITY", "ollama,gemini,openai")
         self.priority: list[str] = [p.strip().lower() for p in priority_env.split(",") if p.strip()]
 
     def get_provider(self, name: str) -> BaseAIProvider | None:
