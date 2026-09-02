@@ -79,8 +79,4 @@ class ProviderRegistry:
             if name in self.providers and self.circuit_breakers[name].allow_request():
                 chain.append(self.providers[name])
 
-        # Always fallback to mock if everything else is broken
-        if "mock" in self.providers and self.providers["mock"] not in chain:
-            chain.append(self.providers["mock"])
-
         return chain
