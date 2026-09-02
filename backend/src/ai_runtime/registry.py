@@ -55,7 +55,7 @@ class ProviderRegistry:
             return "anthropic"
         elif "qwen" in model_lower or "vision" in model_lower:
             return "vision"
-        elif "deepseek" in model_lower:
+        elif "deepseek" in model_lower or "openrouter" in model_lower:
             return "openrouter"
         elif "mock" in model_lower:
             return "mock"
