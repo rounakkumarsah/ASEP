@@ -18,7 +18,7 @@ export default function PlaygroundPage() {
   const [sending, setSending] = React.useState(false);
   
   // Settings
-  const [model, setModel] = React.useState("gemini-2.5-pro");
+  const [model, setModel] = React.useState("gemini-flash-latest");
   const [temperature, setTemperature] = React.useState("0.7");
   const [maxTokens, setMaxTokens] = React.useState("2048");
 
@@ -137,7 +137,7 @@ export default function PlaygroundPage() {
                     onChange={(e) => setModel(e.target.value)}
                     className="text-sm p-2 rounded border bg-background"
                   >
-                    <option value="gemini-2.5-pro">Google Gemini 2.5 Pro</option>
+                    <option value="gemini-flash-latest">Google Gemini Flash< /option>
                     <option value="claude-3-5-sonnet">Anthropic Claude 3.5 Sonnet</option>
                     <option value="gpt-4o">OpenAI GPT-4o</option>
                     <option value="deepseek-r1">OpenRouter (DeepSeek R1)</option>

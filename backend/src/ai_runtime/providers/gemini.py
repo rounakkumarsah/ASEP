@@ -72,7 +72,7 @@ class GeminiProvider(BaseAIProvider):
         if request.max_tokens:
             payload["generationConfig"]["maxOutputTokens"] = request.max_tokens
 
-        model_name = "gemini-2.5-pro" if request.model == "gemini-1.5-pro" else request.model
+        model_name = "gemini-flash-latest" if request.model == "gemini-1.5-pro" else request.model
         url = f"/models/{model_name}:generateContent?key={self.api_key}"
 
         async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
@@ -135,7 +135,7 @@ class GeminiProvider(BaseAIProvider):
         if request.max_tokens:
             payload["generationConfig"]["maxOutputTokens"] = request.max_tokens
 
-        model_name = "gemini-2.5-pro" if request.model == "gemini-1.5-pro" else request.model
+        model_name = "gemini-flash-latest" if request.model == "gemini-1.5-pro" else request.model
         url = f"/models/{model_name}:generateContent?key={self.api_key}"
 
         async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
@@ -196,7 +196,7 @@ class GeminiProvider(BaseAIProvider):
                     circuit_breaker_state="CLOSED",
                     error_count=0,
                     latency_ms=round(latency, 2),
-                    loaded_models=["gemini-2.5-flash", "gemini-2.5-pro"],
+                    loaded_models=["gemini-2.5-flash", "gemini-flash-latest"],
                     last_error=None
                 )
         except Exception as exc:
