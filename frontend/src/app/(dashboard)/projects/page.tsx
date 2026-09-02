@@ -87,7 +87,7 @@ export default function ProjectsPage() {
          setNewDesc("");
          setShowCreate(false);
       } else {
-         setError((err as any)?.response?.data?.detail || (err as Error).message || "Failed to create project.");
+         setError(err instanceof Error ? err.message : "Failed to create project.");
       }
     } finally {
       setCreating(false);
