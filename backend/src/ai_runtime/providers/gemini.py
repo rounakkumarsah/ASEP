@@ -73,10 +73,11 @@ class GeminiProvider(BaseAIProvider):
             payload["generationConfig"]["maxOutputTokens"] = request.max_tokens
 
         model_name = "gemini-flash-latest" if request.model == "gemini-1.5-pro" else request.model
-        url = f"/models/{model_name}:generateContent?key={self.api_key}"
+        url = f"/models/{model_name}:generateContent"
+        headers = {"X-goog-api-key": self.api_key}
 
         async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
-            response = await client.post(url, json=payload)
+            response = await client.post(url, headers=headers, json=payload)
             response.raise_for_status()
             data = response.json()
 
@@ -136,10 +137,11 @@ class GeminiProvider(BaseAIProvider):
             payload["generationConfig"]["maxOutputTokens"] = request.max_tokens
 
         model_name = "gemini-flash-latest" if request.model == "gemini-1.5-pro" else request.model
-        url = f"/models/{model_name}:generateContent?key={self.api_key}"
+        url = f"/models/{model_name}:generateContent"
+        headers = {"X-goog-api-key": self.api_key}
 
         async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
-            response = await client.post(url, json=payload)
+            response = await client.post(url, headers=headers, json=payload)
             response.raise_for_status()
             data = response.json()
 
@@ -184,9 +186,10 @@ class GeminiProvider(BaseAIProvider):
             )
         start = time.perf_counter()
         try:
-            url = f"/models/gemini-2.5-flash?key={self.api_key}"
+            url = f"/models/gemini-2.5-flash"
+            headers = {"X-goog-api-key": self.api_key}
             async with httpx.AsyncClient(base_url=self.base_url, timeout=3.0) as client:
-                response = await client.get(url)
+                response = await client.get(url, headers=headers)
                 is_healthy = response.status_code == 200
                 latency = (time.perf_counter() - start) * 1000.0
                 return ProviderHealth(
