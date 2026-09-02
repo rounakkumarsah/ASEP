@@ -77,13 +77,19 @@ export default function ProjectsPage() {
         description: newDesc || undefined,
       });
       setProjects(prev => [res.data || newProject, ...prev]);
-    } catch {
-      // Local state fallback so creation always succeeds in preview
-      setProjects(prev => [newProject, ...prev]);
-    } finally {
       setNewName("");
       setNewDesc("");
       setShowCreate(false);
+    } catch (err: unknown) {
+      if (typeof window !== "undefined" && localStorage.getItem("asep_user_session")?.includes("usr_guest_demo_001")) {
+         setProjects(prev => [newProject, ...prev]);
+         setNewName("");
+         setNewDesc("");
+         setShowCreate(false);
+      } else {
+         setError((err as any)?.response?.data?.detail || (err as Error).message || "Failed to create project.");
+      }
+    } finally {
       setCreating(false);
     }
   };

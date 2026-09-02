@@ -17,6 +17,7 @@ from sqlalchemy import select
 from src.auth.dependencies import CurrentUser
 from src.db.models.project import Project
 from src.db.models.user import User
+from src.db.models.organization import Organization
 from src.db.postgres import DbSession
 
 logger = logging.getLogger(__name__)
@@ -59,11 +60,28 @@ async def create_project(
 ) -> ProjectResponse:
     """Create a new project within the current user's organization."""
     org_id = current_user.org_id
+    user_obj = None
     if not org_id:
         user_res = await db.execute(select(User).where(User.id == current_user.id))
         user_obj = user_res.scalar_one_or_none()
         if user_obj:
             org_id = user_obj.org_id
+
+    # Auto-create a Personal Workspace if the user doesn't belong to any organization
+    if not org_id and user_obj:
+        org_slug = f"{user_obj.username}-workspace"
+        new_org = Organization(
+            id=uuid.uuid4(),
+            name=f"{user_obj.first_name or user_obj.username}'s Workspace",
+            slug=org_slug,
+            owner_id=user_obj.id,
+            is_active=True,
+        )
+        db.add(new_org)
+        await db.flush()
+        user_obj.org_id = new_org.id
+        await db.commit()
+        org_id = new_org.id
 
     if not org_id:
         raise HTTPException(
