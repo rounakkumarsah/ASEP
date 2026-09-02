@@ -72,7 +72,7 @@ class GeminiProvider(BaseAIProvider):
         if request.max_tokens:
             payload["generationConfig"]["maxOutputTokens"] = request.max_tokens
 
-        model_name = "gemini-1.5-pro-latest" if request.model == "gemini-1.5-pro" else request.model
+        model_name = "gemini-2.5-pro" if request.model == "gemini-1.5-pro" else request.model
         url = f"/models/{model_name}:generateContent?key={self.api_key}"
 
         async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
@@ -135,7 +135,7 @@ class GeminiProvider(BaseAIProvider):
         if request.max_tokens:
             payload["generationConfig"]["maxOutputTokens"] = request.max_tokens
 
-        model_name = "gemini-1.5-pro-latest" if request.model == "gemini-1.5-pro" else request.model
+        model_name = "gemini-2.5-pro" if request.model == "gemini-1.5-pro" else request.model
         url = f"/models/{model_name}:generateContent?key={self.api_key}"
 
         async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
