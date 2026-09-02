@@ -9,6 +9,7 @@ from src.ai_runtime.providers.gemini import GeminiProvider
 from src.ai_runtime.providers.mock import MockProvider
 from src.ai_runtime.providers.ollama import OllamaProvider
 from src.ai_runtime.providers.openai import OpenAIProvider
+from src.ai_runtime.providers.openrouter import OpenRouterProvider
 from src.ai_runtime.providers.vision import VisionModelProvider
 
 
@@ -19,7 +20,8 @@ class ProviderRegistry:
             "gemini": GeminiProvider(),
             "openai": OpenAIProvider(),
             "anthropic": AnthropicProvider(),
-            "vision": VisionModelProvider()
+            "vision": VisionModelProvider(),
+            "openrouter": OpenRouterProvider()
         }
 
         self.circuit_breakers: dict[str, CircuitBreaker] = {
@@ -28,6 +30,7 @@ class ProviderRegistry:
             "openai": CircuitBreaker(),
             "anthropic": CircuitBreaker(),
             "vision": CircuitBreaker(),
+            "openrouter": CircuitBreaker(),
             "mock": CircuitBreaker()
         }
 
@@ -52,6 +55,8 @@ class ProviderRegistry:
             return "anthropic"
         elif "qwen" in model_lower or "vision" in model_lower:
             return "vision"
+        elif "deepseek" in model_lower:
+            return "openrouter"
         elif "mock" in model_lower:
             return "mock"
         else:
