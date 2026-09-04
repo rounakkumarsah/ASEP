@@ -30,12 +30,14 @@ import {
 import { Button } from "@/components/ui/button";
 
 export default function OverviewPage() {
-  const { user } = useAuth();
-  const { data: health, isLoading, isError, refetch } = useSystemOverview();
-  const { data: projects } = useProjects();
-  const { data: knowledge } = useKnowledge("");
+  const { user, isLoading: isAuthLoading } = useAuth();
+  const { data: health, isLoading: isHealthLoading, isError, refetch } = useSystemOverview();
+  const { data: projects, isLoading: isProjectsLoading } = useProjects();
+  const { data: knowledge, isLoading: isKnowledgeLoading } = useKnowledge("");
 
-  if (isLoading) {
+  const isPageLoading = isHealthLoading || isProjectsLoading || isKnowledgeLoading || isAuthLoading;
+
+  if (isPageLoading) {
     return (
       <div className="h-96 w-full flex flex-col items-center justify-center text-[#9CA6B5] space-y-3 font-mono text-xs">
         <Loader2 className="h-6 w-6 animate-spin text-[#22D3EE]" />
@@ -76,7 +78,7 @@ export default function OverviewPage() {
   const completedCount = checklist.filter(item => item.checked).length;
   const progressPercent = Math.round((completedCount / checklist.length) * 100);
 
-  const isBrandNew = !projects || projects.length === 0;
+  const isBrandNew = Array.isArray(projects) && projects.length === 0;
 
   return (
     <div className="space-y-6 flex flex-col min-h-full pb-10 w-full">
