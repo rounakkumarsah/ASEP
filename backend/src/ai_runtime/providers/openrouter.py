@@ -23,6 +23,27 @@ class OpenRouterProvider(BaseAIProvider):
     
     def __init__(self, api_key: str | None = None) -> None:
         self.api_key = api_key or os.environ.get("OPENROUTER_API_KEY", "")
+        if not self.api_key:
+            # Fallback 1: ~/.ori/credentials.json (managed by Ori CLI)
+            try:
+                import json
+                from pathlib import Path
+                ori_cred = Path.home() / ".ori" / "credentials.json"
+                if ori_cred.exists():
+                    data = json.loads(ori_cred.read_text(encoding="utf-8"))
+                    self.api_key = data.get("key", "")
+            except Exception:
+                pass
+
+        if not self.api_key:
+            # Fallback 2: load dotenv
+            try:
+                from dotenv import load_dotenv
+                load_dotenv()
+                self.api_key = os.environ.get("OPENROUTER_API_KEY", "")
+            except Exception:
+                pass
+
         self.base_url = "https://openrouter.ai/api/v1"
         self.timeout = 30.0
 
@@ -30,21 +51,71 @@ class OpenRouterProvider(BaseAIProvider):
     def name(self) -> str:
         return "openrouter"
 
+    def _build_headers(self) -> dict[str, str]:
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "HTTP-Referer": os.environ.get("OPENROUTER_HTTP_REFERER", "https://asep-ai.vercel.app"),
+            "X-Title": os.environ.get("OPENROUTER_APP_TITLE", "ASEP AI"),
+            "X-OpenRouter-Title": os.environ.get("OPENROUTER_APP_TITLE", "ASEP AI"),
+            "X-OpenRouter-Categories": "cli-agent,cloud-agent",
+        }
+        if os.environ.get("OPENROUTER_CACHE_ENABLED", "true").lower() in ("true", "1", "yes"):
+            headers["X-OpenRouter-Cache"] = "true"
+            cache_ttl = os.environ.get("OPENROUTER_CACHE_TTL", "300")
+            headers["X-OpenRouter-Cache-TTL"] = str(cache_ttl)
+        if os.environ.get("OPENROUTER_METADATA_ENABLED", "true").lower() in ("true", "1", "yes"):
+            headers["X-OpenRouter-Metadata"] = "enabled"
+        return headers
+
+    @staticmethod
+    def _serialize_message(m: Message) -> dict[str, Any]:
+        d: dict[str, Any] = {"role": m.role, "content": m.content}
+        if m.tool_calls:
+            d["tool_calls"] = m.tool_calls
+        if m.tool_call_id:
+            d["tool_call_id"] = m.tool_call_id
+        if m.reasoning:
+            d["reasoning"] = m.reasoning
+        if m.reasoning_details:
+            d["reasoning_details"] = m.reasoning_details
+        return d
+
+    def _build_provider_options(self, request: CompletionRequest | None = None) -> dict[str, Any]:
+        opts: dict[str, Any] = {}
+        if os.environ.get("OPENROUTER_ZDR", "false").lower() in ("true", "1", "yes"):
+            opts["zdr"] = True
+        if os.environ.get("OPENROUTER_DATA_COLLECTION", "deny").lower() == "deny":
+            opts["data_collection"] = "deny"
+        if request:
+            if request.preferred_max_latency:
+                opts["preferred_max_latency"] = request.preferred_max_latency
+            if request.preferred_min_throughput:
+                opts["preferred_min_throughput"] = request.preferred_min_throughput
+        return opts
+
     async def complete(self, request: CompletionRequest) -> CompletionResponse:
         if not self.api_key:
             raise ValueError("OPENROUTER_API_KEY environment variable is not configured.")
 
         start_time = time.perf_counter()
-        headers = {"Authorization": f"Bearer {self.api_key}", "HTTP-Referer": "https://asep-ai.vercel.app", "X-Title": "ASEP AI"}
+        headers = self._build_headers()
 
-        payload = {
+        payload: dict[str, Any] = {
             "model": "deepseek/deepseek-r1" if request.model == "deepseek-r1" else request.model,
-            "messages": [{"role": m.role, "content": m.content, **({"tool_calls": m.tool_calls} if m.tool_calls else {}), **({"tool_call_id": m.tool_call_id} if m.tool_call_id else {})} for m in request.messages],
+            "messages": [self._serialize_message(m) for m in request.messages],
             "temperature": request.temperature,
             "stream": False
         }
+        provider_opts = self._build_provider_options(request)
+        if provider_opts:
+            payload["provider"] = provider_opts
+
         if request.max_tokens:
             payload["max_tokens"] = request.max_tokens
+
+        # OpenRouter Reasoning / Thinking tokens
+        if request.reasoning:
+            payload["reasoning"] = request.reasoning
             
         if request.tools:
             payload["tools"] = request.tools
@@ -53,15 +124,27 @@ class OpenRouterProvider(BaseAIProvider):
         if request.parallel_tool_calls is not None:
             payload["parallel_tool_calls"] = request.parallel_tool_calls
 
+        # OpenRouter Broadcast & Observability fields
+        if request.user:
+            payload["user"] = request.user
+        if request.session_id:
+            payload["session_id"] = request.session_id
+            headers["x-session-id"] = request.session_id
+        if request.trace:
+            payload["trace"] = request.trace
+
         async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
             response = await client.post("/chat/completions", headers=headers, json=payload)
             response.raise_for_status()
             data = response.json()
 
             latency_ms = (time.perf_counter() - start_time) * 1000.0
+            cache_status = response.headers.get("X-OpenRouter-Cache-Status")
 
             message_data = data["choices"][0]["message"]
             text = message_data.get("content") or ""
+            reasoning = message_data.get("reasoning")
+            reasoning_details = message_data.get("reasoning_details")
             
             tool_calls = None
             if "tool_calls" in message_data:
@@ -82,13 +165,23 @@ class OpenRouterProvider(BaseAIProvider):
             meta = data.get("usage", {})
             prompt_tokens = meta.get("prompt_tokens", 0)
             completion_tokens = meta.get("completion_tokens", 0)
+            cached_tokens = meta.get("prompt_tokens_details", {}).get("cached_tokens", 0)
+            reasoning_tokens = (
+                meta.get("completion_tokens_details", {}).get("reasoning_tokens", 0)
+                or meta.get("reasoning_tokens", 0)
+            )
 
             usage = UsageInfo(
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
+                cached_tokens=cached_tokens,
+                reasoning_tokens=reasoning_tokens,
                 total_tokens=prompt_tokens + completion_tokens,
-                latency_ms=round(latency_ms, 2)
+                latency_ms=round(latency_ms, 2),
+                cache_status=cache_status
             )
+
+            router_metadata = data.get("openrouter_metadata")
 
             return CompletionResponse(
                 text=text,
@@ -96,22 +189,33 @@ class OpenRouterProvider(BaseAIProvider):
                 provider=self.name,
                 model=request.model,
                 finish_reason=data["choices"][0].get("finish_reason", "stop"),
-                tool_calls=tool_calls
+                tool_calls=tool_calls,
+                router_metadata=router_metadata,
+                reasoning=reasoning,
+                reasoning_details=reasoning_details
             )
 
     async def stream(self, request: CompletionRequest) -> AsyncGenerator[StreamChunk, None]:
         if not self.api_key:
             raise ValueError("OPENROUTER_API_KEY environment variable is not configured.")
 
-        headers = {"Authorization": f"Bearer {self.api_key}", "HTTP-Referer": "https://asep-ai.vercel.app", "X-Title": "ASEP AI"}
-        payload = {
+        headers = self._build_headers()
+        payload: dict[str, Any] = {
             "model": "deepseek/deepseek-r1" if request.model == "deepseek-r1" else request.model,
-            "messages": [{"role": m.role, "content": m.content, **({"tool_calls": m.tool_calls} if m.tool_calls else {}), **({"tool_call_id": m.tool_call_id} if m.tool_call_id else {})} for m in request.messages],
+            "messages": [self._serialize_message(m) for m in request.messages],
             "temperature": request.temperature,
             "stream": True
         }
+        provider_opts = self._build_provider_options(request)
+        if provider_opts:
+            payload["provider"] = provider_opts
+
         if request.max_tokens:
             payload["max_tokens"] = request.max_tokens
+
+        # OpenRouter Reasoning / Thinking tokens
+        if request.reasoning:
+            payload["reasoning"] = request.reasoning
             
         if request.tools:
             payload["tools"] = request.tools
@@ -147,6 +251,15 @@ class OpenRouterProvider(BaseAIProvider):
         if supports_tools and request.parallel_tool_calls is not None:
             payload["parallel_tool_calls"] = request.parallel_tool_calls
 
+        # OpenRouter Broadcast & Observability fields
+        if request.user:
+            payload["user"] = request.user
+        if request.session_id:
+            payload["session_id"] = request.session_id
+            headers["x-session-id"] = request.session_id
+        if request.trace:
+            payload["trace"] = request.trace
+
         async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
             async with client.stream("POST", "/chat/completions", headers=headers, json=payload) as response:
                 response.raise_for_status()
@@ -164,6 +277,8 @@ class OpenRouterProvider(BaseAIProvider):
                             delta = chunk.get("delta", {})
                             text = delta.get("content", "")
                             finish_reason = chunk.get("finish_reason")
+                            reasoning = delta.get("reasoning")
+                            reasoning_details = delta.get("reasoning_details")
                             
                             # Parse streaming tool calls
                             tool_calls = None
@@ -180,7 +295,16 @@ class OpenRouterProvider(BaseAIProvider):
                                         arguments=args
                                     ))
                                     
-                            yield StreamChunk(text=text, usage=None, finish_reason=finish_reason, tool_calls=tool_calls)
+                            chunk_metadata = data.get("openrouter_metadata")
+                            yield StreamChunk(
+                                text=text,
+                                usage=None,
+                                finish_reason=finish_reason,
+                                tool_calls=tool_calls,
+                                router_metadata=chunk_metadata,
+                                reasoning=reasoning,
+                                reasoning_details=reasoning_details
+                            )
                         except Exception:
                             pass
 
@@ -189,14 +313,17 @@ class OpenRouterProvider(BaseAIProvider):
             raise ValueError("OPENROUTER_API_KEY environment variable is not configured.")
 
         start_time = time.perf_counter()
-        headers = {"Authorization": f"Bearer {self.api_key}", "HTTP-Referer": "https://asep-ai.vercel.app", "X-Title": "ASEP AI"}
+        headers = self._build_headers()
 
-        payload = {
+        payload: dict[str, Any] = {
             "model": "deepseek/deepseek-r1" if request.model == "deepseek-r1" else request.model,
-            "messages": [{"role": m.role, "content": m.content, **({"tool_calls": m.tool_calls} if m.tool_calls else {}), **({"tool_call_id": m.tool_call_id} if m.tool_call_id else {})} for m in request.messages],
+            "messages": [self._serialize_message(m) for m in request.messages],
             "temperature": request.temperature,
             "stream": False
         }
+        provider_opts = self._build_provider_options(request)
+        if provider_opts:
+            payload["provider"] = provider_opts
         
         await self._fetch_capabilities_if_needed(request.model)
         model_data = self._model_capabilities_cache.get(request.model, {})
@@ -205,9 +332,14 @@ class OpenRouterProvider(BaseAIProvider):
         supports_format = "response_format" in supported_params if supported_params else True
         if supports_format:
             payload["response_format"] = {"type": "json_schema", "json_schema": {"name": "response", "schema": schema, "strict": True}}
+            payload["plugins"] = [{"id": "response-healing"}]
 
         if request.max_tokens:
             payload["max_tokens"] = request.max_tokens
+
+        # OpenRouter Reasoning / Thinking tokens
+        if request.reasoning:
+            payload["reasoning"] = request.reasoning
             
         if request.tools:
             payload["tools"] = request.tools
@@ -216,15 +348,27 @@ class OpenRouterProvider(BaseAIProvider):
         if request.parallel_tool_calls is not None:
             payload["parallel_tool_calls"] = request.parallel_tool_calls
 
+        # OpenRouter Broadcast & Observability fields
+        if request.user:
+            payload["user"] = request.user
+        if request.session_id:
+            payload["session_id"] = request.session_id
+            headers["x-session-id"] = request.session_id
+        if request.trace:
+            payload["trace"] = request.trace
+
         async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
             response = await client.post("/chat/completions", headers=headers, json=payload)
             response.raise_for_status()
             data = response.json()
 
             latency_ms = (time.perf_counter() - start_time) * 1000.0
+            cache_status = response.headers.get("X-OpenRouter-Cache-Status")
 
             message_data = data["choices"][0]["message"]
             text = message_data.get("content") or ""
+            reasoning = message_data.get("reasoning")
+            reasoning_details = message_data.get("reasoning_details")
             
             tool_calls = None
             if "tool_calls" in message_data:
@@ -245,13 +389,23 @@ class OpenRouterProvider(BaseAIProvider):
             meta = data.get("usage", {})
             prompt_tokens = meta.get("prompt_tokens", 0)
             completion_tokens = meta.get("completion_tokens", 0)
+            cached_tokens = meta.get("prompt_tokens_details", {}).get("cached_tokens", 0)
+            reasoning_tokens = (
+                meta.get("completion_tokens_details", {}).get("reasoning_tokens", 0)
+                or meta.get("reasoning_tokens", 0)
+            )
 
             usage = UsageInfo(
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
+                cached_tokens=cached_tokens,
+                reasoning_tokens=reasoning_tokens,
                 total_tokens=prompt_tokens + completion_tokens,
-                latency_ms=round(latency_ms, 2)
+                latency_ms=round(latency_ms, 2),
+                cache_status=cache_status
             )
+
+            router_metadata = data.get("openrouter_metadata")
 
             return CompletionResponse(
                 text=text,
@@ -259,10 +413,25 @@ class OpenRouterProvider(BaseAIProvider):
                 provider=self.name,
                 model=request.model,
                 finish_reason=data["choices"][0].get("finish_reason", "stop"),
-                tool_calls=tool_calls
+                tool_calls=tool_calls,
+                router_metadata=router_metadata,
+                reasoning=reasoning,
+                reasoning_details=reasoning_details
             )
 
-    async def embeddings(self, texts: list[str]) -> list[list[float]]:
+    async def embeddings(self, texts: list[str], model: str = "openai/text-embedding-3-small") -> list[list[float]]:
+        if not self.api_key:
+            return [[0.0] * 1536 for _ in texts]
+        try:
+            headers = self._build_headers()
+            async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
+                resp = await client.post("/embeddings", headers=headers, json={"model": model, "input": texts})
+                if resp.status_code == 200:
+                    data = resp.json()
+                    items = sorted(data.get("data", []), key=lambda x: x.get("index", 0))
+                    return [item["embedding"] for item in items]
+        except Exception:
+            pass
         return [[0.0] * 1536 for _ in texts]
 
     async def check_health(self) -> ProviderHealth:

@@ -6,6 +6,7 @@ from src.ai_runtime.circuit_breaker import CircuitBreaker
 from src.ai_runtime.providers.anthropic import AnthropicProvider
 from src.ai_runtime.providers.base import BaseAIProvider
 from src.ai_runtime.providers.gemini import GeminiProvider
+from src.ai_runtime.providers.groq import GroqProvider
 from src.ai_runtime.providers.mock import MockProvider
 from src.ai_runtime.providers.ollama import OllamaProvider
 from src.ai_runtime.providers.openai import OpenAIProvider
@@ -21,7 +22,8 @@ class ProviderRegistry:
             "openai": OpenAIProvider(),
             "anthropic": AnthropicProvider(),
             "vision": VisionModelProvider(),
-            "openrouter": OpenRouterProvider()
+            "openrouter": OpenRouterProvider(),
+            "groq": GroqProvider(),
         }
 
         self.circuit_breakers: dict[str, CircuitBreaker] = {
@@ -31,6 +33,7 @@ class ProviderRegistry:
             "anthropic": CircuitBreaker(),
             "vision": CircuitBreaker(),
             "openrouter": CircuitBreaker(),
+            "groq": CircuitBreaker(),
             "mock": CircuitBreaker()
         }
 
@@ -47,13 +50,15 @@ class ProviderRegistry:
     def resolve_provider_for_model(self, model: str) -> str:
         """Map model names to their default/primary provider identifier."""
         model_lower = model.lower()
-        if "gemini" in model_lower:
+        if "groq" in model_lower or "gpt-oss" in model_lower or "whisper" in model_lower or "compound" in model_lower or "qwen3" in model_lower:
+            return "groq"
+        elif any(k in model_lower for k in ("gemini", "nano-banana", "veo", "omni", "lyria", "antigravity", "deep-research", "computer-use")):
             return "gemini"
         elif "gpt-" in model_lower:
             return "openai"
         elif "claude" in model_lower:
             return "anthropic"
-        elif "qwen" in model_lower or "vision" in model_lower:
+        elif "vl" in model_lower or "vision" in model_lower or "qwen" in model_lower:
             return "vision"
         elif "deepseek" in model_lower or "openrouter" in model_lower:
             return "openrouter"

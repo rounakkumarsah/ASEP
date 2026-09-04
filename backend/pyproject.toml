@@ -154,6 +154,10 @@ addopts = [
     "--cov-report=term-missing",
     "--cov-report=html:htmlcov",
 ]
+filterwarnings = [
+    "ignore:.*Using `httpx` with `starlette.testclient` is deprecated.*:DeprecationWarning",
+    "ignore::starlette.exceptions.StarletteDeprecationWarning",
+]
 
 [tool.coverage.run]
 source = ["src"]

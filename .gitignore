@@ -106,3 +106,4 @@ benchmarks/results/
 frontend/.env.local
 frontend/.env.production
 .neon
+.ori/

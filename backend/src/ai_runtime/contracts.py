@@ -10,15 +10,20 @@ class Message(BaseModel):
     content: str | None = None
     tool_calls: list[dict[str, Any]] | None = None
     tool_call_id: str | None = None
+    reasoning: str | None = None
+    reasoning_details: list[dict[str, Any]] | None = None
 
 class UsageInfo(BaseModel):
     prompt_tokens: int = 0
     completion_tokens: int = 0
     cached_tokens: int = 0
     reasoning_tokens: int = 0
+    thought_tokens: int = 0
+    tool_use_tokens: int = 0
     total_tokens: int = 0
     estimated_cost: float = 0.0
     latency_ms: float = 0.0
+    cache_status: str | None = None
 
 class ProviderCapabilityMatrix(BaseModel):
     streaming: bool = False
@@ -40,6 +45,15 @@ class CompletionRequest(BaseModel):
     tool_choice: str | dict[str, Any] | None = None
     parallel_tool_calls: bool | None = None
     tool_callables: dict[str, Any] | None = None
+    user: str | None = None
+    session_id: str | None = None
+    trace: dict[str, Any] | None = None
+    reasoning: dict[str, Any] | None = None
+    preferred_max_latency: dict[str, Any] | None = None
+    preferred_min_throughput: dict[str, Any] | None = None
+    router_metadata: dict[str, Any] | None = None
+    service_tier: str | None = None
+    seed: int | None = None
 
 class CompletionResponse(BaseModel):
     text: str
@@ -48,12 +62,18 @@ class CompletionResponse(BaseModel):
     model: str
     finish_reason: str | None = None
     tool_calls: list[ToolCall] | None = None
+    router_metadata: dict[str, Any] | None = None
+    reasoning: str | None = None
+    reasoning_details: list[dict[str, Any]] | None = None
 
 class StreamChunk(BaseModel):
     text: str
     usage: UsageInfo | None = None
     finish_reason: str | None = None
     tool_calls: list[ToolCall] | None = None
+    router_metadata: dict[str, Any] | None = None
+    reasoning: str | None = None
+    reasoning_details: list[dict[str, Any]] | None = None
 
 class ProviderHealth(BaseModel):
     provider_name: str

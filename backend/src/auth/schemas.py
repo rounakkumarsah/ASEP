@@ -69,7 +69,7 @@ class SignupRequest(BaseModel):
     company: str | None = None
     email: str
     password: str = Field(..., min_length=12)
-    acceptTerms: bool = Field(..., Literal=True)
+    acceptTerms: Literal[True] = Field(...)
     captchaToken: str | None = None
 
 

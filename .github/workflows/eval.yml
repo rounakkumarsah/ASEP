@@ -1,0 +1,29 @@
+name: eval
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 9 1 * *'
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install Ori
+        run: |
+          curl -fsSL https://openrouter.ai/labs/ori/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Run the evals
+        run: ori eval --report eval-report.md
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      - name: Add the report to the job summary
+        if: always()
+        run: |
+          if [ -f eval-report.md ]; then
+            cat eval-report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
