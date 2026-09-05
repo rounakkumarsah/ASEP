@@ -179,8 +179,9 @@ export default function LoginPage() {
       }
 
       const userData = await userRes.json();
+      const rememberMe = values.rememberMe;
       pendingValuesRef.current = null;
-      login(tokenData.access_token, userData);
+      login(tokenData.access_token, userData, rememberMe);
     } catch {
       setError("Unable to connect to the authentication server. Please check your network or try again.");
       turnstileRef.current?.reset();

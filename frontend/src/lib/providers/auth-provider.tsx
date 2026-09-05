@@ -24,7 +24,7 @@ export type AuthContextType = {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (token: string, user: User) => void;
+  login: (token: string, user: User, rememberMe?: boolean) => void;
   logout: () => void;
   refreshUser: () => Promise<void>;
   updateUser: (userData: Partial<User>) => void;
@@ -40,9 +40,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   const initAuth = async () => {
-    // Check localStorage first for demo/active session
+    // Check local and session storage first for active session
     if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("asep_user_session");
+      const localStored = localStorage.getItem("asep_user_session");
+      const sessionStored = sessionStorage.getItem("asep_user_session");
+      const stored = localStored || sessionStored;
+      
       if (stored) {
         try {
           const parsedUser = JSON.parse(stored);
@@ -51,6 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         } catch {
           localStorage.removeItem("asep_user_session");
+          sessionStorage.removeItem("asep_user_session");
         }
       }
     }
@@ -83,6 +87,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== "undefined") {
       localStorage.removeItem("asep_user_session");
       localStorage.removeItem("asep_auth_token");
+      sessionStorage.removeItem("asep_user_session");
+      sessionStorage.removeItem("asep_auth_token");
     }
     router.push("/login");
 
@@ -101,7 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const handleUnauthorized = () => {
       // Prevent demo user from being logged out on API errors during preview
       if (typeof window !== "undefined") {
-        const stored = localStorage.getItem("asep_user_session");
+        const stored = localStorage.getItem("asep_user_session") || sessionStorage.getItem("asep_user_session");
         if (stored && stored.includes("usr_guest_demo_001")) {
           return;
         }
@@ -112,12 +118,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("auth:unauthorized", handleUnauthorized);
   }, [logout]);
 
-  const login = (token: string, userData: User) => {
+  const login = (token: string, userData: User, rememberMe: boolean = false) => {
     setUser(userData);
     if (typeof window !== "undefined") {
-      localStorage.setItem("asep_user_session", JSON.stringify(userData));
+      const storage = rememberMe ? localStorage : sessionStorage;
+      storage.setItem("asep_user_session", JSON.stringify(userData));
       if (token) {
-        localStorage.setItem("asep_auth_token", token);
+        storage.setItem("asep_auth_token", token);
       }
     }
     router.push("/overview");
@@ -128,7 +135,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!prev) return null;
       const updated = { ...prev, ...userData };
       if (typeof window !== "undefined") {
-        localStorage.setItem("asep_user_session", JSON.stringify(updated));
+        if (sessionStorage.getItem("asep_user_session")) {
+          sessionStorage.setItem("asep_user_session", JSON.stringify(updated));
+        } else {
+          localStorage.setItem("asep_user_session", JSON.stringify(updated));
+        }
       }
       return updated;
     });

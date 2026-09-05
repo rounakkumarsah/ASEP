@@ -99,136 +99,134 @@ export default function OverviewPage() {
         </div>
       </div>
 
-      {isBrandNew ? (
-        <div className="space-y-6">
-          {/* Welcome Panel */}
-          <div className="p-6 border border-[#202833] bg-[#0D1117] rounded-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <h2 className="text-xl font-bold text-[#F5F7FA]">
-                Developer Workspace: {user?.first_name || user?.username || "Operator"}
-              </h2>
-              <p className="text-xs text-[#9CA6B5]">
-                Initialize your engineering pipeline by creating a project and orchestrating autonomous code agents.
-              </p>
-            </div>
-            <div className="flex items-center gap-2 bg-[#2DD4A3]/10 text-[#2DD4A3] px-3 py-1 rounded-md text-xs font-mono font-semibold border border-[#2DD4A3]/20">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              <span>Workspace Ready</span>
-            </div>
+      <div className="space-y-6">
+        {/* Welcome Panel */}
+        <div className="p-6 border border-[#202833] bg-[#0D1117] rounded-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h2 className="text-xl font-bold text-[#F5F7FA]">
+              Developer Workspace: {user?.first_name || user?.username || "Operator"}
+            </h2>
+            <p className="text-xs text-[#9CA6B5]">
+              Initialize your engineering pipeline by creating a project and orchestrating autonomous code agents.
+            </p>
           </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Onboarding Checklist */}
-            <Card className="lg:col-span-2 border-[#202833] bg-[#0D1117] shadow-xs">
-              <CardHeader className="pb-3 border-b border-[#202833]">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-sm font-bold font-mono text-[#F5F7FA]">Pipeline Onboarding</CardTitle>
-                    <CardDescription className="text-xs text-[#9CA6B5]">Configure developer suite parameters</CardDescription>
-                  </div>
-                  <Badge variant="outline" className="font-mono text-xs py-0.5 border-[#202833] text-[#22D3EE] bg-[#111720]">
-                    {progressPercent}% Initialized
-                  </Badge>
-                </div>
-                {/* Progress bar */}
-                <div className="w-full bg-[#111720] h-1.5 rounded-full mt-3 overflow-hidden border border-[#202833]">
-                  <div 
-                    className="bg-[#22D3EE] h-full rounded-full transition-all duration-500" 
-                    style={{ width: `${progressPercent}%` }} 
-                  />
-                </div>
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-4">
-                {checklist.map((item, index) => (
-                  <Link 
-                    key={index}
-                    href={item.link}
-                    className="flex items-center gap-3 p-3 border border-[#202833] rounded-lg bg-[#111720]/40 hover:bg-[#111720] transition-colors"
-                  >
-                    {item.checked ? (
-                      <CheckCircle2 className="h-4 w-4 text-[#2DD4A3] shrink-0" />
-                    ) : (
-                      <Circle className="h-4 w-4 text-[#667085] shrink-0" />
-                    )}
-                    <span className={`text-xs font-mono ${item.checked ? "text-[#667085] line-through" : "text-[#F5F7FA]"}`}>
-                      {item.label}
-                    </span>
-                  </Link>
-                ))}
-              </CardContent>
-            </Card>
-
-            {/* Quick Start Card */}
-            <Card className="border-[#202833] bg-[#0D1117] shadow-xs flex flex-col justify-between">
-              <CardHeader className="border-b border-[#202833]">
-                <CardTitle className="text-sm font-bold font-mono text-[#F5F7FA]">Quick Start Guide</CardTitle>
-                <CardDescription className="text-xs text-[#9CA6B5]">Deploy your first autonomous project</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4 flex-1 flex flex-col justify-between pt-4">
-                <p className="text-xs text-[#9CA6B5] leading-relaxed font-sans">
-                  ASEP orchestrates coding tasks, runs evaluations against benchmark suites, and logs all execution traces securely.
-                </p>
-                <Link href="/projects" className="w-full">
-                  <Button className="w-full font-mono text-xs font-semibold gap-1.5 bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9]">
-                    <span>Create First Project</span>
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
+          <div className="flex items-center gap-2 bg-[#2DD4A3]/10 text-[#2DD4A3] px-3 py-1 rounded-md text-xs font-mono font-semibold border border-[#2DD4A3]/20">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            <span>Workspace Ready</span>
           </div>
-
-          {/* Recent Activity (Empty State) */}
-          <EmptyState
-            icon={Terminal}
-            title="System Activity Stream"
-            description="Real-time execution log audit trail. Activity traces will automatically populate here as agent runs execute."
-          />
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <SystemOverviewCard health={health} />
-          <AgentStatusCard activeCount={health.activeAgents} />
-          <QueueCard pendingCount={health.pendingApprovals} />
 
-          <MetricCard
-            title="Projects"
-            value={projects?.length?.toString() || "0"}
-            icon={<Box className="w-4 h-4" />}
-            trend={{ value: "0", isPositive: true }}
-          />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Onboarding Checklist */}
+          <Card className="lg:col-span-2 border-[#202833] bg-[#0D1117] shadow-xs">
+            <CardHeader className="pb-3 border-b border-[#202833]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-sm font-bold font-mono text-[#F5F7FA]">Pipeline Onboarding</CardTitle>
+                  <CardDescription className="text-xs text-[#9CA6B5]">Configure developer suite parameters</CardDescription>
+                </div>
+                <Badge variant="outline" className="font-mono text-xs py-0.5 border-[#202833] text-[#22D3EE] bg-[#111720]">
+                  {progressPercent}% Initialized
+                </Badge>
+              </div>
+              {/* Progress bar */}
+              <div className="w-full bg-[#111720] h-1.5 rounded-full mt-3 overflow-hidden border border-[#202833]">
+                <div 
+                  className="bg-[#22D3EE] h-full rounded-full transition-all duration-500" 
+                  style={{ width: `${progressPercent}%` }} 
+                />
+              </div>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-4">
+              {checklist.map((item, index) => (
+                <Link 
+                  key={index}
+                  href={item.link}
+                  className="flex items-center gap-3 p-3 border border-[#202833] rounded-lg bg-[#111720]/40 hover:bg-[#111720] transition-colors"
+                >
+                  {item.checked ? (
+                    <CheckCircle2 className="h-4 w-4 text-[#2DD4A3] shrink-0" />
+                  ) : (
+                    <Circle className="h-4 w-4 text-[#667085] shrink-0" />
+                  )}
+                  <span className={`text-xs font-mono ${item.checked ? "text-[#667085] line-through" : "text-[#F5F7FA]"}`}>
+                    {item.label}
+                  </span>
+                </Link>
+              ))}
+            </CardContent>
+          </Card>
 
-          <MetricCard
-            title="Active Sessions"
-            value={health?.activeSessions?.toString() || "0"}
-            icon={<ActivitySquare className="w-4 h-4" />}
-            trend={{ value: "0", isPositive: true }}
-          />
+          {/* Quick Start Card */}
+          <Card className="border-[#202833] bg-[#0D1117] shadow-xs flex flex-col justify-between">
+            <CardHeader className="border-b border-[#202833]">
+              <CardTitle className="text-sm font-bold font-mono text-[#F5F7FA]">Quick Start Guide</CardTitle>
+              <CardDescription className="text-xs text-[#9CA6B5]">{projects?.length ? "Continue with your projects" : "Deploy your first autonomous project"}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 flex-1 flex flex-col justify-between pt-4">
+              <p className="text-xs text-[#9CA6B5] leading-relaxed font-sans">
+                ASEP orchestrates coding tasks, runs evaluations against benchmark suites, and logs all execution traces securely.
+              </p>
+              <Link href="/projects" className="w-full">
+                <Button className="w-full font-mono text-xs font-semibold gap-1.5 bg-[#22D3EE] text-[#090B0F] hover:bg-[#67E8F9]">
+                  <span>{projects?.length ? "Open Projects" : "Create First Project"}</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
 
-          <MetricCard
-            title="Active Agents"
-            value={health?.activeAgents?.toString() || "0"}
-            icon={<BrainCircuit className="w-4 h-4" />}
-            trend={{ value: "0", isPositive: true }}
-          />
+        {/* System Control Plane Section */}
+        <div className="pt-2">
+          <div className="flex items-center space-x-2 mb-4">
+            <h2 className="text-lg font-bold font-mono text-[#F5F7FA]">System Control Plane Metrics</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <SystemOverviewCard health={health} />
+            <AgentStatusCard activeCount={health.activeAgents} />
+            <QueueCard pendingCount={health.pendingApprovals} />
 
-          <MetricCard
-            title="Pending Approvals"
-            value={health?.pendingApprovals?.toString() || "0"}
-            icon={<MessageSquare className="w-4 h-4" />}
-            trend={{ value: "0", isPositive: true }}
-          />
+            <MetricCard
+              title="Projects"
+              value={projects?.length?.toString() || "0"}
+              icon={<Box className="w-4 h-4" />}
+              trend={{ value: "0", isPositive: true }}
+            />
 
-          <div className="col-span-full">
-            <EmptyState
-              icon={Terminal}
-              title="Execution Log Stream"
-              description="No recent activity traces."
-              className="min-h-[250px]"
+            <MetricCard
+              title="Active Sessions"
+              value={health?.activeSessions?.toString() || "0"}
+              icon={<ActivitySquare className="w-4 h-4" />}
+              trend={{ value: "0", isPositive: true }}
+            />
+
+            <MetricCard
+              title="Active Agents"
+              value={health?.activeAgents?.toString() || "0"}
+              icon={<BrainCircuit className="w-4 h-4" />}
+              trend={{ value: "0", isPositive: true }}
+            />
+
+            <MetricCard
+              title="Pending Approvals"
+              value={health?.pendingApprovals?.toString() || "0"}
+              icon={<MessageSquare className="w-4 h-4" />}
+              trend={{ value: "0", isPositive: true }}
             />
           </div>
         </div>
-      )}
+
+        {/* Recent Activity (Empty State) */}
+        <div className="pt-4">
+          <EmptyState
+            icon={Terminal}
+            title="Execution Log Stream"
+            description="Real-time execution log audit trail. Activity traces will automatically populate here as agent runs execute."
+            className="min-h-[250px]"
+          />
+        </div>
+      </div>
     </div>
   );
 }

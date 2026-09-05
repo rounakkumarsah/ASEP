@@ -20,10 +20,10 @@ export const apiClient = axios.create({
   withCredentials: true, // Enable cookie transmission across cross-origin requests
 });
 
-// Request interceptor to attach token from localStorage if present
+// Request interceptor to attach token from localStorage or sessionStorage if present
 apiClient.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
-    const token = localStorage.getItem("asep_auth_token");
+    const token = localStorage.getItem("asep_auth_token") || sessionStorage.getItem("asep_auth_token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -90,7 +90,11 @@ apiClient.interceptors.response.use(
         );
         const { access_token } = refreshResponse.data;
         if (typeof window !== "undefined") {
-          localStorage.setItem("asep_auth_token", access_token);
+          if (sessionStorage.getItem("asep_user_session")) {
+            sessionStorage.setItem("asep_auth_token", access_token);
+          } else {
+            localStorage.setItem("asep_auth_token", access_token);
+          }
         }
         originalRequest.headers["Authorization"] = "Bearer " + access_token;
         processQueue(null, access_token);

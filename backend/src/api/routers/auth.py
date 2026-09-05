@@ -67,7 +67,7 @@ async def check_username_availability_endpoint(
 
     return CheckUsernameResponse(valid=True, available=True, message="Username is available.")
 
-def _set_auth_cookies(response: Response, tokens: RefreshTokenResponse, app_env: str) -> None:
+def _set_auth_cookies(response: Response, tokens: RefreshTokenResponse, app_env: str, remember_me: bool = False) -> None:
     """Sets secure HttpOnly cookies for access and refresh tokens.
 
     Both cookies use ``SameSite=strict`` to provide the strongest CSRF
@@ -84,7 +84,7 @@ def _set_auth_cookies(response: Response, tokens: RefreshTokenResponse, app_env:
         secure=is_prod,
         samesite="strict",
         path="/",
-        max_age=1800,  # 30 minutes
+        max_age=1800 if remember_me else None,
     )
 
     # Refresh token cookie — long-lived (7 days), restricted to refresh path
@@ -95,7 +95,7 @@ def _set_auth_cookies(response: Response, tokens: RefreshTokenResponse, app_env:
         secure=is_prod,
         samesite="strict",
         path="/api/v1/auth/refresh",  # Scope to refresh endpoint only
-        max_age=604800,  # 7 days
+        max_age=604800 if remember_me else None,
     )
 
 
@@ -236,7 +236,7 @@ async def login(
             await redis.delete(rate_limit_key)
 
     tokens = auth_service.create_login_tokens(user)
-    _set_auth_cookies(response, tokens, settings.APP_ENV)
+    _set_auth_cookies(response, tokens, settings.APP_ENV, remember_me=data.rememberMe)
 
     await audit_service.log_event(
         actor_type=ActorType.USER,
