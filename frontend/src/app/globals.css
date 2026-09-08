@@ -51,10 +51,16 @@
 
 @layer base {
   * {
-    @apply border-border;
+    border: 1px solid hsl(var(--border));
   }
   body {
-    @apply bg-background text-foreground antialiased selection:bg-cyan-500/20 selection:text-cyan-400;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    antialiased: true; /* retains antialiasing */
+    selection {
+      background-color: rgba(6,182,212,0.2); /* bg-cyan-500/20 */
+      color: #22d3ee; /* text-cyan-400 */
+    }
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }

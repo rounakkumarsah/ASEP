@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Cpu, ArrowRight, Github, Twitter, ExternalLink } from "lucide-react";
+import { Cpu, ArrowRight, ExternalLink } from "lucide-react";
+import { GitHubIcon } from "@/components/icons/GitHubIcon";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Button } from "@/components/ui/button";
 
@@ -53,19 +54,10 @@ export function LandingFooter() {
             <div className="flex items-center gap-3">
               <Button asChild variant="outline" size="sm" className="border-border text-foreground hover:bg-accent transition-colors rounded-xl min-h-[40px]">
                 <Link href="https://github.com/rounakkumarsah/ASEP" target="_blank" rel="noopener noreferrer">
-                  <Github className="w-4 h-4 mr-2" />
+                                      <GitHubIcon className="w-4 h-4 mr-2" />
                   Star on GitHub
                 </Link>
               </Button>
-              <Link
-                href="https://twitter.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-2.5 text-muted-foreground hover:text-primary transition-colors border border-border rounded-xl hover:bg-accent min-h-[40px] min-w-[40px] flex items-center justify-center"
-              >
-                <Twitter className="w-4 h-4" />
-                <span className="sr-only">Twitter</span>
-              </Link>
             </div>
           </div>
 

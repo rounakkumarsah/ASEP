@@ -4,21 +4,8 @@ import React, { useState, useEffect } from "react";
 import { motion, Variants } from "framer-motion";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import {
-  ArrowRight,
-  Github,
-  Lock,
-  Layers,
-  Network,
-  ShieldCheck,
-  BookOpen,
-  Activity,
-  Terminal,
-  Cpu,
-  Database,
-  MousePointer,
-  Hand,
-} from "lucide-react";
+import { ArrowRight, Lock, Layers, Network, ShieldCheck, BookOpen, Activity, Terminal, Cpu, Database, MousePointer, Hand } from "lucide-react";
+import { GitHubIcon } from "@/components/icons/GitHubIcon";
 import dynamic from "next/dynamic";
 import { Spotlight } from "@/components/ui/spotlight";
 import Marquee from "@/components/ui/marquee";
@@ -250,7 +237,7 @@ export function HeroSection() {
                     variant="outline"
                     className="h-12 px-6 text-xs font-mono font-medium border-border/80 bg-card/60 backdrop-blur-md text-foreground hover:bg-accent hover:border-primary/40 transition-all duration-200 w-full rounded-xl"
                   >
-                    <Github className="mr-2 h-4 w-4" />
+                    <GitHubIcon className="mr-2 h-4 w-4" />
                     GitHub Source
                   </Button>
                 </Link>
