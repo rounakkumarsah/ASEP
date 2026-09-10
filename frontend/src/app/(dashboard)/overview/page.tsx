@@ -149,7 +149,7 @@ export default function OverviewPage() {
                   ) : (
                     <Circle className="h-4 w-4 text-[#667085] shrink-0" />
                   )}
-                  <span className={`text-xs font-mono ${item.checked ? "text-[#667085] line-through" : "text-[#F5F7FA]"}`}>
+                  <span className={`text-xs font-mono ${item.checked ? "text-[#9CA6B5]" : "text-[#F5F7FA]"}`}>
                     {item.label}
                   </span>
                 </Link>
