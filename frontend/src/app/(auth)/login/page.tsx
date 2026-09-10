@@ -92,7 +92,7 @@ export default function LoginPage() {
       locale: "en-US",
     };
     setTimeout(() => {
-      login("demo-guest-token-evaluator", demoUser);
+      login("demo-guest-token-evaluator", demoUser, true);
     }, 300);
   };
 
@@ -167,6 +167,7 @@ export default function LoginPage() {
       const userRes = await fetch(`${API_URL}/api/v1/auth/me`, {
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${tokenData.access_token}`,
         },
         credentials: "include",
       });
@@ -181,7 +182,7 @@ export default function LoginPage() {
       const userData = await userRes.json();
       const rememberMe = values.rememberMe;
       pendingValuesRef.current = null;
-      login(tokenData.access_token, userData, rememberMe);
+      login(tokenData.access_token, userData, rememberMe, tokenData.refresh_token);
     } catch {
       setError("Unable to connect to the authentication server. Please check your network or try again.");
       turnstileRef.current?.reset();

@@ -76,26 +76,26 @@ def _set_auth_cookies(response: Response, tokens: RefreshTokenResponse, app_env:
     """
     is_prod = app_env == "production"
 
-    # Access token cookie — short-lived (30 min)
+    # Access token cookie — 30 days if remember_me, else session-only (None)
     response.set_cookie(
         key="access_token",
         value=tokens.access_token,
         httponly=True,
         secure=is_prod,
-        samesite="strict",
+        samesite="lax",
         path="/",
-        max_age=1800 if remember_me else None,
+        max_age=2592000 if remember_me else None,
     )
 
-    # Refresh token cookie — long-lived (7 days), restricted to refresh path
+    # Refresh token cookie — 30 days if remember_me, else 7 days (604800s)
     response.set_cookie(
         key="refresh_token",
         value=tokens.refresh_token,
         httponly=True,
         secure=is_prod,
-        samesite="strict",
+        samesite="lax",
         path="/api/v1/auth/refresh",  # Scope to refresh endpoint only
-        max_age=604800 if remember_me else None,
+        max_age=2592000 if remember_me else 604800,
     )
 
 
@@ -249,7 +249,11 @@ async def login(
         ip_address=client_ip,
     )
 
-    return TokenResponse(access_token=tokens.access_token)
+    return RefreshTokenResponse(
+        access_token=tokens.access_token,
+        refresh_token=tokens.refresh_token,
+        token_type="bearer",
+    )
 
 
 @router.post("/mfa/setup", response_model=MFASetupResponse)
@@ -337,15 +341,15 @@ async def get_me(current_user: CurrentUser) -> UserResponse:
     return UserResponse.model_validate(current_user)
 
 
-@router.post("/refresh")
+@router.post("/refresh", response_model=RefreshTokenResponse)
 async def refresh(
     request: Request,
     response: Response,
     auth_service: AuthServiceDep,
     payload: RefreshTokenRequest | None = None,
     redis_client: Annotated[Any, Depends(get_redis_client)] = None,
-) -> TokenResponse:
-    """Exchange refresh token cookie or request body for new access token."""
+) -> RefreshTokenResponse:
+    """Exchange refresh token cookie or request body for new access and refresh tokens."""
     settings = get_settings()
     # Rate limiting: 10 refresh attempts per IP per minute
     client_ip = request.client.host if request.client else "unknown"
@@ -360,7 +364,7 @@ async def refresh(
 
     # Check cookie first, fall back to payload body
     refresh_token = request.cookies.get("refresh_token")
-    if not refresh_token and payload:
+    if not refresh_token and payload and payload.refresh_token:
         refresh_token = payload.refresh_token
 
     if not refresh_token:
@@ -369,10 +373,16 @@ async def refresh(
             detail="Refresh token is required",
         )
 
+    remember_me = payload.remember_me if payload is not None else True
+
     try:
         tokens = await auth_service.refresh_tokens(refresh_token)
-        _set_auth_cookies(response, tokens, settings.APP_ENV)
-        return TokenResponse(access_token=tokens.access_token)
+        _set_auth_cookies(response, tokens, settings.APP_ENV, remember_me=remember_me)
+        return RefreshTokenResponse(
+            access_token=tokens.access_token,
+            refresh_token=tokens.refresh_token,
+            token_type="bearer",
+        )
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

@@ -17,7 +17,9 @@ class TokenResponse(BaseModel):
 
 class RefreshTokenRequest(BaseModel):
     """Request payload for refreshing an access token."""
-    refresh_token: str
+    model_config = ConfigDict(populate_by_name=True)
+    refresh_token: str | None = None
+    remember_me: bool = Field(default=True, validation_alias="rememberMe")
 
 
 class RefreshTokenResponse(BaseModel):
@@ -74,10 +76,11 @@ class SignupRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
     email: str
     password: str
     code: str | None = None  # MFA OTP code if mfa_enabled
-    rememberMe: bool | None = False
+    rememberMe: bool | None = Field(default=False, validation_alias="remember_me")
 
 
 class VerifyEmailRequest(BaseModel):

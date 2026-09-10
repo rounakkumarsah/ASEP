@@ -24,7 +24,7 @@ export type AuthContextType = {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (token: string, user: User, rememberMe?: boolean) => void;
+  login: (token: string, user: User, rememberMe?: boolean, refreshToken?: string) => void;
   logout: () => void;
   refreshUser: () => Promise<void>;
   updateUser: (userData: Partial<User>) => void;
@@ -87,8 +87,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== "undefined") {
       localStorage.removeItem("asep_user_session");
       localStorage.removeItem("asep_auth_token");
+      localStorage.removeItem("asep_refresh_token");
       sessionStorage.removeItem("asep_user_session");
       sessionStorage.removeItem("asep_auth_token");
+      sessionStorage.removeItem("asep_refresh_token");
     }
     router.push("/login");
 
@@ -118,13 +120,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("auth:unauthorized", handleUnauthorized);
   }, [logout]);
 
-  const login = (token: string, userData: User, rememberMe: boolean = false) => {
+  const login = (
+    token: string,
+    userData: User,
+    rememberMe: boolean = false,
+    refreshToken?: string
+  ) => {
     setUser(userData);
     if (typeof window !== "undefined") {
       const storage = rememberMe ? localStorage : sessionStorage;
       storage.setItem("asep_user_session", JSON.stringify(userData));
       if (token) {
         storage.setItem("asep_auth_token", token);
+      }
+      if (refreshToken) {
+        storage.setItem("asep_refresh_token", refreshToken);
       }
     }
     router.push("/overview");

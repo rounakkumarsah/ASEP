@@ -83,25 +83,44 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
+        const storedRefreshToken =
+          typeof window !== "undefined"
+            ? localStorage.getItem("asep_refresh_token") ||
+              sessionStorage.getItem("asep_refresh_token")
+            : null;
+
+        const isRemembered =
+          typeof window !== "undefined" && !!localStorage.getItem("asep_user_session");
+
+        const payload: Record<string, unknown> = {
+          remember_me: isRemembered,
+        };
+        if (storedRefreshToken) {
+          payload.refresh_token = storedRefreshToken;
+        }
+
         const refreshResponse = await axios.post(
           `${API_URL}/api/v1/auth/refresh`,
-          {},
+          payload,
           { withCredentials: true }
         );
-        const { access_token } = refreshResponse.data;
+        const { access_token, refresh_token: newRefreshToken } = refreshResponse.data;
         if (typeof window !== "undefined") {
-          if (sessionStorage.getItem("asep_user_session")) {
-            sessionStorage.setItem("asep_auth_token", access_token);
-          } else {
-            localStorage.setItem("asep_auth_token", access_token);
+          const storage = isRemembered ? localStorage : sessionStorage;
+          storage.setItem("asep_auth_token", access_token);
+          if (newRefreshToken) {
+            storage.setItem("asep_refresh_token", newRefreshToken);
           }
         }
         originalRequest.headers["Authorization"] = "Bearer " + access_token;
         processQueue(null, access_token);
         return apiClient(originalRequest);
-      } catch (refreshError) {
+      } catch (refreshError: unknown) {
         processQueue(refreshError, null);
-        if (typeof window !== "undefined") {
+        const errStatus = (refreshError as { response?: { status?: number } })?.response?.status;
+        // Only trigger forced logout if the refresh request explicitly failed with 400 or 401
+        // Do NOT log out on network connectivity blips (offline/timeout) or transient 5xx server errors
+        if ((errStatus === 400 || errStatus === 401) && typeof window !== "undefined") {
           window.dispatchEvent(new Event("auth:unauthorized"));
         }
         return Promise.reject(new UnauthorizedError(message, data));

@@ -1,4 +1,4 @@
-﻿from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -73,3 +73,70 @@ def test_normalize_email_gmail_alias():
 
 def test_normalize_email_non_gmail_preserves_dots():
     assert normalize_email("john.doe@company.org") == "john.doe@company.org"
+
+
+def test_set_auth_cookies_remember_me_enabled():
+    """Verify that remember_me=True sets 30-day max_age and samesite=lax."""
+    from fastapi import Response
+    from src.api.routers.auth import _set_auth_cookies
+    from src.auth.schemas import RefreshTokenResponse
+
+    tokens = RefreshTokenResponse(
+        access_token="test_access_token",
+        refresh_token="test_refresh_token",
+    )
+    res = Response()
+    _set_auth_cookies(res, tokens, app_env="production", remember_me=True)
+
+    raw_cookies = res.headers.getlist("set-cookie")
+    cookie_str = "; ".join(raw_cookies)
+
+    assert "access_token=test_access_token" in cookie_str
+    assert "Max-Age=2592000" in cookie_str
+    assert "SameSite=lax" in cookie_str or "samesite=lax" in cookie_str
+    assert "refresh_token=test_refresh_token" in cookie_str
+
+
+def test_set_auth_cookies_remember_me_disabled():
+    """Verify that remember_me=False creates a session-only access token cookie."""
+    from fastapi import Response
+    from src.api.routers.auth import _set_auth_cookies
+    from src.auth.schemas import RefreshTokenResponse
+
+    tokens = RefreshTokenResponse(
+        access_token="test_access_token",
+        refresh_token="test_refresh_token",
+    )
+    res = Response()
+    _set_auth_cookies(res, tokens, app_env="production", remember_me=False)
+
+    raw_cookies = res.headers.getlist("set-cookie")
+    access_cookie = [c for c in raw_cookies if c.startswith("access_token=")][0]
+    refresh_cookie = [c for c in raw_cookies if c.startswith("refresh_token=")][0]
+
+    # Session cookie has no Max-Age
+    assert "Max-Age" not in access_cookie
+    # Refresh cookie has default 7-day Max-Age (604800)
+    assert "Max-Age=604800" in refresh_cookie
+
+
+def test_schemas_remember_me_aliasing():
+    """Verify that both camelCase and snake_case remember_me are accepted."""
+    from src.auth.schemas import LoginRequest, RefreshTokenRequest
+
+    # LoginRequest accepting snake_case
+    l1 = LoginRequest(email="test@asep.dev", password="password123456", remember_me=True)
+    assert l1.rememberMe is True
+
+    # LoginRequest accepting camelCase
+    l2 = LoginRequest(email="test@asep.dev", password="password123456", rememberMe=True)
+    assert l2.rememberMe is True
+
+    # RefreshTokenRequest accepting snake_case
+    r1 = RefreshTokenRequest(remember_me=True)
+    assert r1.remember_me is True
+
+    # RefreshTokenRequest accepting camelCase
+    r2 = RefreshTokenRequest(rememberMe=False)
+    assert r2.remember_me is False
+
