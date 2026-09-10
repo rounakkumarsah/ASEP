@@ -9,13 +9,18 @@ import jwt
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from src.api.dependencies import get_audit_service, get_uow_factory
 from src.auth.jwt import decode_token
 from src.auth.schemas import TokenPayload
 from src.auth.service import AuthService
 from src.cache.redis import get_redis_client
 from src.config.settings import get_settings
+from src.db.models.project import Project
 from src.db.models.user import User
+from src.db.postgres import DbSession
 from src.services.audit_service import AuditService
 from src.services.email_service import EmailService
 from src.services.user_service import UserService
@@ -104,3 +109,54 @@ async def get_current_user(
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
+
+
+async def verify_project_access(
+    project_id: uuid.UUID,
+    current_user: User,
+    db: AsyncSession,
+) -> Project:
+    """
+    Centralized multi-tenant authorization verifier (deny-by-default).
+
+    Guarantees:
+      1. User has an active organization (raises 403 if current_user.org_id is None).
+      2. Project exists (raises 404 if not found).
+      3. Project belongs to current_user.org_id (raises 403 if mismatched).
+
+    Returns:
+      The verified Project ORM model instance.
+    """
+    if not current_user.org_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied.",
+        )
+
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found.",
+        )
+
+    if project.org_id != current_user.org_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied.",
+        )
+
+    return project
+
+
+async def require_project_access(
+    project_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DbSession,
+) -> Project:
+    """FastAPI path dependency for routes declaring /{project_id}."""
+    return await verify_project_access(project_id, current_user, db)
+
+
+ProjectAccessDep = Annotated[Project, Depends(require_project_access)]

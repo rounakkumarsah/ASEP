@@ -72,14 +72,22 @@ function TerminalVisual() {
   
   useEffect(() => {
     let i = 0;
+    let pauseTimeout: ReturnType<typeof setTimeout> | null = null;
     const interval = setInterval(() => {
+      if (pauseTimeout) return;
       setText(fullText.slice(0, i));
       i++;
       if (i > fullText.length) {
-        setTimeout(() => { i = 0; }, 3000);
+        pauseTimeout = setTimeout(() => {
+          i = 0;
+          pauseTimeout = null;
+        }, 3000);
       }
     }, 50);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (pauseTimeout) clearTimeout(pauseTimeout);
+    };
   }, []);
 
   return (

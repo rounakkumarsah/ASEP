@@ -3,8 +3,11 @@ ASEP — Implementation of Initial Tools
 """
 
 import contextlib
+import ipaddress
 import os
+import socket
 import subprocess
+import urllib.parse
 from typing import Any
 
 import httpx
@@ -312,6 +315,71 @@ class HTTPInput(BaseModel):
     data: str | None = Field(default=None, description="Body data to transmit")
 
 
+# Maximum payload response buffer: 5 MB (prevents OOM / stream DoS)
+MAX_HTTP_RESPONSE_BYTES = 5 * 1024 * 1024
+CGNAT_NETWORK = ipaddress.ip_network("100.64.0.0/10")
+
+
+def _is_safe_url(url: str) -> tuple[bool, str]:
+    """Validate URL against SSRF vulnerabilities (OWASP ASVS 4.0.3 & SSRF guidance)."""
+    try:
+        parsed = urllib.parse.urlparse(url)
+    except Exception as e:
+        return False, f"Invalid URL: {e}"
+
+    if parsed.scheme.lower() not in ("http", "https"):
+        return False, f"SSRF Protection: Scheme '{parsed.scheme}' is not allowed. Only HTTP and HTTPS are permitted."
+
+    hostname = parsed.hostname
+    if not hostname:
+        return False, "SSRF Protection: Missing hostname in URL."
+
+    lower_host = hostname.lower()
+    if lower_host in ("localhost", "127.0.0.1", "::1", "0.0.0.0", "169.254.169.254"):
+        return False, "SSRF Protection: Access to localhost and metadata endpoints is prohibited."
+
+    try:
+        addr_info = socket.getaddrinfo(hostname, None)
+    except socket.gaierror as e:
+        return False, f"SSRF Protection: Unable to resolve hostname '{hostname}': {e}"
+
+    for entry in addr_info:
+        ip_str = entry[4][0]
+        try:
+            ip = ipaddress.ip_address(ip_str)
+
+            # IPv4-Mapped IPv6 addresses normalization (RFC 4291)
+            # E.g. ::ffff:127.0.0.1 or ::ffff:169.254.169.254
+            if isinstance(ip, ipaddress.IPv6Address):
+                if ip.ipv4_mapped:
+                    ip = ip.ipv4_mapped
+                elif ip_str.lower().startswith("::ffff:"):
+                    try:
+                        raw_ipv4 = ip_str.split(":")[-1]
+                        ip = ipaddress.ip_address(raw_ipv4)
+                    except ValueError:
+                        pass
+
+            if (
+                ip.is_private
+                or ip.is_loopback
+                or ip.is_link_local
+                or ip.is_reserved
+                or ip.is_multicast
+                or ip.is_unspecified
+            ):
+                return False, f"SSRF Protection: Access to private/internal IP address '{ip_str}' is prohibited."
+
+            # Carrier-Grade NAT (RFC 6598)
+            if isinstance(ip, ipaddress.IPv4Address) and ip in CGNAT_NETWORK:
+                return False, f"SSRF Protection: Access to CGNAT IP address '{ip_str}' is prohibited."
+
+        except ValueError:
+            return False, f"SSRF Protection: Invalid IP address resolved '{ip_str}'."
+
+    return True, ""
+
+
 class HTTPTool(BaseTool):
     name = "http"
     description = "Send outbound HTTP requests and inspect REST API endpoints."
@@ -324,19 +392,60 @@ class HTTPTool(BaseTool):
     ) -> ToolExecutionOutput:
         try:
             inputs = self.input_model.model_validate(arguments)
-            async with httpx.AsyncClient() as client:
-                resp = await client.request(
+            is_safe, err = _is_safe_url(inputs.url)
+            if not is_safe:
+                return ToolExecutionOutput(success=False, error=err)
+
+            # Defensive limits and timeouts to prevent connection pool exhaustion and slowloris
+            limits = httpx.Limits(max_keepalive_connections=5, max_connections=10)
+            timeout = httpx.Timeout(timeout=15.0, connect=5.0, read=10.0, write=5.0, pool=5.0)
+
+            async with httpx.AsyncClient(
+                follow_redirects=False,
+                limits=limits,
+                timeout=timeout,
+            ) as client:
+                async with client.stream(
                     method=inputs.method,
                     url=inputs.url,
                     headers=inputs.headers,
                     content=inputs.data,
-                    timeout=15.0,
-                )
+                ) as resp:
+                    # Content-Length header enforcement
+                    content_length = resp.headers.get("content-length")
+                    if content_length and content_length.isdigit():
+                        if int(content_length) > MAX_HTTP_RESPONSE_BYTES:
+                            return ToolExecutionOutput(
+                                success=False,
+                                error=(
+                                    f"SSRF Protection: Content-Length ({content_length} bytes) "
+                                    f"exceeds maximum allowed limit of {MAX_HTTP_RESPONSE_BYTES} bytes."
+                                ),
+                            )
+
+                    # Bounded streaming byte consumption
+                    chunks: list[bytes] = []
+                    total_bytes = 0
+                    async for chunk in resp.aiter_bytes():
+                        total_bytes += len(chunk)
+                        if total_bytes > MAX_HTTP_RESPONSE_BYTES:
+                            return ToolExecutionOutput(
+                                success=False,
+                                error=(
+                                    f"SSRF Protection: Response stream exceeded maximum allowed limit "
+                                    f"of {MAX_HTTP_RESPONSE_BYTES} bytes."
+                                ),
+                            )
+                        chunks.append(chunk)
+
+                    body_bytes = b"".join(chunks)
+                    text = body_bytes.decode("utf-8", errors="replace")[:5000]
+
             return ToolExecutionOutput(
                 success=resp.status_code < 400,
                 result={
                     "status_code": resp.status_code,
-                    "text": resp.text[:5000],  # Cap responses to avoid bloated outputs
+                    "text": text,
                 },
             )
         except Exception as e:

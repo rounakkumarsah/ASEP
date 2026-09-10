@@ -1,9 +1,12 @@
 "use client";
 
+import Script from "next/script";
+
 import * as React from "react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Cpu } from "lucide-react";
 import Link from "next/link";
+import { AuthProvider } from "@/lib/providers/auth-provider";
 
 export default function AuthLayout({
   children,
@@ -12,6 +15,10 @@ export default function AuthLayout({
 }) {
   return (
     <div className="relative min-h-screen w-full bg-[#090B0F] text-[#F5F7FA] flex flex-col justify-center items-center p-6 sm:p-10">
+      <Script
+        src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+        strategy="afterInteractive"
+      />
       
       {/* Background patterns/glows */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#111720_1px,transparent_1px),linear-gradient(to_bottom,#111720_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-50 pointer-events-none" />
@@ -34,7 +41,9 @@ export default function AuthLayout({
 
       {/* Sleek card container wrapper */}
       <div className="w-full max-w-md z-10">
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </div>
 
       {/* Footer copyright */}

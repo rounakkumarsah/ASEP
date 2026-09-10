@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Minus, ExternalLink, ArrowRight, BookOpen, Github, MessageSquare, Mail } from "lucide-react";
+import { Plus, Minus, ExternalLink, ArrowRight, BookOpen, MessageSquare, Mail } from "lucide-react";
+import { GitHubIcon } from "@/components/icons/GitHubIcon";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -188,7 +189,7 @@ export function FAQSection() {
                 <li>
                   <Link href="https://github.com/rounakkumarsah/ASEP" target="_blank" rel="noreferrer" className="group flex items-center justify-between p-3 rounded-xl hover:bg-accent transition-colors border border-transparent hover:border-border min-h-[44px]">
                     <div className="flex items-center gap-3">
-                      <Github className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      <GitHubIcon className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                       <span className="text-foreground text-sm font-medium">GitHub Repository</span>
                     </div>
                     <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />

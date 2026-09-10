@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, Variants } from "framer-motion";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   ArrowRight,
-  Github,
   Lock,
   Layers,
   Network,
@@ -22,6 +21,7 @@ import {
 import dynamic from "next/dynamic";
 import { Spotlight } from "@/components/ui/spotlight";
 import Marquee from "@/components/ui/marquee";
+import { GitHubIcon } from "@/components/icons/GitHubIcon";
 
 // Lazy load the high-density 3D neural matrix visualization
 const NeuralNetworkViz = dynamic(
@@ -108,9 +108,11 @@ const letterVariants: Variants = {
 
 const autonomousChars = "Autonomous".split("");
 
+// Module-level constant — stable reference, safe for useEffect [] deps
+const FULL_TAGLINE =
+  "Unify Planning, Execution, Memory, and Governance into a single production-grade control plane for autonomous engineering agent collectives.";
+
 export function HeroSection() {
-  const fullTagline =
-    "Unify Planning, Execution, Memory, and Governance into a single production-grade control plane for autonomous engineering agent collectives.";
   const [typedTagline, setTypedTagline] = useState("");
 
   // Telemetry simulation state
@@ -119,27 +121,42 @@ export function HeroSection() {
   const [cpu, setCpu] = useState(16);
   const [mem, setMem] = useState(37);
   const [sessions, setSessions] = useState(6);
-  const [logIdx, setLogIdx] = useState(2);
-  const [eventIdx, setEventIdx] = useState(3);
 
+  // Refs hold indices so the telemetry interval never needs to restart
+  const logIdxRef = useRef(2);
+  const eventIdxRef = useRef(3);
+
+  // RAF-based typing animation — smooth, budget-friendly, no DOM thrash
   useEffect(() => {
+    const CHAR_INTERVAL_MS = 25; // ~40 chars/sec, visually smooth
+    let rafId: number | null = null;
+    let lastTime = 0;
     let index = 0;
-    const timer = setInterval(() => {
-      setTypedTagline(fullTagline.slice(0, index));
-      index++;
-      if (index > fullTagline.length) clearInterval(timer);
-    }, 14);
-    return () => clearInterval(timer);
-  }, []);
 
-  // Live telemetry streaming interval
+    function tick(timestamp: number) {
+      if (timestamp - lastTime >= CHAR_INTERVAL_MS) {
+        lastTime = timestamp;
+        index++;
+        setTypedTagline(FULL_TAGLINE.slice(0, index));
+        if (index >= FULL_TAGLINE.length) return;
+      }
+      rafId = requestAnimationFrame(tick);
+    }
+
+    rafId = requestAnimationFrame(tick);
+    return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
+  }, []); // Stable: FULL_TAGLINE is module-level
+
+  // Live telemetry streaming interval — empty deps, safe via refs
   useEffect(() => {
     const t = setInterval(() => {
       setLogs((prev) => {
-        const next = [...prev, LOGS_POOL[logIdx % LOGS_POOL.length]];
+        const next = [...prev, LOGS_POOL[logIdxRef.current % LOGS_POOL.length]];
+        logIdxRef.current += 1;
         return next.length > 16 ? next.slice(-16) : next;
       });
-      setLogIdx((i) => i + 1);
 
       setCpu((p) => Math.max(12, Math.min(68, p + Math.floor(Math.random() * 9) - 4)));
       setMem((p) => Math.max(34, Math.min(46, p + Math.floor(Math.random() * 3) - 1)));
@@ -148,15 +165,15 @@ export function HeroSection() {
       }
       if (Math.random() > 0.5) {
         setEvents((prev) => {
-          const next = [AGENT_EVENTS[eventIdx % AGENT_EVENTS.length], ...prev];
+          const next = [AGENT_EVENTS[eventIdxRef.current % AGENT_EVENTS.length], ...prev];
+          eventIdxRef.current += 1;
           return next.slice(0, 5);
         });
-        setEventIdx((i) => i + 1);
       }
     }, 2400);
 
     return () => clearInterval(t);
-  }, [logIdx, eventIdx]);
+  }, []); // Empty deps — safe because we use refs
 
   return (
     <section
@@ -250,7 +267,7 @@ export function HeroSection() {
                     variant="outline"
                     className="h-12 px-6 text-xs font-mono font-medium border-border/80 bg-card/60 backdrop-blur-md text-foreground hover:bg-accent hover:border-primary/40 transition-all duration-200 w-full rounded-xl"
                   >
-                    <Github className="mr-2 h-4 w-4" />
+                    <GitHubIcon className="mr-2 h-4 w-4" />
                     GitHub Source
                   </Button>
                 </Link>

@@ -4,7 +4,8 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, useScroll, useSpring, useMotionValueEvent } from "framer-motion";
-import { Menu, Github, Cpu, X, ChevronRight } from "lucide-react";
+import { Menu, Cpu, X, ChevronRight } from "lucide-react";
+import { GitHubIcon } from "@/components/icons/GitHubIcon";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
@@ -15,7 +16,6 @@ import {
   SheetTrigger,
   SheetClose,
 } from "@/components/ui/sheet";
-import { useAuth } from "@/lib/providers/auth-provider";
 
 const NAV_LINKS = [
   { name: "Platform", href: "/platform" },
@@ -30,7 +30,13 @@ export function LandingNavbar() {
   const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
   const pathname = usePathname();
   const { scrollYProgress, scrollY } = useScroll();
-  const { isAuthenticated } = useAuth();
+  const [isAuthenticated, setIsAuthenticated] = React.useState(false);
+
+  React.useEffect(() => {
+    const stored = localStorage.getItem('asep_user_session') || 
+                   sessionStorage.getItem('asep_user_session');
+    setIsAuthenticated(!!stored);
+  }, []);
 
   // Smooth scroll progress bar at top of viewport
   const scaleX = useSpring(scrollYProgress, {
@@ -134,7 +140,7 @@ export function LandingNavbar() {
               rel="noopener noreferrer"
               className="flex items-center gap-2 h-10 px-3 rounded-xl bg-muted/40 hover:bg-muted border border-border/60 text-muted-foreground hover:text-foreground transition-all text-xs font-mono font-medium min-h-[44px]"
             >
-              <Github className="w-3.5 h-3.5" />
+              <GitHubIcon className="w-3.5 h-3.5" />
               <span>Star</span>
               <div className="h-3 w-[1px] bg-border mx-0.5" />
               <span className="text-foreground font-bold">128</span>

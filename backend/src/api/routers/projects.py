@@ -14,7 +14,7 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
-from src.auth.dependencies import CurrentUser
+from src.auth.dependencies import CurrentUser, ProjectAccessDep
 from src.db.models.project import Project
 from src.db.models.user import User
 from src.db.models.organization import Organization
@@ -141,35 +141,19 @@ async def list_projects(
 
 @router.get("/{project_id}", response_model=ProjectResponse)
 async def get_project(
-    project_id: uuid.UUID,
-    current_user: CurrentUser,
-    db: DbSession,
+    project: ProjectAccessDep,
 ) -> ProjectResponse:
     """Get a single project by ID."""
-    result = await db.execute(select(Project).where(Project.id == project_id))
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found.")
-    if current_user.org_id and project.org_id != current_user.org_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied.")
     return ProjectResponse.model_validate(project)
 
 
 @router.patch("/{project_id}", response_model=ProjectResponse)
 async def update_project(
-    project_id: uuid.UUID,
     payload: UpdateProjectRequest,
-    current_user: CurrentUser,
+    project: ProjectAccessDep,
     db: DbSession,
 ) -> ProjectResponse:
     """Update project name or description."""
-    result = await db.execute(select(Project).where(Project.id == project_id))
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found.")
-    if current_user.org_id and project.org_id != current_user.org_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied.")
-
     if payload.name is not None:
         project.name = payload.name
     if payload.description is not None:
@@ -181,18 +165,11 @@ async def update_project(
 
 @router.delete("/{project_id}", status_code=status.HTTP_200_OK)
 async def delete_project(
-    project_id: uuid.UUID,
-    current_user: CurrentUser,
+    project: ProjectAccessDep,
     db: DbSession,
 ) -> dict:
     """Soft-delete a project (sets is_active=False)."""
-    result = await db.execute(select(Project).where(Project.id == project_id))
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found.")
-    if current_user.org_id and project.org_id != current_user.org_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied.")
     project.is_active = False
     await db.flush()
-    logger.info("Project deactivated", extra={"project_id": str(project_id)})
+    logger.info("Project deactivated", extra={"project_id": str(project.id)})
     return {"detail": "Project deactivated."}

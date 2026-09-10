@@ -5,15 +5,15 @@ import { cn } from "@/lib/utils";
 import { AnimatedBeam } from "@/components/ui/animated-beam";
 import { motion } from "framer-motion";
 import {
-  Github,
-  Slack,
   Box,
   Database,
   Webhook,
   Cloud,
   Cpu,
   Network,
+  MessageSquare,
 } from "lucide-react";
+import { GitHubIcon } from "@/components/icons/GitHubIcon";
 
 interface CircleProps {
   className?: string;
@@ -59,7 +59,7 @@ const INTEGRATION_CARDS = [
   },
   {
     title: "Notifications",
-    tools: ["Slack", "Teams", "Email"],
+    tools: ["MessageSquare", "Teams", "Email"],
     description: "Real-time governance alerts and execution status updates",
     color: "border-[#2DD4A3]/30 bg-[#2DD4A3]/5",
     accent: "text-[#2DD4A3]",
@@ -172,7 +172,7 @@ export function IntegrationsSection() {
                 {/* Row 1 */}
                 <div className="flex flex-row items-center justify-between">
                   <IntegrationNode ref={div1Ref} label="GitHub">
-                    <Github className="h-5 w-5 sm:h-6 sm:w-6 text-foreground" />
+                    <GitHubIcon className="h-5 w-5 sm:h-6 sm:w-6 text-foreground" />
                   </IntegrationNode>
                   <IntegrationNode ref={div5Ref} label="PostgreSQL">
                     <Database className="h-5 w-5 sm:h-6 sm:w-6 text-[#3B82F6]" />
@@ -199,8 +199,8 @@ export function IntegrationsSection() {
 
                 {/* Row 3 */}
                 <div className="flex flex-row items-center justify-between">
-                  <IntegrationNode ref={div3Ref} label="Slack">
-                    <Slack className="h-5 w-5 sm:h-6 sm:w-6 text-[#E01E5A]" />
+                  <IntegrationNode ref={div3Ref} label="MessageSquare">
+                    <MessageSquare className="h-5 w-5 sm:h-6 sm:w-6 text-[#E01E5A]" />
                   </IntegrationNode>
                   <IntegrationNode ref={div7Ref} label="Webhooks">
                     <Webhook className="h-5 w-5 sm:h-6 sm:w-6 text-[#F59E0B]" />

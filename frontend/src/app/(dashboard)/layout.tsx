@@ -2,6 +2,8 @@ import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { DashboardHeader } from "@/components/dashboard/header";
 import { EmailVerificationBanner } from "@/components/dashboard/email-verification-banner";
 import { ProtectedRoute } from "@/components/auth/protected-route";
+import { QueryProvider } from "@/lib/providers/query-provider";
+import { AuthProvider } from "@/lib/providers/auth-provider";
 
 export default function DashboardLayout({
   children,
@@ -9,23 +11,27 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <ProtectedRoute>
-      <div className="min-h-screen bg-background flex w-full">
-        {/* Desktop Sidebar */}
-        <DashboardSidebar />
+    <AuthProvider>
+      <QueryProvider>
+        <ProtectedRoute>
+          <div className="min-h-screen bg-background flex w-full">
+            {/* Desktop Sidebar */}
+            <DashboardSidebar />
 
-        {/* Main Content Column */}
-        <div className="lg:pl-64 flex flex-col flex-1 min-h-screen">
-          <DashboardHeader />
-          <EmailVerificationBanner />
+            {/* Main Content Column */}
+            <div className="lg:pl-64 flex flex-col flex-1 min-h-screen">
+              <DashboardHeader />
+              <EmailVerificationBanner />
 
-          <main className="flex-1 w-full">
-            <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
-              {children}
+              <main className="flex-1 w-full">
+                <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+                  {children}
+                </div>
+              </main>
             </div>
-          </main>
-        </div>
-      </div>
-    </ProtectedRoute>
+          </div>
+        </ProtectedRoute>
+      </QueryProvider>
+    </AuthProvider>
   );
 }

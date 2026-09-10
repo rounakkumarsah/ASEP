@@ -87,6 +87,11 @@ export function NeuralNetworkViz({ className }: { className?: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const animId = useRef<number | null>(null);
+  const isVisible = useRef<boolean>(true);
+  const isRunning = useRef<boolean>(false);
+  const lastSortRotY = useRef<number>(0);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
@@ -102,7 +107,6 @@ export function NeuralNetworkViz({ className }: { className?: string }) {
 
     let width = 0;
     let height = 0;
-    let animId: number;
 
     // Rotation & Camera state
     let rotX = 0.25;
@@ -125,6 +129,9 @@ export function NeuralNetworkViz({ className }: { className?: string }) {
     let packets: DataPacket[] = [];
     let backgroundStars: StarParticle[] = [];
     const orbitalRingAngles = [0, Math.PI / 3, (2 * Math.PI) / 3];
+
+    const nodeGradientCache = new Map<number, { auraGrad: CanvasGradient; sphereGrad: CanvasGradient }>();
+    let sortedNodeIndices: number[] = [];
 
     // Initialize 3D Starfield
     function initStars(count = 70) {
@@ -263,6 +270,29 @@ export function NeuralNetworkViz({ className }: { className?: string }) {
       });
     }
 
+    function updateGradients() {
+      nodeGradientCache.clear();
+      nodes.forEach((node, idx) => {
+        const isMaster = idx === 0;
+        const baseR = node.radius;
+        const baseAuraR = baseR * (isMaster ? 3.2 : 2.4);
+
+        const auraGrad = targetCtx.createRadialGradient(0, 0, baseR * 0.3, 0, 0, baseAuraR);
+        auraGrad.addColorStop(0, node.glowColor);
+        auraGrad.addColorStop(1, "rgba(0,0,0,0)");
+
+        const sphereGrad = targetCtx.createRadialGradient(
+          -baseR * 0.3, -baseR * 0.3, baseR * 0.1,
+          0, 0, baseR
+        );
+        sphereGrad.addColorStop(0, "#FFFFFF");
+        sphereGrad.addColorStop(0.4, node.color);
+        sphereGrad.addColorStop(1, "#090B0F");
+
+        nodeGradientCache.set(idx, { auraGrad, sphereGrad });
+      });
+    }
+
     // Resize Handler
     function handleResize() {
       const rect = targetContainer.getBoundingClientRect();
@@ -276,11 +306,15 @@ export function NeuralNetworkViz({ className }: { className?: string }) {
       targetCanvas.style.height = `${height}px`;
 
       targetCtx.scale(dpr, dpr);
+
+      if (nodes.length > 0) {
+        updateGradients();
+      }
     }
 
-    handleResize();
     initStars();
     initNodes();
+    handleResize();
 
     // ── 3D Projection Math ──────────────────────────────────────────────────
     function project3D(x: number, y: number, z: number, sphereRadius: number): [number, number, number, number] {
@@ -316,8 +350,55 @@ export function NeuralNetworkViz({ className }: { className?: string }) {
     }
 
     // ── Animation Loop ──────────────────────────────────────────────────────
-    function render(currentTime: number) {
+    function startLoop() {
+      if (isRunning.current) return;
+      isRunning.current = true;
+      const loop = (time: number) => {
+        if (!isRunning.current) return;
+        render(time);
+        animId.current = requestAnimationFrame(loop);
+      };
+      animId.current = requestAnimationFrame(loop);
+    }
 
+    function stopLoop() {
+      isRunning.current = false;
+      if (animId.current !== null) {
+        cancelAnimationFrame(animId.current);
+        animId.current = null;
+      }
+    }
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.intersectionRatio < 0.1) {
+            isVisible.current = false;
+            stopLoop();
+          } else {
+            isVisible.current = true;
+            if (!document.hidden) {
+              startLoop();
+            }
+          }
+        });
+      },
+      { threshold: [0, 0.1] }
+    );
+    io.observe(targetContainer);
+
+    function onVisibilityChange() {
+      if (document.hidden) {
+        stopLoop();
+      } else {
+        if (isVisible.current) {
+          startLoop();
+        }
+      }
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    function render(currentTime: number) {
       targetCtx.clearRect(0, 0, width, height);
 
       // Camera Physics
@@ -394,10 +475,13 @@ export function NeuralNetworkViz({ className }: { className?: string }) {
       });
 
       // 4. Sort nodes by Z-depth (back-to-front rendering)
-      const sortedNodeIndices = nodes
-        .map((n, index) => ({ index, z: n.pz }))
-        .sort((a, b) => a.z - b.z)
-        .map((item) => item.index);
+      if (sortedNodeIndices.length === 0 || Math.abs(rotY - lastSortRotY.current) > 0.005) {
+        sortedNodeIndices = nodes
+          .map((n, index) => ({ index, z: n.pz }))
+          .sort((a, b) => a.z - b.z)
+          .map((item) => item.index);
+        lastSortRotY.current = rotY;
+      }
 
       // 5. Draw Neural Edges
       const drawnEdges = new Set<string>();
@@ -420,19 +504,15 @@ export function NeuralNetworkViz({ className }: { className?: string }) {
           targetCtx.lineTo(targetNode.px, targetNode.py);
 
           if (isHighlighted) {
-            targetCtx.strokeStyle = "rgba(34, 211, 238, 0.85)";
-            targetCtx.lineWidth = 2 * depthAvg;
-            targetCtx.shadowColor = "#22D3EE";
-            targetCtx.shadowBlur = 8;
+            targetCtx.strokeStyle = "rgba(34, 211, 238, 1)";
+            targetCtx.lineWidth = 3 * depthAvg;
           } else {
             // Gradient connecting line
             const strokeAlpha = Math.max(0.08, depthAvg * 0.35);
             targetCtx.strokeStyle = `rgba(34, 211, 238, ${strokeAlpha})`;
             targetCtx.lineWidth = Math.max(0.6, 1.2 * depthAvg);
-            targetCtx.shadowBlur = 0;
           }
           targetCtx.stroke();
-          targetCtx.shadowBlur = 0;
         });
       });
 
@@ -470,50 +550,47 @@ export function NeuralNetworkViz({ className }: { className?: string }) {
         const isHovered = hoveredNodeIndex === nodeIdx;
         const isMaster = nodeIdx === 0;
 
-        const r = node.radius * node.scale * (isHovered ? 1.4 : 1);
+        const scaleFactor = node.scale * (isHovered ? 1.4 : 1);
+        const r = node.radius * scaleFactor;
         const pulse = Math.sin(node.pulsePhase) * 0.3 + 0.7;
 
-        // Outer Pulsing Glow Aura
-        const auraRadius = r * (isMaster ? 3.2 : 2.4) * pulse;
-        const auraGrad = targetCtx.createRadialGradient(node.px, node.py, r * 0.3, node.px, node.py, auraRadius);
-        auraGrad.addColorStop(0, node.glowColor);
-        auraGrad.addColorStop(1, "rgba(0,0,0,0)");
+        const cachedGrads = nodeGradientCache.get(nodeIdx);
 
-        targetCtx.beginPath();
-        targetCtx.arc(node.px, node.py, auraRadius, 0, Math.PI * 2);
-        targetCtx.fillStyle = auraGrad;
-        targetCtx.globalAlpha = node.alpha * (isHovered ? 1 : 0.8);
-        targetCtx.fill();
-        targetCtx.globalAlpha = 1;
+        if (cachedGrads) {
+          // Outer Pulsing Glow Aura
+          targetCtx.save();
+          targetCtx.translate(node.px, node.py);
+          targetCtx.scale(scaleFactor * pulse, scaleFactor * pulse);
+          
+          targetCtx.beginPath();
+          const baseAuraR = node.radius * (isMaster ? 3.2 : 2.4);
+          targetCtx.arc(0, 0, baseAuraR, 0, Math.PI * 2);
+          targetCtx.fillStyle = cachedGrads.auraGrad;
+          targetCtx.globalAlpha = node.alpha * (isHovered ? 1 : 0.8);
+          targetCtx.fill();
+          targetCtx.restore();
 
-        // Outer Ring
-        targetCtx.beginPath();
-        targetCtx.arc(node.px, node.py, r * 1.3, 0, Math.PI * 2);
-        targetCtx.strokeStyle = isHovered ? "#FFFFFF" : node.color;
-        targetCtx.lineWidth = isMaster ? 2 : 1;
-        targetCtx.globalAlpha = node.alpha;
-        targetCtx.stroke();
-        targetCtx.globalAlpha = 1;
+          // Outer Ring
+          targetCtx.beginPath();
+          targetCtx.arc(node.px, node.py, r * 1.3, 0, Math.PI * 2);
+          targetCtx.strokeStyle = isHovered ? "#FFFFFF" : node.color;
+          targetCtx.lineWidth = isMaster ? 2 : 1;
+          targetCtx.globalAlpha = node.alpha;
+          targetCtx.stroke();
+          targetCtx.globalAlpha = 1;
 
-        // Solid Inner Sphere
-        targetCtx.beginPath();
-        targetCtx.arc(node.px, node.py, r, 0, Math.PI * 2);
-        const sphereGrad = targetCtx.createRadialGradient(
-          node.px - r * 0.3,
-          node.py - r * 0.3,
-          r * 0.1,
-          node.px,
-          node.py,
-          r
-        );
-        sphereGrad.addColorStop(0, "#FFFFFF");
-        sphereGrad.addColorStop(0.4, node.color);
-        sphereGrad.addColorStop(1, "#090B0F");
-
-        targetCtx.fillStyle = sphereGrad;
-        targetCtx.globalAlpha = node.alpha;
-        targetCtx.fill();
-        targetCtx.globalAlpha = 1;
+          // Solid Inner Sphere
+          targetCtx.save();
+          targetCtx.translate(node.px, node.py);
+          targetCtx.scale(scaleFactor, scaleFactor);
+          
+          targetCtx.beginPath();
+          targetCtx.arc(0, 0, node.radius, 0, Math.PI * 2);
+          targetCtx.fillStyle = cachedGrads.sphereGrad;
+          targetCtx.globalAlpha = node.alpha;
+          targetCtx.fill();
+          targetCtx.restore();
+        }
 
         // Labels & HUD Cards (Rendered for foreground nodes or hovered node)
         if (node.pz > -40 || isHovered || isMaster) {
@@ -589,12 +666,11 @@ export function NeuralNetworkViz({ className }: { className?: string }) {
       targetCtx.arc(coreX, coreY, corePulse * maxRing, 0, Math.PI * 2);
       targetCtx.strokeStyle = `rgba(34, 211, 238, ${(1 - corePulse) * 0.3})`;
       targetCtx.lineWidth = 1.5;
+      targetCtx.shadowColor = "#22D3EE";
+      targetCtx.shadowBlur = 8;
       targetCtx.stroke();
-
-      animId = requestAnimationFrame(render);
+      targetCtx.shadowBlur = 0;
     }
-
-    animId = requestAnimationFrame(render);
 
     // ── Mouse & Pointer Listeners ───────────────────────────────────────────
     function onPointerDown(e: MouseEvent | TouchEvent) {
@@ -669,7 +745,9 @@ export function NeuralNetworkViz({ className }: { className?: string }) {
     resizeObserver.observe(targetContainer);
 
     return () => {
-      cancelAnimationFrame(animId);
+      stopLoop();
+      io.disconnect();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       resizeObserver.disconnect();
       targetCanvas.removeEventListener("mousedown", onPointerDown);
       targetCanvas.removeEventListener("mousemove", onPointerMove);

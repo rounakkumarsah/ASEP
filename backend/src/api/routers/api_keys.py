@@ -20,7 +20,7 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
-from src.auth.dependencies import CurrentUser
+from src.auth.dependencies import CurrentUser, verify_project_access
 from src.db.models.api_key import ApiKey
 from src.db.models.project import Project
 from src.db.postgres import DbSession
@@ -93,13 +93,8 @@ async def create_api_key(
     db: DbSession,
 ) -> ApiKeyCreatedResponse:
     """Generate a new API key for a project. The full key is returned ONCE."""
-    # Verify project belongs to user's org
-    result = await db.execute(select(Project).where(Project.id == payload.project_id))
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found.")
-    if current_user.org_id and project.org_id != current_user.org_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Project does not belong to your organization.")
+    # Verify project belongs to user's org via centralized authorization
+    await verify_project_access(payload.project_id, current_user, db)
 
     full_key = _generate_api_key()
     key_hash = _hash_key(full_key)
@@ -144,6 +139,7 @@ async def list_api_keys(
     """List API keys for the current user (optionally filtered by project)."""
     stmt = select(ApiKey).where(ApiKey.user_id == current_user.id)
     if project_id:
+        await verify_project_access(project_id, current_user, db)
         stmt = stmt.where(ApiKey.project_id == project_id)
     stmt = stmt.order_by(ApiKey.created_at.desc()).limit(100)
     result = await db.execute(stmt)
