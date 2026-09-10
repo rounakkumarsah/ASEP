@@ -21,6 +21,11 @@ export default function PlaygroundPage() {
   const [model, setModel] = React.useState("gemini-flash-latest");
   const [temperature, setTemperature] = React.useState("0.7");
   const [maxTokens, setMaxTokens] = React.useState("2048");
+  const messagesEndRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, sending]);
 
   const templates = [
     { name: "Code Review", prompt: "Perform a security code audit on this controller:" },
@@ -44,13 +49,19 @@ export default function PlaygroundPage() {
     setSending(true);
 
     try {
-      // Call production AI Runtime API endpoint
-      const res = await apiClient.post("/api/v1/ai-runtime/chat/completions", {
-        model,
-        messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })),
-        temperature: parseFloat(temperature),
-        max_tokens: parseInt(maxTokens, 10),
-      });
+      // Call production AI Runtime API endpoint with 90s timeout for model generation & cold starts
+      const res = await apiClient.post(
+        "/api/v1/ai-runtime/chat/completions",
+        {
+          model,
+          messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })),
+          temperature: parseFloat(temperature),
+          max_tokens: parseInt(maxTokens, 10),
+        },
+        {
+          timeout: 90000,
+        }
+      );
 
       const replyContent = res.data?.choices?.[0]?.message?.content || res.data?.content || "Model executed successfully.";
 
@@ -201,6 +212,21 @@ export default function PlaygroundPage() {
                   <div className="whitespace-pre-wrap font-mono text-xs">{m.content}</div>
                 </div>
               ))}
+
+              {sending && (
+                <div className="p-3 rounded-lg flex flex-col gap-2 text-sm bg-card border border-border/50 mr-8 animate-in fade-in-50 duration-300">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                    <Bot className="h-3.5 w-3.5 text-primary" />
+                    <span>AI Assistant is thinking...</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 py-1 px-1">
+                    <span className="h-2 w-2 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]" />
+                    <span className="h-2 w-2 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]" />
+                    <span className="h-2 w-2 rounded-full bg-primary animate-bounce" />
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
             </div>
 
             <form onSubmit={handleSend} className="flex gap-2 pt-4 border-t border-border/40">
