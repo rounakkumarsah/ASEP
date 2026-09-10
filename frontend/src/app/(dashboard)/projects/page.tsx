@@ -205,7 +205,7 @@ export default function ProjectsPage() {
       ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredProjects.map(project => (
-              <Link href="/playground" key={project.id} className="block group">
+              <Link href={`/playground?projectId=${encodeURIComponent(project.id)}&projectName=${encodeURIComponent(project.name)}`} key={project.id} className="block group">
                 <AnimatedCard className="flex flex-col justify-between h-full group-hover:border-[#22D3EE]/50 transition-colors cursor-pointer">
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
