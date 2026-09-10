@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import Link from "next/link";
@@ -318,40 +318,93 @@ export default function PlaygroundPage() {
         <ChevronDown className={`h-3 w-3 transition-transform ${projectSelectorOpen ? "rotate-180" : ""}`} />
       </button>
       {projectSelectorOpen && (
-        <div className="absolute right-0 top-full z-50 mt-1 w-64 rounded-xl border border-border/60 bg-[#0D1117] shadow-xl overflow-hidden">
-          <button type="button" onClick={() => handleSelectProject(null)} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:bg-card/80 hover:text-foreground transition-colors border-b border-border/30">
-            <span className="h-3 w-3 rounded-sm border border-border/50 flex items-center justify-center text-[8px]">x</span>
-            No project
-          </button>
+        <div className="absolute right-0 top-full z-50 mt-1 w-72 rounded-xl border border-border/60 bg-[#0D1117] shadow-xl overflow-hidden">
+          {/* Context-aware header */}
+          <div className="px-3 py-2.5 border-b border-border/30 bg-[#111720]">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+              {selectedProjectId ? "Linked project" : "Link this conversation to a project"}
+            </p>
+          </div>
+
+          {/* Unlink option — only shown when a project IS currently selected */}
+          {selectedProjectId && (
+            <button
+              type="button"
+              onClick={() => handleSelectProject(null)}
+              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:bg-card/80 hover:text-destructive transition-colors border-b border-border/30"
+            >
+              <span className="h-3.5 w-3.5 rounded-sm border border-border/50 flex items-center justify-center text-[9px] shrink-0">✕</span>
+              Unlink project
+            </button>
+          )}
+
+          {/* Project list or empty state */}
           {projects.length === 0 ? (
-            <div className="px-3 py-4 text-xs text-muted-foreground text-center">
-              No projects yet.{" "}
-              <Link href="/projects" className="text-[#22D3EE] hover:underline">Create one →</Link>
+            <div className="px-4 py-5 text-center space-y-2">
+              <Folder className="h-6 w-6 text-muted-foreground/50 mx-auto" />
+              <p className="text-xs font-medium text-foreground">No projects yet</p>
+              <p className="text-[11px] text-muted-foreground">Create a project to track and organise your conversations.</p>
+              <Link
+                href="/projects"
+                onClick={() => setProjectSelectorOpen(false)}
+                className="inline-flex items-center gap-1.5 mt-1 px-3 py-1.5 rounded-lg bg-[#22D3EE]/15 border border-[#22D3EE]/30 text-[#22D3EE] text-xs font-semibold hover:bg-[#22D3EE]/25 transition-colors"
+              >
+                <Plus className="h-3 w-3" />
+                Create your first project
+              </Link>
             </div>
           ) : (
-            <div className="max-h-48 overflow-y-auto">
+            <div className="max-h-52 overflow-y-auto">
               {projects.map((p) => (
-                <button key={p.id} type="button" onClick={() => handleSelectProject(p)} className={`w-full flex items-center gap-2 px-3 py-2 text-xs text-left transition-colors hover:bg-card/80 ${selectedProjectId === p.id ? "bg-[#22D3EE]/10 text-[#22D3EE]" : "text-foreground"}`}>
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => handleSelectProject(p)}
+                  className={`w-full flex items-center gap-2 px-3 py-2.5 text-xs text-left transition-colors hover:bg-card/80 ${
+                    selectedProjectId === p.id ? "bg-[#22D3EE]/10 text-[#22D3EE]" : "text-foreground"
+                  }`}
+                >
                   <Folder className="h-3.5 w-3.5 shrink-0 text-[#22D3EE]" />
-                  <div className="truncate">
+                  <div className="truncate flex-1">
                     <span className="font-medium">{p.name}</span>
-                    {p.description && <span className="text-muted-foreground ml-1 text-[10px] truncate block">{p.description.slice(0, 40)}</span>}
+                    {p.description && (
+                      <span className="text-muted-foreground text-[10px] truncate block mt-0.5">
+                        {p.description.slice(0, 48)}
+                      </span>
+                    )}
                   </div>
-                  {selectedProjectId === p.id && <span className="ml-auto text-[#22D3EE] text-[10px]">✓</span>}
+                  {selectedProjectId === p.id && (
+                    <span className="ml-auto text-[#22D3EE] text-[10px] shrink-0">✓</span>
+                  )}
                 </button>
               ))}
             </div>
           )}
-          <div className="border-t border-border/30 px-3 py-2">
-            <Link href="/projects" className="text-[10px] text-muted-foreground hover:text-[#22D3EE] flex items-center gap-1" onClick={() => setProjectSelectorOpen(false)}>
+
+          {/* Footer: manage + new project */}
+          <div className="border-t border-border/30 px-3 py-2 flex items-center justify-between gap-2">
+            <Link
+              href="/projects"
+              className="text-[10px] text-muted-foreground hover:text-[#22D3EE] flex items-center gap-1 transition-colors"
+              onClick={() => setProjectSelectorOpen(false)}
+            >
               <ExternalLink className="h-2.5 w-2.5" />
               Manage all projects
+            </Link>
+            <Link
+              href="/projects"
+              className="text-[10px] text-[#22D3EE] hover:underline flex items-center gap-1 font-medium transition-colors"
+              onClick={() => setProjectSelectorOpen(false)}
+            >
+              <Plus className="h-2.5 w-2.5" />
+              New project
             </Link>
           </div>
         </div>
       )}
     </div>
   );
+
 
   if (!isLoaded) {
     return (
