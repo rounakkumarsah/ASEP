@@ -20,6 +20,7 @@ import {
   ExternalLink,
   Copy,
   Check,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,7 +77,7 @@ function ProjectBadge({ name, compact = false }: { name: string; compact?: boole
   );
 }
 
-function CopyButton({ text }: { text: string }) {
+function MessageActions({ text, onEdit, isUser }: { text: string; onEdit?: () => void; isUser?: boolean }) {
   const [copied, setCopied] = React.useState(false);
 
   const handleCopy = () => {
@@ -86,13 +87,24 @@ function CopyButton({ text }: { text: string }) {
   };
 
   return (
-    <button
-      onClick={handleCopy}
-      className="p-1 rounded hover:bg-white/10 transition-colors text-muted-foreground hover:text-foreground absolute top-2 right-2"
-      title="Copy message"
-    >
-      {copied ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
-    </button>
+    <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      {isUser && onEdit && (
+        <button
+          onClick={onEdit}
+          className="p-1 rounded hover:bg-white/10 transition-colors text-muted-foreground hover:text-foreground"
+          title="Edit message"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+      )}
+      <button
+        onClick={handleCopy}
+        className="p-1 rounded hover:bg-white/10 transition-colors text-muted-foreground hover:text-foreground"
+        title="Copy message"
+      >
+        {copied ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+      </button>
+    </div>
   );
 }
 
@@ -610,14 +622,14 @@ export default function PlaygroundPage() {
 
             <div className="flex-1 overflow-y-auto space-y-4 pr-2">
               {messages.map((m, idx) => (
-                <div key={idx} className={`relative p-3 rounded-lg flex flex-col gap-1 text-sm ${m.role === "user" ? "bg-primary/10 border border-primary/20 ml-8" : "bg-card border border-border/50 mr-8 group"}`}>
-                  {m.role === "assistant" && <CopyButton text={m.content} />}
+                <div key={idx} className={`relative p-3 rounded-lg flex flex-col gap-1 text-sm group ${m.role === "user" ? "bg-primary/10 border border-primary/20 ml-8" : "bg-card border border-border/50 mr-8"}`}>
+                  <MessageActions text={m.content} isUser={m.role === "user"} onEdit={() => setInput(m.content)} />
                   <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground mb-1">
                     <span className="flex items-center gap-1">
                       {m.role === "user" ? <UserIcon className="h-3.5 w-3.5 text-primary" /> : <Bot className="h-3.5 w-3.5 text-primary" />}
                       {m.role === "user" ? "You" : "AI Assistant"}
                     </span>
-                    <span className={m.role === "assistant" ? "mr-6" : ""}>{m.timestamp}</span>
+                    <span className={m.role === "user" ? "mr-12" : "mr-6"}>{m.timestamp}</span>
                   </div>
                   {m.role === "user" ? (
                     <div className="whitespace-pre-wrap font-mono text-xs">{m.content}</div>
