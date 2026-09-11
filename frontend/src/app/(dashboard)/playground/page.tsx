@@ -21,6 +21,12 @@ import {
   Copy,
   Check,
   Pencil,
+  FileText,
+  FileCode,
+  Image as ImageIcon,
+  File,
+  X,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,10 +34,21 @@ import { apiClient } from "@/lib/api/client";
 
 /* --- Types --- */
 
+export interface Attachment {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  url?: string;
+  extractedText?: string;
+  isImage?: boolean;
+}
+
 export interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: string;
+  attachments?: Attachment[];
 }
 
 export interface PlaygroundSession {
@@ -108,6 +125,27 @@ function MessageActions({ text, onEdit, isUser }: { text: string; onEdit?: () =>
   );
 }
 
+function formatFileSize(bytes: number): string {
+  if (!bytes || bytes <= 0) return "0 B";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function getFileIcon(type: string, name: string) {
+  const ext = name.split(".").pop()?.toLowerCase() || "";
+  if (type.startsWith("image/") || ["png", "jpg", "jpeg", "webp", "gif", "svg"].includes(ext)) {
+    return <ImageIcon className="h-3.5 w-3.5 text-[#22D3EE] shrink-0" />;
+  }
+  if (["js", "ts", "tsx", "jsx", "py", "json", "html", "css", "sql", "sh", "yaml", "yml"].includes(ext)) {
+    return <FileCode className="h-3.5 w-3.5 text-emerald-400 shrink-0" />;
+  }
+  if (["pdf", "doc", "docx", "txt", "md", "csv", "rtf"].includes(ext)) {
+    return <FileText className="h-3.5 w-3.5 text-amber-400 shrink-0" />;
+  }
+  return <File className="h-3.5 w-3.5 text-muted-foreground shrink-0" />;
+}
+
 /* --- Page --- */
 
 export default function PlaygroundPage() {
@@ -130,6 +168,86 @@ export default function PlaygroundPage() {
   const [projectSelectorOpen, setProjectSelectorOpen] = React.useState(false);
   const projectSelectorRef = React.useRef<HTMLDivElement>(null);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const emptyFileInputRef = React.useRef<HTMLInputElement>(null);
+  const [attachments, setAttachments] = React.useState<Attachment[]>([]);
+  const [uploadingFiles, setUploadingFiles] = React.useState(false);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploadingFiles(true);
+    const newAttachments: Attachment[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const id = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      const isImg = file.type.startsWith("image/") || /\.(png|jpe?g|webp|gif|svg)$/i.test(file.name);
+      const isCodeOrText = /\.(txt|md|json|csv|py|js|ts|tsx|jsx|html|css|yaml|yml|sh|sql|xml|env)$/i.test(file.name);
+      const isDoc = /\.(pdf|docx?|pptx?|xlsx?)$/i.test(file.name);
+
+      let extractedText = "";
+      let previewUrl: string | undefined = undefined;
+
+      if (isImg) {
+        try {
+          previewUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+        } catch {
+          // silent fallback
+        }
+      }
+
+      if (isCodeOrText) {
+        try {
+          extractedText = await file.text();
+        } catch {
+          // fallback
+        }
+      } else if (isDoc) {
+        try {
+          const formData = new FormData();
+          formData.append("file", file);
+          const res = await apiClient.post("/api/v1/upload/document", formData, {
+            headers: { "Content-Type": "multipart/form-data" },
+            timeout: 30000,
+          });
+          extractedText = res.data?.extracted_text || res.data?.sample_text || "";
+        } catch {
+          try {
+            extractedText = await file.text();
+          } catch {
+            extractedText = `[Attached Document: ${file.name} (${formatFileSize(file.size)})]`;
+          }
+        }
+      }
+
+      newAttachments.push({
+        id,
+        name: file.name,
+        size: file.size,
+        type: file.type || "application/octet-stream",
+        url: previewUrl,
+        extractedText: extractedText || undefined,
+        isImage: isImg,
+      });
+    }
+
+    setAttachments((prev) => [...prev, ...newAttachments]);
+    setUploadingFiles(false);
+    if (e.target) {
+      e.target.value = "";
+    }
+  };
+
+  const removeAttachment = (id: string) => {
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
+  };
 
   React.useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -253,6 +371,7 @@ export default function PlaygroundPage() {
   const handleSelectSession = (session: PlaygroundSession) => {
     setActiveSessionId(session.id);
     setMessages(session.messages);
+    setAttachments([]);
     if (session.model) setModel(session.model);
     setSelectedProjectId(session.projectId ?? null);
     setSelectedProjectName(session.projectName ?? null);
@@ -266,6 +385,7 @@ export default function PlaygroundPage() {
 
   const handleNewConversation = () => {
     setMessages([]);
+    setAttachments([]);
     setActiveSessionId(null);
     setSelectedProjectId(null);
     setSelectedProjectName(null);
@@ -303,21 +423,58 @@ export default function PlaygroundPage() {
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || sending) return;
-    const userText = input;
-    const userMsg: Message = { role: "user", content: userText, timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) };
+    if ((!input.trim() && attachments.length === 0) || sending) return;
+    const userText = input.trim();
+    const currentAttachments = [...attachments];
+    setAttachments([]);
+
+    const userMsg: Message = {
+      role: "user",
+      content: userText || (currentAttachments.length > 0 ? `Sent ${currentAttachments.length} attachment(s)` : ""),
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      attachments: currentAttachments.length > 0 ? currentAttachments : undefined,
+    };
     const nextMessages = [...messages, userMsg];
     setMessages(nextMessages);
     persistSession(nextMessages, model, activeSessionId, selectedProjectId, selectedProjectName);
     setInput("");
     setSending(true);
+
+    let promptWithAttachments = userText;
+    if (currentAttachments.length > 0) {
+      const attachmentsContext = currentAttachments
+        .map((att) => {
+          if (att.extractedText) {
+            return `--- Attached File: ${att.name} (${att.type}) ---\n${att.extractedText}\n--- End of File ---`;
+          } else if (att.isImage) {
+            return `[Attached Image: ${att.name} (${formatFileSize(att.size)})]`;
+          } else {
+            return `[Attached File: ${att.name} (${formatFileSize(att.size)})]`;
+          }
+        })
+        .join("\n\n");
+
+      promptWithAttachments = userText
+        ? `${attachmentsContext}\n\nUser Question/Instruction:\n${userText}`
+        : `${attachmentsContext}\n\nPlease analyze the attached file(s) and provide a comprehensive review or summary.`;
+    }
+
     try {
-      const res = await apiClient.post("/api/v1/ai-runtime/chat/completions", {
-        model,
-        messages: nextMessages.map((m) => ({ role: m.role, content: m.content })),
-        temperature: parseFloat(temperature),
-        max_tokens: parseInt(maxTokens, 10),
-      }, { timeout: 90000 });
+      const res = await apiClient.post(
+        "/api/v1/ai-runtime/chat/completions",
+        {
+          model,
+          messages: nextMessages.map((m, idx) => {
+            if (idx === nextMessages.length - 1 && currentAttachments.length > 0) {
+              return { role: m.role, content: promptWithAttachments };
+            }
+            return { role: m.role, content: m.content };
+          }),
+          temperature: parseFloat(temperature),
+          max_tokens: parseInt(maxTokens, 10),
+        },
+        { timeout: 90000 }
+      );
       const replyContent = res.data?.choices?.[0]?.message?.content || res.data?.content || "Model executed successfully.";
       const assistantMsg: Message = { role: "assistant", content: replyContent, timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) };
       const finalMessages = [...nextMessages, assistantMsg];
@@ -535,9 +692,77 @@ export default function PlaygroundPage() {
             ))}
           </div>
 
-          <form onSubmit={handleSend} className="w-full max-w-md flex gap-2">
-            <Input placeholder="Ask the AI model a coding question..." value={input} onChange={(e) => setInput(e.target.value)} className="bg-card/40" />
-            <Button type="submit" className="gap-2"><Send className="h-4 w-4" />Send</Button>
+          <form onSubmit={handleSend} className="w-full max-w-md flex flex-col gap-2">
+            {attachments.length > 0 && (
+              <div className="flex flex-wrap gap-2 p-2 rounded-lg bg-card/60 border border-border/40 max-h-32 overflow-y-auto w-full text-left">
+                {attachments.map((att) => (
+                  <div
+                    key={att.id}
+                    className="flex items-center gap-2 p-1.5 px-2.5 rounded-md bg-background border border-[#22D3EE]/30 text-xs text-foreground shadow-sm"
+                  >
+                    {att.isImage && att.url ? (
+                      <div className="h-6 w-6 rounded overflow-hidden border border-border/40 shrink-0">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={att.url} alt={att.name} className="h-full w-full object-cover" />
+                      </div>
+                    ) : (
+                      getFileIcon(att.type, att.name)
+                    )}
+                    <div className="flex flex-col min-w-0">
+                      <span className="truncate font-medium text-[11px] max-w-[120px]" title={att.name}>
+                        {att.name}
+                      </span>
+                      <span className="text-[9px] text-muted-foreground">{formatFileSize(att.size)}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(att.id)}
+                      className="text-muted-foreground hover:text-destructive p-0.5 rounded transition-colors ml-1"
+                      title="Remove file"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+                {uploadingFiles && (
+                  <div className="flex items-center gap-1.5 text-xs text-[#22D3EE] px-2 py-1">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>Processing file...</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex gap-2 items-center w-full">
+              <input
+                type="file"
+                ref={emptyFileInputRef}
+                onChange={handleFileSelect}
+                className="hidden"
+                multiple
+                accept=".pdf,.doc,.docx,.md,.txt,.json,.csv,.py,.js,.ts,.tsx,.jsx,.html,.css,.yaml,.yml,.sh,.sql,image/*"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => emptyFileInputRef.current?.click()}
+                disabled={sending || uploadingFiles}
+                className="shrink-0 h-10 w-10 rounded-lg border-border/60 bg-card/40 hover:bg-card hover:border-[#22D3EE]/50 hover:text-[#22D3EE] transition"
+                title="Upload files or images (PDF, DOC, MD, TXT, images)"
+              >
+                {uploadingFiles ? <Loader2 className="h-4 w-4 animate-spin text-[#22D3EE]" /> : <Plus className="h-4 w-4" />}
+              </Button>
+              <Input
+                placeholder="Ask a question or upload files..."
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                className="bg-card/40 flex-1"
+              />
+              <Button type="submit" disabled={sending || (!input.trim() && attachments.length === 0)} className="gap-2 shrink-0">
+                <Send className="h-4 w-4" />Send
+              </Button>
+            </div>
           </form>
         </div>
       ) : (
@@ -632,7 +857,34 @@ export default function PlaygroundPage() {
                     <span className={m.role === "user" ? "mr-12" : "mr-6"}>{m.timestamp}</span>
                   </div>
                   {m.role === "user" ? (
-                    <div className="whitespace-pre-wrap font-mono text-xs">{m.content}</div>
+                    <div>
+                      {m.attachments && m.attachments.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {m.attachments.map((att) => (
+                            <div
+                              key={att.id}
+                              className="flex items-center gap-2 p-1.5 px-2.5 rounded-lg bg-background/80 border border-primary/20 text-xs text-foreground max-w-sm"
+                            >
+                              {att.isImage && att.url ? (
+                                <div className="h-8 w-8 rounded overflow-hidden border border-border/50 shrink-0">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={att.url} alt={att.name} className="h-full w-full object-cover" />
+                                </div>
+                              ) : (
+                                getFileIcon(att.type, att.name)
+                              )}
+                              <div className="flex flex-col min-w-0">
+                                <span className="truncate font-medium text-[11px] max-w-[150px]" title={att.name}>
+                                  {att.name}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground">{formatFileSize(att.size)}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div className="whitespace-pre-wrap font-mono text-xs">{m.content}</div>
+                    </div>
                   ) : (
                     <div className="prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-black/50 prose-pre:border prose-pre:border-border/50 text-[13px] leading-normal text-foreground/90">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
@@ -657,11 +909,84 @@ export default function PlaygroundPage() {
               <div ref={messagesEndRef} />
             </div>
 
-            <form onSubmit={handleSend} className="flex gap-2 pt-4 border-t border-border/40">
-              <Input placeholder="Type your message or prompt..." value={input} onChange={(e) => setInput(e.target.value)} disabled={sending} className="bg-card/40" />
-              <Button type="submit" disabled={sending}>
-                {sending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              </Button>
+            <form onSubmit={handleSend} className="flex flex-col pt-3 border-t border-border/40">
+              {/* Attachment Preview Chips */}
+              {attachments.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-2 p-2 rounded-lg bg-card/60 border border-border/40 max-h-32 overflow-y-auto">
+                  {attachments.map((att) => (
+                    <div
+                      key={att.id}
+                      className="flex items-center gap-2 p-1.5 px-2.5 rounded-md bg-background border border-[#22D3EE]/30 text-xs text-foreground shadow-sm"
+                    >
+                      {att.isImage && att.url ? (
+                        <div className="h-6 w-6 rounded overflow-hidden border border-border/40 shrink-0">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={att.url} alt={att.name} className="h-full w-full object-cover" />
+                        </div>
+                      ) : (
+                        getFileIcon(att.type, att.name)
+                      )}
+                      <div className="flex flex-col min-w-0">
+                        <span className="truncate font-medium text-[11px] max-w-[140px]" title={att.name}>
+                          {att.name}
+                        </span>
+                        <span className="text-[9px] text-muted-foreground">{formatFileSize(att.size)}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeAttachment(att.id)}
+                        className="text-muted-foreground hover:text-destructive p-0.5 rounded transition-colors ml-1"
+                        title="Remove file"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                  {uploadingFiles && (
+                    <div className="flex items-center gap-1.5 text-xs text-[#22D3EE] px-2 py-1">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span>Processing file...</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex gap-2 items-center w-full">
+                {/* Hidden Native File Input */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  multiple
+                  accept=".pdf,.doc,.docx,.md,.txt,.json,.csv,.py,.js,.ts,.tsx,.jsx,.html,.css,.yaml,.yml,.sh,.sql,image/*"
+                />
+
+                {/* Plus Attachment Button */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={sending || uploadingFiles}
+                  className="shrink-0 h-10 w-10 rounded-lg border-border/60 bg-card/40 hover:bg-card hover:border-[#22D3EE]/50 hover:text-[#22D3EE] transition"
+                  title="Upload files or images (PDF, DOC, MD, TXT, images)"
+                >
+                  {uploadingFiles ? <Loader2 className="h-4 w-4 animate-spin text-[#22D3EE]" /> : <Plus className="h-4 w-4" />}
+                </Button>
+
+                <Input
+                  placeholder={attachments.length > 0 ? "Add instructions or question for attached file(s)..." : "Type your message or prompt..."}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  disabled={sending}
+                  className="bg-card/40 flex-1"
+                />
+
+                <Button type="submit" disabled={sending || (!input.trim() && attachments.length === 0)}>
+                  {sending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                </Button>
+              </div>
             </form>
           </div>
         </div>

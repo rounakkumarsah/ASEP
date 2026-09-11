@@ -171,6 +171,7 @@ async def upload_document(
         "character_count": len(extracted_text),
         "status": "ingested",
         "sample_text": extracted_text[:200],
+        "extracted_text": extracted_text,
     }
 
 
