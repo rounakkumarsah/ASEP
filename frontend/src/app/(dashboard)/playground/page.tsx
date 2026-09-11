@@ -27,6 +27,7 @@ import {
   File,
   X,
   Loader2,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -173,15 +174,121 @@ export default function PlaygroundPage() {
   const [attachments, setAttachments] = React.useState<Attachment[]>([]);
   const [uploadingFiles, setUploadingFiles] = React.useState(false);
 
+  // Subscription / Tier limits
+  const [userTier, setUserTier] = React.useState<"free" | "pro" | "enterprise">("free");
+  const [fileNotice, setFileNotice] = React.useState<{
+    message: string;
+    type: "warning" | "error" | "info";
+    isUpgradeNotice?: boolean;
+  } | null>(null);
+
+  const isPro = userTier === "pro" || userTier === "enterprise";
+  const MAX_FILES = isPro ? 20 : 5;
+  const MAX_FILE_SIZE_MB = isPro ? 50 : 10;
+  const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
+  React.useEffect(() => {
+    if (!fileNotice) return;
+    const timer = setTimeout(() => {
+      setFileNotice(null);
+    }, 7000);
+    return () => clearTimeout(timer);
+  }, [fileNotice]);
+
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+    const fileList = e.target.files;
+    if (!fileList || fileList.length === 0) return;
+
+    const files = Array.from(fileList);
+    const existingAttachments = [...attachments];
+    const newAttachments: Attachment[] = [];
+    const duplicates: string[] = [];
+    const oversized: string[] = [];
+
+    // 1. Duplicate detection (matches by filename & file size)
+    const nonDuplicates: File[] = [];
+    for (const file of files) {
+      const isDuplicate =
+        existingAttachments.some(
+          (att) => att.name.toLowerCase() === file.name.toLowerCase() && att.size === file.size
+        ) ||
+        nonDuplicates.some(
+          (f) => f.name.toLowerCase() === file.name.toLowerCase() && f.size === file.size
+        );
+
+      if (isDuplicate) {
+        duplicates.push(file.name);
+      } else {
+        nonDuplicates.push(file);
+      }
+    }
+
+    // 2. File size limit check
+    const validSizeFiles: File[] = [];
+    for (const file of nonDuplicates) {
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        oversized.push(`${file.name} (${formatFileSize(file.size)})`);
+      } else {
+        validSizeFiles.push(file);
+      }
+    }
+
+    // 3. File count limit check
+    const currentCount = existingAttachments.length;
+    const availableSlots = MAX_FILES - currentCount;
+
+    if (availableSlots <= 0) {
+      setFileNotice({
+        message: isPro
+          ? `Maximum limit of ${MAX_FILES} files reached for this prompt.`
+          : `Free tier limit: Maximum ${MAX_FILES} files per message. Upgrade to Pro for up to 20 files.`,
+        type: "warning",
+        isUpgradeNotice: !isPro,
+      });
+      if (e.target) e.target.value = "";
+      return;
+    }
+
+    let filesToProcess = validSizeFiles;
+    let limitExceeded = false;
+    if (validSizeFiles.length > availableSlots) {
+      filesToProcess = validSizeFiles.slice(0, availableSlots);
+      limitExceeded = true;
+    }
+
+    // Display appropriate notice
+    if (duplicates.length > 0) {
+      setFileNotice({
+        message:
+          duplicates.length === 1
+            ? `"${duplicates[0]}" has already been selected.`
+            : `${duplicates.length} duplicate files were already selected and skipped.`,
+        type: "info",
+      });
+    } else if (oversized.length > 0) {
+      setFileNotice({
+        message: `${oversized.join(", ")} exceeds the ${MAX_FILE_SIZE_MB} MB limit for ${isPro ? "Pro" : "Free"} tier.`,
+        type: "warning",
+        isUpgradeNotice: !isPro,
+      });
+    } else if (limitExceeded) {
+      setFileNotice({
+        message: isPro
+          ? `Only ${availableSlots} more file(s) allowed (maximum ${MAX_FILES} files per message).`
+          : `Only ${availableSlots} more file(s) allowed on Free plan (max ${MAX_FILES}). Upgrade to Pro for up to 20 files.`,
+        type: "warning",
+        isUpgradeNotice: !isPro,
+      });
+    }
+
+    if (filesToProcess.length === 0) {
+      if (e.target) e.target.value = "";
+      return;
+    }
 
     setUploadingFiles(true);
-    const newAttachments: Attachment[] = [];
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
+    for (let i = 0; i < filesToProcess.length; i++) {
+      const file = filesToProcess[i];
       const id = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
       const isImg = file.type.startsWith("image/") || /\.(png|jpe?g|webp|gif|svg)$/i.test(file.name);
       const isCodeOrText = /\.(txt|md|json|csv|py|js|ts|tsx|jsx|html|css|yaml|yml|sh|sql|xml|env)$/i.test(file.name);
@@ -264,9 +371,24 @@ export default function PlaygroundPage() {
   }, []);
 
   React.useEffect(() => {
-    apiClient.get("/api/v1/projects").then((res) => {
-      if (res.data && Array.isArray(res.data)) setProjects(res.data);
-    }).catch(() => {});
+    apiClient
+      .get("/api/v1/projects")
+      .then((res) => {
+        if (res.data && Array.isArray(res.data)) setProjects(res.data);
+      })
+      .catch(() => {});
+
+    apiClient
+      .get("/api/v1/users/quota")
+      .then((res) => {
+        if (res.data?.tier) {
+          const t = String(res.data.tier).toLowerCase();
+          if (t === "pro" || t === "enterprise") {
+            setUserTier(t as "pro" | "enterprise");
+          }
+        }
+      })
+      .catch(() => {});
   }, []);
 
   React.useEffect(() => {
@@ -693,43 +815,76 @@ export default function PlaygroundPage() {
           </div>
 
           <form onSubmit={handleSend} className="w-full max-w-md flex flex-col gap-2">
-            {attachments.length > 0 && (
-              <div className="flex flex-wrap gap-2 p-2 rounded-lg bg-card/60 border border-border/40 max-h-32 overflow-y-auto w-full text-left">
-                {attachments.map((att) => (
-                  <div
-                    key={att.id}
-                    className="flex items-center gap-2 p-1.5 px-2.5 rounded-md bg-background border border-[#22D3EE]/30 text-xs text-foreground shadow-sm"
-                  >
-                    {att.isImage && att.url ? (
-                      <div className="h-6 w-6 rounded overflow-hidden border border-border/40 shrink-0">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={att.url} alt={att.name} className="h-full w-full object-cover" />
-                      </div>
-                    ) : (
-                      getFileIcon(att.type, att.name)
-                    )}
-                    <div className="flex flex-col min-w-0">
-                      <span className="truncate font-medium text-[11px] max-w-[120px]" title={att.name}>
-                        {att.name}
-                      </span>
-                      <span className="text-[9px] text-muted-foreground">{formatFileSize(att.size)}</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeAttachment(att.id)}
-                      className="text-muted-foreground hover:text-destructive p-0.5 rounded transition-colors ml-1"
-                      title="Remove file"
+            {fileNotice && (
+              <div className="flex items-center justify-between gap-2 p-2.5 px-3 rounded-lg bg-[#F5B942]/10 border border-[#F5B942]/30 text-xs text-[#F5B942] w-full text-left animate-in fade-in duration-200">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <AlertCircle className="h-4 w-4 text-[#F5B942] shrink-0" />
+                  <span className="truncate">{fileNotice.message}</span>
+                  {fileNotice.isUpgradeNotice && (
+                    <Link
+                      href="/billing"
+                      className="text-[#22D3EE] hover:underline font-semibold shrink-0 ml-1 inline-flex items-center gap-0.5"
                     >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
-                {uploadingFiles && (
-                  <div className="flex items-center gap-1.5 text-xs text-[#22D3EE] px-2 py-1">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    <span>Processing file...</span>
-                  </div>
-                )}
+                      Upgrade →
+                    </Link>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFileNotice(null)}
+                  className="text-[#F5B942]/70 hover:text-[#F5B942] p-0.5 rounded transition-colors shrink-0"
+                  title="Dismiss notification"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+
+            {attachments.length > 0 && (
+              <div className="p-2 rounded-lg bg-card/60 border border-border/40 w-full text-left">
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1.5 px-1 font-mono">
+                  <span>Attached files</span>
+                  <span className={attachments.length >= MAX_FILES ? "text-[#F5B942] font-semibold" : ""}>
+                    {attachments.length}/{MAX_FILES} {isPro ? "(Pro limit 20)" : "(Free limit 5)"}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                  {attachments.map((att) => (
+                    <div
+                      key={att.id}
+                      className="flex items-center gap-2 p-1.5 px-2.5 rounded-md bg-background border border-[#22D3EE]/30 text-xs text-foreground shadow-sm"
+                    >
+                      {att.isImage && att.url ? (
+                        <div className="h-6 w-6 rounded overflow-hidden border border-border/40 shrink-0">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={att.url} alt={att.name} className="h-full w-full object-cover" />
+                        </div>
+                      ) : (
+                        getFileIcon(att.type, att.name)
+                      )}
+                      <div className="flex flex-col min-w-0">
+                        <span className="truncate font-medium text-[11px] max-w-[120px]" title={att.name}>
+                          {att.name}
+                        </span>
+                        <span className="text-[9px] text-muted-foreground">{formatFileSize(att.size)}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeAttachment(att.id)}
+                        className="text-muted-foreground hover:text-destructive p-0.5 rounded transition-colors ml-1"
+                        title="Remove file"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                  {uploadingFiles && (
+                    <div className="flex items-center gap-1.5 text-xs text-[#22D3EE] px-2 py-1">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span>Processing file...</span>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -746,10 +901,28 @@ export default function PlaygroundPage() {
                 type="button"
                 variant="outline"
                 size="icon"
-                onClick={() => emptyFileInputRef.current?.click()}
+                onClick={() => {
+                  if (attachments.length >= MAX_FILES) {
+                    setFileNotice({
+                      message: isPro
+                        ? `Maximum limit of ${MAX_FILES} files reached.`
+                        : `Free tier limit: Maximum ${MAX_FILES} files per message. Upgrade to Pro for up to 20 files.`,
+                      type: "warning",
+                      isUpgradeNotice: !isPro,
+                    });
+                    return;
+                  }
+                  emptyFileInputRef.current?.click();
+                }}
                 disabled={sending || uploadingFiles}
-                className="shrink-0 h-10 w-10 rounded-lg border-border/60 bg-card/40 hover:bg-card hover:border-[#22D3EE]/50 hover:text-[#22D3EE] transition"
-                title="Upload files or images (PDF, DOC, MD, TXT, images)"
+                className={`shrink-0 h-10 w-10 rounded-lg border-border/60 bg-card/40 hover:bg-card hover:border-[#22D3EE]/50 hover:text-[#22D3EE] transition ${
+                  attachments.length >= MAX_FILES ? "opacity-60 cursor-not-allowed" : ""
+                }`}
+                title={
+                  attachments.length >= MAX_FILES
+                    ? `Max limit of ${MAX_FILES} files reached`
+                    : `Upload files or images (${attachments.length}/${MAX_FILES})`
+                }
               >
                 {uploadingFiles ? <Loader2 className="h-4 w-4 animate-spin text-[#22D3EE]" /> : <Plus className="h-4 w-4" />}
               </Button>
@@ -910,44 +1083,78 @@ export default function PlaygroundPage() {
             </div>
 
             <form onSubmit={handleSend} className="flex flex-col pt-3 border-t border-border/40">
+              {/* Notification / Limit Alert Banner */}
+              {fileNotice && (
+                <div className="flex items-center justify-between gap-2 p-2.5 px-3 rounded-lg bg-[#F5B942]/10 border border-[#F5B942]/30 text-xs text-[#F5B942] mb-2 animate-in fade-in duration-200">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <AlertCircle className="h-4 w-4 text-[#F5B942] shrink-0" />
+                    <span className="truncate">{fileNotice.message}</span>
+                    {fileNotice.isUpgradeNotice && (
+                      <Link
+                        href="/billing"
+                        className="text-[#22D3EE] hover:underline font-semibold shrink-0 ml-1 inline-flex items-center gap-0.5"
+                      >
+                        Upgrade →
+                      </Link>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFileNotice(null)}
+                    className="text-[#F5B942]/70 hover:text-[#F5B942] p-0.5 rounded transition-colors shrink-0"
+                    title="Dismiss notification"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
+
               {/* Attachment Preview Chips */}
               {attachments.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-2 p-2 rounded-lg bg-card/60 border border-border/40 max-h-32 overflow-y-auto">
-                  {attachments.map((att) => (
-                    <div
-                      key={att.id}
-                      className="flex items-center gap-2 p-1.5 px-2.5 rounded-md bg-background border border-[#22D3EE]/30 text-xs text-foreground shadow-sm"
-                    >
-                      {att.isImage && att.url ? (
-                        <div className="h-6 w-6 rounded overflow-hidden border border-border/40 shrink-0">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={att.url} alt={att.name} className="h-full w-full object-cover" />
-                        </div>
-                      ) : (
-                        getFileIcon(att.type, att.name)
-                      )}
-                      <div className="flex flex-col min-w-0">
-                        <span className="truncate font-medium text-[11px] max-w-[140px]" title={att.name}>
-                          {att.name}
-                        </span>
-                        <span className="text-[9px] text-muted-foreground">{formatFileSize(att.size)}</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeAttachment(att.id)}
-                        className="text-muted-foreground hover:text-destructive p-0.5 rounded transition-colors ml-1"
-                        title="Remove file"
+                <div className="p-2 rounded-lg bg-card/60 border border-border/40 mb-2">
+                  <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1.5 px-1 font-mono">
+                    <span>Attached files</span>
+                    <span className={attachments.length >= MAX_FILES ? "text-[#F5B942] font-semibold" : ""}>
+                      {attachments.length}/{MAX_FILES} {isPro ? "(Pro limit 20)" : "(Free limit 5)"}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                    {attachments.map((att) => (
+                      <div
+                        key={att.id}
+                        className="flex items-center gap-2 p-1.5 px-2.5 rounded-md bg-background border border-[#22D3EE]/30 text-xs text-foreground shadow-sm"
                       >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ))}
-                  {uploadingFiles && (
-                    <div className="flex items-center gap-1.5 text-xs text-[#22D3EE] px-2 py-1">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      <span>Processing file...</span>
-                    </div>
-                  )}
+                        {att.isImage && att.url ? (
+                          <div className="h-6 w-6 rounded overflow-hidden border border-border/40 shrink-0">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={att.url} alt={att.name} className="h-full w-full object-cover" />
+                          </div>
+                        ) : (
+                          getFileIcon(att.type, att.name)
+                        )}
+                        <div className="flex flex-col min-w-0">
+                          <span className="truncate font-medium text-[11px] max-w-[140px]" title={att.name}>
+                            {att.name}
+                          </span>
+                          <span className="text-[9px] text-muted-foreground">{formatFileSize(att.size)}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeAttachment(att.id)}
+                          className="text-muted-foreground hover:text-destructive p-0.5 rounded transition-colors ml-1"
+                          title="Remove file"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                    {uploadingFiles && (
+                      <div className="flex items-center gap-1.5 text-xs text-[#22D3EE] px-2 py-1">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        <span>Processing file...</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -967,10 +1174,28 @@ export default function PlaygroundPage() {
                   type="button"
                   variant="outline"
                   size="icon"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => {
+                    if (attachments.length >= MAX_FILES) {
+                      setFileNotice({
+                        message: isPro
+                          ? `Maximum limit of ${MAX_FILES} files reached for this message.`
+                          : `Free tier limit: Maximum ${MAX_FILES} files per message. Upgrade to Pro for up to 20 files.`,
+                        type: "warning",
+                        isUpgradeNotice: !isPro,
+                      });
+                      return;
+                    }
+                    fileInputRef.current?.click();
+                  }}
                   disabled={sending || uploadingFiles}
-                  className="shrink-0 h-10 w-10 rounded-lg border-border/60 bg-card/40 hover:bg-card hover:border-[#22D3EE]/50 hover:text-[#22D3EE] transition"
-                  title="Upload files or images (PDF, DOC, MD, TXT, images)"
+                  className={`shrink-0 h-10 w-10 rounded-lg border-border/60 bg-card/40 hover:bg-card hover:border-[#22D3EE]/50 hover:text-[#22D3EE] transition ${
+                    attachments.length >= MAX_FILES ? "opacity-60 cursor-not-allowed" : ""
+                  }`}
+                  title={
+                    attachments.length >= MAX_FILES
+                      ? `Max limit of ${MAX_FILES} files reached`
+                      : `Upload files or images (${attachments.length}/${MAX_FILES})`
+                  }
                 >
                   {uploadingFiles ? <Loader2 className="h-4 w-4 animate-spin text-[#22D3EE]" /> : <Plus className="h-4 w-4" />}
                 </Button>
