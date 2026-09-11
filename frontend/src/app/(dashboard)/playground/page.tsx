@@ -3,6 +3,8 @@
 import * as React from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   Send,
   Terminal,
@@ -16,6 +18,8 @@ import {
   Folder,
   ChevronDown,
   ExternalLink,
+  Copy,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,6 +73,26 @@ function ProjectBadge({ name, compact = false }: { name: string; compact?: boole
       <span className="truncate max-w-[120px]">{name}</span>
       <ExternalLink className={compact ? "h-2 w-2 opacity-60" : "h-2.5 w-2.5 opacity-60"} />
     </Link>
+  );
+}
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = React.useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="p-1 rounded hover:bg-white/10 transition-colors text-muted-foreground hover:text-foreground absolute top-2 right-2"
+      title="Copy message"
+    >
+      {copied ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+    </button>
   );
 }
 
@@ -586,15 +610,22 @@ export default function PlaygroundPage() {
 
             <div className="flex-1 overflow-y-auto space-y-4 pr-2">
               {messages.map((m, idx) => (
-                <div key={idx} className={`p-3 rounded-lg flex flex-col gap-1 text-sm ${m.role === "user" ? "bg-primary/10 border border-primary/20 ml-8" : "bg-card border border-border/50 mr-8"}`}>
-                  <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
+                <div key={idx} className={`relative p-3 rounded-lg flex flex-col gap-1 text-sm ${m.role === "user" ? "bg-primary/10 border border-primary/20 ml-8" : "bg-card border border-border/50 mr-8 group"}`}>
+                  {m.role === "assistant" && <CopyButton text={m.content} />}
+                  <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground mb-1">
                     <span className="flex items-center gap-1">
                       {m.role === "user" ? <UserIcon className="h-3.5 w-3.5 text-primary" /> : <Bot className="h-3.5 w-3.5 text-primary" />}
                       {m.role === "user" ? "You" : "AI Assistant"}
                     </span>
-                    <span>{m.timestamp}</span>
+                    <span className={m.role === "assistant" ? "mr-6" : ""}>{m.timestamp}</span>
                   </div>
-                  <div className="whitespace-pre-wrap font-mono text-xs">{m.content}</div>
+                  {m.role === "user" ? (
+                    <div className="whitespace-pre-wrap font-mono text-xs">{m.content}</div>
+                  ) : (
+                    <div className="prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-black/50 prose-pre:border prose-pre:border-border/50 text-[13px] leading-normal text-foreground/90">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
+                    </div>
+                  )}
                 </div>
               ))}
 
