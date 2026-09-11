@@ -122,12 +122,19 @@ class AIRuntimeService:
             if breaker:
                 breaker.record_failure(last_error)
 
-            logger.warn("Failover", provider=provider.name, error=str(last_error))
-            if provider.name == "gemini":
-                raise RuntimeError(f"Gemini API Error: {str(last_error)}") from last_error
+            error_msg = str(last_error)
+            if not error_msg and type(last_error).__name__ == "ReadTimeout":
+                error_msg = "Connection timed out"
+            
+            logger.warn("Failover", provider=provider.name, error=error_msg)
 
         logger.error("RuntimeError", error="All providers in priority chain failed")
-        raise RuntimeError("AI runtime failed to process request. All providers exhausted.") from last_error
+        
+        error_msg = str(last_error) if last_error else "Unknown error"
+        if last_error and not str(last_error) and type(last_error).__name__ == "ReadTimeout":
+            error_msg = "Connection timed out"
+            
+        raise RuntimeError(f"AI runtime failed to process request. All providers exhausted. Last error: {error_msg}") from last_error
 
     async def stream(self, request: CompletionRequest) -> AsyncGenerator[StreamChunk, None]:
         logger.info("RequestStarted", model=request.model, streaming=True)
