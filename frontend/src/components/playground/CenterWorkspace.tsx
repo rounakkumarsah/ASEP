@@ -51,7 +51,7 @@ export function CenterWorkspace() {
   };
 
   return (
-    <div className="flex-1 w-full flex flex-col bg-[#0D1117] relative">
+    <div className="h-full w-full flex flex-col bg-[#0D1117] relative">
       <Tabs value={activeCenterTab} onValueChange={setActiveCenterTab} className="flex-1 flex flex-col min-h-0">
         <div className="px-4 py-2 border-b border-border/40 bg-background/50 backdrop-blur">
           <TabsList className="bg-muted/50 h-9 p-1">
@@ -62,9 +62,9 @@ export function CenterWorkspace() {
           </TabsList>
         </div>
 
-        <div className="flex-1 min-h-0 relative">
-          <TabsContent value="chat" className="h-full mt-0 border-0">
-            <ScrollArea className="h-full">
+        <div className="flex-1 min-h-0 relative flex flex-col">
+          <TabsContent value="chat" className="flex-1 mt-0 border-0 flex-col data-[state=active]:flex data-[state=inactive]:hidden min-h-0">
+            <ScrollArea className="flex-1 h-full">
               <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto space-y-6 pb-32">
                 {messages.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-[40vh] text-center space-y-4">
@@ -129,7 +129,7 @@ export function CenterWorkspace() {
             </ScrollArea>
           </TabsContent>
 
-          <TabsContent value="artifacts" className="h-full mt-0 border-0 flex">
+          <TabsContent value="artifacts" className="flex-1 mt-0 border-0 data-[state=active]:flex data-[state=inactive]:hidden min-h-0">
             <div className="w-64 border-r border-border/40 bg-background/50 p-4">
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Files</h4>
               <div className="space-y-1">
@@ -152,14 +152,14 @@ export function CenterWorkspace() {
             </div>
           </TabsContent>
 
-          <TabsContent value="diff" className="h-full mt-0 border-0 p-8 flex items-center justify-center text-muted-foreground">
+          <TabsContent value="diff" className="flex-1 mt-0 border-0 p-8 data-[state=active]:flex data-[state=inactive]:hidden items-center justify-center text-muted-foreground min-h-0">
             <div className="text-center">
               <GitCompare className="h-8 w-8 mx-auto mb-3 opacity-50" />
               <p>No active diffs to show.</p>
             </div>
           </TabsContent>
 
-          <TabsContent value="terminal" className="h-full mt-0 border-0 bg-black p-4 font-mono text-sm text-green-400">
+          <TabsContent value="terminal" className="flex-1 mt-0 border-0 bg-black p-4 font-mono text-sm text-green-400 data-[state=active]:block data-[state=inactive]:hidden min-h-0 overflow-y-auto">
             <div>$ agent-cli run --mode=deep</div>
             <div className="text-muted-foreground">Initializing environment...</div>
             <div>[OK] Environment ready.</div>

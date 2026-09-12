@@ -17,7 +17,7 @@ export default function PlaygroundClient() {
         </aside>
 
         {/* Panel B: Center Workspace - Flexible Width */}
-        <main className="flex-1 flex flex-col min-w-0 bg-background relative overflow-hidden">
+        <main className="flex-1 h-full flex flex-col min-w-0 bg-background relative overflow-hidden">
           <CenterWorkspace />
         </main>
 
