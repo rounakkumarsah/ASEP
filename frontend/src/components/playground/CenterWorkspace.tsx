@@ -1,48 +1,57 @@
 "use client";
 
 import * as React from "react";
-import { Send, Plus, Terminal, Code, GitCompare, MessageSquare, Loader2, Bot, User as UserIcon } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { MessageSquare, Code, Terminal, Send, Loader2, Bot, User as UserIcon, Plus, GitCompare, Paperclip, Wrench, Cpu } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePlaygroundStore } from "@/lib/stores/playgroundStore";
 import Editor from "@monaco-editor/react";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown from 'react-markdown';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function CenterWorkspace() {
-  const { messages, addMessage, activeCenterTab, setActiveCenterTab } = usePlaygroundStore();
+  const { messages, addMessage, isThinking, activeCenterTab, setActiveCenterTab, model } = usePlaygroundStore();
   const [input, setInput] = React.useState("");
-  const [isThinking, setIsThinking] = React.useState(false);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
-  const handleSend = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim()) return;
-
-    addMessage({
-      role: "user",
-      content: input,
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    });
-    setInput("");
-    setIsThinking(true);
-
-    setTimeout(() => {
-      addMessage({
-        role: "assistant",
-        content: "This is a mock response from the AI Engineering Workspace. I've analyzed your request and prepared the necessary artifacts.",
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      });
-      setIsThinking(false);
-    }, 1500);
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   React.useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    scrollToBottom();
   }, [messages, isThinking]);
 
+  const handleSend = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || isThinking) return;
+    
+    addMessage({
+      role: 'user',
+      content: input,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    });
+    
+    setInput("");
+  };
+
+  const getModelName = (modelId: string) => {
+    if (modelId === 'claude-3-5-sonnet-20240620') return 'Claude 3.5 Sonnet';
+    if (modelId === 'gemini-flash-latest') return 'Gemini 1.5 Flash';
+    if (modelId === 'deepseek-coder') return 'DeepSeek Coder V2';
+    if (modelId === 'gpt-4o') return 'GPT-4o';
+    if (modelId === 'auto-router') return 'Auto Router (Cost/Perf)';
+    return modelId;
+  };
+
   return (
-    <div className="flex h-full flex-col bg-[#0D1117] relative">
+    <div className="flex-1 w-full flex flex-col bg-[#0D1117] relative">
       <Tabs value={activeCenterTab} onValueChange={setActiveCenterTab} className="flex-1 flex flex-col min-h-0">
         <div className="px-4 py-2 border-b border-border/40 bg-background/50 backdrop-blur">
           <TabsList className="bg-muted/50 h-9 p-1">
@@ -161,25 +170,47 @@ export function CenterWorkspace() {
 
       {/* Input Box - Positioned absolutely at the bottom over the content */}
       <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-[#0D1117] via-[#0D1117]/90 to-transparent pt-12">
-        <div className="max-w-4xl mx-auto">
-          <form onSubmit={handleSend} className="relative rounded-xl border border-border/50 bg-card shadow-2xl focus-within:ring-1 focus-within:ring-primary/50 focus-within:border-primary/50 transition-all">
+        <div className="max-w-4xl mx-auto relative">
+          <form onSubmit={handleSend} className="relative rounded-xl border border-border/50 bg-card shadow-2xl focus-within:ring-1 focus-within:ring-primary/50 focus-within:border-primary/50 transition-all flex flex-col">
             <div className="flex items-end p-2 gap-2">
-              <Button type="button" variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-accent shrink-0 text-muted-foreground">
-                <Plus className="h-5 w-5" />
-              </Button>
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSend(e);
-                  }
-                }}
-                placeholder="Ask the agent to build, debug, or analyze..."
-                className="min-h-[44px] max-h-[200px] w-full resize-none bg-transparent py-3 text-sm focus:outline-none placeholder:text-muted-foreground/70"
-                rows={1}
-              />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button type="button" variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-accent shrink-0 text-muted-foreground">
+                    <Plus className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56" sideOffset={8}>
+                  <DropdownMenuItem className="gap-2 text-xs cursor-pointer">
+                    <Paperclip className="h-4 w-4" />
+                    Upload Media (PDF, Images, etc)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="gap-2 text-xs cursor-pointer">
+                    <Wrench className="h-4 w-4" />
+                    Manage Tools
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="gap-2 text-xs cursor-pointer">
+                    <Cpu className="h-4 w-4" />
+                    Change Model
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              
+              <div className="flex-1 flex flex-col relative min-h-[44px]">
+                <textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend(e);
+                    }
+                  }}
+                  placeholder="Ask the agent to build, debug, or analyze..."
+                  className="w-full resize-none bg-transparent py-3 text-sm focus:outline-none placeholder:text-muted-foreground/70"
+                  rows={1}
+                />
+              </div>
+
               <Button 
                 type="submit" 
                 disabled={!input.trim() || isThinking}
@@ -189,12 +220,19 @@ export function CenterWorkspace() {
                 <Send className="h-4 w-4" />
               </Button>
             </div>
+            
+            <div className="px-3 pb-2 pt-0 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-muted-foreground bg-accent/30 px-1.5 py-0.5 rounded flex items-center gap-1 border border-border/50">
+                  <Cpu className="h-3 w-3" />
+                  {getModelName(model)}
+                </span>
+              </div>
+              <span className="text-[9px] text-muted-foreground/70 hidden sm:inline">
+                AI Engineering Workspace uses advanced models. Verify generated code.
+              </span>
+            </div>
           </form>
-          <div className="text-center mt-2">
-            <span className="text-[10px] text-muted-foreground">
-              AI Engineering Workspace uses advanced models. Verify generated code.
-            </span>
-          </div>
         </div>
       </div>
     </div>

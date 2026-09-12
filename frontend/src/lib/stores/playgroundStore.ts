@@ -53,6 +53,9 @@ export interface PlaygroundState {
   setActiveLeftTab: (tab: string) => void;
   activeCenterTab: string;
   setActiveCenterTab: (tab: string) => void;
+  isThinking: boolean;
+  setIsThinking: (thinking: boolean) => void;
+  setSelectedProjectName: (name: string) => void;
 }
 
 export const usePlaygroundStore = create<PlaygroundState>((set) => ({
@@ -90,4 +93,7 @@ export const usePlaygroundStore = create<PlaygroundState>((set) => ({
   setActiveLeftTab: (tab) => set({ activeLeftTab: tab }),
   activeCenterTab: 'chat',
   setActiveCenterTab: (tab) => set({ activeCenterTab: tab }),
+  isThinking: false,
+  setIsThinking: (thinking) => set({ isThinking: thinking }),
+  setSelectedProjectName: (name) => set({ selectedProjectName: name }),
 }));

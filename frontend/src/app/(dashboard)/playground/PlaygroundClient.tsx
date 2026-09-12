@@ -9,7 +9,7 @@ import { RightPanel } from "@/components/playground/RightPanel";
 export default function PlaygroundClient() {
   return (
     <div className="fixed inset-0 lg:left-64 top-14 flex flex-col bg-background text-foreground overflow-hidden z-10">
-      <TopBar />
+      <React.Suspense fallback={<div className="h-14 border-b border-border/40 bg-background/95" />}><TopBar /></React.Suspense>
       <div className="flex flex-1 overflow-hidden">
         {/* Panel A: Left Sidebar (Config) - Fixed Width */}
         <aside className="w-[320px] flex-shrink-0 flex flex-col overflow-hidden bg-background hidden md:flex">

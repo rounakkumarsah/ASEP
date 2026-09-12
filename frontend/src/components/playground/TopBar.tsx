@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDown, Plus, Users, Shield, Box, Zap, CreditCard } from "lucide-react";
+import { ChevronDown, Plus, Box, Zap, CreditCard, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePlaygroundStore } from "@/lib/stores/playgroundStore";
+import { useSearchParams } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,9 +13,21 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuth } from "@/lib/providers/auth-provider";
 
 export function TopBar() {
-  const { selectedProjectName } = usePlaygroundStore();
+  const { selectedProjectName, setSelectedProjectName } = usePlaygroundStore();
+  const searchParams = useSearchParams();
+  const { user } = useAuth();
+  
+  React.useEffect(() => {
+    const projectName = searchParams.get("projectName");
+    if (projectName) {
+      setSelectedProjectName(projectName);
+    }
+  }, [searchParams, setSelectedProjectName]);
+
+  const orgName = user?.first_name ? `${user.first_name}'s Workspace` : "Personal Workspace";
 
   return (
     <header className="flex h-14 items-center justify-between border-b border-border/40 bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -26,13 +39,12 @@ export function TopBar() {
               <div className="flex h-6 w-6 items-center justify-center rounded bg-primary/10 text-primary">
                 <Box className="h-4 w-4" />
               </div>
-              Acme Corp
+              {orgName}
               <ChevronDown className="h-4 w-4 text-muted-foreground" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-48">
-            <DropdownMenuItem>Acme Corp</DropdownMenuItem>
-            <DropdownMenuItem>Globex Inc.</DropdownMenuItem>
+            <DropdownMenuItem>{orgName}</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
@@ -63,15 +75,10 @@ export function TopBar() {
 
         <div className="flex -space-x-2">
           <Avatar className="h-7 w-7 border-2 border-background">
-            <AvatarImage src="https://github.com/shadcn.png" />
-            <AvatarFallback>CN</AvatarFallback>
+            <AvatarFallback className="bg-primary/10 text-primary text-xs">
+              {user?.first_name ? user.first_name.charAt(0).toUpperCase() : <User className="h-3 w-3" />}
+            </AvatarFallback>
           </Avatar>
-          <Avatar className="h-7 w-7 border-2 border-background">
-            <AvatarFallback className="bg-primary/10 text-primary text-xs">U2</AvatarFallback>
-          </Avatar>
-          <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-background bg-muted text-[10px] font-medium z-10">
-            +3
-          </div>
         </div>
 
         <Button size="sm" variant="outline" className="h-8 gap-1 border-dashed">
