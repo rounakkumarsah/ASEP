@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export function CenterWorkspace() {
-  const { messages, addMessage, isThinking, activeCenterTab, setActiveCenterTab, model } = usePlaygroundStore();
+  const { messages, addMessage, isThinking, activeCenterTab, setActiveCenterTab, model, setActiveLeftTab } = usePlaygroundStore();
   const [input, setInput] = React.useState("");
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
@@ -180,20 +180,29 @@ export function CenterWorkspace() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-56" sideOffset={8}>
-                  <DropdownMenuItem className="gap-2 text-xs cursor-pointer">
+                  <DropdownMenuItem className="gap-2 text-xs cursor-pointer" onSelect={(e) => {
+                    e.preventDefault();
+                    document.getElementById('media-upload')?.click();
+                  }}>
                     <Paperclip className="h-4 w-4" />
                     Upload Media (PDF, Images, etc)
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="gap-2 text-xs cursor-pointer">
+                  <DropdownMenuItem className="gap-2 text-xs cursor-pointer" onSelect={() => setActiveLeftTab('tools')}>
                     <Wrench className="h-4 w-4" />
                     Manage Tools
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="gap-2 text-xs cursor-pointer">
+                  <DropdownMenuItem className="gap-2 text-xs cursor-pointer" onSelect={() => setActiveLeftTab('model')}>
                     <Cpu className="h-4 w-4" />
                     Change Model
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              <input type="file" id="media-upload" className="hidden" multiple accept="image/*,application/pdf" onChange={(e) => {
+                // Mock handling file upload
+                if (e.target.files && e.target.files.length > 0) {
+                  alert(`Selected ${e.target.files.length} file(s). Media upload will be processed by the agent.`);
+                }
+              }} />
               
               <div className="flex-1 flex flex-col relative min-h-[44px]">
                 <textarea
