@@ -44,7 +44,7 @@ export function LeftPanel() {
 
         <ScrollArea className="flex-1">
           <div className="p-4">
-            <TabsContent value="model" className="mt-0 space-y-6">
+            <TabsContent value="model" className="mt-0 space-y-6 data-[state=active]:block data-[state=inactive]:hidden">
               <div className="space-y-3">
                 <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Router</Label>
                 <Select value={model} onValueChange={setModel}>
@@ -90,7 +90,7 @@ export function LeftPanel() {
               </div>
             </TabsContent>
 
-            <TabsContent value="prompt" className="mt-0 h-[400px] flex flex-col space-y-3">
+            <TabsContent value="prompt" className="mt-0 h-[400px] flex-col space-y-3 data-[state=active]:flex data-[state=inactive]:hidden">
               <div className="flex justify-between items-center">
                 <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">System Instructions</Label>
                 <div className="flex gap-2">
@@ -117,7 +117,7 @@ export function LeftPanel() {
               </div>
             </TabsContent>
 
-            <TabsContent value="tools" className="mt-0 space-y-6">
+            <TabsContent value="tools" className="mt-0 space-y-6 data-[state=active]:block data-[state=inactive]:hidden">
               <div className="space-y-4">
                 <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Available Tools</Label>
                 <div className="space-y-3">
