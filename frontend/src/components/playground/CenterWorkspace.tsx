@@ -15,10 +15,58 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+const MODELS = [
+  { id: 'gemini-flash-latest', name: 'Gemini 1.5 Flash' },
+  { id: 'gemini-pro-latest', name: 'Gemini 1.5 Pro' },
+  { id: 'claude-3-5-sonnet-20240620', name: 'Claude 3.5 Sonnet' },
+  { id: 'gpt-4o', name: 'GPT-4o' }
+];
+
+const TOOLS = [
+  { id: 'web', name: 'Web Search' },
+  { id: 'docs', name: 'Official Docs' },
+  { id: 'github', name: 'GitHub Repos' },
+  { id: 'sandbox', name: 'Python Sandbox' }
+];
+
 export function CenterWorkspace() {
-  const { messages, addMessage, isThinking, activeCenterTab, setActiveCenterTab, model, setActiveLeftTab } = usePlaygroundStore();
+  const { messages, addMessage, isThinking, activeCenterTab, setActiveCenterTab, model, setActiveLeftTab, setModel, toggleTool, activeTools } = usePlaygroundStore();
   const [input, setInput] = React.useState("");
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
+
+  const [cmdMenu, setCmdMenu] = React.useState<'model' | 'tool' | null>(null);
+  const [cmdFilter, setCmdFilter] = React.useState('');
+  const [cmdIndex, setCmdIndex] = React.useState(0);
+
+  const filteredCmdItems = React.useMemo(() => {
+    if (cmdMenu === 'model') return MODELS.filter(m => m.name.toLowerCase().includes(cmdFilter.toLowerCase()));
+    if (cmdMenu === 'tool') return TOOLS.filter(t => t.name.toLowerCase().includes(cmdFilter.toLowerCase()));
+    return [];
+  }, [cmdMenu, cmdFilter]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setInput(val);
+    const matchModel = val.match(/(?:^|\s)#(\w*)$/);
+    const matchTool = val.match(/(?:^|\s)\/(\w*)$/);
+    if (matchModel) { setCmdMenu('model'); setCmdFilter(matchModel[1]); setCmdIndex(0); }
+    else if (matchTool) { setCmdMenu('tool'); setCmdFilter(matchTool[1]); setCmdIndex(0); }
+    else { setCmdMenu(null); }
+  };
+
+  const handleCmdSelect = (item: { id: string; name: string }) => {
+    if (cmdMenu === 'model') setModel(item.id);
+    if (cmdMenu === 'tool') toggleTool(item.id);
+    
+    const replacement = cmdMenu === 'model' ? `#${cmdFilter}` : `/${cmdFilter}`;
+    const lastIdx = input.lastIndexOf(replacement);
+    if (lastIdx !== -1) {
+      setInput(input.substring(0, lastIdx).trimEnd() + (input.substring(0, lastIdx).trimEnd() ? " " : ""));
+    } else {
+      setInput("");
+    }
+    setCmdMenu(null);
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -205,10 +253,56 @@ export function CenterWorkspace() {
               }} />
               
               <div className="flex-1 flex flex-col relative min-h-[44px]">
-                <textarea
+                {cmdMenu && filteredCmdItems.length > 0 && (
+                  <div className="absolute bottom-full left-0 mb-2 w-64 bg-popover border border-border shadow-md rounded-md overflow-hidden z-50">
+                    <div className="px-2 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase bg-muted/50 border-b border-border/50">
+                      {cmdMenu === 'model' ? 'Select Model' : 'Toggle Tool'}
+                    </div>
+                    <div className="max-h-48 overflow-y-auto p-1">
+                      {filteredCmdItems.map((item, idx) => (
+                        <div 
+                          key={item.id}
+                          className={`px-2 py-1.5 text-xs rounded-sm cursor-pointer flex items-center justify-between ${idx === cmdIndex ? 'bg-primary/10 text-primary' : 'hover:bg-accent hover:text-accent-foreground'}`}
+                          onClick={() => handleCmdSelect(item)}
+                        >
+                          <div className="flex items-center gap-2">
+                            {cmdMenu === 'model' ? <Cpu className="h-3.5 w-3.5" /> : <Wrench className="h-3.5 w-3.5" />}
+                            <span>{item.name}</span>
+                          </div>
+                          {cmdMenu === 'tool' && activeTools.includes(item.id) && (
+                            <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                  <textarea
                   value={input}
-                  onChange={(e) => setInput(e.target.value)}
+                  onChange={handleInputChange}
                   onKeyDown={(e) => {
+                    if (cmdMenu && filteredCmdItems.length > 0) {
+                      if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        setCmdIndex(prev => (prev + 1) % filteredCmdItems.length);
+                        return;
+                      }
+                      if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        setCmdIndex(prev => (prev - 1 + filteredCmdItems.length) % filteredCmdItems.length);
+                        return;
+                      }
+                      if (e.key === 'Enter' || e.key === 'Tab') {
+                        e.preventDefault();
+                        handleCmdSelect(filteredCmdItems[cmdIndex]);
+                        return;
+                      }
+                      if (e.key === 'Escape') {
+                        e.preventDefault();
+                        setCmdMenu(null);
+                        return;
+                      }
+                    }
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
                       handleSend(e);
