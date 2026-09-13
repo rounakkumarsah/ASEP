@@ -30,7 +30,7 @@ const TOOLS = [
 ];
 
 export function CenterWorkspace() {
-  const { messages, addMessage, isThinking, activeCenterTab, setActiveCenterTab, model, setActiveLeftTab, setModel, toggleTool, activeTools } = usePlaygroundStore();
+  const { messages, addMessage, isThinking, setIsThinking, activeCenterTab, setActiveCenterTab, model, setActiveLeftTab, setModel, toggleTool, activeTools } = usePlaygroundStore();
   const [input, setInput] = React.useState("");
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
@@ -116,16 +116,19 @@ export function CenterWorkspace() {
               if (data.event) {
                 const nodeUpdates = Object.values(data.event);
                 if (nodeUpdates.length > 0 && nodeUpdates[0] && typeof nodeUpdates[0] === 'object') {
-                  const msg = (nodeUpdates[0] as any).messages;
+                  const updateObj = nodeUpdates[0] as Record<string, unknown>;
+                  const msg = updateObj.messages;
                   if (msg && Array.isArray(msg) && msg.length > 0) {
-                    const lastMsg = msg[msg.length - 1];
+                    const lastMsg = msg[msg.length - 1] as { content?: string };
                     if (lastMsg && lastMsg.content) {
                       aiResponse = lastMsg.content;
                     }
                   }
                 }
               }
-            } catch (err) {}
+            } catch {
+              // Ignore JSON parse errors for incomplete chunks
+            }
           }
         }
       }
