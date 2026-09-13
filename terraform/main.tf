@@ -4,77 +4,30 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
-    tls = {
-      source  = "hashicorp/tls"
-      version = "~> 4.0"
-    }
   }
-  required_version = ">= 1.0.0"
 }
 
 provider "aws" {
   region = var.aws_region
 }
 
-# -----------------------------------------------------------------------------
-# Networking
-# -----------------------------------------------------------------------------
-data "aws_vpc" "default" {
-  default = true
+variable "aws_region" {
+  description = "AWS region for the deployment"
+  default     = "us-east-1"
 }
 
-resource "aws_security_group" "asep_sg" {
-  name        = "asep-web-sg-${var.environment}"
-  description = "Security group for ASEP Docker host"
-  vpc_id      = data.aws_vpc.default.id
-
-  # SSH Access
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # Consider restricting this in production
-  }
-
-  # HTTP for Traefik Let's Encrypt challenge and redirects
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  # HTTPS for Application
-  ingress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  # Outbound internet access (required for agent LLM calls and package installs)
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name        = "asep-sg"
-    Environment = var.environment
-  }
+variable "instance_type" {
+  description = "EC2 Instance type"
+  default     = "t3.xlarge" # Enterprise workloads require sufficient memory (Neo4j, Qdrant, etc.)
 }
 
-# -----------------------------------------------------------------------------
-# Compute
-# -----------------------------------------------------------------------------
-resource "aws_key_pair" "deployer" {
-  key_name   = "asep-deployer-key-${var.environment}"
-  public_key = file(var.ssh_public_key_path)
+variable "key_name" {
+  description = "Name of an existing EC2 KeyPair to enable SSH access"
+  type        = string
+  default     = ""
 }
 
-# Find latest Ubuntu 22.04 AMI
+# Fetch the latest Ubuntu 22.04 LTS AMI
 data "aws_ami" "ubuntu" {
   most_recent = true
   owners      = ["099720109477"] # Canonical
@@ -90,68 +43,106 @@ data "aws_ami" "ubuntu" {
   }
 }
 
+# Security Group for the Enterprise Stack
+resource "aws_security_group" "asep_sg" {
+  name        = "asep-enterprise-sg"
+  description = "Allow inbound traffic for ASEP Stack"
+
+  # SSH
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # HTTP
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # HTTPS
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # Frontend Fallback (if not routed through Traefik port 80)
+  ingress {
+    from_port   = 3000
+    to_port     = 3000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # Backend Fallback
+  ingress {
+    from_port   = 8000
+    to_port     = 8000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # Allow all outbound
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+# EC2 Instance
 resource "aws_instance" "asep_server" {
   ami           = data.aws_ami.ubuntu.id
   instance_type = var.instance_type
-  key_name      = aws_key_pair.deployer.key_name
+  key_name      = var.key_name != "" ? var.key_name : null
 
   vpc_security_group_ids = [aws_security_group.asep_sg.id]
 
   root_block_device {
-    volume_size = 100 # 100GB minimum for Docker images + Vector DB + PostgreSQL
+    volume_size = 50
     volume_type = "gp3"
   }
 
-  # User data script to install Docker and Docker Compose automatically
   user_data = <<-EOF
-              #!/bin/bash
-              set -ex
+    #!/bin/bash
+    set -e
+    exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+    
+    echo "Updating system..."
+    apt-get update -y
+    apt-get upgrade -y
+    
+    echo "Installing Git & curl..."
+    apt-get install -y git curl
 
-              # Update packages
-              apt-get update -y
-              apt-get upgrade -y
+    echo "Cloning repository..."
+    # You can update this URL to your private/public enterprise repo
+    git clone https://github.com/rounakkumarsah/ASEP.git /opt/asep
+    cd /opt/asep
 
-              # Install dependencies
-              apt-get install -y ca-certificates curl gnupg lsb-release git make jq
-
-              # Add Docker's official GPG key
-              mkdir -m 0755 -p /etc/apt/keyrings
-              curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-
-              # Set up the repository
-              echo \
-                "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-                $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-              # Install Docker Engine and Compose
-              apt-get update -y
-              apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-              # Enable Docker service
-              systemctl enable docker
-              systemctl start docker
-
-              # Add ubuntu user to docker group
-              usermod -aG docker ubuntu
-
-              # Create application directory
-              mkdir -p /opt/asep
-              chown ubuntu:ubuntu /opt/asep
-              EOF
+    echo "Running setup script..."
+    chmod +x setup.sh
+    ./setup.sh
+  EOF
 
   tags = {
-    Name        = "ASEP-Docker-Host-${var.environment}"
-    Environment = var.environment
+    Name = "ASEP-Enterprise-Server"
   }
 }
 
-# Elastic IP for stable DNS
-resource "aws_eip" "asep_ip" {
-  instance = aws_instance.asep_server.id
-  domain   = "vpc"
+output "public_ip" {
+  description = "Public IP of the deployed EC2 instance"
+  value       = aws_instance.asep_server.public_ip
+}
 
-  tags = {
-    Name        = "asep-eip"
-    Environment = var.environment
-  }
+output "application_url" {
+  description = "Direct HTTP URL to access the deployed application"
+  value       = "http://${aws_instance.asep_server.public_ip}"
 }
