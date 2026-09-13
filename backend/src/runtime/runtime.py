@@ -14,10 +14,14 @@ from src.runtime.edges import EdgeRegistry, human_validation_router_default
 from src.runtime.graph import StateGraphWrapper
 from src.runtime.nodes import (
     NodeRegistry,
+    coding_node,
     end_node_default,
     human_validation_node_default,
-    process_node_default,
+    planner_node,
+    rag_node,
+    research_node,
     start_node_default,
+    supervisor_node,
 )
 
 logger = logging.getLogger(__name__)
@@ -34,13 +38,13 @@ class LangGraphRuntime:
         self.edges = EdgeRegistry()
         self.checkpoints = CheckpointManager()
 
-        # 2. Register default generic node behaviors (No AI/Planner calls)
+        # 2. Register agent node behaviors
         self.nodes.register("start", start_node_default)
-        self.nodes.register("supervisor", __import__("src.runtime.nodes", fromlist=["supervisor_node"]).supervisor_node)
-        self.nodes.register("planner", __import__("src.runtime.nodes", fromlist=["planner_node"]).planner_node)
-        self.nodes.register("research", __import__("src.runtime.nodes", fromlist=["research_node"]).research_node)
-        self.nodes.register("rag", __import__("src.runtime.nodes", fromlist=["rag_node"]).rag_node)
-        self.nodes.register("coding", __import__("src.runtime.nodes", fromlist=["coding_node"]).coding_node)
+        self.nodes.register("supervisor", supervisor_node)
+        self.nodes.register("planner", planner_node)
+        self.nodes.register("research", research_node)
+        self.nodes.register("rag", rag_node)
+        self.nodes.register("coding", coding_node)
         self.nodes.register("validate", human_validation_node_default)
         self.nodes.register("end", end_node_default)
 
@@ -57,10 +61,10 @@ class LangGraphRuntime:
         self.graph = self.wrapper.compile()
 
     async def execute_run(
-        self, run_id: str, thread_id: str
+        self, run_id: str, thread_id: str, goal: str = ""
     ) -> AsyncGenerator[dict[str, Any], None]:
         """Initiates a new run and streams step-by-step workflow updates."""
-        logger.info(f"Initiating run '{run_id}' under thread: '{thread_id}'")
+        logger.info(f"Initiating run '{run_id}' under thread: '{thread_id}' with goal: '{goal}'")
 
         # Preserve active execution parameters strictly through MemoryManager (Working Memory)
         await self.memory.working.set_state(thread_id, "active_run_id", run_id)
@@ -68,7 +72,9 @@ class LangGraphRuntime:
         from langchain_core.runnables.config import RunnableConfig
         config = RunnableConfig(configurable={"thread_id": thread_id})
         initial_state: dict[str, Any] = {
-            "messages": [],
+            "goal": goal,
+            "messages": [{"role": "user", "content": goal}] if goal else [],
+            "plan": [],
             "status": "started",
             "next_action": None,
             "run_id": run_id,

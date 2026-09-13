@@ -146,7 +146,9 @@ async def start_run(
 
     async def _event_generator() -> AsyncGenerator[str, None]:
         try:
-            async for event in runtime.execute_run(run_id=run_id, thread_id=thread_id):
+            async for event in runtime.execute_run(
+                run_id=run_id, thread_id=thread_id, goal=payload.goal
+            ):
                 yield _sse_line(
                     {
                         "thread_id": thread_id,

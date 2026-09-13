@@ -47,7 +47,7 @@ class StateGraphWrapper:
         # 3. Add conditional edge routing for the human validation step
         validation_router = self.edges.get_router("human_validation_router")
         self.workflow.add_conditional_edges(
-            "validate", validation_router, {"end": "end", "process": "coding"}
+            "validate", validation_router, {"end": "end", "coding": "coding"}
         )
         self.workflow.add_edge("end", END)
 

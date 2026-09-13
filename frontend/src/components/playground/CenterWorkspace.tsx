@@ -91,60 +91,91 @@ export function CenterWorkspace() {
     setIsThinking(true);
 
     try {
-      const res = await fetch('/api/conversations/run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ goal: currentInput, thread_id: "playground-session-" + Date.now() })
+      const token = typeof window !== "undefined"
+        ? localStorage.getItem("asep_auth_token") || sessionStorage.getItem("asep_auth_token")
+        : null;
+
+      const apiBase = process.env.NEXT_PUBLIC_API_URL
+        ? process.env.NEXT_PUBLIC_API_URL.replace(/\/+$/, "")
+        : "";
+      const endpoint = `${apiBase}/api/v1/conversations/run`;
+
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          goal: currentInput,
+          thread_id: "playground-session-" + Date.now(),
+        }),
       });
-      
+
+      if (!res.ok) {
+        throw new Error(`API returned HTTP ${res.status}: ${res.statusText}`);
+      }
+
       if (!res.body) return;
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let aiResponse = "";
-      
+      const streamMessages: string[] = [];
+
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
         const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
+        const lines = chunk.split("\n");
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const dataStr = line.slice(6);
-            if (dataStr === '[DONE]') break;
+          if (line.startsWith("data: ")) {
+            const dataStr = line.slice(6).trim();
+            if (dataStr === "[DONE]") break;
             try {
               const data = JSON.parse(dataStr);
               if (data.event) {
-                const nodeUpdates = Object.values(data.event);
-                if (nodeUpdates.length > 0 && nodeUpdates[0] && typeof nodeUpdates[0] === 'object') {
-                  const updateObj = nodeUpdates[0] as Record<string, unknown>;
-                  const msg = updateObj.messages;
-                  if (msg && Array.isArray(msg) && msg.length > 0) {
-                    const lastMsg = msg[msg.length - 1] as { content?: string };
-                    if (lastMsg && lastMsg.content) {
-                      aiResponse = lastMsg.content;
+                const nodeEntries = Object.entries(data.event);
+                for (const [, updateVal] of nodeEntries) {
+                  if (updateVal && typeof updateVal === "object") {
+                    const updateObj = updateVal as Record<string, unknown>;
+                    const msg = updateObj.messages;
+                    if (msg && Array.isArray(msg) && msg.length > 0) {
+                      for (const m of msg) {
+                        const messageItem = m as { role?: string; content?: string };
+                        if (messageItem.role === "assistant" && messageItem.content) {
+                          aiResponse = messageItem.content;
+                        } else if (messageItem.role === "system" && messageItem.content) {
+                          streamMessages.push(messageItem.content);
+                        }
+                      }
                     }
                   }
                 }
               }
             } catch {
-              // Ignore JSON parse errors for incomplete chunks
+              // Ignore partial JSON chunks
             }
           }
         }
       }
 
       addMessage({
-        role: 'assistant',
-        content: aiResponse || "Task executed successfully via LangGraph orchestration.",
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        role: "assistant",
+        content:
+          aiResponse ||
+          (streamMessages.length > 0
+            ? streamMessages.join("\n\n")
+            : "Task processed through LangGraph multi-agent execution pipeline."),
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       });
-
     } catch (error) {
-      console.error(error);
+      console.error("LangGraph run execution error:", error);
       addMessage({
-        role: 'assistant',
-        content: "Error communicating with LangGraph backend.",
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        role: "assistant",
+        content: `Error executing LangGraph run: ${error instanceof Error ? error.message : "Backend unavailable"}`,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       });
     } finally {
       setIsThinking(false);
