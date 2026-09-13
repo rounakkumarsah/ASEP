@@ -76,7 +76,7 @@ export function CenterWorkspace() {
     scrollToBottom();
   }, [messages, isThinking]);
 
-  const handleSend = (e: React.FormEvent) => {
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isThinking) return;
     
@@ -86,7 +86,66 @@ export function CenterWorkspace() {
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     });
     
+    const currentInput = input;
     setInput("");
+    setIsThinking(true);
+
+    try {
+      const res = await fetch('/api/conversations/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ goal: currentInput, thread_id: "playground-session-" + Date.now() })
+      });
+      
+      if (!res.body) return;
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let aiResponse = "";
+      
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const dataStr = line.slice(6);
+            if (dataStr === '[DONE]') break;
+            try {
+              const data = JSON.parse(dataStr);
+              if (data.event) {
+                const nodeUpdates = Object.values(data.event);
+                if (nodeUpdates.length > 0 && nodeUpdates[0] && typeof nodeUpdates[0] === 'object') {
+                  const msg = (nodeUpdates[0] as any).messages;
+                  if (msg && Array.isArray(msg) && msg.length > 0) {
+                    const lastMsg = msg[msg.length - 1];
+                    if (lastMsg && lastMsg.content) {
+                      aiResponse = lastMsg.content;
+                    }
+                  }
+                }
+              }
+            } catch (err) {}
+          }
+        }
+      }
+
+      addMessage({
+        role: 'assistant',
+        content: aiResponse || "Task executed successfully via LangGraph orchestration.",
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      });
+
+    } catch (error) {
+      console.error(error);
+      addMessage({
+        role: 'assistant',
+        content: "Error communicating with LangGraph backend.",
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      });
+    } finally {
+      setIsThinking(false);
+    }
   };
 
   const getModelName = (modelId: string) => {

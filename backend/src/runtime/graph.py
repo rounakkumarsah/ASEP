@@ -28,9 +28,8 @@ class StateGraphWrapper:
         self.workflow = StateGraph(AgentState)
 
     def assemble_default_flow(self) -> None:
-        """Assembles a default processing loop featuring validation and loop-backs:
-
-        START -> start -> process -> validate -(conditional)-> end / process -> END
+        """Assembles the new agent flow:
+        start -> supervisor -> planner -> research -> rag -> coding -> validate -> end
         """
         # 1. Register all nodes from the registry
         for node_name, handler in self.nodes.get_all().items():
@@ -38,13 +37,17 @@ class StateGraphWrapper:
 
         # 2. Add static transitions
         self.workflow.add_edge(START, "start")
-        self.workflow.add_edge("start", "process")
-        self.workflow.add_edge("process", "validate")
+        self.workflow.add_edge("start", "supervisor")
+        self.workflow.add_edge("supervisor", "planner")
+        self.workflow.add_edge("planner", "research")
+        self.workflow.add_edge("research", "rag")
+        self.workflow.add_edge("rag", "coding")
+        self.workflow.add_edge("coding", "validate")
 
         # 3. Add conditional edge routing for the human validation step
         validation_router = self.edges.get_router("human_validation_router")
         self.workflow.add_conditional_edges(
-            "validate", validation_router, {"end": "end", "process": "process"}
+            "validate", validation_router, {"end": "end", "process": "coding"}
         )
         self.workflow.add_edge("end", END)
 

@@ -42,5 +42,5 @@ def human_validation_router_default(state: AgentState) -> str:
     if human_input == "approve":
         return "end"
     else:
-        # Loop back to processing node if operator rejects or writes anything else
-        return "process"
+        # Loop back to coding node if operator rejects or writes anything else
+        return "coding"

@@ -36,7 +36,11 @@ class LangGraphRuntime:
 
         # 2. Register default generic node behaviors (No AI/Planner calls)
         self.nodes.register("start", start_node_default)
-        self.nodes.register("process", process_node_default)
+        self.nodes.register("supervisor", __import__("src.runtime.nodes", fromlist=["supervisor_node"]).supervisor_node)
+        self.nodes.register("planner", __import__("src.runtime.nodes", fromlist=["planner_node"]).planner_node)
+        self.nodes.register("research", __import__("src.runtime.nodes", fromlist=["research_node"]).research_node)
+        self.nodes.register("rag", __import__("src.runtime.nodes", fromlist=["rag_node"]).rag_node)
+        self.nodes.register("coding", __import__("src.runtime.nodes", fromlist=["coding_node"]).coding_node)
         self.nodes.register("validate", human_validation_node_default)
         self.nodes.register("end", end_node_default)
 
