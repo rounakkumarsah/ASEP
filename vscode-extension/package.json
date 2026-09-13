@@ -1,0 +1,91 @@
+﻿{
+  "name": "asep-vscode",
+  "displayName": "ASEP AI Engineering Copilot",
+  "description": "Embedded AI Playground control plane & multi-agent workflow runtime inside VS Code.",
+  "version": "0.1.0",
+  "publisher": "asep-ai",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "AI",
+    "Programming Languages",
+    "Machine Learning"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onView:asep.playgroundView"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "asep-sidebar-view",
+          "title": "ASEP AI Control Plane",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "asep-sidebar-view": [
+        {
+          "type": "webview",
+          "id": "asep.playgroundView",
+          "name": "AI Engineering Playground"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "asep.openPlayground",
+        "title": "ASEP: Open AI Playground Sidebar",
+        "category": "ASEP"
+      },
+      {
+        "command": "asep.syncWorkspace",
+        "title": "ASEP: Sync Active Workspace Path to Engine",
+        "category": "ASEP"
+      },
+      {
+        "command": "asep.refreshDashboard",
+        "title": "ASEP: Refresh Embedded Playground",
+        "category": "ASEP"
+      }
+    ],
+    "configuration": {
+      "title": "ASEP AI Engineering",
+      "properties": {
+        "asep.dashboardUrl": {
+          "type": "string",
+          "default": "http://localhost:3000",
+          "description": "URL of the Next.js ASEP Dashboard (e.g. http://localhost:3000 or https://asep-ai.vercel.app)"
+        },
+        "asep.backendUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:8000",
+          "description": "URL of the FastAPI Antigravity backend runtime"
+        },
+        "asep.bridgePort": {
+          "type": "number",
+          "default": 8000,
+          "description": "Port of the local Antigravity engine bridge"
+        },
+        "asep.autoSyncWorkspace": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically send workspace root path to Antigravity engine when folders change"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.x",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.4.0"
+  }
+}
