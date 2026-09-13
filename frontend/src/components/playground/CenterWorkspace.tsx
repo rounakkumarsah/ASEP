@@ -1,11 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { MessageSquare, Code, Terminal, Send, Loader2, Bot, User as UserIcon, Plus, GitCompare, Paperclip, Wrench, Cpu } from "lucide-react";
+import { MessageSquare, Code, Terminal, Send, Loader2, Bot, User as UserIcon, Plus, GitCompare, Paperclip, Wrench, Cpu, Workflow } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePlaygroundStore } from "@/lib/stores/playgroundStore";
+import { WorkflowVisualizer } from "./WorkflowVisualizer";
 import Editor from "@monaco-editor/react";
 import ReactMarkdown from 'react-markdown';
 import {
@@ -30,7 +31,23 @@ const TOOLS = [
 ];
 
 export function CenterWorkspace() {
-  const { messages, addMessage, isThinking, setIsThinking, activeCenterTab, setActiveCenterTab, model, setActiveLeftTab, setModel, toggleTool, activeTools } = usePlaygroundStore();
+  const {
+    messages,
+    addMessage,
+    isThinking,
+    setIsThinking,
+    activeCenterTab,
+    setActiveCenterTab,
+    model,
+    setActiveLeftTab,
+    setModel,
+    toggleTool,
+    activeTools,
+    activeNode,
+    setActiveNode,
+    addCompletedNode,
+    resetActiveNodes,
+  } = usePlaygroundStore();
   const [input, setInput] = React.useState("");
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
@@ -89,6 +106,7 @@ export function CenterWorkspace() {
     const currentInput = input;
     setInput("");
     setIsThinking(true);
+    resetActiveNodes();
 
     try {
       const token = typeof window !== "undefined"
@@ -137,7 +155,11 @@ export function CenterWorkspace() {
               const data = JSON.parse(dataStr);
               if (data.event) {
                 const nodeEntries = Object.entries(data.event);
-                for (const [, updateVal] of nodeEntries) {
+                for (const [nodeName, updateVal] of nodeEntries) {
+                  // Dynamically update the active node on the visual workflow graph
+                  setActiveNode(nodeName);
+                  addCompletedNode(nodeName);
+
                   if (updateVal && typeof updateVal === "object") {
                     const updateObj = updateVal as Record<string, unknown>;
                     const msg = updateObj.messages;
@@ -179,6 +201,7 @@ export function CenterWorkspace() {
       });
     } finally {
       setIsThinking(false);
+      setActiveNode(null);
     }
   };
 
@@ -197,6 +220,7 @@ export function CenterWorkspace() {
         <div className="px-4 py-2 border-b border-border/40 bg-background/50 backdrop-blur">
           <TabsList className="bg-muted/50 h-9 p-1">
             <TabsTrigger value="chat" className="text-xs gap-2"><MessageSquare className="h-3.5 w-3.5" /> Chat</TabsTrigger>
+            <TabsTrigger value="workflow" className="text-xs gap-2"><Workflow className="h-3.5 w-3.5" /> Visual Workflow</TabsTrigger>
             <TabsTrigger value="artifacts" className="text-xs gap-2"><Code className="h-3.5 w-3.5" /> Artifacts</TabsTrigger>
             <TabsTrigger value="diff" className="text-xs gap-2"><GitCompare className="h-3.5 w-3.5" /> Diff Viewer</TabsTrigger>
             <TabsTrigger value="terminal" className="text-xs gap-2"><Terminal className="h-3.5 w-3.5" /> Terminal</TabsTrigger>
@@ -252,22 +276,41 @@ export function CenterWorkspace() {
                 
                 {isThinking && (
                   <div className="flex gap-4 justify-start">
-                    <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
-                      <Loader2 className="h-4 w-4 text-primary animate-spin" />
+                    <div className="h-8 w-8 rounded bg-[#22D3EE]/10 flex items-center justify-center shrink-0 border border-[#22D3EE]/20">
+                      <Loader2 className="h-4 w-4 text-[#22D3EE] animate-spin" />
                     </div>
-                    <div className="bg-card border border-border/50 rounded-xl px-4 py-3 text-sm flex items-center gap-2 text-muted-foreground shadow-sm">
+                    <div className="bg-card border border-border/50 rounded-xl px-4 py-3 text-sm flex items-center gap-3 text-muted-foreground shadow-sm">
                       <div className="flex gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '0ms' }} />
-                        <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '150ms' }} />
-                        <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '300ms' }} />
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#22D3EE] animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#22D3EE] animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#22D3EE] animate-bounce" style={{ animationDelay: '300ms' }} />
                       </div>
-                      Thinking...
+                      <span>
+                        {activeNode ? (
+                          <span>
+                            Active Node: <strong className="text-[#22D3EE] font-mono text-xs uppercase">{activeNode}</strong>
+                          </span>
+                        ) : (
+                          "Orchestrating agents..."
+                        )}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setActiveCenterTab("workflow")}
+                        className="text-[10px] text-[#22D3EE] hover:underline flex items-center gap-1 ml-2 border border-[#22D3EE]/30 bg-[#22D3EE]/10 px-2 py-0.5 rounded transition-colors"
+                      >
+                        <Workflow className="h-2.5 w-2.5" /> View Graph
+                      </button>
                     </div>
                   </div>
                 )}
                 <div ref={messagesEndRef} />
               </div>
             </ScrollArea>
+          </TabsContent>
+
+          <TabsContent value="workflow" className="flex-1 mt-0 border-0 flex flex-col data-[state=active]:flex data-[state=inactive]:hidden min-h-0 h-full">
+            <WorkflowVisualizer />
           </TabsContent>
 
           <TabsContent value="artifacts" className="flex-1 mt-0 border-0 data-[state=active]:flex data-[state=inactive]:hidden min-h-0">

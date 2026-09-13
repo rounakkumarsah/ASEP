@@ -100,6 +100,17 @@ def _sse_done() -> str:
 # ---------------------------------------------------------------------------
 
 
+@router.get(
+    "/graph",
+    summary="Get React Flow visual graph structure of the LangGraph multi-agent pipeline",
+    response_model=dict[str, Any],
+)
+async def get_visual_graph() -> dict[str, Any]:
+    """Return static/runtime nodes and edges schema formatted for React Flow (@xyflow/react)."""
+    from src.runtime.visualizer import parse_graph_to_react_flow
+    return parse_graph_to_react_flow()
+
+
 @router.post(
     "/run",
     summary="Start a new agent run",

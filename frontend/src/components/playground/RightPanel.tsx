@@ -8,8 +8,17 @@ import { Progress } from "@/components/ui/progress";
 import { usePlaygroundStore } from "@/lib/stores/playgroundStore";
 
 export function RightPanel() {
-  const { messages, isThinking } = usePlaygroundStore();
-  const hasActivity = messages.length > 0;
+  const { messages, isThinking, activeNode, completedNodes } = usePlaygroundStore();
+  const hasActivity = messages.length > 0 || isThinking || completedNodes.length > 0;
+
+  const PIPELINE_STEPS = [
+    { id: "supervisor", label: "Supervisor Agent", desc: "Intent analysis & agent routing" },
+    { id: "planner", label: "Planner Agent", desc: "Decomposes task into sub-goals" },
+    { id: "research", label: "Research Swarm (MCP)", desc: "Web & tool documentation discovery" },
+    { id: "rag", label: "RAG Engine (MAG)", desc: "Codebase semantic retrieval" },
+    { id: "coding", label: "Coding Agent", desc: "Code synthesis & generation" },
+    { id: "validate", label: "HITL Security Gate", desc: "Policy check & container safety" },
+  ];
 
   return (
     <div className="flex h-full flex-col border-l border-border/40 bg-background/50 backdrop-blur">
@@ -34,29 +43,26 @@ export function RightPanel() {
               </div>
             ) : (
               <div className="relative border-l border-border/60 ml-2 space-y-4 py-2">
-                <div className="relative pl-4">
-                  <CheckCircle2 className="absolute -left-2 top-0 h-4 w-4 text-emerald-500 bg-background" />
-                  <p className="text-xs font-medium text-foreground">Planner Agent</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">Analyzed request & formed strategy</p>
-                </div>
-                {isThinking ? (
-                  <div className="relative pl-4">
-                    <CircleDashed className="absolute -left-2 top-0 h-4 w-4 text-[#22D3EE] animate-spin-slow bg-background" />
-                    <p className="text-xs font-medium text-[#22D3EE]">Code Generation</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">Writing implementation...</p>
-                  </div>
-                ) : (
-                  <div className="relative pl-4">
-                    <CheckCircle2 className="absolute -left-2 top-0 h-4 w-4 text-emerald-500 bg-background" />
-                    <p className="text-xs font-medium text-foreground">Code Generation</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">Completed</p>
-                  </div>
-                )}
-                <div className="relative pl-4 opacity-50">
-                  <div className="absolute -left-[5px] top-1 h-2.5 w-2.5 rounded-full border-2 border-muted-foreground bg-background" />
-                  <p className="text-xs font-medium text-foreground">Security Audit</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">Pending</p>
-                </div>
+                {PIPELINE_STEPS.map((step) => {
+                  const isActive = activeNode === step.id;
+                  const isDone = completedNodes.includes(step.id) && !isActive;
+
+                  return (
+                    <div key={step.id} className={`relative pl-4 transition-all ${!isActive && !isDone ? "opacity-40" : "opacity-100"}`}>
+                      {isActive ? (
+                        <CircleDashed className="absolute -left-2 top-0 h-4 w-4 text-[#22D3EE] animate-spin bg-background" />
+                      ) : isDone ? (
+                        <CheckCircle2 className="absolute -left-2 top-0 h-4 w-4 text-emerald-500 bg-background" />
+                      ) : (
+                        <div className="absolute -left-[5px] top-1 h-2.5 w-2.5 rounded-full border-2 border-muted-foreground bg-background" />
+                      )}
+                      <p className={`text-xs font-medium ${isActive ? "text-[#22D3EE] font-semibold" : isDone ? "text-foreground" : "text-muted-foreground"}`}>
+                        {step.label}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{step.desc}</p>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

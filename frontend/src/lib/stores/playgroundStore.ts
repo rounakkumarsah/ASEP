@@ -56,6 +56,13 @@ export interface PlaygroundState {
   isThinking: boolean;
   setIsThinking: (thinking: boolean) => void;
   setSelectedProjectName: (name: string) => void;
+
+  // Workflow Graph Live Execution State
+  activeNode: string | null;
+  setActiveNode: (node: string | null) => void;
+  completedNodes: string[];
+  addCompletedNode: (node: string) => void;
+  resetActiveNodes: () => void;
 }
 
 export const usePlaygroundStore = create<PlaygroundState>((set) => ({
@@ -96,4 +103,15 @@ export const usePlaygroundStore = create<PlaygroundState>((set) => ({
   isThinking: false,
   setIsThinking: (thinking) => set({ isThinking: thinking }),
   setSelectedProjectName: (name) => set({ selectedProjectName: name }),
+
+  activeNode: null,
+  setActiveNode: (node) => set({ activeNode: node }),
+  completedNodes: [],
+  addCompletedNode: (node) =>
+    set((state) => ({
+      completedNodes: state.completedNodes.includes(node)
+        ? state.completedNodes
+        : [...state.completedNodes, node],
+    })),
+  resetActiveNodes: () => set({ activeNode: null, completedNodes: [] }),
 }));
