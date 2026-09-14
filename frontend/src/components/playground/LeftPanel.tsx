@@ -1,7 +1,7 @@
 "use client";
 
-import * as React from "react";
-import { Settings2, Cpu, Wrench, Shield, Database, Globe, Github } from "lucide-react";
+import { Settings2, Cpu, Shield, Database, Globe } from "lucide-react";
+import { GitHubIcon } from "@/components/icons/GitHubIcon";
 import Editor from "@monaco-editor/react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -124,7 +124,7 @@ export function LeftPanel() {
                   {[
                     { id: "web", icon: Globe, label: "Web Search" },
                     { id: "docs", icon: Database, label: "Official Docs" },
-                    { id: "github", icon: Github, label: "GitHub Repos" },
+                    { id: "github", icon: GitHubIcon, label: "GitHub Repos" },
                     { id: "python", icon: Cpu, label: "Python Sandbox" },
                   ].map((t) => (
                     <div key={t.id} className="flex items-center space-x-3">
