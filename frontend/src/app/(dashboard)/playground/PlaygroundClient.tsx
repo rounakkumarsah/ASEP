@@ -9,6 +9,69 @@ import { RightPanel } from "@/components/playground/RightPanel";
 import { useSidebarStore } from "@/lib/stores/sidebarStore";
 import { PanelLeftOpen, PanelRightOpen } from "lucide-react";
 
+// Inline error boundary to surface the REAL error message instead of generic "Something went wrong!"
+class PlaygroundErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null; errorInfo: React.ErrorInfo | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    this.setState({ error, errorInfo });
+    // Log full details to console for debugging
+    console.error("[Playground Error Boundary] Caught error:", error);
+    console.error("[Playground Error Boundary] Component stack:", errorInfo.componentStack);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex h-screen w-full flex-col items-center justify-center space-y-4 bg-[#090B0F] px-4 text-center font-mono">
+          <div className="space-y-2 max-w-2xl w-full text-left">
+            <h1 className="text-xl font-bold tracking-tight text-red-400">
+              🚨 Playground Runtime Error
+            </h1>
+            <div className="bg-[#0D1117] border border-red-500/30 rounded-lg p-4 space-y-3">
+              <div>
+                <p className="text-[11px] text-[#9CA6B5] uppercase tracking-wider mb-1">Error Type</p>
+                <p className="text-sm text-red-400 font-mono">{this.state.error?.name}: {this.state.error?.message}</p>
+              </div>
+              <div>
+                <p className="text-[11px] text-[#9CA6B5] uppercase tracking-wider mb-1">Stack Trace</p>
+                <pre className="text-[10px] text-[#667085] overflow-auto max-h-40 bg-black/30 p-2 rounded whitespace-pre-wrap">
+                  {this.state.error?.stack}
+                </pre>
+              </div>
+              {this.state.errorInfo?.componentStack && (
+                <div>
+                  <p className="text-[11px] text-[#9CA6B5] uppercase tracking-wider mb-1">React Component Stack</p>
+                  <pre className="text-[10px] text-[#667085] overflow-auto max-h-32 bg-black/30 p-2 rounded whitespace-pre-wrap">
+                    {this.state.errorInfo.componentStack}
+                  </pre>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => this.setState({ hasError: false, error: null, errorInfo: null })}
+              className="mt-4 px-4 py-2 bg-[#22D3EE]/10 border border-[#22D3EE]/30 text-[#22D3EE] rounded-lg text-xs hover:bg-[#22D3EE]/20 transition-colors"
+            >
+              Try again
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function PlaygroundClient() {
   const {
     isMainSidebarOpen,
@@ -28,77 +91,79 @@ export default function PlaygroundClient() {
   const rightOpen = mounted ? isRightPanelOpen : true;
 
   return (
-    <div
-      className={cn(
-        "fixed inset-0 top-14 flex flex-col bg-background text-foreground overflow-hidden z-10 transition-all duration-300 ease-in-out",
-        mainOpen ? "lg:left-64" : "lg:left-0"
-      )}
-    >
-      <React.Suspense fallback={<div className="h-14 border-b border-border/40 bg-background/95" />}>
-        <TopBar />
-      </React.Suspense>
-      <div className="flex flex-1 overflow-hidden relative">
-        {/* Panel A: Left Sidebar (Configuration) */}
-        <aside
-          className={cn(
-            "flex-shrink-0 flex flex-col overflow-hidden bg-background border-r border-border/40 transition-all duration-300 ease-in-out hidden md:flex",
-            leftOpen ? "w-[320px] opacity-100" : "w-0 border-r-0 opacity-0 pointer-events-none"
-          )}
-        >
-          <div className="w-[320px] h-full flex flex-col">
-            <LeftPanel />
-          </div>
-        </aside>
+    <PlaygroundErrorBoundary>
+      <div
+        className={cn(
+          "fixed inset-0 top-14 flex flex-col bg-background text-foreground overflow-hidden z-10 transition-all duration-300 ease-in-out",
+          mainOpen ? "lg:left-64" : "lg:left-0"
+        )}
+      >
+        <React.Suspense fallback={<div className="h-14 border-b border-border/40 bg-background/95" />}>
+          <TopBar />
+        </React.Suspense>
+        <div className="flex flex-1 overflow-hidden relative">
+          {/* Panel A: Left Sidebar (Configuration) */}
+          <aside
+            className={cn(
+              "flex-shrink-0 flex flex-col overflow-hidden bg-background border-r border-border/40 transition-all duration-300 ease-in-out hidden md:flex",
+              leftOpen ? "w-[320px] opacity-100" : "w-0 border-r-0 opacity-0 pointer-events-none"
+            )}
+          >
+            <div className="w-[320px] h-full flex flex-col">
+              <LeftPanel />
+            </div>
+          </aside>
 
-        {/* Panel B: Center Workspace */}
-        <main className="flex-1 h-full flex flex-col min-w-0 bg-background relative overflow-hidden">
-          {/* Quick-expand left edge tab when configuration is collapsed */}
-          {!leftOpen && (
-            <button
-              type="button"
-              onClick={toggleLeftPanel}
-              className="absolute left-0 top-1/2 -translate-y-1/2 z-30 flex items-center gap-1 py-3 px-1.5 rounded-r-md bg-background/90 hover:bg-accent border border-l-0 border-border/60 text-muted-foreground hover:text-primary shadow-lg transition-all group backdrop-blur"
-              title="Expand Configuration Panel (Ctrl+[)"
-              aria-label="Expand Configuration Panel"
-            >
-              <PanelLeftOpen className="h-4 w-4 group-hover:scale-110 transition-transform text-primary" />
-              <span className="text-[9px] font-mono [writing-mode:vertical-lr] tracking-widest uppercase font-semibold text-muted-foreground group-hover:text-primary">
-                Config
-              </span>
-            </button>
-          )}
+          {/* Panel B: Center Workspace */}
+          <main className="flex-1 h-full flex flex-col min-w-0 bg-background relative overflow-hidden">
+            {/* Quick-expand left edge tab when configuration is collapsed */}
+            {!leftOpen && (
+              <button
+                type="button"
+                onClick={toggleLeftPanel}
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-30 flex items-center gap-1 py-3 px-1.5 rounded-r-md bg-background/90 hover:bg-accent border border-l-0 border-border/60 text-muted-foreground hover:text-primary shadow-lg transition-all group backdrop-blur"
+                title="Expand Configuration Panel (Ctrl+[)"
+                aria-label="Expand Configuration Panel"
+              >
+                <PanelLeftOpen className="h-4 w-4 group-hover:scale-110 transition-transform text-primary" />
+                <span className="text-[9px] font-mono [writing-mode:vertical-lr] tracking-widest uppercase font-semibold text-muted-foreground group-hover:text-primary">
+                  Config
+                </span>
+              </button>
+            )}
 
-          <CenterWorkspace />
+            <CenterWorkspace />
 
-          {/* Quick-expand right edge tab when execution trace is collapsed */}
-          {!rightOpen && (
-            <button
-              type="button"
-              onClick={toggleRightPanel}
-              className="absolute right-0 top-1/2 -translate-y-1/2 z-30 flex items-center gap-1 py-3 px-1.5 rounded-l-md bg-background/90 hover:bg-accent border border-r-0 border-border/60 text-muted-foreground hover:text-[#22D3EE] shadow-lg transition-all group backdrop-blur"
-              title="Expand Execution Trace Panel (Ctrl+])"
-              aria-label="Expand Execution Trace Panel"
-            >
-              <span className="text-[9px] font-mono [writing-mode:vertical-lr] tracking-widest uppercase font-semibold text-muted-foreground group-hover:text-[#22D3EE]">
-                Trace
-              </span>
-              <PanelRightOpen className="h-4 w-4 group-hover:scale-110 transition-transform text-[#22D3EE]" />
-            </button>
-          )}
-        </main>
+            {/* Quick-expand right edge tab when execution trace is collapsed */}
+            {!rightOpen && (
+              <button
+                type="button"
+                onClick={toggleRightPanel}
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-30 flex items-center gap-1 py-3 px-1.5 rounded-l-md bg-background/90 hover:bg-accent border border-r-0 border-border/60 text-muted-foreground hover:text-[#22D3EE] shadow-lg transition-all group backdrop-blur"
+                title="Expand Execution Trace Panel (Ctrl+])"
+                aria-label="Expand Execution Trace Panel"
+              >
+                <span className="text-[9px] font-mono [writing-mode:vertical-lr] tracking-widest uppercase font-semibold text-muted-foreground group-hover:text-[#22D3EE]">
+                  Trace
+                </span>
+                <PanelRightOpen className="h-4 w-4 group-hover:scale-110 transition-transform text-[#22D3EE]" />
+              </button>
+            )}
+          </main>
 
-        {/* Panel C: Right Sidebar (Execution Trace) */}
-        <aside
-          className={cn(
-            "flex-shrink-0 flex flex-col overflow-hidden bg-background border-l border-border/40 transition-all duration-300 ease-in-out hidden xl:flex",
-            rightOpen ? "w-[350px] opacity-100" : "w-0 border-l-0 opacity-0 pointer-events-none"
-          )}
-        >
-          <div className="w-[350px] h-full flex flex-col">
-            <RightPanel />
-          </div>
-        </aside>
+          {/* Panel C: Right Sidebar (Execution Trace) */}
+          <aside
+            className={cn(
+              "flex-shrink-0 flex flex-col overflow-hidden bg-background border-l border-border/40 transition-all duration-300 ease-in-out hidden xl:flex",
+              rightOpen ? "w-[350px] opacity-100" : "w-0 border-l-0 opacity-0 pointer-events-none"
+            )}
+          >
+            <div className="w-[350px] h-full flex flex-col">
+              <RightPanel />
+            </div>
+          </aside>
+        </div>
       </div>
-    </div>
+    </PlaygroundErrorBoundary>
   );
 }
