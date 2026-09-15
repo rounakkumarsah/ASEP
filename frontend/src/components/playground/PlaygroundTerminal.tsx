@@ -188,7 +188,7 @@ export function PlaygroundTerminal() {
         break;
 
       case "workflow":
-      case "test":
+      case "test": {
         setIsExecuting(true);
         resetActiveNodes();
         addLog("system", "Starting LangGraph Autonomous Workflow Execution...");
@@ -215,10 +215,11 @@ export function PlaygroundTerminal() {
         setIsExecuting(false);
         addLog("success", "[WORKFLOW COMPLETE] All 6 agent graph nodes executed with 0 policy violations.");
         break;
+      }
 
       case "run":
       case "agent":
-      case "agent-cli":
+      case "agent-cli": {
         if (!args) {
           addLog("error", "Usage: run <task description> (e.g. 'run refactor database connection pooling')");
           return;
@@ -253,6 +254,7 @@ export function PlaygroundTerminal() {
         setIsExecuting(false);
         addLog("success", `[COMPLETED] Agent response generated and synchronized with Chat tab.`);
         break;
+      }
 
       default:
         addLog(
