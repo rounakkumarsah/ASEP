@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePlaygroundStore } from "@/lib/stores/playgroundStore";
 import { WorkflowVisualizer } from "./WorkflowVisualizer";
+import { PlaygroundTerminal } from "./PlaygroundTerminal";
 import Editor from "@monaco-editor/react";
 import ReactMarkdown from 'react-markdown';
 import {
@@ -343,16 +344,14 @@ export function CenterWorkspace() {
             </div>
           </TabsContent>
 
-          <TabsContent value="terminal" className="flex-1 mt-0 border-0 bg-black p-4 font-mono text-sm text-green-400 data-[state=active]:block data-[state=inactive]:hidden min-h-0 overflow-y-auto">
-            <div>$ agent-cli run --mode=deep</div>
-            <div className="text-muted-foreground">Initializing environment...</div>
-            <div>[OK] Environment ready.</div>
-            <div className="animate-pulse">_</div>
+          <TabsContent value="terminal" className="flex-1 mt-0 border-0 data-[state=active]:flex data-[state=inactive]:hidden min-h-0 flex-col overflow-hidden">
+            <PlaygroundTerminal />
           </TabsContent>
         </div>
       </Tabs>
 
-      {/* Input Box - Positioned absolutely at the bottom over the content */}
+      {/* Input Box - Positioned absolutely at the bottom over the content (hidden on terminal to give full interactive CLI) */}
+      {activeCenterTab !== "terminal" && (
       <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-[#0D1117] via-[#0D1117]/90 to-transparent pt-12">
         <div className="max-w-4xl mx-auto relative">
           <form onSubmit={handleSend} className="relative rounded-xl border border-border/50 bg-card shadow-2xl focus-within:ring-1 focus-within:ring-primary/50 focus-within:border-primary/50 transition-all flex flex-col">
@@ -474,6 +473,7 @@ export function CenterWorkspace() {
           </form>
         </div>
       </div>
+      )}
     </div>
   );
 }
