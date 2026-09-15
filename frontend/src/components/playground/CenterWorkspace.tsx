@@ -1,15 +1,26 @@
 "use client";
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 import { MessageSquare, Code, Terminal, Send, Loader2, Bot, User as UserIcon, Plus, GitCompare, Paperclip, Wrench, Cpu, Workflow } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePlaygroundStore } from "@/lib/stores/playgroundStore";
-import { WorkflowVisualizer } from "./WorkflowVisualizer";
-import { PlaygroundTerminal } from "./PlaygroundTerminal";
 import Editor from "@monaco-editor/react";
 import ReactMarkdown from 'react-markdown';
+
+// Dynamic imports for components that use browser-only APIs (DOM/canvas/WebGL)
+// ssr:false prevents hydration mismatches and React Error Boundary crashes
+const WorkflowVisualizer = dynamic(
+  () => import("./WorkflowVisualizer").then((m) => ({ default: m.WorkflowVisualizer })),
+  { ssr: false, loading: () => <div className="flex-1 flex items-center justify-center text-muted-foreground text-xs">Loading Workflow...</div> }
+);
+const PlaygroundTerminal = dynamic(
+  () => import("./PlaygroundTerminal").then((m) => ({ default: m.PlaygroundTerminal })),
+  { ssr: false, loading: () => <div className="flex-1 flex items-center justify-center bg-[#090B0F] text-green-400 font-mono text-xs">Initializing terminal...</div> }
+);
+
 import {
   DropdownMenu,
   DropdownMenuContent,

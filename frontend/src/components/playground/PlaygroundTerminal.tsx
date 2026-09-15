@@ -296,6 +296,12 @@ export function PlaygroundTerminal() {
     }
   };
 
+  // Focus input on mount (using effect instead of autoFocus to avoid SSR hydration mismatch)
+  React.useEffect(() => {
+    const timer = setTimeout(() => inputRef.current?.focus(), 100);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <div
       className="flex flex-col h-full w-full bg-[#090B0F] text-[#F5F7FA] font-mono select-text cursor-text"
@@ -423,7 +429,6 @@ export function PlaygroundTerminal() {
             onChange={(e) => setCurrentInput(e.target.value)}
             onKeyDown={handleKeyDown}
             disabled={isExecuting}
-            autoFocus
             className="flex-1 bg-transparent border-none outline-none text-xs text-white font-mono placeholder:text-muted-foreground/40 focus:ring-0 p-0"
             placeholder="Type a command (e.g. 'help', 'status', 'workflow', 'run <task>')..."
           />
