@@ -2,7 +2,8 @@
 
 import { Settings2, Cpu, Shield, Database, Globe, PanelLeftClose } from "lucide-react";
 import { GitHubIcon } from "@/components/icons/GitHubIcon";
-import Editor from "@monaco-editor/react";
+import dynamic from "next/dynamic";
+const Editor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";

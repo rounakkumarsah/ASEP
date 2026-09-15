@@ -1,7 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
-import { DiffEditor } from "@monaco-editor/react";
+import dynamic from "next/dynamic";
+const DiffEditor = dynamic(
+  () => import("@monaco-editor/react").then((mod) => mod.DiffEditor),
+  { ssr: false }
+);
 import { Button } from "@/components/ui/button";
 
 interface DiffFile {

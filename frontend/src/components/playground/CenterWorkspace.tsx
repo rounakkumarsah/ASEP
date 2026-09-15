@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePlaygroundStore } from "@/lib/stores/playgroundStore";
-import Editor from "@monaco-editor/react";
+const Editor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 import ReactMarkdown from 'react-markdown';
 
 // Dynamic imports for components that use browser-only APIs (DOM/canvas/WebGL)
