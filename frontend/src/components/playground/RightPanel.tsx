@@ -1,14 +1,17 @@
 "use client";
 
 import * as React from "react";
-import { Activity, Clock, CheckCircle2, CircleDashed, TerminalSquare, BookOpen, Link as LinkIcon, DollarSign, Target, Play } from "lucide-react";
+import { Activity, Clock, CheckCircle2, CircleDashed, TerminalSquare, BookOpen, Link as LinkIcon, DollarSign, Target, Play, PanelRightClose } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
 import { usePlaygroundStore } from "@/lib/stores/playgroundStore";
+import { useSidebarStore } from "@/lib/stores/sidebarStore";
 
 export function RightPanel() {
   const { messages, isThinking, activeNode, completedNodes } = usePlaygroundStore();
+  const { toggleRightPanel } = useSidebarStore();
   const hasActivity = messages.length > 0 || isThinking || completedNodes.length > 0;
 
   const PIPELINE_STEPS = [
@@ -22,11 +25,21 @@ export function RightPanel() {
 
   return (
     <div className="flex h-full flex-col border-l border-border/40 bg-background/50 backdrop-blur">
-      <div className="p-4 pb-2 border-b border-border/40">
+      <div className="p-4 pb-2 border-b border-border/40 flex items-center justify-between">
         <h2 className="text-sm font-semibold flex items-center gap-2">
           <Activity className="h-4 w-4 text-[#22D3EE]" />
           Execution Trace
         </h2>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggleRightPanel}
+          className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+          title="Collapse Execution Trace Panel (Ctrl+])"
+          aria-label="Collapse Execution Trace Panel"
+        >
+          <PanelRightClose className="h-4 w-4" />
+        </Button>
       </div>
 
       <ScrollArea className="flex-1">

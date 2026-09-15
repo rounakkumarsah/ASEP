@@ -1,6 +1,6 @@
 "use client";
 
-import { Settings2, Cpu, Shield, Database, Globe } from "lucide-react";
+import { Settings2, Cpu, Shield, Database, Globe, PanelLeftClose } from "lucide-react";
 import { GitHubIcon } from "@/components/icons/GitHubIcon";
 import Editor from "@monaco-editor/react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
 import { usePlaygroundStore } from "@/lib/stores/playgroundStore";
+import { useSidebarStore } from "@/lib/stores/sidebarStore";
 
 export function LeftPanel() {
   const {
@@ -23,14 +24,25 @@ export function LeftPanel() {
     researchMode, setResearchMode,
     activeLeftTab, setActiveLeftTab,
   } = usePlaygroundStore();
+  const { toggleLeftPanel } = useSidebarStore();
 
   return (
     <div className="flex h-full flex-col border-r border-border/40 bg-background/50 backdrop-blur">
-      <div className="p-4 pb-2 border-b border-border/40">
+      <div className="p-4 pb-2 border-b border-border/40 flex items-center justify-between">
         <h2 className="text-sm font-semibold flex items-center gap-2">
           <Settings2 className="h-4 w-4 text-primary" />
           Configuration
         </h2>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggleLeftPanel}
+          className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+          title="Collapse Configuration Panel (Ctrl+[)"
+          aria-label="Collapse Configuration Panel"
+        >
+          <PanelLeftClose className="h-4 w-4" />
+        </Button>
       </div>
 
       <Tabs value={activeLeftTab} onValueChange={setActiveLeftTab} className="flex-1 flex flex-col min-h-0">

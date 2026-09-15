@@ -3,7 +3,8 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, Search, Bell, User, LogOut, Settings as SettingsIcon } from "lucide-react";
+import { Menu, Search, Bell, User, LogOut, Settings as SettingsIcon, PanelLeft, PanelLeftClose } from "lucide-react";
+import { useSidebarStore } from "@/lib/stores/sidebarStore";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -29,6 +30,8 @@ export function DashboardHeader() {
       ? pathSegments[0].charAt(0).toUpperCase() + pathSegments[0].slice(1)
       : "Overview";
 
+  const { isMainSidebarOpen, toggleMainSidebar } = useSidebarStore();
+
   return (
     <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-x-4 border-b border-[#202833] bg-[#0D1117] px-4 shadow-xs sm:gap-x-6 sm:px-6 lg:px-8">
       {/* Mobile Sidebar Toggle */}
@@ -51,6 +54,18 @@ export function DashboardHeader() {
           <SidebarNav onClick={() => setIsOpen(false)} />
         </SheetContent>
       </Sheet>
+
+      {/* Desktop Sidebar Toggle Button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={toggleMainSidebar}
+        className="hidden lg:flex h-8 w-8 text-[#9CA6B5] hover:text-[#F5F7FA] hover:bg-[#111720] transition-colors"
+        title={isMainSidebarOpen ? "Collapse Sidebar (Ctrl+B)" : "Expand Sidebar (Ctrl+B)"}
+        aria-label="Toggle Sidebar"
+      >
+        {isMainSidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
+      </Button>
 
       {/* Separator for Mobile */}
       <div className="h-5 w-px bg-[#202833] lg:hidden" aria-hidden="true" />

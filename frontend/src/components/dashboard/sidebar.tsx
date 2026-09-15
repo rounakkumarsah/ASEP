@@ -21,7 +21,9 @@ import {
   Terminal,
   Cpu,
   ExternalLink,
+  PanelLeftClose,
 } from "lucide-react";
+import { useSidebarStore } from "@/lib/stores/sidebarStore";
 
 const navigationGroups = [
   {
@@ -65,7 +67,7 @@ const navigationGroups = [
   },
 ];
 
-export function SidebarNav({ onClick }: { onClick?: () => void }) {
+export function SidebarNav({ onClick, onCollapse }: { onClick?: () => void; onCollapse?: () => void }) {
   const pathname = usePathname();
   const [quota, setQuota] = useState<{ tier: string; limit: number; used: number; remaining: number }>({
     tier: "free",
@@ -97,7 +99,7 @@ export function SidebarNav({ onClick }: { onClick?: () => void }) {
   return (
     <div className="flex flex-col h-full bg-[#0D1117] text-[#F5F7FA]">
       {/* Brand Header */}
-      <div className="px-5 py-4 border-b border-[#202833] flex items-center">
+      <div className="px-5 py-4 border-b border-[#202833] flex items-center justify-between">
         <Link href="/overview" className="flex items-center space-x-2.5 group">
           <div className="p-1.5 rounded-md bg-[#111720] border border-[#202833] text-[#22D3EE] group-hover:border-[#22D3EE]/40 transition-colors">
             <Cpu className="h-5 w-5" />
@@ -116,6 +118,17 @@ export function SidebarNav({ onClick }: { onClick?: () => void }) {
             </div>
           </div>
         </Link>
+        {onCollapse && (
+          <button
+            type="button"
+            onClick={onCollapse}
+            className="hidden lg:flex items-center justify-center h-7 w-7 rounded-md text-[#667085] hover:text-[#F5F7FA] hover:bg-[#111720] transition-colors"
+            title="Collapse Sidebar (Ctrl+B)"
+            aria-label="Collapse Sidebar"
+          >
+            <PanelLeftClose className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       {/* Navigation Links */}
@@ -207,9 +220,17 @@ export function SidebarNav({ onClick }: { onClick?: () => void }) {
 }
 
 export function DashboardSidebar() {
+  const { isMainSidebarOpen, toggleMainSidebar } = useSidebarStore();
   return (
-    <aside className="hidden lg:flex w-64 h-screen flex-col border-r border-[#202833] bg-[#0D1117] fixed inset-y-0 z-30">
-      <SidebarNav />
+    <aside
+      className={cn(
+        "hidden lg:flex h-screen flex-col border-r border-[#202833] bg-[#0D1117] fixed inset-y-0 z-30 transition-all duration-300 ease-in-out",
+        isMainSidebarOpen ? "w-64 translate-x-0" : "w-0 -translate-x-full opacity-0 pointer-events-none border-r-0"
+      )}
+    >
+      <div className="w-64 h-full flex flex-col">
+        <SidebarNav onCollapse={toggleMainSidebar} />
+      </div>
     </aside>
   );
 }
