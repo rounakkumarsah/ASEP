@@ -4,20 +4,7 @@ import * as React from "react";
 import { Terminal as TerminalIcon, CheckCircle2, Sparkles } from "lucide-react";
 import { usePlaygroundStore } from "@/lib/stores/playgroundStore";
 
-interface CommandOutput {
-  id: string;
-  type: "input" | "output" | "error" | "system" | "success" | "agent";
-  text: string;
-  time?: string;
-}
 
-const INITIAL_LOGS: CommandOutput[] = [
-  { id: "init-1", type: "system", text: "ASEP AI Engine v0.1.0 (x86_64-pc-linux-gnu)" },
-  { id: "init-2", type: "system", text: "Type 'help' to view available commands, or 'run <task>' to dispatch agents." },
-  { id: "init-3", type: "input", text: "agent-cli run --mode=deep --workspace=default" },
-  { id: "init-4", type: "output", text: "Initializing LangGraph multi-agent supervisor..." },
-  { id: "init-5", type: "success", text: "[OK] Agent Swarm ready. Interactive session established." },
-];
 
 export function PlaygroundTerminal() {
   const {

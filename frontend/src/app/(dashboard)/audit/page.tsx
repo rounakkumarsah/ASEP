@@ -114,6 +114,7 @@ export default function AuditPage() {
 
   React.useEffect(() => {
     fetchLogs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleExport = (format: "csv" | "json") => {

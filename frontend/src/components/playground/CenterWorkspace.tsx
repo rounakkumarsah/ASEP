@@ -92,7 +92,9 @@ export function CenterWorkspace() {
   const [artifactCode, setArtifactCode] = React.useState<string>("");
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
   const [cmdIndex, setCmdIndex] = React.useState(0);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [securityFindings, setSecurityFindings] = React.useState<any[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [editorInstance, setEditorInstance] = React.useState<any>(null);
 
   const jumpToLine = (file: string, line: number) => {
@@ -277,7 +279,7 @@ export function CenterWorkspace() {
                             try {
                                 setSecurityFindings(JSON.parse(findingsStr));
                                 setActiveCenterTab("security");
-                            } catch (e) {}
+                            } catch {}
                           } else if (messageItem.content.includes("[Metrics]")) {
                             const metricsStr = messageItem.content.replace("[Metrics]", "").trim();
                             try {
@@ -286,7 +288,7 @@ export function CenterWorkspace() {
                                   estimatedCost: metrics.estimated_cost,
                                   confidence: metrics.confidence || null
                                 });
-                            } catch (e) {}
+                            } catch {}
                           } else {
                             streamMessages.push(messageItem.content);
                           }
@@ -307,7 +309,7 @@ export function CenterWorkspace() {
                               setArtifactCode(parsed.result.content);
                               setActiveCenterTab("artifacts");
                             }
-                          } catch (e) {
+                          } catch {
                             // ignore json parse error
                           }
                         }
@@ -494,7 +496,7 @@ export function CenterWorkspace() {
                               if (!res.ok) throw new Error("Failed");
                               const text = await res.text();
                               setArtifactCode(text);
-                            } catch (err) {
+                            } catch {
                               setToastMessage("Failed to load file. Network error.");
                               setArtifactCode("// Error loading file");
                             }

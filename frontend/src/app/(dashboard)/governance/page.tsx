@@ -11,7 +11,6 @@ import { ApprovalCard } from "@/components/dashboard/governance/approval-card";
 import { PolicyTable } from "@/components/dashboard/governance/policy-table";
 import { AuditTable } from "@/components/dashboard/governance/audit-table";
 import {
-  Loader2,
   ShieldCheck,
   ClipboardList,
   BookOpen,
@@ -98,7 +97,7 @@ export default function GovernanceWorkspacePage() {
       const { data, isLoading, isError, refetch } = approvalsQuery;
       const items = data?.items || [];
 
-      if (isLoading) return <LoadingState text="Fetching approval queue..." />;
+      if (isLoading) return <LoadingState />;
       if (isError) return <ErrorState onRetry={refetch} />;
       if (items.length === 0)
         return <EmptyStateWrapper text="No pending approvals found." />;
@@ -117,7 +116,7 @@ export default function GovernanceWorkspacePage() {
       const items = data?.items || [];
 
       if (isLoading)
-        return <LoadingState text="Loading governance policies..." />;
+        return <LoadingState />;
       if (isError) return <ErrorState onRetry={refetch} />;
       if (items.length === 0) return <EmptyStateWrapper text="No policies defined." />;
 
@@ -132,7 +131,7 @@ export default function GovernanceWorkspacePage() {
       const { data, isLoading, isError, refetch } = auditsQuery;
       const items = data?.items || [];
 
-      if (isLoading) return <LoadingState text="Retrieving audit logs..." />;
+      if (isLoading) return <LoadingState />;
       if (isError) return <ErrorState onRetry={refetch} />;
       if (items.length === 0)
         return <EmptyStateWrapper text="No audit records available." />;
@@ -226,7 +225,7 @@ export default function GovernanceWorkspacePage() {
   );
 }
 
-function LoadingState({ text: _ }: { text: string }) {
+function LoadingState() {
   return (
     <div className="space-y-3 py-4">
       {[1, 2, 3, 4].map((i) => (

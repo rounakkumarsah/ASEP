@@ -68,6 +68,7 @@ export default function MetricsPage() {
     fetchMetrics();
     const interval = setInterval(fetchMetrics, 5000); // refresh every 5 seconds
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (loading && !metrics) {

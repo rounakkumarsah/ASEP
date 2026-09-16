@@ -10,7 +10,6 @@ import {
   Shield,
   Cpu,
   Layers,
-  Database,
   Key,
   FolderGit,
   Workflow,
@@ -121,6 +120,7 @@ export default function DocumentationPage() {
     });
 
     return () => observers.forEach((o) => o.disconnect());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const scrollTo = (id: string) => {

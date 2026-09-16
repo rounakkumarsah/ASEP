@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Activity, Clock, CheckCircle2, CircleDashed, TerminalSquare, BookOpen, Link as LinkIcon, DollarSign, Target, Play, PanelRightClose } from "lucide-react";
+import { Activity, CheckCircle2, CircleDashed, TerminalSquare, BookOpen, DollarSign, Target, PanelRightClose } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";

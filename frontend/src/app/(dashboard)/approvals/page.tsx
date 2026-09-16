@@ -35,6 +35,27 @@ interface ApprovalFile {
 
 import { MonacoDiffViewer } from "@/components/MonacoDiffViewer";
 
+const DEFAULT_DEMO_APPROVALS: ReviewSession[] = [
+  {
+    session_id: "sess_hitl_9021",
+    tool_name: "filesystem_write",
+    args: { path: "/etc/hosts", content: "127.0.0.1 custom_host" },
+    status: "pending",
+    notes: "Policy violation: Root directory write restriction",
+    reviewer: "pending",
+    created_at: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
+  },
+  {
+    session_id: "sess_hitl_9022",
+    tool_name: "network_egress",
+    args: { host: "unverified-api.internal", port: 443 },
+    status: "escalated",
+    notes: "Policy violation: Sovereign air-gap egress boundary",
+    reviewer: "pending",
+    created_at: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+  },
+];
+
 export default function ApprovalsPage() {
   const { user } = useAuth();
   const [queue, setQueue] = React.useState<ReviewSession[]>([]);
@@ -45,27 +66,6 @@ export default function ApprovalsPage() {
   const [activeSessionId, setActiveSessionId] = React.useState<string | null>(null);
   const [activeFiles, setActiveFiles] = React.useState<ApprovalFile[]>([]);
   const [loadingFiles, setLoadingFiles] = React.useState(false);
-
-  const DEFAULT_DEMO_APPROVALS: ReviewSession[] = [
-    {
-      session_id: "sess_hitl_9021",
-      tool_name: "filesystem_write",
-      args: { path: "/etc/hosts", content: "127.0.0.1 custom_host" },
-      status: "pending",
-      notes: "Policy violation: Root directory write restriction",
-      reviewer: "pending",
-      created_at: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
-    },
-    {
-      session_id: "sess_hitl_9022",
-      tool_name: "network_egress",
-      args: { host: "unverified-api.internal", port: 443 },
-      status: "escalated",
-      notes: "Policy violation: Sovereign air-gap egress boundary",
-      reviewer: "pending",
-      created_at: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-    },
-  ];
 
   const fetchQueue = React.useCallback(async () => {
     setLoading(true);

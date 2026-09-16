@@ -89,6 +89,7 @@ export default function EvaluationPage() {
 
   React.useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleRun = async (datasetName: string) => {

@@ -2,7 +2,7 @@ import { ApiResponse, KnowledgeDocument, PaginatedResponse } from "../types";
 
 import { apiClient } from "../client";
 
-const DEFAULT_DEMO_DOCS: KnowledgeDocument[] = [
+export const DEFAULT_DEMO_DOCS: KnowledgeDocument[] = [
   {
     id: "doc_kn_001",
     title: "ASEP System Architecture & Topology",
