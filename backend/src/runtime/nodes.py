@@ -288,6 +288,18 @@ async def coding_node(state: AgentState) -> dict[str, Any]:
         "content": answer,
     })
     
+    # Run security audit if research_mode is security
+    research_mode = variables.get("research_mode", "balanced")
+    if research_mode == "security":
+        from src.utils.security_scanner import SecurityScanner
+        scanner = SecurityScanner()
+        findings = scanner.extract_and_scan(answer)
+        
+        messages.append({
+            "role": "system",
+            "content": f"[Security Audit] {json.dumps(findings)}"
+        })
+    
     return {
         "status": "coded",
         "messages": messages,

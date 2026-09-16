@@ -61,7 +61,7 @@ class LangGraphRuntime:
         self.graph = self.wrapper.compile()
 
     async def execute_run(
-        self, run_id: str, thread_id: str, goal: str = ""
+        self, run_id: str, thread_id: str, goal: str = "", research_mode: str = "balanced"
     ) -> AsyncGenerator[dict[str, Any], None]:
         """Initiates a new run and streams step-by-step workflow updates."""
         logger.info(f"Initiating run '{run_id}' under thread: '{thread_id}' with goal: '{goal}'")
@@ -78,7 +78,7 @@ class LangGraphRuntime:
             "status": "started",
             "next_action": None,
             "run_id": run_id,
-            "variables": {},
+            "variables": {"research_mode": research_mode},
             "human_input": None,
         }
 

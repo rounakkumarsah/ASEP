@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { MessageSquare, Code, Terminal, Send, Loader2, Bot, User as UserIcon, Plus, GitCompare, Paperclip, Wrench, Cpu, Workflow, Play, FileText, FolderGit2 } from "lucide-react";
+import { MessageSquare, Code, Terminal, Send, Loader2, Bot, User as UserIcon, Plus, GitCompare, Paperclip, Wrench, Cpu, Workflow, Play, FileText, FolderGit2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -77,6 +77,7 @@ export function CenterWorkspace() {
     setModel,
     toggleTool,
     activeTools,
+    researchMode,
     activeNode,
     setActiveNode,
     addCompletedNode,
@@ -91,6 +92,7 @@ export function CenterWorkspace() {
   const [artifactCode, setArtifactCode] = React.useState<string>("");
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
   const [cmdIndex, setCmdIndex] = React.useState(0);
+  const [securityFindings, setSecurityFindings] = React.useState<any[]>([]);
 
   const handleRunArtifact = async () => {
     setActiveCenterTab("terminal");
@@ -214,6 +216,7 @@ export function CenterWorkspace() {
         body: JSON.stringify({
           goal: currentInput,
           thread_id: "playground-session-" + Date.now(),
+          research_mode: researchMode,
         }),
       });
 
@@ -257,6 +260,12 @@ export function CenterWorkspace() {
                           if (messageItem.content.includes("[Auto Router Toast]")) {
                             setToastMessage(messageItem.content.replace("[Auto Router Toast]", "").trim());
                             setTimeout(() => setToastMessage(null), 6000);
+                          } else if (messageItem.content.includes("[Security Audit]")) {
+                            const findingsStr = messageItem.content.replace("[Security Audit]", "").trim();
+                            try {
+                                setSecurityFindings(JSON.parse(findingsStr));
+                                setActiveCenterTab("security");
+                            } catch (e) {}
                           } else {
                             streamMessages.push(messageItem.content);
                           }
@@ -290,6 +299,13 @@ export function CenterWorkspace() {
               // Ignore partial JSON chunks
             }
           }
+        }
+      }
+
+      if (aiResponse) {
+        const codeMatch = aiResponse.match(/```(?:python|bash|sh|txt|)\n([\s\S]*?)```/);
+        if (codeMatch && codeMatch[1]) {
+          setArtifactCode(codeMatch[1].trim());
         }
       }
 
@@ -340,6 +356,7 @@ export function CenterWorkspace() {
             <TabsTrigger value="artifacts" className="text-xs gap-2"><Code className="h-3.5 w-3.5" /> Artifacts</TabsTrigger>
             <TabsTrigger value="diff" className="text-xs gap-2"><GitCompare className="h-3.5 w-3.5" /> Diff Viewer</TabsTrigger>
             <TabsTrigger value="terminal" className="text-xs gap-2"><Terminal className="h-3.5 w-3.5" /> Terminal</TabsTrigger>
+            {securityFindings.length > 0 && <TabsTrigger value="security" className="text-xs gap-2 text-destructive"><ShieldAlert className="h-3.5 w-3.5" /> Security Audit</TabsTrigger>}
           </TabsList>
         </div>
 
@@ -517,13 +534,40 @@ export function CenterWorkspace() {
                   }}
                 />
               )}
-              <Button 
-                onClick={handleRunArtifact}
-                className="absolute top-4 right-4 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg gap-2"
-                size="sm"
-              >
-                <Play className="h-4 w-4" fill="currentColor" /> Run Code
-              </Button>
+              {securityFindings.some(f => f.severity === 'critical') && (
+                <div className="absolute top-4 left-4 right-32 bg-destructive/90 text-white px-4 py-2 rounded shadow-lg flex items-center justify-between text-sm backdrop-blur-sm z-50">
+                  <div className="flex items-center gap-2">
+                    <ShieldAlert className="h-4 w-4" />
+                    <span className="font-bold">Security Block:</span> CRITICAL vulnerabilities detected. Code execution and copying disabled.
+                  </div>
+                  <Button variant="outline" size="sm" className="h-6 text-xs bg-transparent border-white/30 hover:bg-white/10 text-white" onClick={() => setActiveCenterTab('security')}>
+                    View Findings
+                  </Button>
+                </div>
+              )}
+              <div className="absolute top-4 right-4 flex gap-2 z-40">
+                <Button 
+                  onClick={() => {
+                    if (securityFindings.some(f => f.severity === 'critical')) return;
+                    navigator.clipboard.writeText(artifactCode);
+                    setToastMessage("Code copied to clipboard");
+                    setTimeout(() => setToastMessage(null), 3000);
+                  }}
+                  className={`bg-[#202833] hover:bg-[#2A3441] text-white shadow-lg gap-2 ${securityFindings.some(f => f.severity === 'critical') ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  size="sm"
+                  disabled={securityFindings.some(f => f.severity === 'critical')}
+                >
+                  <Code className="h-4 w-4" fill="currentColor" /> Copy Code
+                </Button>
+                <Button 
+                  onClick={handleRunArtifact}
+                  className={`bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg gap-2 ${securityFindings.some(f => f.severity === 'critical') ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  size="sm"
+                  disabled={securityFindings.some(f => f.severity === 'critical')}
+                >
+                  <Play className="h-4 w-4" fill="currentColor" /> Run Code
+                </Button>
+              </div>
             </div>
           </TabsContent>
 
@@ -536,6 +580,68 @@ export function CenterWorkspace() {
 
           <TabsContent value="terminal" className="flex-1 mt-0 border-0 data-[state=active]:flex data-[state=inactive]:hidden min-h-0 flex-col overflow-hidden">
             <PlaygroundTerminal />
+          </TabsContent>
+
+          <TabsContent value="security" className="flex-1 mt-0 border-0 p-8 data-[state=active]:flex data-[state=inactive]:hidden flex-col min-h-0 overflow-y-auto">
+            <div className="max-w-5xl mx-auto w-full space-y-6 pb-20">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-bold flex items-center gap-2 text-destructive"><ShieldAlert className="h-5 w-5" /> Security Audit Findings</h2>
+                  <p className="text-sm text-muted-foreground mt-1">Review critical vulnerabilities and hardcoded secrets found in the generated code.</p>
+                </div>
+                {securityFindings.some(f => f.severity === 'critical') && (
+                  <div className="bg-destructive/10 text-destructive border border-destructive/20 px-3 py-1.5 rounded-md text-xs font-bold flex items-center gap-2">
+                    <ShieldAlert className="h-4 w-4" />
+                    CRITICAL VULNERABILITIES DETECTED
+                  </div>
+                )}
+              </div>
+              
+              <div className="border border-border/50 rounded-xl overflow-hidden bg-card">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-muted/50 text-muted-foreground text-xs uppercase border-b border-border/50">
+                    <tr>
+                      <th className="px-4 py-3 font-semibold">Severity</th>
+                      <th className="px-4 py-3 font-semibold">Location</th>
+                      <th className="px-4 py-3 font-semibold">Description</th>
+                      <th className="px-4 py-3 font-semibold">Suggested Fix</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/50">
+                    {securityFindings.map((finding, idx) => (
+                      <tr key={idx} className="hover:bg-muted/20 transition-colors">
+                        <td className="px-4 py-3 align-top">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold uppercase ${
+                            finding.severity === 'critical' ? 'bg-destructive/20 text-destructive border border-destructive/30' :
+                            finding.severity === 'high' ? 'bg-orange-500/20 text-orange-500 border border-orange-500/30' :
+                            finding.severity === 'medium' ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/30' :
+                            'bg-blue-500/20 text-blue-500 border border-blue-500/30'
+                          }`}>
+                            {finding.severity}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 align-top font-mono text-xs whitespace-nowrap">
+                          {finding.file}:{finding.line}
+                        </td>
+                        <td className="px-4 py-3 align-top font-medium text-foreground">
+                          {finding.description}
+                        </td>
+                        <td className="px-4 py-3 align-top text-muted-foreground">
+                          {finding.suggested_fix}
+                        </td>
+                      </tr>
+                    ))}
+                    {securityFindings.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
+                          No security vulnerabilities detected.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </TabsContent>
         </div>
       </Tabs>
