@@ -389,28 +389,28 @@ async def orchestrator_node(state: AgentState) -> dict[str, Any]:
     # Classify product type based on keywords
     if "ai agent" in goal_lower:
         product_type = "ai_agent"
-        phase_map = ["research", "clarification_gate", "capability_blueprint", "tool_design", "agent_loop_implementation", "memory_state_design", "sandbox_tests", "evaluation_runs", "security_audit", "deploy"]
+        phase_map = ["research", "clarification_gate", "capability_blueprint", "tool_design", "agent_loop_implementation", "memory_state_design", "sandbox_tests", "evaluation_runs", "security_audit", "deploy_clarification_gate", "deploy"]
     elif "agentic ai" in goal_lower or "multi-agent" in goal_lower:
         product_type = "agentic_ai"
-        phase_map = ["research", "clarification_gate", "goal_decomposition_design", "planner_executor_critic_architecture", "tool_integration", "multi_step_test_scenarios", "failure_recovery_tests", "security_audit", "deploy"]
+        phase_map = ["research", "clarification_gate", "goal_decomposition_design", "planner_executor_critic_architecture", "tool_integration", "multi_step_test_scenarios", "failure_recovery_tests", "security_audit", "deploy_clarification_gate", "deploy"]
     elif "automation" in goal_lower or "workflow" in goal_lower:
         product_type = "ai_automation"
-        phase_map = ["research", "clarification_gate", "workflow_mapping", "trigger_action_design", "integration_points", "end_to_end_automation_tests", "error_handling_paths", "security_audit", "deploy"]
+        phase_map = ["research", "clarification_gate", "workflow_mapping", "trigger_action_design", "integration_points", "end_to_end_automation_tests", "error_handling_paths", "security_audit", "deploy_clarification_gate", "deploy"]
     elif "api" in goal_lower: 
         product_type = "api"
-        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "test", "security_audit", "deploy"]
+        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "test", "security_audit", "deploy_clarification_gate", "deploy"]
     elif "bot" in goal_lower: 
         product_type = "bot"
-        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "test", "security_audit", "deploy"]
+        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "test", "security_audit", "deploy_clarification_gate", "deploy"]
     elif "website" in goal_lower: 
         product_type = "website"
-        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "test", "security_audit", "deploy"]
+        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "test", "security_audit", "deploy_clarification_gate", "deploy"]
     elif "app" in goal_lower: 
         product_type = "app"
-        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "test", "security_audit", "deploy"]
+        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "test", "security_audit", "deploy_clarification_gate", "deploy"]
     else:
         product_type = "web-app"
-        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "test", "security_audit", "deploy"]
+        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "test", "security_audit", "deploy_clarification_gate", "deploy"]
 
     # No Hallucination Rules constraints injected into system message
     hallucination_rules = (
@@ -455,6 +455,9 @@ async def research_phase_node(state: AgentState) -> dict[str, Any]:
 
 async def clarification_gate_node(state: AgentState) -> dict[str, Any]:
     goal = state.get("goal", "").lower()
+    env_mode = state.get("environment_mode", "local")
+    credentials_status = state.get("credentials_status", {})
+    local_secrets = state.get("local_secrets", {})
     
     # Identify dependencies
     dependencies = []
@@ -469,20 +472,44 @@ async def clarification_gate_node(state: AgentState) -> dict[str, Any]:
         return {
             "status": "verified",
             "current_phase": "clarification_gate",
+            "local_secrets": local_secrets,
             "messages": [{"role": "system", "content": "Clarification Gate: No external dependencies detected."}]
         }
 
-    clarifications_gathered = {}
+    clarifications_gathered = credentials_status
     blocked_items = []
     
+    # Environment-Aware Credential Policy
+    if env_mode == "local":
+        # System auto-generates mocks, NEVER asks user for API keys in local mode
+        for dep in dependencies:
+            clarifications_gathered[dep] = "mock"
+        
+        msg = f"Clarification Gate Complete [LOCAL MODE]. Auto-mocked {len(dependencies)} external services."
+        return {
+            "status": "verified",
+            "current_phase": "clarification_gate",
+            "credentials_status": clarifications_gathered,
+            "local_secrets": local_secrets,
+            "messages": [
+                {"role": "system", "content": f"[Local Secrets] {json.dumps(local_secrets)}"},
+                {"role": "system", "content": f"[Credentials Status] {json.dumps(clarifications_gathered)}"},
+                {"role": "system", "content": msg}
+            ]
+        }
+
+    # Deploy Mode (Initial or Switched)
     for dep in dependencies:
+        if dep in clarifications_gathered and clarifications_gathered[dep] != "mock":
+            continue # already have a real key
+            
         attempts = 0
-        prompt_msg = f"[Clarification Required] To integrate this feature, I need: {dep}. Please provide valid credentials, or type 'mock' to use a local mock that you can swap later."
+        prompt_msg = f"[Clarification Required] DEPLOY MODE: To integrate this feature in production, I need: {dep}. Please provide valid LIVE credentials, or type 'mock' to deliberately deploy with test services."
         
         while attempts < 3:
             decision = interrupt({
                 "action": "clarification_required",
-                "reason": f"External dependency detected: {dep}",
+                "reason": f"External production dependency detected: {dep}",
                 "prompt": prompt_msg
             })
             
@@ -501,13 +528,77 @@ async def clarification_gate_node(state: AgentState) -> dict[str, Any]:
                 blocked_items.append(dep)
                 break
                 
-            prompt_msg = f"[Clarification Required] The credentials provided for {dep} were invalid or too short. Attempt {attempts}/3. Please provide valid credentials or type 'mock'."
+            prompt_msg = f"[Clarification Required] The credentials provided for {dep} were invalid or too short. Attempt {attempts}/3. Please provide valid LIVE credentials or type 'mock'."
 
     msg = f"Clarification Gate Complete. Resolved: {len(clarifications_gathered)}, Blocked: {len(blocked_items)}."
     return {
         "status": "verified",
         "current_phase": "clarification_gate",
+        "credentials_status": clarifications_gathered,
+        "local_secrets": local_secrets,
         "messages": [{"role": "system", "content": msg}]
+    }
+
+async def deploy_clarification_gate_node(state: AgentState) -> dict[str, Any]:
+    env_mode = state.get("environment_mode", "local")
+    credentials_status = state.get("credentials_status", {})
+    
+    if env_mode == "local":
+        return {
+            "status": "verified",
+            "current_phase": "deploy_clarification_gate",
+            "messages": [{"role": "system", "content": "Deploy Clarification Gate skipped in LOCAL mode."}]
+        }
+
+    # Deploy Mode Checklist
+    missing_live_keys = [dep for dep, val in credentials_status.items() if val == "mock"]
+    if not missing_live_keys:
+        return {
+            "status": "verified",
+            "current_phase": "deploy_clarification_gate",
+            "messages": [{"role": "system", "content": "Deploy Clarification Gate: All production keys are present."}]
+        }
+        
+    blocked_items = []
+    
+    for dep in missing_live_keys:
+        attempts = 0
+        # Exact prompt requested by user
+        prompt_msg = f"[Clarification Required] To deploy with {dep.split()[0].lower()}, I need your {dep.split()[0]} LIVE key ID and secret. Get them from the dashboard ? Settings ? API Keys."
+        
+        while attempts < 3:
+            decision = interrupt({
+                "action": "clarification_required",
+                "reason": f"Missing production key for: {dep}",
+                "prompt": prompt_msg
+            })
+            
+            human_input = str(decision)
+            if len(human_input.strip()) > 8 and "mock" not in human_input.lower():
+                credentials_status[dep] = human_input
+                break
+                
+            attempts += 1
+            if attempts >= 3:
+                blocked_items.append(dep)
+                break
+                
+            prompt_msg = f"[Clarification Required] Invalid key for {dep}. Attempt {attempts}/3. Please provide a valid LIVE key."
+
+    if blocked_items:
+        # Deploy proceeds only when credential checklist = 100% complete
+        return {
+            "status": "blocked",
+            "current_phase": "deploy_clarification_gate",
+            "credentials_status": credentials_status,
+            "messages": [{"role": "system", "content": f"DEPLOY BLOCKED. Missing keys: {', '.join(blocked_items)}"}]
+        }
+        
+    return {
+        "status": "verified",
+        "current_phase": "deploy_clarification_gate",
+        "credentials_status": credentials_status,
+        "messages": [{"role": "system", "content": "Deploy Clarification Gate: 100% Production keys secured. Swapping .env to production values."}]
     }
 
 

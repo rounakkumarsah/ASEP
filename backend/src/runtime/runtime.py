@@ -16,6 +16,7 @@ from src.runtime.nodes import (
     NodeRegistry,
     orchestrator_node,
     clarification_gate_node,
+    deploy_clarification_gate_node,
     research_phase_node,
     blueprint_phase_node,
     scaffold_phase_node,
@@ -62,6 +63,7 @@ class LangGraphRuntime:
         self.nodes.register("orchestrator", orchestrator_node)
         self.nodes.register("research", research_phase_node)
         self.nodes.register("clarification_gate", clarification_gate_node)
+        self.nodes.register("deploy_clarification_gate", deploy_clarification_gate_node)
         self.nodes.register("blueprint", blueprint_phase_node)
         self.nodes.register("scaffold", scaffold_phase_node)
         self.nodes.register("implement", implement_phase_node)
@@ -99,7 +101,7 @@ class LangGraphRuntime:
         self.graph = self.wrapper.compile()
 
     async def execute_run(
-        self, run_id: str, thread_id: str, goal: str = "", research_mode: str = "balanced"
+        self, run_id: str, thread_id: str, goal: str = "", research_mode: str = "balanced", environment_mode: str = "local"
     ) -> AsyncGenerator[dict[str, Any], None]:
         """Initiates a new run and streams step-by-step workflow updates."""
         logger.info(f"Initiating run '{run_id}' under thread: '{thread_id}' with goal: '{goal}'")
@@ -112,6 +114,9 @@ class LangGraphRuntime:
         initial_state: dict[str, Any] = {
             "goal": goal,
             "messages": [{"role": "user", "content": goal}] if goal else [],
+            "environment_mode": environment_mode,
+            "credentials_status": {},
+            "local_secrets": {},
             "plan": [],
             "status": "started",
             "next_action": None,

@@ -58,6 +58,10 @@ class RunRequest(BaseModel):
         default="balanced",
         description="The research mode/persona to use for this execution."
     )
+    environment_mode: str = Field(
+        default="local",
+        description="Target environment: local or deploy."
+    )
 
 
 class ResumeRequest(BaseModel):
@@ -162,7 +166,7 @@ async def start_run(
     async def _event_generator() -> AsyncGenerator[str, None]:
         try:
             async for event in runtime.execute_run(
-                run_id=run_id, thread_id=thread_id, goal=payload.goal, research_mode=payload.research_mode
+                run_id=run_id, thread_id=thread_id, goal=payload.goal, research_mode=payload.research_mode, environment_mode=payload.environment_mode
             ):
                 yield _sse_line(
                     {

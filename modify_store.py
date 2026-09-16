@@ -3,25 +3,29 @@ import re
 with open('frontend/src/lib/stores/playgroundStore.ts', 'r', encoding='utf-8') as f:
     content = f.read()
 
-# Add to interface
-interface_addition = '''
-  // Workflow Graph Live Execution State
-  phaseMap: string[];
-  setPhaseMap: (map: string[]) => void;
-  activeNode: string | null;
-'''
-content = content.replace('  // Workflow Graph Live Execution State\n  activeNode: string | null;', interface_addition)
+state_addition = '''  // Environment Mode
+  environmentMode: "local" | "deploy";
+  setEnvironmentMode: (mode: "local" | "deploy") => void;
+  localSecrets: Record<string, string>;
+  setLocalSecrets: (secrets: Record<string, string>) => void;
+  credentialsStatus: Record<string, string | boolean>;
+  setCredentialsStatus: (status: Record<string, string | boolean>) => void;
 
-# Add to implementation
-impl_addition = '''
-      setSelectedProjectName: (name) => set({ selectedProjectName: name }),
+  // System Prompt'''
 
-      phaseMap: [],
-      setPhaseMap: (map) => set({ phaseMap: map }),
+content = content.replace('  // System Prompt', state_addition)
 
-      activeNode: null,
-'''
-content = content.replace('      setSelectedProjectName: (name) => set({ selectedProjectName: name }),\n\n      activeNode: null,', impl_addition)
+impl_addition = '''  // Environment Mode
+  environmentMode: "local",
+  setEnvironmentMode: (mode) => set({ environmentMode: mode }),
+  localSecrets: {},
+  setLocalSecrets: (secrets) => set({ localSecrets: secrets }),
+  credentialsStatus: {},
+  setCredentialsStatus: (status) => set({ credentialsStatus: status }),
+
+  // System Prompt'''
+
+content = content.replace('  // System Prompt', impl_addition)
 
 with open('frontend/src/lib/stores/playgroundStore.ts', 'w', encoding='utf-8') as f:
     f.write(content)

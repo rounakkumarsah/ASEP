@@ -26,6 +26,14 @@ export interface PlaygroundState {
   maxTokens: number;
   setMaxTokens: (tokens: number) => void;
 
+  // Environment Mode
+  environmentMode: "local" | "deploy";
+  setEnvironmentMode: (mode: "local" | "deploy") => void;
+  localSecrets: Record<string, string>;
+  setLocalSecrets: (secrets: Record<string, string>) => void;
+  credentialsStatus: Record<string, string | boolean>;
+  setCredentialsStatus: (status: Record<string, string | boolean>) => void;
+
   // System Prompt
   systemPrompt: string;
   setSystemPrompt: (prompt: string) => void;
@@ -94,6 +102,14 @@ export const usePlaygroundStore = create<PlaygroundState>()(
       setTemperature: (temperature) => set({ temperature }),
       maxTokens: 2048,
       setMaxTokens: (maxTokens) => set({ maxTokens }),
+
+      // Environment Mode
+      environmentMode: "local",
+      setEnvironmentMode: (mode) => set({ environmentMode: mode }),
+      localSecrets: {},
+      setLocalSecrets: (secrets) => set({ localSecrets: secrets }),
+      credentialsStatus: {},
+      setCredentialsStatus: (status) => set({ credentialsStatus: status }),
 
       systemPrompt: 'You are an expert AI assistant.',
       setSystemPrompt: (systemPrompt) => set({ systemPrompt }),

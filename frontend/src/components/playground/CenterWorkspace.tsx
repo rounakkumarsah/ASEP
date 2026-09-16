@@ -87,6 +87,9 @@ export function CenterWorkspace() {
     clearTerminalLogs,
     githubRepo,
     setGithubActiveFile,
+    environmentMode,
+    setLocalSecrets,
+    setCredentialsStatus,
   } = usePlaygroundStore();
   const [input, setInput] = React.useState("");
   const [cmdMenu, setCmdMenu] = React.useState<'tool' | 'model' | null>(null);
@@ -360,6 +363,7 @@ const [clarificationPrompt, setClarificationPrompt] = React.useState<string | nu
           goal: currentInput,
           thread_id: newThreadId,
           research_mode: researchMode,
+          environment_mode: environmentMode,
         }),
       });
 
@@ -416,6 +420,14 @@ const [clarificationPrompt, setClarificationPrompt] = React.useState<string | nu
                             // But actually, we don't know the threadId here directly!
                             // wait, we can store it when calling fetch
 
+                          } else if (messageItem.content.includes("[Local Secrets]")) {
+                            try {
+                                setLocalSecrets(JSON.parse(messageItem.content.replace("[Local Secrets]", "").trim()));
+                            } catch {}
+                          } else if (messageItem.content.includes("[Credentials Status]")) {
+                            try {
+                                setCredentialsStatus(JSON.parse(messageItem.content.replace("[Credentials Status]", "").trim()));
+                            } catch {}
                           } else if (messageItem.content.includes("[Metrics]")) {
                             const metricsStr = messageItem.content.replace("[Metrics]", "").trim();
                             try {

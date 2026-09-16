@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, Search, Bell, User, LogOut, Settings as SettingsIcon, PanelLeft, PanelLeftClose } from "lucide-react";
 import { useSidebarStore } from "@/lib/stores/sidebarStore";
+import { usePlaygroundStore } from "@/lib/stores/playgroundStore";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +32,7 @@ export function DashboardHeader() {
       : "Overview";
 
   const { isMainSidebarOpen, toggleMainSidebar } = useSidebarStore();
+  const { environmentMode, setEnvironmentMode, credentialsStatus } = usePlaygroundStore();
 
   return (
     <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-x-4 border-b border-[#202833] bg-[#0D1117] px-4 shadow-xs sm:gap-x-6 sm:px-6 lg:px-8">
@@ -75,7 +77,30 @@ export function DashboardHeader() {
         <div className="flex flex-1 items-center space-x-2 text-xs font-mono">
           <Link href="/" className="text-[#667085] hover:text-[#F5F7FA] transition-colors">ASEP</Link>
           <span className="text-[#667085]">/</span>
-          <span className="text-[#F5F7FA] font-semibold tracking-wide">{breadcrumb}</span>
+          <span className="text-[#F5F7FA] font-semibold tracking-wide mr-2">{breadcrumb}</span>
+          
+          <div className="relative group">
+            <button 
+              onClick={() => {
+                if (environmentMode === 'local') {
+                  const mocks = Object.values(credentialsStatus).filter(v => v === 'mock').length;
+                  if (mocks > 0) {
+                    if (confirm(`Deploy Mode Activation:\n\n${mocks} local mocks will be replaced with real services.\nYou will be prompted for LIVE keys during deployment.\n\nProceed?`)) {
+                      setEnvironmentMode('deploy');
+                    }
+                  } else {
+                    setEnvironmentMode('deploy');
+                  }
+                } else {
+                  setEnvironmentMode('local');
+                }
+              }}
+              className={`px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase transition-colors cursor-pointer border ${environmentMode === 'local' ? 'bg-[#22D3EE]/10 text-[#22D3EE] border-[#22D3EE]/20 hover:bg-[#22D3EE]/20' : 'bg-[#F05252]/10 text-[#F05252] border-[#F05252]/20 hover:bg-[#F05252]/20'}`}
+              title="Click to toggle environment mode"
+            >
+              [{environmentMode}]
+            </button>
+          </div>
         </div>
 
         {/* Right Actions */}

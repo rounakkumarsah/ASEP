@@ -45,3 +45,9 @@ class AgentState(TypedDict, total=False):
     error_log: list[str]
     security_report: dict[str, Any]
     token_usage_per_phase: dict[str, int]
+
+    # Environment Policy
+    environment_mode: str
+    credentials_status: dict[str, Any]
+    local_secrets: dict[str, str]
+
