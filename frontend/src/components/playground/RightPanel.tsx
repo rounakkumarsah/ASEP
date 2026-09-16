@@ -14,7 +14,7 @@ export function RightPanel() {
   const { toggleRightPanel } = useSidebarStore();
   const hasActivity = messages.length > 0 || isThinking || completedNodes.length > 0;
 
-  const PIPELINE_STEPS = [
+  const DEFAULT_PIPELINE_STEPS = [
     { id: "orchestrator", label: "Orchestrator", desc: "Product classification & phase mapping" },
     { id: "research", label: "Research Phase", desc: "Gather requirements & context" },
     { id: "blueprint", label: "Blueprint Phase", desc: "Architecture & system design" },
@@ -24,6 +24,23 @@ export function RightPanel() {
     { id: "security_audit", label: "Security Audit", desc: "Vulnerability scanning" },
     { id: "deploy", label: "Deploy Phase", desc: "Release & deployment prep" },
   ];
+
+  let PIPELINE_STEPS = DEFAULT_PIPELINE_STEPS;
+  const mapMsg = messages.find((m) => m.role === "system" && m.content.includes("Phase map generated:"));
+  if (mapMsg) {
+    const match = mapMsg.content.match(/Phase map generated: (.*?)\./);
+    if (match && match[1]) {
+      const phases = match[1].split(" -> ");
+      PIPELINE_STEPS = [
+        { id: "orchestrator", label: "Orchestrator", desc: "Product classification & phase mapping" },
+        ...phases.map(p => ({
+          id: p,
+          label: p.split("_").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ") + " Phase",
+          desc: "Execution phase"
+        }))
+      ];
+    }
+  }
 
   return (
     <div className="flex h-full flex-col border-l border-border/40 bg-background/50 backdrop-blur">

@@ -22,6 +22,22 @@ from src.runtime.nodes import (
     test_phase_node,
     security_audit_phase_node,
     deploy_phase_node,
+    capability_blueprint_phase_node,
+    tool_design_phase_node,
+    agent_loop_implementation_phase_node,
+    memory_state_design_phase_node,
+    sandbox_tests_phase_node,
+    evaluation_runs_phase_node,
+    goal_decomposition_design_phase_node,
+    planner_executor_critic_architecture_phase_node,
+    tool_integration_phase_node,
+    multi_step_test_scenarios_phase_node,
+    failure_recovery_tests_phase_node,
+    workflow_mapping_phase_node,
+    trigger_action_design_phase_node,
+    integration_points_phase_node,
+    end_to_end_automation_tests_phase_node,
+    error_handling_paths_phase_node,
     start_node_default,
     end_node_default,
 )
@@ -50,6 +66,22 @@ class LangGraphRuntime:
         self.nodes.register("test", test_phase_node)
         self.nodes.register("security_audit", security_audit_phase_node)
         self.nodes.register("deploy", deploy_phase_node)
+        self.nodes.register("capability_blueprint", capability_blueprint_phase_node)
+        self.nodes.register("tool_design", tool_design_phase_node)
+        self.nodes.register("agent_loop_implementation", agent_loop_implementation_phase_node)
+        self.nodes.register("memory_state_design", memory_state_design_phase_node)
+        self.nodes.register("sandbox_tests", sandbox_tests_phase_node)
+        self.nodes.register("evaluation_runs", evaluation_runs_phase_node)
+        self.nodes.register("goal_decomposition_design", goal_decomposition_design_phase_node)
+        self.nodes.register("planner_executor_critic_architecture", planner_executor_critic_architecture_phase_node)
+        self.nodes.register("tool_integration", tool_integration_phase_node)
+        self.nodes.register("multi_step_test_scenarios", multi_step_test_scenarios_phase_node)
+        self.nodes.register("failure_recovery_tests", failure_recovery_tests_phase_node)
+        self.nodes.register("workflow_mapping", workflow_mapping_phase_node)
+        self.nodes.register("trigger_action_design", trigger_action_design_phase_node)
+        self.nodes.register("integration_points", integration_points_phase_node)
+        self.nodes.register("end_to_end_automation_tests", end_to_end_automation_tests_phase_node)
+        self.nodes.register("error_handling_paths", error_handling_paths_phase_node)
         self.nodes.register("end", end_node_default)
 
         # 3. Register default routing edge

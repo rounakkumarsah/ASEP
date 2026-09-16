@@ -3,7 +3,10 @@
     {
       "id": "start",
       "type": "agentNode",
-      "position": { "x": 60, "y": 160 },
+      "position": {
+        "x": 60,
+        "y": 160
+      },
       "data": {
         "id": "start",
         "label": "Run Initializer",
@@ -17,13 +20,16 @@
     {
       "id": "orchestrator",
       "type": "agentNode",
-      "position": { "x": 340, "y": 160 },
+      "position": {
+        "x": 340,
+        "y": 160
+      },
       "data": {
         "id": "orchestrator",
         "label": "Orchestrator",
-        "role": "Coordinator",
-        "description": "Classifies product type and generates dynamic phase map",
-        "icon": "ShieldAlert",
+        "role": "Routing",
+        "description": "Classifies goal & generates phase map",
+        "icon": "Cpu",
         "color": "#8B5CF6",
         "stepIndex": 2
       }
@@ -31,41 +37,50 @@
     {
       "id": "research",
       "type": "agentNode",
-      "position": { "x": 620, "y": 160 },
+      "position": {
+        "x": 620,
+        "y": 50
+      },
       "data": {
         "id": "research",
-        "label": "Research Phase",
-        "role": "Discovery",
-        "description": "Gathers requirements and analyzes context",
-        "icon": "Globe",
-        "color": "#F59E0B",
+        "label": "Research",
+        "role": "Phase Node",
+        "description": "Dynamically routed phase execution",
+        "icon": "CheckCircle2",
+        "color": "#10B981",
         "stepIndex": 3
       }
     },
     {
       "id": "blueprint",
       "type": "agentNode",
-      "position": { "x": 900, "y": 160 },
+      "position": {
+        "x": 900,
+        "y": 50
+      },
       "data": {
         "id": "blueprint",
-        "label": "Blueprint Phase",
-        "role": "Architecture",
-        "description": "Designs system architecture and schemas",
-        "icon": "Database",
-        "color": "#06B6D4",
+        "label": "Blueprint",
+        "role": "Phase Node",
+        "description": "Dynamically routed phase execution",
+        "icon": "CheckCircle2",
+        "color": "#10B981",
         "stepIndex": 4
       }
     },
     {
       "id": "scaffold",
       "type": "agentNode",
-      "position": { "x": 1180, "y": 160 },
+      "position": {
+        "x": 1180,
+        "y": 50
+      },
       "data": {
         "id": "scaffold",
-        "label": "Scaffold Phase",
-        "role": "Setup",
-        "description": "Generates foundational boilerplate",
-        "icon": "ListTodo",
+        "label": "Scaffold",
+        "role": "Phase Node",
+        "description": "Dynamically routed phase execution",
+        "icon": "CheckCircle2",
         "color": "#10B981",
         "stepIndex": 5
       }
@@ -73,83 +88,607 @@
     {
       "id": "implement",
       "type": "agentNode",
-      "position": { "x": 1460, "y": 160 },
+      "position": {
+        "x": 620,
+        "y": 170
+      },
       "data": {
         "id": "implement",
-        "label": "Implement Phase",
-        "role": "Coding",
-        "description": "Builds core logic and constructs modules",
-        "icon": "Code2",
-        "color": "#3B82F6",
+        "label": "Implement",
+        "role": "Phase Node",
+        "description": "Dynamically routed phase execution",
+        "icon": "CheckCircle2",
+        "color": "#10B981",
         "stepIndex": 6
       }
     },
     {
       "id": "test",
       "type": "agentNode",
-      "position": { "x": 1740, "y": 160 },
+      "position": {
+        "x": 900,
+        "y": 170
+      },
       "data": {
         "id": "test",
-        "label": "Test Phase",
-        "role": "QA",
-        "description": "Executes unit and integration tests",
+        "label": "Test",
+        "role": "Phase Node",
+        "description": "Dynamically routed phase execution",
         "icon": "CheckCircle2",
-        "color": "#F43F5E",
+        "color": "#10B981",
         "stepIndex": 7
       }
     },
     {
       "id": "security_audit",
       "type": "agentNode",
-      "position": { "x": 2020, "y": 160 },
+      "position": {
+        "x": 1180,
+        "y": 170
+      },
       "data": {
         "id": "security_audit",
         "label": "Security Audit",
-        "role": "Security",
-        "description": "Scans for vulnerabilities and enforces policies",
-        "icon": "Flag",
-        "color": "#8B5CF6",
+        "role": "Phase Node",
+        "description": "Dynamically routed phase execution",
+        "icon": "CheckCircle2",
+        "color": "#10B981",
         "stepIndex": 8
       }
     },
     {
       "id": "deploy",
       "type": "agentNode",
-      "position": { "x": 2300, "y": 160 },
+      "position": {
+        "x": 620,
+        "y": 290
+      },
       "data": {
         "id": "deploy",
-        "label": "Deploy Phase",
-        "role": "Release",
-        "description": "Prepares artifacts for production deployment",
-        "icon": "Play",
+        "label": "Deploy",
+        "role": "Phase Node",
+        "description": "Dynamically routed phase execution",
+        "icon": "CheckCircle2",
         "color": "#10B981",
         "stepIndex": 9
       }
     },
     {
-      "id": "end",
+      "id": "capability_blueprint",
       "type": "agentNode",
-      "position": { "x": 2580, "y": 160 },
+      "position": {
+        "x": 900,
+        "y": 290
+      },
       "data": {
-        "id": "end",
-        "label": "Task Complete",
-        "role": "Lifecycle",
-        "description": "Pipeline execution successfully finalized",
+        "id": "capability_blueprint",
+        "label": "Capability Blueprint",
+        "role": "Phase Node",
+        "description": "Dynamically routed phase execution",
         "icon": "CheckCircle2",
         "color": "#10B981",
         "stepIndex": 10
       }
+    },
+    {
+      "id": "tool_design",
+      "type": "agentNode",
+      "position": {
+        "x": 1180,
+        "y": 290
+      },
+      "data": {
+        "id": "tool_design",
+        "label": "Tool Design",
+        "role": "Phase Node",
+        "description": "Dynamically routed phase execution",
+        "icon": "CheckCircle2",
+        "color": "#10B981",
+        "stepIndex": 11
+      }
+    },
+    {
+      "id": "agent_loop_implementation",
+      "type": "agentNode",
+      "position": {
+        "x": 620,
+        "y": 410
+      },
+      "data": {
+        "id": "agent_loop_implementation",
+        "label": "Agent Loop Implementation",
+        "role": "Phase Node",
+        "description": "Dynamically routed phase execution",
+        "icon": "CheckCircle2",
+        "color": "#10B981",
+        "stepIndex": 12
+      }
+    },
+    {
+      "id": "memory_state_design",
+      "type": "agentNode",
+      "position": {
+        "x": 900,
+        "y": 410
+      },
+      "data": {
+        "id": "memory_state_design",
+        "label": "Memory State Design",
+        "role": "Phase Node",
+        "description": "Dynamically routed phase execution",
+        "icon": "CheckCircle2",
+        "color": "#10B981",
+        "stepIndex": 13
+      }
+    },
+    {
+      "id": "sandbox_tests",
+      "type": "agentNode",
+      "position": {
+        "x": 1180,
+        "y": 410
+      },
+      "data": {
+        "id": "sandbox_tests",
+        "label": "Sandbox Tests",
+        "role": "Phase Node",
+        "description": "Dynamically routed phase execution",
+        "icon": "CheckCircle2",
+        "color": "#10B981",
+        "stepIndex": 14
+      }
+    },
+    {
+      "id": "evaluation_runs",
+      "type": "agentNode",
+      "position": {
+        "x": 620,
+        "y": 530
+      },
+      "data": {
+        "id": "evaluation_runs",
+        "label": "Evaluation Runs",
+        "role": "Phase Node",
+        "description": "Dynamically routed phase execution",
+        "icon": "CheckCircle2",
+        "color": "#10B981",
+        "stepIndex": 15
+      }
+    },
+    {
+      "id": "goal_decomposition_design",
+      "type": "agentNode",
+      "position": {
+        "x": 900,
+        "y": 530
+      },
+      "data": {
+        "id": "goal_decomposition_design",
+        "label": "Goal Decomposition Design",
+        "role": "Phase Node",
+        "description": "Dynamically routed phase execution",
+        "icon": "CheckCircle2",
+        "color": "#10B981",
+        "stepIndex": 16
+      }
+    },
+    {
+      "id": "planner_executor_critic_architecture",
+      "type": "agentNode",
+      "position": {
+        "x": 1180,
+        "y": 530
+      },
+      "data": {
+        "id": "planner_executor_critic_architecture",
+        "label": "Planner Executor Critic Architecture",
+        "role": "Phase Node",
+        "description": "Dynamically routed phase execution",
+        "icon": "CheckCircle2",
+        "color": "#10B981",
+        "stepIndex": 17
+      }
+    },
+    {
+      "id": "tool_integration",
+      "type": "agentNode",
+      "position": {
+        "x": 620,
+        "y": 650
+      },
+      "data": {
+        "id": "tool_integration",
+        "label": "Tool Integration",
+        "role": "Phase Node",
+        "description": "Dynamically routed phase execution",
+        "icon": "CheckCircle2",
+        "color": "#10B981",
+        "stepIndex": 18
+      }
+    },
+    {
+      "id": "multi_step_test_scenarios",
+      "type": "agentNode",
+      "position": {
+        "x": 900,
+        "y": 650
+      },
+      "data": {
+        "id": "multi_step_test_scenarios",
+        "label": "Multi Step Test Scenarios",
+        "role": "Phase Node",
+        "description": "Dynamically routed phase execution",
+        "icon": "CheckCircle2",
+        "color": "#10B981",
+        "stepIndex": 19
+      }
+    },
+    {
+      "id": "failure_recovery_tests",
+      "type": "agentNode",
+      "position": {
+        "x": 1180,
+        "y": 650
+      },
+      "data": {
+        "id": "failure_recovery_tests",
+        "label": "Failure Recovery Tests",
+        "role": "Phase Node",
+        "description": "Dynamically routed phase execution",
+        "icon": "CheckCircle2",
+        "color": "#10B981",
+        "stepIndex": 20
+      }
+    },
+    {
+      "id": "workflow_mapping",
+      "type": "agentNode",
+      "position": {
+        "x": 620,
+        "y": 770
+      },
+      "data": {
+        "id": "workflow_mapping",
+        "label": "Workflow Mapping",
+        "role": "Phase Node",
+        "description": "Dynamically routed phase execution",
+        "icon": "CheckCircle2",
+        "color": "#10B981",
+        "stepIndex": 21
+      }
+    },
+    {
+      "id": "trigger_action_design",
+      "type": "agentNode",
+      "position": {
+        "x": 900,
+        "y": 770
+      },
+      "data": {
+        "id": "trigger_action_design",
+        "label": "Trigger Action Design",
+        "role": "Phase Node",
+        "description": "Dynamically routed phase execution",
+        "icon": "CheckCircle2",
+        "color": "#10B981",
+        "stepIndex": 22
+      }
+    },
+    {
+      "id": "integration_points",
+      "type": "agentNode",
+      "position": {
+        "x": 1180,
+        "y": 770
+      },
+      "data": {
+        "id": "integration_points",
+        "label": "Integration Points",
+        "role": "Phase Node",
+        "description": "Dynamically routed phase execution",
+        "icon": "CheckCircle2",
+        "color": "#10B981",
+        "stepIndex": 23
+      }
+    },
+    {
+      "id": "end_to_end_automation_tests",
+      "type": "agentNode",
+      "position": {
+        "x": 620,
+        "y": 890
+      },
+      "data": {
+        "id": "end_to_end_automation_tests",
+        "label": "End To End Automation Tests",
+        "role": "Phase Node",
+        "description": "Dynamically routed phase execution",
+        "icon": "CheckCircle2",
+        "color": "#10B981",
+        "stepIndex": 24
+      }
+    },
+    {
+      "id": "error_handling_paths",
+      "type": "agentNode",
+      "position": {
+        "x": 900,
+        "y": 890
+      },
+      "data": {
+        "id": "error_handling_paths",
+        "label": "Error Handling Paths",
+        "role": "Phase Node",
+        "description": "Dynamically routed phase execution",
+        "icon": "CheckCircle2",
+        "color": "#10B981",
+        "stepIndex": 25
+      }
     }
   ],
   "edges": [
-    { "id": "e-start-orch", "source": "start", "target": "orchestrator", "animated": true },
-    { "id": "e-orch-res", "source": "orchestrator", "target": "research", "animated": true },
-    { "id": "e-res-blue", "source": "research", "target": "blueprint", "animated": true },
-    { "id": "e-blue-scaf", "source": "blueprint", "target": "scaffold", "animated": true },
-    { "id": "e-scaf-impl", "source": "scaffold", "target": "implement", "animated": true },
-    { "id": "e-impl-test", "source": "implement", "target": "test", "animated": true },
-    { "id": "e-test-sec", "source": "test", "target": "security_audit", "animated": true },
-    { "id": "e-sec-dep", "source": "security_audit", "target": "deploy", "animated": true },
-    { "id": "e-dep-end", "source": "deploy", "target": "end", "animated": true }
+    {
+      "id": "e-start-orchestrator",
+      "source": "start",
+      "target": "orchestrator",
+      "animated": true,
+      "style": {
+        "stroke": "#3B82F6",
+        "strokeWidth": 2
+      }
+    },
+    {
+      "id": "e-orch-research",
+      "source": "orchestrator",
+      "target": "research",
+      "animated": true,
+      "style": {
+        "stroke": "#9CA3AF",
+        "strokeWidth": 1,
+        "opacity": 0.3
+      }
+    },
+    {
+      "id": "e-orch-blueprint",
+      "source": "orchestrator",
+      "target": "blueprint",
+      "animated": true,
+      "style": {
+        "stroke": "#9CA3AF",
+        "strokeWidth": 1,
+        "opacity": 0.3
+      }
+    },
+    {
+      "id": "e-orch-scaffold",
+      "source": "orchestrator",
+      "target": "scaffold",
+      "animated": true,
+      "style": {
+        "stroke": "#9CA3AF",
+        "strokeWidth": 1,
+        "opacity": 0.3
+      }
+    },
+    {
+      "id": "e-orch-implement",
+      "source": "orchestrator",
+      "target": "implement",
+      "animated": true,
+      "style": {
+        "stroke": "#9CA3AF",
+        "strokeWidth": 1,
+        "opacity": 0.3
+      }
+    },
+    {
+      "id": "e-orch-test",
+      "source": "orchestrator",
+      "target": "test",
+      "animated": true,
+      "style": {
+        "stroke": "#9CA3AF",
+        "strokeWidth": 1,
+        "opacity": 0.3
+      }
+    },
+    {
+      "id": "e-orch-security_audit",
+      "source": "orchestrator",
+      "target": "security_audit",
+      "animated": true,
+      "style": {
+        "stroke": "#9CA3AF",
+        "strokeWidth": 1,
+        "opacity": 0.3
+      }
+    },
+    {
+      "id": "e-orch-deploy",
+      "source": "orchestrator",
+      "target": "deploy",
+      "animated": true,
+      "style": {
+        "stroke": "#9CA3AF",
+        "strokeWidth": 1,
+        "opacity": 0.3
+      }
+    },
+    {
+      "id": "e-orch-capability_blueprint",
+      "source": "orchestrator",
+      "target": "capability_blueprint",
+      "animated": true,
+      "style": {
+        "stroke": "#9CA3AF",
+        "strokeWidth": 1,
+        "opacity": 0.3
+      }
+    },
+    {
+      "id": "e-orch-tool_design",
+      "source": "orchestrator",
+      "target": "tool_design",
+      "animated": true,
+      "style": {
+        "stroke": "#9CA3AF",
+        "strokeWidth": 1,
+        "opacity": 0.3
+      }
+    },
+    {
+      "id": "e-orch-agent_loop_implementation",
+      "source": "orchestrator",
+      "target": "agent_loop_implementation",
+      "animated": true,
+      "style": {
+        "stroke": "#9CA3AF",
+        "strokeWidth": 1,
+        "opacity": 0.3
+      }
+    },
+    {
+      "id": "e-orch-memory_state_design",
+      "source": "orchestrator",
+      "target": "memory_state_design",
+      "animated": true,
+      "style": {
+        "stroke": "#9CA3AF",
+        "strokeWidth": 1,
+        "opacity": 0.3
+      }
+    },
+    {
+      "id": "e-orch-sandbox_tests",
+      "source": "orchestrator",
+      "target": "sandbox_tests",
+      "animated": true,
+      "style": {
+        "stroke": "#9CA3AF",
+        "strokeWidth": 1,
+        "opacity": 0.3
+      }
+    },
+    {
+      "id": "e-orch-evaluation_runs",
+      "source": "orchestrator",
+      "target": "evaluation_runs",
+      "animated": true,
+      "style": {
+        "stroke": "#9CA3AF",
+        "strokeWidth": 1,
+        "opacity": 0.3
+      }
+    },
+    {
+      "id": "e-orch-goal_decomposition_design",
+      "source": "orchestrator",
+      "target": "goal_decomposition_design",
+      "animated": true,
+      "style": {
+        "stroke": "#9CA3AF",
+        "strokeWidth": 1,
+        "opacity": 0.3
+      }
+    },
+    {
+      "id": "e-orch-planner_executor_critic_architecture",
+      "source": "orchestrator",
+      "target": "planner_executor_critic_architecture",
+      "animated": true,
+      "style": {
+        "stroke": "#9CA3AF",
+        "strokeWidth": 1,
+        "opacity": 0.3
+      }
+    },
+    {
+      "id": "e-orch-tool_integration",
+      "source": "orchestrator",
+      "target": "tool_integration",
+      "animated": true,
+      "style": {
+        "stroke": "#9CA3AF",
+        "strokeWidth": 1,
+        "opacity": 0.3
+      }
+    },
+    {
+      "id": "e-orch-multi_step_test_scenarios",
+      "source": "orchestrator",
+      "target": "multi_step_test_scenarios",
+      "animated": true,
+      "style": {
+        "stroke": "#9CA3AF",
+        "strokeWidth": 1,
+        "opacity": 0.3
+      }
+    },
+    {
+      "id": "e-orch-failure_recovery_tests",
+      "source": "orchestrator",
+      "target": "failure_recovery_tests",
+      "animated": true,
+      "style": {
+        "stroke": "#9CA3AF",
+        "strokeWidth": 1,
+        "opacity": 0.3
+      }
+    },
+    {
+      "id": "e-orch-workflow_mapping",
+      "source": "orchestrator",
+      "target": "workflow_mapping",
+      "animated": true,
+      "style": {
+        "stroke": "#9CA3AF",
+        "strokeWidth": 1,
+        "opacity": 0.3
+      }
+    },
+    {
+      "id": "e-orch-trigger_action_design",
+      "source": "orchestrator",
+      "target": "trigger_action_design",
+      "animated": true,
+      "style": {
+        "stroke": "#9CA3AF",
+        "strokeWidth": 1,
+        "opacity": 0.3
+      }
+    },
+    {
+      "id": "e-orch-integration_points",
+      "source": "orchestrator",
+      "target": "integration_points",
+      "animated": true,
+      "style": {
+        "stroke": "#9CA3AF",
+        "strokeWidth": 1,
+        "opacity": 0.3
+      }
+    },
+    {
+      "id": "e-orch-end_to_end_automation_tests",
+      "source": "orchestrator",
+      "target": "end_to_end_automation_tests",
+      "animated": true,
+      "style": {
+        "stroke": "#9CA3AF",
+        "strokeWidth": 1,
+        "opacity": 0.3
+      }
+    },
+    {
+      "id": "e-orch-error_handling_paths",
+      "source": "orchestrator",
+      "target": "error_handling_paths",
+      "animated": true,
+      "style": {
+        "stroke": "#9CA3AF",
+        "strokeWidth": 1,
+        "opacity": 0.3
+      }
+    }
   ]
 }
