@@ -93,6 +93,18 @@ export function CenterWorkspace() {
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
   const [cmdIndex, setCmdIndex] = React.useState(0);
   const [securityFindings, setSecurityFindings] = React.useState<any[]>([]);
+  const [editorInstance, setEditorInstance] = React.useState<any>(null);
+
+  const jumpToLine = (file: string, line: number) => {
+    setActiveCenterTab("artifacts");
+    if (editorInstance) {
+      setTimeout(() => {
+        editorInstance.revealLineInCenter(line);
+        editorInstance.setPosition({ lineNumber: line, column: 1 });
+        editorInstance.focus();
+      }, 100);
+    }
+  };
 
   const handleRunArtifact = async () => {
     setActiveCenterTab("terminal");
@@ -527,6 +539,7 @@ export function CenterWorkspace() {
                   theme="vs-dark"
                   value={artifactCode}
                   onChange={(val) => setArtifactCode(val || "")}
+                  onMount={(editor) => setEditorInstance(editor)}
                   options={{
                     minimap: { enabled: false },
                     fontSize: 13,
@@ -620,7 +633,10 @@ export function CenterWorkspace() {
                             {finding.severity}
                           </span>
                         </td>
-                        <td className="px-4 py-3 align-top font-mono text-xs whitespace-nowrap">
+                        <td 
+                          className="px-4 py-3 align-top font-mono text-xs whitespace-nowrap cursor-pointer hover:underline text-[#22D3EE]" 
+                          onClick={() => jumpToLine(finding.file, finding.line)}
+                        >
                           {finding.file}:{finding.line}
                         </td>
                         <td className="px-4 py-3 align-top font-medium text-foreground">
