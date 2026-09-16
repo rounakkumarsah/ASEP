@@ -14,7 +14,6 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
-  Loader2,
   ActivitySquare,
   BrainCircuit,
   MessageSquare,
@@ -35,36 +34,13 @@ export default function OverviewPage() {
   const { data: projects, isLoading: isProjectsLoading } = useProjects();
   const { data: knowledge, isLoading: isKnowledgeLoading } = useKnowledge("");
 
-  const isPageLoading = isHealthLoading || isProjectsLoading || isKnowledgeLoading || isAuthLoading;
-
-  if (isPageLoading) {
-    return (
-      <div className="h-96 w-full flex flex-col items-center justify-center text-[#9CA6B5] space-y-3 font-mono text-xs">
-        <Loader2 className="h-6 w-6 animate-spin text-[#22D3EE]" />
-        <p>Connecting to ASEP Control Plane telemetry...</p>
-      </div>
-    );
-  }
-
-  if (isError || !health) {
-    return (
-      <div className="w-full flex flex-col items-center justify-center border border-[#F05252]/30 bg-[#F05252]/5 rounded-xl py-16 text-center space-y-4">
-        <p className="font-mono text-sm font-semibold text-[#F05252]">Control Plane Connection Interrupted</p>
-        <p className="text-xs text-[#9CA6B5] max-w-md">Unable to establish telemetry stream with the execution orchestrator.</p>
-        <Button variant="outline" size="sm" onClick={() => refetch()} className="font-mono text-xs gap-2">
-          <RefreshCw className="h-3.5 w-3.5" /> Reconnect Telemetry
-        </Button>
-      </div>
-    );
-  }
-
-  // Checklist verification
-  const hasProject = (projects?.length || 0) > 0;
-  const hasAgent = (health?.activeAgents || 0) > 0;
-  const hasKnowledge = (knowledge?.items?.length || 0) > 0;
-  const hasChat = (health?.activeSessions || 0) > 0;
+  // Checklist verification — safe while health/projects/knowledge are still loading
+  const hasProject = (projects?.length ?? 0) > 0;
+  const hasAgent = (health?.activeAgents ?? 0) > 0;
+  const hasKnowledge = (knowledge?.items?.length ?? 0) > 0;
+  const hasChat = (health?.activeSessions ?? 0) > 0;
   const hasEvaluation = false;
-  const hasMonitoring = (health?.activeSessions || 0) > 0;
+  const hasMonitoring = (health?.activeSessions ?? 0) > 0;
 
   const checklist = [
     { label: "Create Project", checked: hasProject, link: "/projects" },
@@ -78,11 +54,11 @@ export default function OverviewPage() {
   const completedCount = checklist.filter(item => item.checked).length;
   const progressPercent = Math.round((completedCount / checklist.length) * 100);
 
-  const isBrandNew = Array.isArray(projects) && projects.length === 0;
+  const isDataLoading = isHealthLoading || isProjectsLoading || isKnowledgeLoading || isAuthLoading;
 
   return (
     <div className="space-y-6 flex flex-col min-h-full pb-10 w-full">
-      {/* Header Bar */}
+      {/* Header Bar — always visible on first paint */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b border-[#202833] pb-4">
         <div>
           <div className="flex items-center space-x-2">
@@ -100,7 +76,7 @@ export default function OverviewPage() {
       </div>
 
       <div className="space-y-6">
-        {/* Welcome Panel */}
+        {/* Welcome Panel — always visible */}
         <div className="p-6 border border-[#202833] bg-[#0D1117] rounded-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="space-y-1">
             <h2 className="text-xl font-bold text-[#F5F7FA]">
@@ -116,6 +92,17 @@ export default function OverviewPage() {
           </div>
         </div>
 
+        {/* Inline error panel — shown only after health fetch fails (not during initial load) */}
+        {isError && !isHealthLoading && (
+          <div className="w-full flex flex-col items-center justify-center border border-[#F05252]/30 bg-[#F05252]/5 rounded-xl py-10 text-center space-y-4">
+            <p className="font-mono text-sm font-semibold text-[#F05252]">Control Plane Connection Interrupted</p>
+            <p className="text-xs text-[#9CA6B5] max-w-md">Unable to establish telemetry stream with the execution orchestrator.</p>
+            <Button variant="outline" size="sm" onClick={() => refetch()} className="font-mono text-xs gap-2">
+              <RefreshCw className="h-3.5 w-3.5" /> Reconnect Telemetry
+            </Button>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Onboarding Checklist */}
           <Card className="lg:col-span-2 border-[#202833] bg-[#0D1117] shadow-xs">
@@ -126,34 +113,38 @@ export default function OverviewPage() {
                   <CardDescription className="text-xs text-[#9CA6B5]">Configure developer suite parameters</CardDescription>
                 </div>
                 <Badge variant="outline" className="font-mono text-xs py-0.5 border-[#202833] text-[#22D3EE] bg-[#111720]">
-                  {progressPercent}% Initialized
+                  {isDataLoading ? "—" : `${progressPercent}%`} Initialized
                 </Badge>
               </div>
               {/* Progress bar */}
               <div className="w-full bg-[#111720] h-1.5 rounded-full mt-3 overflow-hidden border border-[#202833]">
-                <div 
-                  className="bg-[#22D3EE] h-full rounded-full transition-all duration-500" 
-                  style={{ width: `${progressPercent}%` }} 
+                <div
+                  className="bg-[#22D3EE] h-full rounded-full transition-all duration-500"
+                  style={{ width: isDataLoading ? "0%" : `${progressPercent}%` }}
                 />
               </div>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-4">
-              {checklist.map((item, index) => (
-                <Link 
-                  key={index}
-                  href={item.link}
-                  className="flex items-center gap-3 p-3 border border-[#202833] rounded-lg bg-[#111720]/40 hover:bg-[#111720] transition-colors"
-                >
-                  {item.checked ? (
-                    <CheckCircle2 className="h-4 w-4 text-[#2DD4A3] shrink-0" />
-                  ) : (
-                    <Circle className="h-4 w-4 text-[#667085] shrink-0" />
-                  )}
-                  <span className={`text-xs font-mono ${item.checked ? "text-[#9CA6B5]" : "text-[#F5F7FA]"}`}>
-                    {item.label}
-                  </span>
-                </Link>
-              ))}
+              {isDataLoading
+                ? [1, 2, 3, 4, 5, 6].map(i => (
+                    <div key={i} className="h-10 rounded-lg border border-[#202833] bg-[#111720]/40 animate-pulse" />
+                  ))
+                : checklist.map((item, index) => (
+                    <Link
+                      key={index}
+                      href={item.link}
+                      className="flex items-center gap-3 p-3 border border-[#202833] rounded-lg bg-[#111720]/40 hover:bg-[#111720] transition-colors"
+                    >
+                      {item.checked ? (
+                        <CheckCircle2 className="h-4 w-4 text-[#2DD4A3] shrink-0" />
+                      ) : (
+                        <Circle className="h-4 w-4 text-[#667085] shrink-0" />
+                      )}
+                      <span className={`text-xs font-mono ${item.checked ? "text-[#9CA6B5]" : "text-[#F5F7FA]"}`}>
+                        {item.label}
+                      </span>
+                    </Link>
+                  ))}
             </CardContent>
           </Card>
 
@@ -183,34 +174,42 @@ export default function OverviewPage() {
             <h2 className="text-lg font-bold font-mono text-[#F5F7FA]">System Control Plane Metrics</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <SystemOverviewCard health={health} />
-            <AgentStatusCard activeCount={health.activeAgents} />
-            <QueueCard pendingCount={health.pendingApprovals} />
+            {isHealthLoading ? (
+              [1, 2, 3].map(i => (
+                <div key={i} className="h-28 rounded-xl border border-[#202833] bg-[#0D1117] animate-pulse" />
+              ))
+            ) : health ? (
+              <>
+                <SystemOverviewCard health={health} />
+                <AgentStatusCard activeCount={health.activeAgents ?? 0} />
+                <QueueCard pendingCount={health.pendingApprovals ?? 0} />
+              </>
+            ) : null}
 
             <MetricCard
               title="Projects"
-              value={projects?.length?.toString() || "0"}
+              value={isProjectsLoading ? "—" : (projects?.length?.toString() ?? "0")}
               icon={<Box className="w-4 h-4" />}
               trend={{ value: "0", isPositive: true }}
             />
 
             <MetricCard
               title="Active Sessions"
-              value={health?.activeSessions?.toString() || "0"}
+              value={isHealthLoading ? "—" : (health?.activeSessions?.toString() ?? "0")}
               icon={<ActivitySquare className="w-4 h-4" />}
               trend={{ value: "0", isPositive: true }}
             />
 
             <MetricCard
               title="Active Agents"
-              value={health?.activeAgents?.toString() || "0"}
+              value={isHealthLoading ? "—" : (health?.activeAgents?.toString() ?? "0")}
               icon={<BrainCircuit className="w-4 h-4" />}
               trend={{ value: "0", isPositive: true }}
             />
 
             <MetricCard
               title="Pending Approvals"
-              value={health?.pendingApprovals?.toString() || "0"}
+              value={isHealthLoading ? "—" : (health?.pendingApprovals?.toString() ?? "0")}
               icon={<MessageSquare className="w-4 h-4" />}
               trend={{ value: "0", isPositive: true }}
             />

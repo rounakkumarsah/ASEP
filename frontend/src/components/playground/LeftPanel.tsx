@@ -36,16 +36,26 @@ export function LeftPanel() {
     setPromptError(false);
     const controller = new AbortController();
     try {
+      const apiBase = typeof window !== 'undefined'
+        ? (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/+$/, '')
+        : '';
       const timeoutId = setTimeout(() => controller.abort(), 8000);
-      // Replace with actual API once it exists. Using a fake endpoint that will fail 
-      // or we can just fetch and catch error.
-      const res = await fetch("/api/v1/prompts/system", { signal: controller.signal });
+      const res = await fetch(`${apiBase}/api/v1/prompts/system`, {
+        signal: controller.signal,
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('asep_auth_token') || sessionStorage.getItem('asep_auth_token') || ''}`
+        }
+      });
       clearTimeout(timeoutId);
-      if (!res.ok) throw new Error("Failed");
+      // 404 means endpoint doesn't exist yet — silently use persisted value
+      if (res.status === 404) return;
+      if (!res.ok) throw new Error('Failed');
       const data = await res.json();
       if (data.prompt) setSystemPrompt(data.prompt);
     } catch (err) {
-      setPromptError(true);
+      // Only show error if it wasn't an abort (timeout)
+      const isTimeout = err instanceof Error && err.name === 'AbortError';
+      if (!isTimeout) setPromptError(true);
     } finally {
       setIsPromptLoading(false);
     }

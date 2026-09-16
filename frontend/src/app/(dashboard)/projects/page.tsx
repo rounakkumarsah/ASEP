@@ -4,7 +4,6 @@ import * as React from "react";
 import Link from "next/link";
 import { apiClient } from "@/lib/api/client";
 import { 
-  Loader2, 
   Folder, 
   Plus, 
   Search, 
@@ -109,15 +108,6 @@ export default function ProjectsPage() {
     (p.description && p.description.toLowerCase().includes(search.toLowerCase()))
   );
 
-  if (loading) {
-    return (
-      <div className="h-full w-full flex flex-col items-center justify-center text-muted-foreground py-24">
-        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-        <p>Loading projects...</p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6 flex flex-col min-h-full pb-10">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -149,19 +139,19 @@ export default function ProjectsPage() {
             <form onSubmit={handleCreate} className="space-y-4">
               <div className="space-y-1">
                 <label className="text-xs font-semibold uppercase text-muted-foreground">Project Name</label>
-                <Input 
-                  placeholder="e.g. Next.js SaaS Microservice" 
-                  value={newName} 
-                  onChange={e => setNewName(e.target.value)} 
+                <Input
+                  placeholder="e.g. Next.js SaaS Microservice"
+                  value={newName}
+                  onChange={e => setNewName(e.target.value)}
                   required
                 />
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-semibold uppercase text-muted-foreground">Description (Optional)</label>
-                <Input 
-                  placeholder="e.g. Autonomous refactoring & test generation pipeline" 
-                  value={newDesc} 
-                  onChange={e => setNewDesc(e.target.value)} 
+                <Input
+                  placeholder="e.g. Autonomous refactoring & test generation pipeline"
+                  value={newDesc}
+                  onChange={e => setNewDesc(e.target.value)}
                 />
               </div>
               <div className="flex justify-end gap-2 pt-2">
@@ -175,13 +165,13 @@ export default function ProjectsPage() {
         </Card>
       )}
 
-      {projects.length > 0 && (
+      {!loading && projects.length > 0 && (
         <div className="flex items-center gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search projects..." 
-              value={search} 
+            <Input
+              placeholder="Search projects..."
+              value={search}
               onChange={e => setSearch(e.target.value)}
               className="pl-9 bg-card/30"
             />
@@ -189,8 +179,14 @@ export default function ProjectsPage() {
         </div>
       )}
 
-      {/* Projects Grid or Empty State */}
-      {filteredProjects.length === 0 ? (
+      {/* Projects Grid — skeleton while loading, empty state, or actual cards */}
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="h-40 rounded-xl border border-border/40 bg-muted/20 animate-pulse" />
+          ))}
+        </div>
+      ) : filteredProjects.length === 0 ? (
         <EmptyState
           icon={FolderPlus}
           title="Create your first project"
@@ -203,7 +199,7 @@ export default function ProjectsPage() {
           }
         />
       ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredProjects.map(project => (
               <Link href={`/playground?projectId=${encodeURIComponent(project.id)}&projectName=${encodeURIComponent(project.name)}`} key={project.id} className="block group">
                 <AnimatedCard className="flex flex-col justify-between h-full group-hover:border-[#22D3EE]/50 transition-colors cursor-pointer">

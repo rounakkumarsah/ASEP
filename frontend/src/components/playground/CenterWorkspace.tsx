@@ -14,11 +14,33 @@ import ReactMarkdown from 'react-markdown';
 // ssr:false prevents hydration mismatches and React Error Boundary crashes
 const WorkflowVisualizer = dynamic(
   () => import("./WorkflowVisualizer").then((m) => ({ default: m.WorkflowVisualizer })),
-  { ssr: false, loading: () => <div className="flex-1 flex items-center justify-center text-muted-foreground text-xs">Loading Workflow...</div> }
+  { ssr: false, loading: () => (
+    <div className="flex-1 flex flex-col items-center justify-center gap-6 p-8">
+      <div className="w-full max-w-md space-y-4">
+        {[1,2,3,4].map(i => (
+          <div key={i} className="flex items-center gap-4">
+            <div className="h-10 w-10 rounded-full bg-muted/30 animate-pulse flex-shrink-0" />
+            <div className="flex-1 h-8 rounded-lg bg-muted/20 animate-pulse" />
+          </div>
+        ))}
+      </div>
+    </div>
+  )}
 );
 const PlaygroundTerminal = dynamic(
   () => import("./PlaygroundTerminal").then((m) => ({ default: m.PlaygroundTerminal })),
-  { ssr: false, loading: () => <div className="flex-1 flex items-center justify-center bg-[#090B0F] text-green-400 font-mono text-xs">Initializing terminal...</div> }
+  { ssr: false, loading: () => (
+    <div className="flex-1 bg-[#090B0F] font-mono text-xs p-4 space-y-2">
+      <div className="h-3 bg-green-900/40 rounded w-2/3 animate-pulse" />
+      <div className="h-3 bg-green-900/40 rounded w-1/2 animate-pulse" />
+      <div className="h-3 bg-green-900/40 rounded w-3/4 animate-pulse" />
+      <div className="h-3 bg-green-900/20 rounded w-1/3 animate-pulse mt-4" />
+      <div className="flex items-center gap-2 mt-4">
+        <span className="text-green-400">$</span>
+        <div className="h-3 bg-green-900/40 rounded w-40 animate-pulse" />
+      </div>
+    </div>
+  )}
 );
 
 import {

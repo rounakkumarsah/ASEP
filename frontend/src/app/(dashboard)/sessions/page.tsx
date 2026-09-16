@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useSessions } from "@/lib/api/hooks/use-sessions";
 import { SessionCard } from "@/components/dashboard/sessions/session-card";
-import { Loader2, Plus, RefreshCw } from "lucide-react";
+import { Plus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AnimatedModal, ModalHeader, ModalTitle, ModalDescription, ModalContent, ModalFooter } from "@/components/ui/animated-modal";
@@ -48,9 +48,13 @@ export default function SessionsPage() {
       </div>
 
       {isLoading ? (
-        <div className="h-[400px] w-full flex flex-col items-center justify-center text-muted-foreground border border-dashed rounded-lg">
-          <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-          <p>Loading active sessions...</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="h-36 rounded-xl border border-border/40 bg-muted/20 animate-pulse"
+            />
+          ))}
         </div>
       ) : isError ? (
         <div className="h-[400px] w-full flex flex-col items-center justify-center text-destructive border border-destructive/20 bg-destructive/5 rounded-lg">

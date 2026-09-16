@@ -14,7 +14,6 @@ import {
   Clock,
   Activity,
   TerminalSquare,
-  Loader2,
 } from "lucide-react";
 
 import dynamic from "next/dynamic";
@@ -33,22 +32,48 @@ export default function SessionDetailsPage() {
 
   if (isLoading) {
     return (
-      <div className="h-[500px] w-full flex flex-col items-center justify-center text-muted-foreground border border-dashed rounded-lg">
-        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-        <p>Connecting to session stream...</p>
+      <div className="space-y-6">
+        {/* Keep back-button header visible during load */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => router.push("/sessions")}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div className="space-y-2">
+              <div className="h-6 w-48 rounded bg-muted/40 animate-pulse" />
+              <div className="h-4 w-64 rounded bg-muted/30 animate-pulse" />
+            </div>
+          </div>
+          <div className="h-8 w-28 rounded bg-muted/30 animate-pulse" />
+        </div>
+        {/* Skeleton body matching the real 2-col layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 h-[500px] rounded-xl border border-border/40 bg-muted/20 animate-pulse" />
+          <div className="space-y-6">
+            <div className="h-32 rounded-xl border border-border/40 bg-muted/20 animate-pulse" />
+            <div className="h-32 rounded-xl border border-border/40 bg-muted/20 animate-pulse" />
+            <div className="h-32 rounded-xl border border-border/40 bg-muted/20 animate-pulse" />
+          </div>
+        </div>
       </div>
     );
   }
 
   if (isError || !session) {
     return (
-      <div className="h-[500px] w-full flex flex-col items-center justify-center text-destructive border border-destructive/20 bg-destructive/5 rounded-lg">
-        <p className="font-medium mb-4">
-          Session not found or connection lost.
-        </p>
-        <Button onClick={() => router.push("/sessions")} variant="outline">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Sessions
-        </Button>
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => router.push("/sessions")}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-2xl font-bold tracking-tight">Session Details</h1>
+        </div>
+        <div className="h-[400px] w-full flex flex-col items-center justify-center text-destructive border border-destructive/20 bg-destructive/5 rounded-lg">
+          <p className="font-medium mb-4">Session not found or connection lost.</p>
+          <Button onClick={() => router.push("/sessions")} variant="outline">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Sessions
+          </Button>
+        </div>
       </div>
     );
   }
