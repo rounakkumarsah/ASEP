@@ -15,12 +15,14 @@ export function RightPanel() {
   const hasActivity = messages.length > 0 || isThinking || completedNodes.length > 0;
 
   const PIPELINE_STEPS = [
-    { id: "supervisor", label: "Supervisor Agent", desc: "Intent analysis & agent routing" },
-    { id: "planner", label: "Planner Agent", desc: "Decomposes task into sub-goals" },
-    { id: "research", label: "Research Swarm (MCP)", desc: "Web & tool documentation discovery" },
-    { id: "rag", label: "RAG Engine (MAG)", desc: "Codebase semantic retrieval" },
-    { id: "coding", label: "Coding Agent", desc: "Code synthesis & generation" },
-    { id: "validate", label: "HITL Security Gate", desc: "Policy check & container safety" },
+    { id: "orchestrator", label: "Orchestrator", desc: "Product classification & phase mapping" },
+    { id: "research", label: "Research Phase", desc: "Gather requirements & context" },
+    { id: "blueprint", label: "Blueprint Phase", desc: "Architecture & system design" },
+    { id: "scaffold", label: "Scaffold Phase", desc: "Boilerplate & foundation setup" },
+    { id: "implement", label: "Implement Phase", desc: "Core logic & module construction" },
+    { id: "test", label: "Test Phase", desc: "Unit & integration testing" },
+    { id: "security_audit", label: "Security Audit", desc: "Vulnerability scanning" },
+    { id: "deploy", label: "Deploy Phase", desc: "Release & deployment prep" },
   ];
 
   return (

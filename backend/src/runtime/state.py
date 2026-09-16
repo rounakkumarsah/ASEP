@@ -35,3 +35,13 @@ class AgentState(TypedDict, total=False):
 
     # Human input / interrupt response payload
     human_input: str | None
+
+    # --- Core Multi-Agent Architecture Schema ---
+    product_type: str
+    phase_map: list[str]
+    current_phase: str
+    artifacts: dict[str, Any]
+    test_results: dict[str, Any]
+    error_log: list[str]
+    security_report: dict[str, Any]
+    token_usage_per_phase: dict[str, int]

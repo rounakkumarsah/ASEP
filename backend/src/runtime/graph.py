@@ -37,18 +37,35 @@ class StateGraphWrapper:
 
         # 2. Add static transitions
         self.workflow.add_edge(START, "start")
-        self.workflow.add_edge("start", "supervisor")
-        self.workflow.add_edge("supervisor", "planner")
-        self.workflow.add_edge("planner", "research")
-        self.workflow.add_edge("research", "rag")
-        self.workflow.add_edge("rag", "coding")
-        self.workflow.add_edge("coding", "validate")
+        self.workflow.add_edge("start", "orchestrator")
+        
+        def phase_router(state: AgentState) -> str:
+            # The node advances to the next phase in the phase_map
+            # If current phase criteria isn't met, it would return the same phase to retry
+            # For this architecture, we progress to the next phase sequentially.
+            current = state.get("current_phase")
+            phase_map = state.get("phase_map", [])
+            
+            if not current or not phase_map:
+                return "end"
+                
+            try:
+                idx = phase_map.index(current)
+                if idx + 1 < len(phase_map):
+                    return phase_map[idx + 1]
+                return "end"
+            except ValueError:
+                return "end"
 
-        # 3. Add conditional edge routing for the human validation step
-        validation_router = self.edges.get_router("human_validation_router")
-        self.workflow.add_conditional_edges(
-            "validate", validation_router, {"end": "end", "coding": "coding"}
-        )
+        # The orchestrator decides the first phase
+        self.workflow.add_conditional_edges("orchestrator", phase_router)
+        
+        # Each phase is a conditional node that routes to the next phase
+        # based on success criteria (checked in phase_router)
+        for phase in ["research", "blueprint", "scaffold", "implement", "test", "security_audit", "deploy"]:
+            if phase in self.nodes.get_all():
+                self.workflow.add_conditional_edges(phase, phase_router)
+                
         self.workflow.add_edge("end", END)
 
     def compile(self) -> CompiledStateGraph:

@@ -14,14 +14,16 @@ from src.runtime.edges import EdgeRegistry, human_validation_router_default
 from src.runtime.graph import StateGraphWrapper
 from src.runtime.nodes import (
     NodeRegistry,
-    coding_node,
-    end_node_default,
-    human_validation_node_default,
-    planner_node,
-    rag_node,
-    research_node,
+    orchestrator_node,
+    research_phase_node,
+    blueprint_phase_node,
+    scaffold_phase_node,
+    implement_phase_node,
+    test_phase_node,
+    security_audit_phase_node,
+    deploy_phase_node,
     start_node_default,
-    supervisor_node,
+    end_node_default,
 )
 
 logger = logging.getLogger(__name__)
@@ -40,12 +42,14 @@ class LangGraphRuntime:
 
         # 2. Register agent node behaviors
         self.nodes.register("start", start_node_default)
-        self.nodes.register("supervisor", supervisor_node)
-        self.nodes.register("planner", planner_node)
-        self.nodes.register("research", research_node)
-        self.nodes.register("rag", rag_node)
-        self.nodes.register("coding", coding_node)
-        self.nodes.register("validate", human_validation_node_default)
+        self.nodes.register("orchestrator", orchestrator_node)
+        self.nodes.register("research", research_phase_node)
+        self.nodes.register("blueprint", blueprint_phase_node)
+        self.nodes.register("scaffold", scaffold_phase_node)
+        self.nodes.register("implement", implement_phase_node)
+        self.nodes.register("test", test_phase_node)
+        self.nodes.register("security_audit", security_audit_phase_node)
+        self.nodes.register("deploy", deploy_phase_node)
         self.nodes.register("end", end_node_default)
 
         # 3. Register default routing edge

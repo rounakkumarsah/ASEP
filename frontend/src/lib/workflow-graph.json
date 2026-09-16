@@ -3,10 +3,7 @@
     {
       "id": "start",
       "type": "agentNode",
-      "position": {
-        "x": 60,
-        "y": 160
-      },
+      "position": { "x": 60, "y": 160 },
       "data": {
         "id": "start",
         "label": "Run Initializer",
@@ -18,230 +15,141 @@
       }
     },
     {
-      "id": "supervisor",
+      "id": "orchestrator",
       "type": "agentNode",
-      "position": {
-        "x": 340,
-        "y": 160
-      },
+      "position": { "x": 340, "y": 160 },
       "data": {
-        "id": "supervisor",
-        "label": "Supervisor Agent",
-        "role": "Orchestrator",
-        "description": "Analyzes objective, classifies intent and determines agent routes",
+        "id": "orchestrator",
+        "label": "Orchestrator",
+        "role": "Coordinator",
+        "description": "Classifies product type and generates dynamic phase map",
         "icon": "ShieldAlert",
         "color": "#8B5CF6",
         "stepIndex": 2
       }
     },
     {
-      "id": "planner",
+      "id": "research",
       "type": "agentNode",
-      "position": {
-        "x": 620,
-        "y": 160
-      },
+      "position": { "x": 620, "y": 160 },
       "data": {
-        "id": "planner",
-        "label": "Planner Agent",
-        "role": "Decomposer",
-        "description": "Decomposes objective into sequential executable subtasks",
-        "icon": "ListTodo",
-        "color": "#06B6D4",
+        "id": "research",
+        "label": "Research Phase",
+        "role": "Discovery",
+        "description": "Gathers requirements and analyzes context",
+        "icon": "Globe",
+        "color": "#F59E0B",
         "stepIndex": 3
       }
     },
     {
-      "id": "research",
+      "id": "blueprint",
       "type": "agentNode",
-      "position": {
-        "x": 900,
-        "y": 160
-      },
+      "position": { "x": 900, "y": 160 },
       "data": {
-        "id": "research",
-        "label": "Research Swarm (MCP)",
-        "role": "Context Discovery",
-        "description": "Searches web documentation and calls external MCP server tools",
-        "icon": "Globe",
-        "color": "#F59E0B",
+        "id": "blueprint",
+        "label": "Blueprint Phase",
+        "role": "Architecture",
+        "description": "Designs system architecture and schemas",
+        "icon": "Database",
+        "color": "#06B6D4",
         "stepIndex": 4
       }
     },
     {
-      "id": "rag",
+      "id": "scaffold",
       "type": "agentNode",
-      "position": {
-        "x": 1180,
-        "y": 160
-      },
+      "position": { "x": 1180, "y": 160 },
       "data": {
-        "id": "rag",
-        "label": "RAG Engine (MAG)",
-        "role": "Memory Retrieval",
-        "description": "Retrieves codebase AST and semantic vector embeddings",
-        "icon": "Database",
+        "id": "scaffold",
+        "label": "Scaffold Phase",
+        "role": "Setup",
+        "description": "Generates foundational boilerplate",
+        "icon": "ListTodo",
         "color": "#10B981",
         "stepIndex": 5
       }
     },
     {
-      "id": "coding",
+      "id": "implement",
       "type": "agentNode",
-      "position": {
-        "x": 1460,
-        "y": 160
-      },
+      "position": { "x": 1460, "y": 160 },
       "data": {
-        "id": "coding",
-        "label": "Coding Agent",
-        "role": "Synthesis",
-        "description": "Synthesizes code solution using LLM with assembled context",
+        "id": "implement",
+        "label": "Implement Phase",
+        "role": "Coding",
+        "description": "Builds core logic and constructs modules",
         "icon": "Code2",
-        "color": "#EC4899",
+        "color": "#3B82F6",
         "stepIndex": 6
       }
     },
     {
-      "id": "validate",
+      "id": "test",
       "type": "agentNode",
-      "position": {
-        "x": 1740,
-        "y": 160
-      },
+      "position": { "x": 1740, "y": 160 },
       "data": {
-        "id": "validate",
-        "label": "Human-in-the-Loop Gate",
-        "role": "Governance",
-        "description": "Applies security policy and halts on risky container actions",
+        "id": "test",
+        "label": "Test Phase",
+        "role": "QA",
+        "description": "Executes unit and integration tests",
         "icon": "CheckCircle2",
-        "color": "#EF4444",
+        "color": "#F43F5E",
         "stepIndex": 7
+      }
+    },
+    {
+      "id": "security_audit",
+      "type": "agentNode",
+      "position": { "x": 2020, "y": 160 },
+      "data": {
+        "id": "security_audit",
+        "label": "Security Audit",
+        "role": "Security",
+        "description": "Scans for vulnerabilities and enforces policies",
+        "icon": "Flag",
+        "color": "#8B5CF6",
+        "stepIndex": 8
+      }
+    },
+    {
+      "id": "deploy",
+      "type": "agentNode",
+      "position": { "x": 2300, "y": 160 },
+      "data": {
+        "id": "deploy",
+        "label": "Deploy Phase",
+        "role": "Release",
+        "description": "Prepares artifacts for production deployment",
+        "icon": "Play",
+        "color": "#10B981",
+        "stepIndex": 9
       }
     },
     {
       "id": "end",
       "type": "agentNode",
-      "position": {
-        "x": 2020,
-        "y": 160
-      },
+      "position": { "x": 2580, "y": 160 },
       "data": {
         "id": "end",
-        "label": "Run Finalizer",
+        "label": "Task Complete",
         "role": "Lifecycle",
-        "description": "Finalizes task state, registers metrics and returns solution",
-        "icon": "Flag",
+        "description": "Pipeline execution successfully finalized",
+        "icon": "CheckCircle2",
         "color": "#10B981",
-        "stepIndex": 8
+        "stepIndex": 10
       }
     }
   ],
   "edges": [
-    {
-      "id": "edge_coding_validate",
-      "source": "coding",
-      "target": "validate",
-      "animated": true,
-      "style": {
-        "stroke": "#22D3EE",
-        "strokeWidth": 2
-      },
-      "data": {
-        "conditional": false
-      }
-    },
-    {
-      "id": "edge_planner_research",
-      "source": "planner",
-      "target": "research",
-      "animated": true,
-      "style": {
-        "stroke": "#22D3EE",
-        "strokeWidth": 2
-      },
-      "data": {
-        "conditional": false
-      }
-    },
-    {
-      "id": "edge_rag_coding",
-      "source": "rag",
-      "target": "coding",
-      "animated": true,
-      "style": {
-        "stroke": "#22D3EE",
-        "strokeWidth": 2
-      },
-      "data": {
-        "conditional": false
-      }
-    },
-    {
-      "id": "edge_research_rag",
-      "source": "research",
-      "target": "rag",
-      "animated": true,
-      "style": {
-        "stroke": "#22D3EE",
-        "strokeWidth": 2
-      },
-      "data": {
-        "conditional": false
-      }
-    },
-    {
-      "id": "edge_start_supervisor",
-      "source": "start",
-      "target": "supervisor",
-      "animated": true,
-      "style": {
-        "stroke": "#22D3EE",
-        "strokeWidth": 2
-      },
-      "data": {
-        "conditional": false
-      }
-    },
-    {
-      "id": "edge_supervisor_planner",
-      "source": "supervisor",
-      "target": "planner",
-      "animated": true,
-      "style": {
-        "stroke": "#22D3EE",
-        "strokeWidth": 2
-      },
-      "data": {
-        "conditional": false
-      }
-    },
-    {
-      "id": "edge_validate_end",
-      "source": "validate",
-      "target": "end",
-      "animated": true,
-      "style": {
-        "stroke": "#22D3EE",
-        "strokeWidth": 2
-      },
-      "data": {
-        "conditional": true
-      }
-    },
-    {
-      "id": "edge_validate_coding_loopback",
-      "source": "validate",
-      "target": "coding",
-      "animated": true,
-      "style": {
-        "stroke": "#EF4444",
-        "strokeWidth": 2,
-        "strokeDasharray": "5 5"
-      },
-      "data": {
-        "label": "Rejection / Revision"
-      }
-    }
+    { "id": "e-start-orch", "source": "start", "target": "orchestrator", "animated": true },
+    { "id": "e-orch-res", "source": "orchestrator", "target": "research", "animated": true },
+    { "id": "e-res-blue", "source": "research", "target": "blueprint", "animated": true },
+    { "id": "e-blue-scaf", "source": "blueprint", "target": "scaffold", "animated": true },
+    { "id": "e-scaf-impl", "source": "scaffold", "target": "implement", "animated": true },
+    { "id": "e-impl-test", "source": "implement", "target": "test", "animated": true },
+    { "id": "e-test-sec", "source": "test", "target": "security_audit", "animated": true },
+    { "id": "e-sec-dep", "source": "security_audit", "target": "deploy", "animated": true },
+    { "id": "e-dep-end", "source": "deploy", "target": "end", "animated": true }
   ]
 }
