@@ -10,7 +10,7 @@ import { usePlaygroundStore } from "@/lib/stores/playgroundStore";
 import { useSidebarStore } from "@/lib/stores/sidebarStore";
 
 export function RightPanel() {
-  const { messages, isThinking, activeNode, completedNodes, sessionMetrics } = usePlaygroundStore();
+  const { messages, isThinking, activeNode, completedNodes, sessionMetrics, phaseMap } = usePlaygroundStore();
   const { toggleRightPanel } = useSidebarStore();
   const hasActivity = messages.length > 0 || isThinking || completedNodes.length > 0;
 
@@ -26,20 +26,15 @@ export function RightPanel() {
   ];
 
   let PIPELINE_STEPS = DEFAULT_PIPELINE_STEPS;
-  const mapMsg = messages.find((m) => m.role === "system" && m.content.includes("Phase map generated:"));
-  if (mapMsg) {
-    const match = mapMsg.content.match(/Phase map generated: (.*?)\./);
-    if (match && match[1]) {
-      const phases = match[1].split(" -> ");
-      PIPELINE_STEPS = [
-        { id: "orchestrator", label: "Orchestrator", desc: "Product classification & phase mapping" },
-        ...phases.map(p => ({
-          id: p,
-          label: p.split("_").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ") + " Phase",
-          desc: "Execution phase"
-        }))
-      ];
-    }
+  if (phaseMap && phaseMap.length > 0) {
+    PIPELINE_STEPS = [
+      { id: "orchestrator", label: "Orchestrator", desc: "Product classification & phase mapping" },
+      ...phaseMap.map(p => ({
+        id: p,
+        label: p.split("_").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ") + " Phase",
+        desc: "Execution phase"
+      }))
+    ];
   }
 
   return (

@@ -3,6 +3,10 @@ import re
 with open('frontend/src/components/playground/RightPanel.tsx', 'r', encoding='utf-8') as f:
     content = f.read()
 
+# Update RightPanel destructs
+content = content.replace('const { messages, isThinking, activeNode, completedNodes, sessionMetrics } = usePlaygroundStore();', 'const { messages, isThinking, activeNode, completedNodes, sessionMetrics, phaseMap } = usePlaygroundStore();')
+
+# Revert my bad mapMsg code and use phaseMap
 replacement = '''
   const DEFAULT_PIPELINE_STEPS = [
     { id: "orchestrator", label: "Orchestrator", desc: "Product classification & phase mapping" },
@@ -16,26 +20,20 @@ replacement = '''
   ];
 
   let PIPELINE_STEPS = DEFAULT_PIPELINE_STEPS;
-  const mapMsg = messages.find((m) => m.role === "system" && m.content.includes("Phase map generated:"));
-  if (mapMsg) {
-    const match = mapMsg.content.match(/Phase map generated: (.*?)\\./);
-    if (match && match[1]) {
-      const phases = match[1].split(" -> ");
-      PIPELINE_STEPS = [
-        { id: "orchestrator", label: "Orchestrator", desc: "Product classification & phase mapping" },
-        ...phases.map(p => ({
-          id: p,
-          label: p.split("_").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ") + " Phase",
-          desc: "Execution phase"
-        }))
-      ];
-    }
+  if (phaseMap && phaseMap.length > 0) {
+    PIPELINE_STEPS = [
+      { id: "orchestrator", label: "Orchestrator", desc: "Product classification & phase mapping" },
+      ...phaseMap.map(p => ({
+        id: p,
+        label: p.split("_").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ") + " Phase",
+        desc: "Execution phase"
+      }))
+    ];
   }
 '''
 
-content = re.sub(r'const PIPELINE_STEPS = \[[\s\S]*?\];', replacement.strip(), content)
+content = re.sub(r'const DEFAULT_PIPELINE_STEPS = \[[\s\S]*?\}\s*\}', replacement.strip(), content)
 
 with open('frontend/src/components/playground/RightPanel.tsx', 'w', encoding='utf-8') as f:
     f.write(content)
-
 print("Updated RightPanel.tsx")

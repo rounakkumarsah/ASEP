@@ -82,6 +82,7 @@ export function CenterWorkspace() {
     setActiveNode,
     addCompletedNode,
     resetActiveNodes,
+    setPhaseMap,
     addTerminalLog,
     clearTerminalLogs,
     githubRepo,
@@ -274,6 +275,12 @@ export function CenterWorkspace() {
                           if (messageItem.content.includes("[Auto Router Toast]")) {
                             setToastMessage(messageItem.content.replace("[Auto Router Toast]", "").trim());
                             setTimeout(() => setToastMessage(null), 6000);
+                          } else if (messageItem.content.includes("Phase map generated:")) {
+                            const match = messageItem.content.match(/Phase map generated: (.*?)\./);
+                            if (match && match[1]) {
+                              const phases = match[1].split(" -> ");
+                              setPhaseMap(phases);
+                            }
                           } else if (messageItem.content.includes("[Security Audit]")) {
                             const findingsStr = messageItem.content.replace("[Security Audit]", "").trim();
                             try {

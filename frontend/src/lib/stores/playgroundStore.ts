@@ -11,7 +11,7 @@ export interface Attachment {
 }
 
 export interface Message {
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: string;
   attachments?: Attachment[];
@@ -57,8 +57,12 @@ export interface PlaygroundState {
   setIsThinking: (thinking: boolean) => void;
   setSelectedProjectName: (name: string) => void;
 
+
   // Workflow Graph Live Execution State
+  phaseMap: string[];
+  setPhaseMap: (map: string[]) => void;
   activeNode: string | null;
+
   setActiveNode: (node: string | null) => void;
   completedNodes: string[];
   addCompletedNode: (node: string) => void;
@@ -120,9 +124,14 @@ export const usePlaygroundStore = create<PlaygroundState>()(
       setActiveCenterTab: (tab) => set({ activeCenterTab: tab }),
       isThinking: false,
       setIsThinking: (thinking) => set({ isThinking: thinking }),
+
       setSelectedProjectName: (name) => set({ selectedProjectName: name }),
 
+      phaseMap: [],
+      setPhaseMap: (map) => set({ phaseMap: map }),
+
       activeNode: null,
+
       setActiveNode: (node) => set({ activeNode: node }),
       completedNodes: [],
       addCompletedNode: (node) =>
