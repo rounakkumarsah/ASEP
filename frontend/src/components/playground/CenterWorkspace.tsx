@@ -278,6 +278,15 @@ export function CenterWorkspace() {
                                 setSecurityFindings(JSON.parse(findingsStr));
                                 setActiveCenterTab("security");
                             } catch (e) {}
+                          } else if (messageItem.content.includes("[Metrics]")) {
+                            const metricsStr = messageItem.content.replace("[Metrics]", "").trim();
+                            try {
+                                const metrics = JSON.parse(metricsStr);
+                                usePlaygroundStore.getState().setSessionMetrics({
+                                  estimatedCost: metrics.estimated_cost,
+                                  confidence: metrics.confidence || null
+                                });
+                            } catch (e) {}
                           } else {
                             streamMessages.push(messageItem.content);
                           }
@@ -584,10 +593,27 @@ export function CenterWorkspace() {
             </div>
           </TabsContent>
 
-          <TabsContent value="diff" className="flex-1 mt-0 border-0 p-8 data-[state=active]:flex data-[state=inactive]:hidden items-center justify-center text-muted-foreground min-h-0">
-            <div className="text-center">
-              <GitCompare className="h-8 w-8 mx-auto mb-3 opacity-50" />
-              <p>No active diffs to show.</p>
+          <TabsContent value="diff" className="flex-1 mt-0 border-0 p-8 data-[state=active]:flex data-[state=inactive]:hidden flex-col items-center justify-center text-muted-foreground min-h-0">
+            <div className="text-center mb-8">
+              <GitCompare className="h-8 w-8 mx-auto mb-3 opacity-50 text-emerald-500" />
+              <h3 className="text-lg font-medium text-foreground">No active diffs to show</h3>
+              <p className="text-sm">Run a generation task to see code changes.</p>
+            </div>
+            
+            <div className="w-full max-w-3xl border border-border/50 rounded-lg overflow-hidden bg-background shadow-xl opacity-75">
+              <div className="bg-muted px-4 py-2 border-b border-border/50 flex justify-between items-center text-xs font-mono">
+                <span>Example: how changes will appear</span>
+                <span className="text-muted-foreground">backend/main.py</span>
+              </div>
+              <div className="p-4 font-mono text-xs overflow-x-auto text-left leading-relaxed">
+                <div className="text-muted-foreground">@@ -15,7 +15,8 @@</div>
+                <div className="text-foreground"> def initialize_agent():</div>
+                <div className="bg-destructive/10 text-destructive-foreground px-2 py-0.5 -mx-4">-    return LangGraph(checkpointer=MemorySaver())</div>
+                <div className="bg-emerald-500/10 text-emerald-500 px-2 py-0.5 -mx-4">+    # Now utilizing Postgres-backed persistent memory</div>
+                <div className="bg-emerald-500/10 text-emerald-500 px-2 py-0.5 -mx-4">+    return LangGraph(checkpointer=AsyncPostgresSaver(pool))</div>
+                <div className="text-foreground"> </div>
+                <div className="text-foreground"> async def run_agent():</div>
+              </div>
             </div>
           </TabsContent>
 

@@ -186,7 +186,7 @@ export function WorkflowVisualizer() {
         <div className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-[#22D3EE] animate-ping" />
           <span className="text-xs font-semibold tracking-wide uppercase text-muted-foreground">
-            Antigravity DAG Architecture
+            Multi-Agent DAG Engine
           </span>
           <span className="text-[10px] text-muted-foreground bg-accent/40 border border-border/50 px-1.5 py-0.5 rounded">
             8 Multi-Agent Nodes

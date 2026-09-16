@@ -10,7 +10,7 @@ import { usePlaygroundStore } from "@/lib/stores/playgroundStore";
 import { useSidebarStore } from "@/lib/stores/sidebarStore";
 
 export function RightPanel() {
-  const { messages, isThinking, activeNode, completedNodes } = usePlaygroundStore();
+  const { messages, isThinking, activeNode, completedNodes, sessionMetrics } = usePlaygroundStore();
   const { toggleRightPanel } = useSidebarStore();
   const hasActivity = messages.length > 0 || isThinking || completedNodes.length > 0;
 
@@ -50,9 +50,20 @@ export function RightPanel() {
             <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Plan Timeline</h3>
             
             {!hasActivity ? (
-              <div className="text-center py-6 text-muted-foreground flex flex-col items-center gap-2">
-                <Play className="h-6 w-6 opacity-20" />
-                <p className="text-xs">Waiting for agent to start...</p>
+              <div className="relative border-l border-border/60 ml-2 space-y-4 py-2 opacity-60">
+                <div className="absolute -inset-2 bg-gradient-to-b from-transparent via-background/20 to-background z-10 pointer-events-none" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 text-center w-full">
+                  <Badge variant="outline" className="bg-background shadow-lg mb-2 text-[10px]">Example Trace</Badge>
+                </div>
+                {PIPELINE_STEPS.map((step) => (
+                  <div key={step.id} className="relative pl-4 transition-all">
+                    <CheckCircle2 className="absolute -left-2 top-0 h-4 w-4 text-emerald-500/50 bg-background" />
+                    <p className="text-xs font-medium text-muted-foreground">
+                      {step.label}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{step.desc}</p>
+                  </div>
+                ))}
               </div>
             ) : (
               <div className="relative border-l border-border/60 ml-2 space-y-4 py-2">
@@ -93,15 +104,22 @@ export function RightPanel() {
             
             <div className="bg-black/50 border border-border/40 rounded-lg p-2 font-mono text-[10px] space-y-1.5 h-32 overflow-y-auto">
               {!hasActivity ? (
-                <div className="text-muted-foreground/50 h-full flex items-center justify-center italic">No logs available</div>
+                <div className="text-muted-foreground/60 h-full flex flex-col items-center justify-center italic text-center px-4 space-y-2">
+                  <TerminalSquare className="h-5 w-5 mb-1 opacity-40" />
+                  <p>Awaiting agent execution...</p>
+                  <p className="text-[9px] opacity-70">Real-time MCP tool invocations, bash commands, and API requests will stream here.</p>
+                </div>
               ) : (
                 <>
                   <div className="text-muted-foreground">[{new Date(Date.now() - 5000).toLocaleTimeString()}] <span className="text-emerald-400">CALL</span> list_dir {"{path: '/src/components'}"}</div>
                   <div className="text-muted-foreground">[{new Date(Date.now() - 4000).toLocaleTimeString()}] <span className="text-amber-400">RESP</span> 14 files found.</div>
-                  <div className="text-muted-foreground">[{new Date(Date.now() - 2000).toLocaleTimeString()}] <span className="text-emerald-400">CALL</span> read_file {"{path: 'page.tsx'}"}</div>
-                  {isThinking && (
-                    <div className="text-muted-foreground">[{new Date().toLocaleTimeString()}] <span className="text-[#22D3EE] animate-pulse">EXEC</span> Generating AST...</div>
-                  )}
+                  <div className="text-muted-foreground">[{new Date(Date.now() - 2000).toLocaleTimeString()}] <span className="text-emerald-400">CALL</span> read_file {"{path: '/src/components/Button.tsx'}"}</div>
+                  <div className="text-muted-foreground flex items-center gap-2">
+                    [{new Date().toLocaleTimeString()}] <span className="text-[#22D3EE] animate-pulse">EXEC</span> 
+                    <span className="h-1 w-1 bg-[#22D3EE] rounded-full animate-ping" />
+                    <span className="h-1 w-1 bg-[#22D3EE] rounded-full animate-ping delay-75" />
+                    <span className="h-1 w-1 bg-[#22D3EE] rounded-full animate-ping delay-150" />
+                  </div>
                 </>
               )}
             </div>
@@ -127,26 +145,36 @@ export function RightPanel() {
           <div className="h-px bg-border/40" />
 
           {/* Metrics */}
-          <div className="space-y-4 opacity-50">
-            <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Session Metrics (Est)</h3>
-            
-            <div className="space-y-1.5">
-              <div className="flex justify-between text-xs">
-                <span className="flex items-center gap-1.5 text-muted-foreground"><Target className="h-3.5 w-3.5 text-emerald-400" /> Confidence</span>
-                <span className="font-mono">{hasActivity ? '94%' : '--'}</span>
-              </div>
-              <Progress value={hasActivity ? 94 : 0} className="h-1.5 bg-emerald-950 [&>div]:bg-emerald-500" />
-            </div>
+          {(hasActivity && (sessionMetrics?.confidence !== null || sessionMetrics?.estimatedCost !== null)) ? (
+            <div className="space-y-4">
+              <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Session Metrics</h3>
+              
+              {sessionMetrics?.confidence !== null && sessionMetrics?.confidence !== undefined && (
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs">
+                    <span className="flex items-center gap-1.5 text-muted-foreground"><Target className="h-3.5 w-3.5 text-emerald-400" /> Confidence</span>
+                    <span className="font-mono">{Math.round(sessionMetrics.confidence * 100)}%</span>
+                  </div>
+                  <Progress value={Math.round(sessionMetrics.confidence * 100)} className="h-1.5 bg-emerald-950 [&>div]:bg-emerald-500" />
+                </div>
+              )}
 
-            <div className="space-y-1.5">
-              <div className="flex justify-between text-xs">
-                <span className="flex items-center gap-1.5 text-muted-foreground"><DollarSign className="h-3.5 w-3.5 text-amber-400" /> Estimated Cost</span>
-                <span className="font-mono">{hasActivity ? '$0.042' : '$0.000'}</span>
-              </div>
-              <Progress value={hasActivity ? 15 : 0} className="h-1.5 bg-amber-950 [&>div]:bg-amber-500" />
+              {sessionMetrics?.estimatedCost !== null && sessionMetrics?.estimatedCost !== undefined && (
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs">
+                    <span className="flex items-center gap-1.5 text-muted-foreground"><DollarSign className="h-3.5 w-3.5 text-amber-400" /> Estimated Cost</span>
+                    <span className="font-mono">${sessionMetrics.estimatedCost.toFixed(3)}</span>
+                  </div>
+                  <Progress value={Math.min(100, sessionMetrics.estimatedCost * 1000)} className="h-1.5 bg-amber-950 [&>div]:bg-amber-500" />
+                </div>
+              )}
             </div>
-          </div>
-
+          ) : (
+            <div className="space-y-4 opacity-50">
+              <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Session Metrics</h3>
+              <p className="text-xs text-muted-foreground italic">Metrics will appear after execution completes.</p>
+            </div>
+          )}
         </div>
       </ScrollArea>
     </div>

@@ -2,7 +2,7 @@
 ASEP — Local Workspace & IDE Bridge Router
 ==========================================
 Enables VS Code Extension to sync local workspace absolute paths, explore files,
-and bridge local editor projects directly with the Antigravity multi-agent engine.
+and bridge local editor projects directly with the ASEP multi-agent engine.
 """
 
 from __future__ import annotations
@@ -48,7 +48,7 @@ _ACTIVE_WORKSPACE: dict[str, Any] = {
 
 @router.post("/sync", status_code=status.HTTP_200_OK)
 async def sync_workspace(payload: WorkspaceSyncRequest) -> dict[str, Any]:
-    """Receives absolute directory path from VS Code and binds it to Antigravity engine."""
+    """Receives absolute directory path from VS Code and binds it to ASEP engine."""
     clean_path = os.path.abspath(payload.workspace_path)
     if not os.path.exists(clean_path):
         raise HTTPException(
@@ -69,7 +69,7 @@ async def sync_workspace(payload: WorkspaceSyncRequest) -> dict[str, Any]:
         "status": "synced",
         "workspace_path": clean_path,
         "workspace_name": _ACTIVE_WORKSPACE["workspace_name"],
-        "message": f"Successfully bound Antigravity file explorer to {clean_path}",
+        "message": f"Successfully bound ASEP file explorer to {clean_path}",
     }
 
 

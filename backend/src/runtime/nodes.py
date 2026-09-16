@@ -228,6 +228,7 @@ async def coding_node(state: AgentState) -> dict[str, Any]:
     logger.info("Coding Agent generating solution for: %s", goal)
 
     answer = ""
+    res = None
     try:
         from src.ai_runtime.contracts import CompletionRequest, Message
         from src.ai_runtime.service import AIRuntimeService
@@ -271,6 +272,14 @@ async def coding_node(state: AgentState) -> dict[str, Any]:
         )
 
     messages = []
+    try:
+        if res and hasattr(res, "usage") and res.usage:
+            messages.append({
+                "role": "system",
+                "content": f"[Metrics] {json.dumps({'estimated_cost': res.usage.estimated_cost})}"
+            })
+    except Exception:
+        pass
     if getattr(res, "router_reason", None):
         messages.append({
             "role": "system",

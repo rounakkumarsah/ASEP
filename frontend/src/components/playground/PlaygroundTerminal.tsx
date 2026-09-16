@@ -12,7 +12,7 @@ interface CommandOutput {
 }
 
 const INITIAL_LOGS: CommandOutput[] = [
-  { id: "init-1", type: "system", text: "ASEP Antigravity AI Engine v0.1.0 (x86_64-pc-linux-gnu)" },
+  { id: "init-1", type: "system", text: "ASEP AI Engine v0.1.0 (x86_64-pc-linux-gnu)" },
   { id: "init-2", type: "system", text: "Type 'help' to view available commands, or 'run <task>' to dispatch agents." },
   { id: "init-3", type: "input", text: "agent-cli run --mode=deep --workspace=default" },
   { id: "init-4", type: "output", text: "Initializing LangGraph multi-agent supervisor..." },

@@ -155,7 +155,7 @@ class AsepPlaygroundViewProvider implements vscode.WebviewViewProvider {
   }
 
   /**
-   * Syncs the absolute workspace path to the Antigravity backend engine's file-explorer API.
+   * Syncs the absolute workspace path to the ASEP backend engine's file-explorer API.
    */
   public async syncCurrentWorkspace(): Promise<void> {
     const workspacePath = this.getWorkspacePath();

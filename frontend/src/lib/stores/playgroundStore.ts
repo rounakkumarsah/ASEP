@@ -73,6 +73,10 @@ export interface PlaygroundState {
   githubRepo: { url: string; files: string[]; activeFile: string | null } | null;
   setGithubRepo: (repo: { url: string; files: string[]; activeFile: string | null } | null) => void;
   setGithubActiveFile: (file: string | null) => void;
+
+  // Metrics
+  sessionMetrics: { estimatedCost: number | null; confidence: number | null } | null;
+  setSessionMetrics: (metrics: { estimatedCost: number | null; confidence: number | null } | null) => void;
 }
 
 import { persist } from 'zustand/middleware';
@@ -130,7 +134,7 @@ export const usePlaygroundStore = create<PlaygroundState>()(
       resetActiveNodes: () => set({ activeNode: null, completedNodes: [] }),
 
       terminalLogs: [
-        { id: "init-1", type: "system", text: "ASEP Antigravity AI Engine v0.1.0 (x86_64-pc-linux-gnu)" },
+        { id: "init-1", type: "system", text: "ASEP AI Engine v0.1.0 (x86_64-pc-linux-gnu)" },
         { id: "init-2", type: "system", text: "Type 'help' to view available commands, or 'run <task>' to dispatch agents." },
         { id: "init-3", type: "input", text: "agent-cli run --mode=deep --workspace=default" },
         { id: "init-4", type: "output", text: "Initializing LangGraph multi-agent supervisor..." },
@@ -142,8 +146,16 @@ export const usePlaygroundStore = create<PlaygroundState>()(
       clearTerminalLogs: () => set({ terminalLogs: [] }),
 
       githubRepo: null,
-      setGithubRepo: (repo) => set({ githubRepo: repo }),
-      setGithubActiveFile: (file) => set((state) => ({ githubRepo: state.githubRepo ? { ...state.githubRepo, activeFile: file } : null })),
+      setGithubRepo: (githubRepo) => set({ githubRepo }),
+      setGithubActiveFile: (activeFile) =>
+        set((state) => ({
+          githubRepo: state.githubRepo
+            ? { ...state.githubRepo, activeFile }
+            : null,
+        })),
+
+      sessionMetrics: null,
+      setSessionMetrics: (sessionMetrics) => set({ sessionMetrics }),
     }),
     {
       name: 'asep-playground-storage',

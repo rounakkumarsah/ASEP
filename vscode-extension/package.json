@@ -63,17 +63,17 @@
         "asep.backendUrl": {
           "type": "string",
           "default": "http://127.0.0.1:8000",
-          "description": "URL of the FastAPI Antigravity backend runtime"
+          "description": "URL of the FastAPI ASEP backend runtime"
         },
         "asep.bridgePort": {
           "type": "number",
           "default": 8000,
-          "description": "Port of the local Antigravity engine bridge"
+          "description": "Port of the local ASEP engine bridge"
         },
         "asep.autoSyncWorkspace": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically send workspace root path to Antigravity engine when folders change"
+          "description": "Automatically send workspace root path to ASEP engine when folders change"
         }
       }
     }

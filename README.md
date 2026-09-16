@@ -81,7 +81,40 @@
 
 ---
 
-## 3. Key Differentiators: Why ASEP?
+## 3. Run Locally in 5 Minutes
+
+Get the ASEP multi-agent engine and dashboard running locally.
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/rounakkumarsah/ASEP.git
+   cd ASEP
+   ```
+
+2. **Start the backend (FastAPI + Agent Runtime):**
+   ```bash
+   cd backend
+   python -m venv .venv
+   source .venv/bin/activate  # Windows: .venv\Scripts\activate
+   pip install -r requirements.txt
+   cp .env.example .env       # Add your API keys to .env
+   uvicorn src.main:app --reload --port 8000
+   ```
+
+3. **Start the frontend (Next.js Dashboard):**
+   ```bash
+   # In a new terminal
+   cd frontend
+   npm install
+   npm run dev
+   ```
+
+4. **Access the platform:**
+   Open `http://localhost:3000` in your browser. You can immediately access the playground and execution trace views.
+
+---
+
+## 4. Key Differentiators: Why ASEP?
 
 | Dimension | Generic AI Copilots | AutoGen / CrewAI Scripts | ASEP Enterprise Platform |
 |---|---|---|---|
@@ -94,7 +127,7 @@
 
 ---
 
-## 4. Comprehensive Feature Matrix
+## 5. Comprehensive Feature Matrix
 
 <details open>
 <summary><b>Core Subsystems & Enterprise Capabilities</b></summary>
