@@ -226,11 +226,19 @@ export default function GovernanceWorkspacePage() {
   );
 }
 
-function LoadingState({ text }: { text: string }) {
+function LoadingState({ text: _ }: { text: string }) {
   return (
-    <div className="h-full w-full flex flex-col items-center justify-center text-muted-foreground border border-dashed rounded-lg py-20">
-      <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-      <p>{text}</p>
+    <div className="space-y-3 py-4">
+      {[1, 2, 3, 4].map((i) => (
+        <div key={i} className="flex items-center gap-4 rounded-lg border border-border/30 bg-muted/10 p-4 animate-pulse">
+          <div className="h-8 w-8 rounded-full bg-muted/30 flex-shrink-0" />
+          <div className="flex-1 space-y-2">
+            <div className="h-3 bg-muted/30 rounded w-1/3" />
+            <div className="h-3 bg-muted/20 rounded w-2/3" />
+          </div>
+          <div className="h-6 w-16 bg-muted/30 rounded" />
+        </div>
+      ))}
     </div>
   );
 }
