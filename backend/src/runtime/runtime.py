@@ -15,6 +15,7 @@ from src.runtime.graph import StateGraphWrapper
 from src.runtime.nodes import (
     NodeRegistry,
     orchestrator_node,
+    clarification_gate_node,
     research_phase_node,
     blueprint_phase_node,
     scaffold_phase_node,
@@ -60,6 +61,7 @@ class LangGraphRuntime:
         self.nodes.register("start", start_node_default)
         self.nodes.register("orchestrator", orchestrator_node)
         self.nodes.register("research", research_phase_node)
+        self.nodes.register("clarification_gate", clarification_gate_node)
         self.nodes.register("blueprint", blueprint_phase_node)
         self.nodes.register("scaffold", scaffold_phase_node)
         self.nodes.register("implement", implement_phase_node)

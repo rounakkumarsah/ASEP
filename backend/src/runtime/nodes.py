@@ -389,28 +389,28 @@ async def orchestrator_node(state: AgentState) -> dict[str, Any]:
     # Classify product type based on keywords
     if "ai agent" in goal_lower:
         product_type = "ai_agent"
-        phase_map = ["research", "capability_blueprint", "tool_design", "agent_loop_implementation", "memory_state_design", "sandbox_tests", "evaluation_runs", "security_audit", "deploy"]
+        phase_map = ["research", "clarification_gate", "capability_blueprint", "tool_design", "agent_loop_implementation", "memory_state_design", "sandbox_tests", "evaluation_runs", "security_audit", "deploy"]
     elif "agentic ai" in goal_lower or "multi-agent" in goal_lower:
         product_type = "agentic_ai"
-        phase_map = ["research", "goal_decomposition_design", "planner_executor_critic_architecture", "tool_integration", "multi_step_test_scenarios", "failure_recovery_tests", "security_audit", "deploy"]
+        phase_map = ["research", "clarification_gate", "goal_decomposition_design", "planner_executor_critic_architecture", "tool_integration", "multi_step_test_scenarios", "failure_recovery_tests", "security_audit", "deploy"]
     elif "automation" in goal_lower or "workflow" in goal_lower:
         product_type = "ai_automation"
-        phase_map = ["research", "workflow_mapping", "trigger_action_design", "integration_points", "end_to_end_automation_tests", "error_handling_paths", "security_audit", "deploy"]
+        phase_map = ["research", "clarification_gate", "workflow_mapping", "trigger_action_design", "integration_points", "end_to_end_automation_tests", "error_handling_paths", "security_audit", "deploy"]
     elif "api" in goal_lower: 
         product_type = "api"
-        phase_map = ["research", "blueprint", "scaffold", "implement", "test", "security_audit", "deploy"]
+        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "test", "security_audit", "deploy"]
     elif "bot" in goal_lower: 
         product_type = "bot"
-        phase_map = ["research", "blueprint", "scaffold", "implement", "test", "security_audit", "deploy"]
+        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "test", "security_audit", "deploy"]
     elif "website" in goal_lower: 
         product_type = "website"
-        phase_map = ["research", "blueprint", "scaffold", "implement", "test", "security_audit", "deploy"]
+        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "test", "security_audit", "deploy"]
     elif "app" in goal_lower: 
         product_type = "app"
-        phase_map = ["research", "blueprint", "scaffold", "implement", "test", "security_audit", "deploy"]
+        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "test", "security_audit", "deploy"]
     else:
         product_type = "web-app"
-        phase_map = ["research", "blueprint", "scaffold", "implement", "test", "security_audit", "deploy"]
+        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "test", "security_audit", "deploy"]
 
     # No Hallucination Rules constraints injected into system message
     hallucination_rules = (
@@ -449,6 +449,66 @@ async def research_phase_node(state: AgentState) -> dict[str, Any]:
 
     }
 
+
+
+
+
+async def clarification_gate_node(state: AgentState) -> dict[str, Any]:
+    goal = state.get("goal", "").lower()
+    
+    # Identify dependencies
+    dependencies = []
+    if "google login" in goal or "oauth" in goal:
+        dependencies.append("Google OAuth Client ID and Secret")
+    if "stripe" in goal or "payment" in goal:
+        dependencies.append("Stripe Secret Key")
+    if "email" in goal or "smtp" in goal:
+        dependencies.append("SMTP Credentials or Email API Key")
+
+    if not dependencies:
+        return {
+            "status": "verified",
+            "current_phase": "clarification_gate",
+            "messages": [{"role": "system", "content": "Clarification Gate: No external dependencies detected."}]
+        }
+
+    clarifications_gathered = {}
+    blocked_items = []
+    
+    for dep in dependencies:
+        attempts = 0
+        prompt_msg = f"[Clarification Required] To integrate this feature, I need: {dep}. Please provide valid credentials, or type 'mock' to use a local mock that you can swap later."
+        
+        while attempts < 3:
+            decision = interrupt({
+                "action": "clarification_required",
+                "reason": f"External dependency detected: {dep}",
+                "prompt": prompt_msg
+            })
+            
+            human_input = str(decision)
+            if "mock" in human_input.lower():
+                clarifications_gathered[dep] = "mock"
+                break
+                
+            # Basic validation: minimum length
+            if len(human_input.strip()) > 8:
+                clarifications_gathered[dep] = human_input
+                break
+                
+            attempts += 1
+            if attempts >= 3:
+                blocked_items.append(dep)
+                break
+                
+            prompt_msg = f"[Clarification Required] The credentials provided for {dep} were invalid or too short. Attempt {attempts}/3. Please provide valid credentials or type 'mock'."
+
+    msg = f"Clarification Gate Complete. Resolved: {len(clarifications_gathered)}, Blocked: {len(blocked_items)}."
+    return {
+        "status": "verified",
+        "current_phase": "clarification_gate",
+        "messages": [{"role": "system", "content": msg}]
+    }
 
 
 async def blueprint_phase_node(state: AgentState) -> dict[str, Any]:
