@@ -81,9 +81,23 @@ export default function PlaygroundClient() {
     toggleRightPanel,
   } = useSidebarStore();
   const [mounted, setMounted] = React.useState(false);
+  const [apiErrorToast, setApiErrorToast] = React.useState<{ message: string; retry?: () => void } | null>(null);
 
   React.useEffect(() => {
     setMounted(true);
+    
+    const handleApiError = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      setApiErrorToast({
+        message: customEvent.detail.message || "Network request failed",
+        retry: customEvent.detail.retry
+      });
+      // Auto-dismiss after 10s if not retried
+      setTimeout(() => setApiErrorToast(null), 10000);
+    };
+
+    window.addEventListener("api:error", handleApiError);
+    return () => window.removeEventListener("api:error", handleApiError);
   }, []);
 
   const mainOpen = mounted ? isMainSidebarOpen : true;
@@ -163,6 +177,31 @@ export default function PlaygroundClient() {
             </div>
           </aside>
         </div>
+
+        {apiErrorToast && (
+          <div className="fixed bottom-6 right-6 z-50 flex items-center gap-4 bg-destructive text-destructive-foreground px-4 py-3 rounded-md shadow-lg animate-in slide-in-from-bottom-5">
+            <div className="text-sm font-medium">{apiErrorToast.message}</div>
+            <div className="flex gap-2">
+              {apiErrorToast.retry && (
+                <button
+                  onClick={() => {
+                    apiErrorToast.retry!();
+                    setApiErrorToast(null);
+                  }}
+                  className="px-2 py-1 bg-background/20 hover:bg-background/30 rounded text-xs transition-colors"
+                >
+                  Retry
+                </button>
+              )}
+              <button
+                onClick={() => setApiErrorToast(null)}
+                className="px-2 py-1 bg-background/20 hover:bg-background/30 rounded text-xs transition-colors"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </PlaygroundErrorBoundary>
   );

@@ -103,7 +103,6 @@ def get_tool_registry() -> ToolRegistry:
             DockerTool,
             EnvironmentTool,
             FilesystemTool,
-            GitHubTool,
             GitTool,
             HTTPTool,
             Neo4jTool,
@@ -112,10 +111,12 @@ def get_tool_registry() -> ToolRegistry:
             RedisTool,
             TerminalTool,
         )
+        from src.tools.python_sandbox import PythonSandboxTool
+        from src.tools.github_repo import GithubRepoTool
         _global_tool_registry.register(FilesystemTool())
         _global_tool_registry.register(TerminalTool())
         _global_tool_registry.register(GitTool())
-        _global_tool_registry.register(GitHubTool())
+        _global_tool_registry.register(GithubRepoTool())
         _global_tool_registry.register(DockerTool())
         _global_tool_registry.register(HTTPTool())
         _global_tool_registry.register(PostgresTool())
@@ -125,4 +126,5 @@ def get_tool_registry() -> ToolRegistry:
         _global_tool_registry.register(EnvironmentTool())
         _global_tool_registry.register(ConfigurationTool())
         _global_tool_registry.register(BrowserTool())
+        _global_tool_registry.register(PythonSandboxTool())
     return _global_tool_registry

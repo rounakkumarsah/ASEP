@@ -33,9 +33,11 @@ export function PlaygroundTerminal() {
     resetActiveNodes,
     setIsThinking,
     addMessage,
+    terminalLogs: logs,
+    addTerminalLog: addLog,
+    clearTerminalLogs: clearLogs
   } = usePlaygroundStore();
 
-  const [logs, setLogs] = React.useState<CommandOutput[]>(INITIAL_LOGS);
   const [currentInput, setCurrentInput] = React.useState("");
   const [history, setHistory] = React.useState<string[]>([
     "agent-cli run --mode=deep --workspace=default",
@@ -54,11 +56,6 @@ export function PlaygroundTerminal() {
   // Keep focus on input when clicking inside terminal
   const handleContainerClick = () => {
     inputRef.current?.focus();
-  };
-
-  const addLog = (type: CommandOutput["type"], text: string) => {
-    const time = new Date().toLocaleTimeString();
-    setLogs((prev) => [...prev, { id: Math.random().toString(), type, text, time }]);
   };
 
   const handleCommand = async (rawCmd: string) => {
@@ -98,7 +95,7 @@ export function PlaygroundTerminal() {
         break;
 
       case "clear":
-        setLogs([]);
+        clearLogs();
         break;
 
       case "status":
@@ -288,7 +285,7 @@ export function PlaygroundTerminal() {
       }
     } else if (e.ctrlKey && (e.key === "l" || e.key === "L")) {
       e.preventDefault();
-      setLogs([]);
+      clearLogs();
     } else if (e.ctrlKey && (e.key === "c" || e.key === "C")) {
       e.preventDefault();
       addLog("input", currentInput + "^C");
@@ -354,7 +351,7 @@ export function PlaygroundTerminal() {
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              setLogs([]);
+              clearLogs();
             }}
             className="px-2 py-0.5 rounded bg-[#111720] hover:bg-[#202833] text-[#9CA6B5] hover:text-[#F5F7FA] transition-colors border border-[#202833]"
           >

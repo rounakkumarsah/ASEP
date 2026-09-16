@@ -11,7 +11,6 @@ from src.tools.impl import (
     DockerTool,
     EnvironmentTool,
     FilesystemTool,
-    GitHubTool,
     GitTool,
     HTTPTool,
     Neo4jTool,
@@ -20,6 +19,8 @@ from src.tools.impl import (
     RedisTool,
     TerminalTool,
 )
+from src.tools.python_sandbox import PythonSandboxTool
+from src.tools.github_repo import GithubRepoTool
 from src.tools.mcp_client import MCPClient, ToolClient
 from src.tools.metadata import ToolCategory, ToolMetadata, ToolType
 from src.tools.permissions import ToolPermission, verify_tool_permissions
@@ -48,7 +49,7 @@ __all__ = [
     "FilesystemTool",
     "TerminalTool",
     "GitTool",
-    "GitHubTool",
+    "GithubRepoTool",
     "DockerTool",
     "HTTPTool",
     "PostgresTool",
@@ -57,5 +58,6 @@ __all__ = [
     "RedisTool",
     "EnvironmentTool",
     "ConfigurationTool",
-    "BrowserTool"
+    "BrowserTool",
+    "PythonSandboxTool"
 ]

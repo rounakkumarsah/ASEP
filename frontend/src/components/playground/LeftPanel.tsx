@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { Settings2, Cpu, Shield, Database, Globe, PanelLeftClose } from "lucide-react";
 import { GitHubIcon } from "@/components/icons/GitHubIcon";
 import dynamic from "next/dynamic";
@@ -26,6 +27,33 @@ export function LeftPanel() {
     activeLeftTab, setActiveLeftTab,
   } = usePlaygroundStore();
   const { toggleLeftPanel } = useSidebarStore();
+
+  const [isPromptLoading, setIsPromptLoading] = React.useState(false);
+  const [promptError, setPromptError] = React.useState(false);
+
+  const fetchPrompt = React.useCallback(async () => {
+    setIsPromptLoading(true);
+    setPromptError(false);
+    const controller = new AbortController();
+    try {
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      // Replace with actual API once it exists. Using a fake endpoint that will fail 
+      // or we can just fetch and catch error.
+      const res = await fetch("/api/v1/prompts/system", { signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (!res.ok) throw new Error("Failed");
+      const data = await res.json();
+      if (data.prompt) setSystemPrompt(data.prompt);
+    } catch (err) {
+      setPromptError(true);
+    } finally {
+      setIsPromptLoading(false);
+    }
+  }, [setSystemPrompt]);
+
+  React.useEffect(() => {
+    fetchPrompt();
+  }, [fetchPrompt]);
 
   return (
     <div className="flex h-full flex-col border-r border-border/40 bg-background/50 backdrop-blur">
@@ -106,18 +134,25 @@ export function LeftPanel() {
             <TabsContent value="prompt" className="mt-0 h-[400px] flex-col space-y-3 data-[state=active]:flex data-[state=inactive]:hidden">
               <div className="flex justify-between items-center">
                 <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">System Instructions</Label>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
+                  {isPromptLoading && <span className="text-[10px] text-muted-foreground animate-pulse">Syncing...</span>}
+                  {promptError && (
+                    <Button variant="outline" size="sm" onClick={fetchPrompt} className="h-6 text-[10px] px-2 text-destructive border-destructive/50 hover:bg-destructive/10">
+                      Retry Sync
+                    </Button>
+                  )}
                   <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 text-primary hover:bg-primary/10">Optimize</Button>
                   <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 text-muted-foreground">Reset</Button>
                 </div>
               </div>
-              <div className="flex-1 rounded-md overflow-hidden border border-border/50 bg-background/50">
+              <div className="flex-1 rounded-md overflow-hidden border border-border/50 bg-background/50 relative">
                 <Editor
                   height="100%"
                   defaultLanguage="markdown"
                   theme="vs-dark"
                   value={systemPrompt}
                   onChange={(v) => setSystemPrompt(v || "")}
+                  loading={<div className="absolute inset-0 p-4 space-y-2"><div className="h-3 bg-muted/20 rounded w-1/2 animate-pulse" /><div className="h-3 bg-muted/20 rounded w-3/4 animate-pulse" /></div>}
                   options={{
                     minimap: { enabled: false },
                     fontSize: 12,

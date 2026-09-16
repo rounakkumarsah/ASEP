@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { MessageSquare, Code, Terminal, Send, Loader2, Bot, User as UserIcon, Plus, GitCompare, Paperclip, Wrench, Cpu, Workflow } from "lucide-react";
+import { MessageSquare, Code, Terminal, Send, Loader2, Bot, User as UserIcon, Plus, GitCompare, Paperclip, Wrench, Cpu, Workflow, Play, FileText, FolderGit2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -59,13 +59,64 @@ export function CenterWorkspace() {
     setActiveNode,
     addCompletedNode,
     resetActiveNodes,
+    addTerminalLog,
+    clearTerminalLogs,
+    githubRepo,
+    setGithubActiveFile,
   } = usePlaygroundStore();
   const [input, setInput] = React.useState("");
-  const messagesEndRef = React.useRef<HTMLDivElement>(null);
-
-  const [cmdMenu, setCmdMenu] = React.useState<'model' | 'tool' | null>(null);
-  const [cmdFilter, setCmdFilter] = React.useState('');
+  const [cmdMenu, setCmdMenu] = React.useState<'tool' | 'model' | null>(null);
+  const [artifactCode, setArtifactCode] = React.useState<string>("");
+  const [toastMessage, setToastMessage] = React.useState<string | null>(null);
   const [cmdIndex, setCmdIndex] = React.useState(0);
+
+  const handleRunArtifact = async () => {
+    setActiveCenterTab("terminal");
+    clearTerminalLogs();
+    addTerminalLog("input", "Running main.py in isolated sandbox...");
+    
+    try {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL.replace(/\/+$/, "") : "";
+      const endpoint = `${apiBase}/api/v1/sandbox/python/stream`;
+      
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: artifactCode }),
+      });
+      
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      if (!res.body) return;
+      
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n");
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const dataStr = line.slice(6).trim();
+            if (dataStr === "[DONE]") break;
+            try {
+              const data = JSON.parse(dataStr);
+              if (data.type && data.text) {
+                addTerminalLog(data.type, data.text);
+              }
+            } catch {
+              // ignore partial json
+            }
+          }
+        }
+      }
+    } catch (err) {
+      addTerminalLog("error", `Sandbox execution failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
+  const messagesEndRef = React.useRef<HTMLDivElement>(null);
+  const [cmdFilter, setCmdFilter] = React.useState('');
 
   const filteredCmdItems = React.useMemo(() => {
     if (cmdMenu === 'model') return MODELS.filter(m => m.name.toLowerCase().includes(cmdFilter.toLowerCase()));
@@ -177,11 +228,36 @@ export function CenterWorkspace() {
                     const msg = updateObj.messages;
                     if (msg && Array.isArray(msg) && msg.length > 0) {
                       for (const m of msg) {
-                        const messageItem = m as { role?: string; content?: string };
-                        if (messageItem.role === "assistant" && messageItem.content) {
+                        const messageItem = m as { role?: string; type?: string; name?: string; content?: string };
+                        if (messageItem.role === "assistant" && messageItem.content && typeof messageItem.content === "string") {
                           aiResponse = messageItem.content;
-                        } else if (messageItem.role === "system" && messageItem.content) {
-                          streamMessages.push(messageItem.content);
+                        } else if (messageItem.role === "system" && messageItem.content && typeof messageItem.content === "string") {
+                          if (messageItem.content.includes("[Auto Router Toast]")) {
+                            setToastMessage(messageItem.content.replace("[Auto Router Toast]", "").trim());
+                            setTimeout(() => setToastMessage(null), 6000);
+                          } else {
+                            streamMessages.push(messageItem.content);
+                          }
+                        } else if (messageItem.type === "tool" && messageItem.name === "github" && messageItem.content) {
+                          try {
+                            const parsed = JSON.parse(messageItem.content);
+                            if (parsed.success && parsed.result && parsed.result.files) {
+                              usePlaygroundStore.getState().setGithubRepo({
+                                url: parsed.result.repo_name || "GitHub Repo",
+                                files: parsed.result.files,
+                                activeFile: null
+                              });
+                              if (parsed.result.readme) {
+                                setArtifactCode(parsed.result.readme);
+                              }
+                            } else if (parsed.success && parsed.result && parsed.result.file && parsed.result.content) {
+                              usePlaygroundStore.getState().setGithubActiveFile(parsed.result.file);
+                              setArtifactCode(parsed.result.content);
+                              setActiveCenterTab("artifacts");
+                            }
+                          } catch (e) {
+                            // ignore json parse error
+                          }
                         }
                       }
                     }
@@ -228,6 +304,12 @@ export function CenterWorkspace() {
 
   return (
     <div className="h-full w-full flex flex-col bg-[#0D1117] relative">
+      {toastMessage && (
+        <div className="absolute top-4 right-4 bg-orange-500 text-white px-4 py-2 rounded-md shadow-xl z-50 animate-in fade-in slide-in-from-top-4 flex items-center gap-2 text-sm font-medium border border-orange-400">
+          <Bot className="h-4 w-4" />
+          {toastMessage}
+        </div>
+      )}
       <Tabs value={activeCenterTab} onValueChange={setActiveCenterTab} className="flex-1 flex flex-col min-h-0">
         <div className="px-4 py-2 border-b border-border/40 bg-background/50 backdrop-blur">
           <TabsList className="bg-muted/50 h-9 p-1">
@@ -326,25 +408,100 @@ export function CenterWorkspace() {
           </TabsContent>
 
           <TabsContent value="artifacts" className="flex-1 mt-0 border-0 data-[state=active]:flex data-[state=inactive]:hidden min-h-0">
-            <div className="w-64 border-r border-border/40 bg-background/50 p-4">
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Files</h4>
-              <div className="space-y-1">
-                <div className="text-xs p-1.5 rounded bg-accent text-accent-foreground flex items-center gap-2 cursor-pointer font-mono">
-                  <Code className="h-3 w-3 text-emerald-400" /> main.py
-                </div>
-                <div className="text-xs p-1.5 rounded hover:bg-accent/50 text-muted-foreground flex items-center gap-2 cursor-pointer font-mono">
-                  <Code className="h-3 w-3 text-amber-400" /> config.json
-                </div>
-              </div>
+            <div className="w-64 border-r border-border/40 bg-background/50 p-4 overflow-y-auto">
+              {githubRepo ? (
+                <>
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <FolderGit2 className="h-4 w-4" /> {githubRepo.url}
+                  </h4>
+                  <div className="space-y-1">
+                    {githubRepo.files.slice(0, 1000).map((file) => (
+                      <div 
+                        key={file} 
+                        className={`text-xs p-1.5 rounded flex items-center gap-2 cursor-pointer font-mono truncate ${githubRepo.activeFile === file ? 'bg-primary/20 text-primary' : 'hover:bg-accent/50 text-muted-foreground'}`}
+                        title={file}
+                        onClick={() => {
+                          if (!githubRepo) return;
+                          setGithubActiveFile(file);
+                          setArtifactCode("Loading..."); // Trigger skeleton
+                          const fetchFile = async () => {
+                            try {
+                              const rawUrl = `https://raw.githubusercontent.com/${githubRepo.url}/HEAD/${file}`;
+                              const controller = new AbortController();
+                              const timeoutId = setTimeout(() => controller.abort(), 8000);
+                              const res = await fetch(rawUrl, { signal: controller.signal });
+                              clearTimeout(timeoutId);
+                              if (!res.ok) throw new Error("Failed");
+                              const text = await res.text();
+                              setArtifactCode(text);
+                            } catch (err) {
+                              setToastMessage("Failed to load file. Network error.");
+                              setArtifactCode("// Error loading file");
+                            }
+                          };
+                          fetchFile();
+                        }}
+                      >
+                        <FileText className="h-3 w-3 flex-shrink-0" />
+                        <span className="truncate">{file}</span>
+                      </div>
+                    ))}
+                    {githubRepo.files.length > 1000 && (
+                      <div className="text-xs p-1.5 rounded text-muted-foreground italic truncate">
+                        ...and {githubRepo.files.length - 1000} more files
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Files</h4>
+                  <div className="space-y-1">
+                    <div className="text-xs p-1.5 rounded bg-accent text-accent-foreground flex items-center justify-between group cursor-pointer font-mono">
+                      <div className="flex items-center gap-2">
+                        <Code className="h-3 w-3 text-emerald-400" /> main.py
+                      </div>
+                      <button onClick={handleRunArtifact} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-primary/20 text-primary rounded" title="Run in Sandbox">
+                        <Play className="h-3 w-3" />
+                      </button>
+                    </div>
+                    <div className="text-xs p-1.5 rounded hover:bg-accent/50 text-muted-foreground flex items-center gap-2 cursor-pointer font-mono">
+                      <Code className="h-3 w-3 text-amber-400" /> config.json
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
-            <div className="flex-1 bg-[#1E1E1E]">
-              <Editor
-                height="100%"
-                defaultLanguage="python"
-                theme="vs-dark"
-                value={`def calculate_metrics(data):\n    # TODO: Implement metrics calculation\n    return {"status": "success"}`}
-                options={{ minimap: { enabled: false }, fontSize: 13, padding: { top: 16 } }}
-              />
+            <div className="flex-1 bg-[#1E1E1E] relative">
+              {artifactCode === "Loading..." ? (
+                <div className="absolute inset-0 p-6 space-y-4">
+                  <div className="h-4 bg-muted/20 rounded w-1/3 animate-pulse" />
+                  <div className="h-4 bg-muted/20 rounded w-1/2 animate-pulse" />
+                  <div className="h-4 bg-muted/20 rounded w-2/3 animate-pulse" />
+                  <div className="h-4 bg-muted/20 rounded w-1/4 animate-pulse" />
+                  <div className="h-4 bg-muted/20 rounded w-3/4 animate-pulse" />
+                </div>
+              ) : (
+                <Editor
+                  height="100%"
+                  defaultLanguage="python"
+                  theme="vs-dark"
+                  value={artifactCode}
+                  onChange={(val) => setArtifactCode(val || "")}
+                  options={{
+                    minimap: { enabled: false },
+                    fontSize: 13,
+                    wordWrap: "on",
+                  }}
+                />
+              )}
+              <Button 
+                onClick={handleRunArtifact}
+                className="absolute top-4 right-4 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg gap-2"
+                size="sm"
+              >
+                <Play className="h-4 w-4" fill="currentColor" /> Run Code
+              </Button>
             </div>
           </TabsContent>
 

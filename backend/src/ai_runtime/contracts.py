@@ -54,6 +54,7 @@ class CompletionRequest(BaseModel):
     router_metadata: dict[str, Any] | None = None
     service_tier: str | None = None
     seed: int | None = None
+    research_mode: str = "balanced"
 
 class CompletionResponse(BaseModel):
     text: str
@@ -63,6 +64,7 @@ class CompletionResponse(BaseModel):
     finish_reason: str | None = None
     tool_calls: list[ToolCall] | None = None
     router_metadata: dict[str, Any] | None = None
+    router_reason: str | None = None
     reasoning: str | None = None
     reasoning_details: list[dict[str, Any]] | None = None
 
@@ -72,6 +74,7 @@ class StreamChunk(BaseModel):
     finish_reason: str | None = None
     tool_calls: list[ToolCall] | None = None
     router_metadata: dict[str, Any] | None = None
+    router_reason: str | None = None
     reasoning: str | None = None
     reasoning_details: list[dict[str, Any]] | None = None
 

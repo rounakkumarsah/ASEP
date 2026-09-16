@@ -63,55 +63,104 @@ export interface PlaygroundState {
   completedNodes: string[];
   addCompletedNode: (node: string) => void;
   resetActiveNodes: () => void;
+
+  // Terminal State
+  terminalLogs: { id: string; type: "input" | "output" | "error" | "system" | "success" | "agent"; text: string; time?: string }[];
+  addTerminalLog: (type: "input" | "output" | "error" | "system" | "success" | "agent", text: string) => void;
+  clearTerminalLogs: () => void;
+
+  // GitHub Repo State
+  githubRepo: { url: string; files: string[]; activeFile: string | null } | null;
+  setGithubRepo: (repo: { url: string; files: string[]; activeFile: string | null } | null) => void;
+  setGithubActiveFile: (file: string | null) => void;
 }
 
-export const usePlaygroundStore = create<PlaygroundState>((set) => ({
-  model: 'gemini-flash-latest',
-  setModel: (model) => set({ model }),
-  temperature: 0.7,
-  setTemperature: (temperature) => set({ temperature }),
-  maxTokens: 2048,
-  setMaxTokens: (maxTokens) => set({ maxTokens }),
+import { persist } from 'zustand/middleware';
 
-  systemPrompt: 'You are an expert AI assistant.',
-  setSystemPrompt: (systemPrompt) => set({ systemPrompt }),
+export const usePlaygroundStore = create<PlaygroundState>()(
+  persist(
+    (set) => ({
+      model: 'gemini-flash-latest',
+      setModel: (model) => set({ model }),
+      temperature: 0.7,
+      setTemperature: (temperature) => set({ temperature }),
+      maxTokens: 2048,
+      setMaxTokens: (maxTokens) => set({ maxTokens }),
 
-  activeTools: ['web', 'docs'],
-  toggleTool: (tool) =>
-    set((state) => ({
-      activeTools: state.activeTools.includes(tool)
-        ? state.activeTools.filter((t) => t !== tool)
-        : [...state.activeTools, tool],
-    })),
-  researchMode: 'balanced',
-  setResearchMode: (researchMode) => set({ researchMode }),
+      systemPrompt: 'You are an expert AI assistant.',
+      setSystemPrompt: (systemPrompt) => set({ systemPrompt }),
 
-  messages: [],
-  setMessages: (messages) => set((state) => ({ messages: typeof messages === 'function' ? messages(state.messages) : messages })),
-  addMessage: (message) => set((state) => ({ messages: [...state.messages, message] })),
-  attachments: [],
-  setAttachments: (attachments) => set((state) => ({ attachments: typeof attachments === 'function' ? attachments(state.attachments) : attachments })),
+      activeTools: ['web', 'docs'],
+      toggleTool: (tool) =>
+        set((state) => ({
+          activeTools: state.activeTools.includes(tool)
+            ? state.activeTools.filter((t) => t !== tool)
+            : [...state.activeTools, tool],
+        })),
+      researchMode: 'balanced',
+      setResearchMode: (researchMode) => set({ researchMode }),
 
-  selectedProjectId: null,
-  selectedProjectName: null,
-  setProject: (id, name) => set({ selectedProjectId: id, selectedProjectName: name }),
+      messages: [],
+      setMessages: (messages) => set((state) => ({ messages: typeof messages === 'function' ? messages(state.messages) : messages })),
+      addMessage: (message) => set((state) => ({ messages: [...state.messages, message] })),
+      attachments: [],
+      setAttachments: (attachments) => set((state) => ({ attachments: typeof attachments === 'function' ? attachments(state.attachments) : attachments })),
 
-  activeLeftTab: 'model',
-  setActiveLeftTab: (tab) => set({ activeLeftTab: tab }),
-  activeCenterTab: 'chat',
-  setActiveCenterTab: (tab) => set({ activeCenterTab: tab }),
-  isThinking: false,
-  setIsThinking: (thinking) => set({ isThinking: thinking }),
-  setSelectedProjectName: (name) => set({ selectedProjectName: name }),
+      selectedProjectId: null,
+      selectedProjectName: null,
+      setProject: (id, name) => set({ selectedProjectId: id, selectedProjectName: name }),
 
-  activeNode: null,
-  setActiveNode: (node) => set({ activeNode: node }),
-  completedNodes: [],
-  addCompletedNode: (node) =>
-    set((state) => ({
-      completedNodes: state.completedNodes.includes(node)
-        ? state.completedNodes
-        : [...state.completedNodes, node],
-    })),
-  resetActiveNodes: () => set({ activeNode: null, completedNodes: [] }),
-}));
+      activeLeftTab: 'model',
+      setActiveLeftTab: (tab) => set({ activeLeftTab: tab }),
+      activeCenterTab: 'chat',
+      setActiveCenterTab: (tab) => set({ activeCenterTab: tab }),
+      isThinking: false,
+      setIsThinking: (thinking) => set({ isThinking: thinking }),
+      setSelectedProjectName: (name) => set({ selectedProjectName: name }),
+
+      activeNode: null,
+      setActiveNode: (node) => set({ activeNode: node }),
+      completedNodes: [],
+      addCompletedNode: (node) =>
+        set((state) => ({
+          completedNodes: state.completedNodes.includes(node)
+            ? state.completedNodes
+            : [...state.completedNodes, node],
+        })),
+      resetActiveNodes: () => set({ activeNode: null, completedNodes: [] }),
+
+      terminalLogs: [
+        { id: "init-1", type: "system", text: "ASEP Antigravity AI Engine v0.1.0 (x86_64-pc-linux-gnu)" },
+        { id: "init-2", type: "system", text: "Type 'help' to view available commands, or 'run <task>' to dispatch agents." },
+        { id: "init-3", type: "input", text: "agent-cli run --mode=deep --workspace=default" },
+        { id: "init-4", type: "output", text: "Initializing LangGraph multi-agent supervisor..." },
+        { id: "init-5", type: "success", text: "[OK] Agent Swarm ready. Interactive session established." },
+      ],
+      addTerminalLog: (type, text) => set((state) => ({
+        terminalLogs: [...state.terminalLogs, { id: Math.random().toString(), type, text, time: new Date().toLocaleTimeString() }]
+      })),
+      clearTerminalLogs: () => set({ terminalLogs: [] }),
+
+      githubRepo: null,
+      setGithubRepo: (repo) => set({ githubRepo: repo }),
+      setGithubActiveFile: (file) => set((state) => ({ githubRepo: state.githubRepo ? { ...state.githubRepo, activeFile: file } : null })),
+    }),
+    {
+      name: 'asep-playground-storage',
+      partialize: (state) => ({
+        model: state.model,
+        temperature: state.temperature,
+        maxTokens: state.maxTokens,
+        systemPrompt: state.systemPrompt,
+        activeTools: state.activeTools,
+        researchMode: state.researchMode,
+        messages: state.messages,
+        attachments: state.attachments,
+        githubRepo: state.githubRepo,
+        terminalLogs: state.terminalLogs,
+        activeNode: state.activeNode,
+        completedNodes: state.completedNodes,
+      }),
+    }
+  )
+);

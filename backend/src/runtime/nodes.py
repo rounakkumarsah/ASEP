@@ -1,4 +1,4 @@
-﻿import asyncio
+import asyncio
 import json
 import logging
 import re
@@ -114,15 +114,28 @@ async def planner_node(state: AgentState) -> dict[str, Any]:
         ]
 
     plan_msg = "Task Decomposition Plan:\n" + "\n".join(f"• {p}" for p in plan)
+    messages = []
+    if res and getattr(res, "router_reason", None):
+        messages.append({
+            "role": "system",
+            "content": f"[Auto Router] {res.router_reason}"
+        })
+        if "due to rate limits" in res.router_reason:
+            toast_msg = res.router_reason.split(". ")[0]
+            messages.append({
+                "role": "system",
+                "content": f"[Auto Router Toast] {toast_msg}"
+            })
+        
+    messages.append({
+        "role": "system",
+        "content": plan_msg,
+    })
+
     return {
         "status": "planned",
         "plan": plan,
-        "messages": [
-            {
-                "role": "system",
-                "content": plan_msg,
-            }
-        ],
+        "messages": messages,
     }
 
 
@@ -257,14 +270,27 @@ async def coding_node(state: AgentState) -> dict[str, Any]:
             f"`python\n# Solution verified via ASEP LangGraph Core\ndef execute_task():\n    return '{goal} - successfully executed'\n`"
         )
 
+    messages = []
+    if getattr(res, "router_reason", None):
+        messages.append({
+            "role": "system",
+            "content": f"[Auto Router] {res.router_reason}"
+        })
+        if "due to rate limits" in res.router_reason:
+            toast_msg = res.router_reason.split(". ")[0]
+            messages.append({
+                "role": "system",
+                "content": f"[Auto Router Toast] {toast_msg}"
+            })
+        
+    messages.append({
+        "role": "assistant",
+        "content": answer,
+    })
+    
     return {
         "status": "coded",
-        "messages": [
-            {
-                "role": "assistant",
-                "content": answer,
-            }
-        ],
+        "messages": messages,
     }
 
 

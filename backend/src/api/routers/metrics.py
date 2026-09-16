@@ -68,5 +68,6 @@ async def get_metrics(
         "error_rate": round(error_rate, 4),
         "active_sessions": active_sessions,
         "pending_tasks": pending_tasks,
-        "system": system_stats
+        "system": system_stats,
+        "auto_router": metrics_store.auto_router_counts
     }

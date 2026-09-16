@@ -27,6 +27,7 @@ interface MetricsData {
     process_memory_rss_bytes: number;
     process_cpu_percent: number;
   };
+  auto_router?: Record<string, number>;
 }
 
 export default function MetricsPage() {
@@ -170,7 +171,8 @@ export default function MetricsPage() {
 
       </div>
 
-      {/* Graphical Details Simulation container */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
+        {/* Graphical Details Simulation container */}
       <Card className="border-border/40 bg-card/25">
         <CardHeader>
           <CardTitle className="text-base font-bold">Request Latency Parameters</CardTitle>
@@ -183,7 +185,40 @@ export default function MetricsPage() {
           </div>
         </CardContent>
       </Card>
-      </>
+
+      {/* Auto Router Decisions */}
+      <Card className="border-border/40 bg-card/25">
+        <CardHeader>
+          <CardTitle className="text-base font-bold">Auto Router Distribution</CardTitle>
+          <CardDescription>Models selected by Cost/Perf routing logic</CardDescription>
+        </CardHeader>
+        <CardContent className="min-h-[250px] border-t border-border/20 pt-4">
+          {metrics?.auto_router && Object.keys(metrics.auto_router).length > 0 ? (
+            <div className="space-y-4">
+              {Object.entries(metrics.auto_router)
+                .sort(([, a], [, b]) => b - a)
+                .map(([model, count]) => (
+                  <div key={model} className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <div className="bg-primary/20 p-2 rounded">
+                        <LineChart className="h-4 w-4 text-primary" />
+                      </div>
+                      <span className="text-sm font-medium">{model}</span>
+                    </div>
+                    <span className="font-mono text-sm">{count} requests</span>
+                  </div>
+              ))}
+            </div>
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center text-muted-foreground pt-12">
+              <LineChart className="h-8 w-8 mb-4 opacity-50" />
+              <p>No Auto Router decisions logged yet.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      </div>
+        </>
       )}
     </div>
   );

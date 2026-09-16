@@ -14,6 +14,12 @@ class MetricsStore:
     # Store request paths count/latencies
     path_counts: dict[str, int] = field(default_factory=dict)
     path_latencies: dict[str, float] = field(default_factory=dict)
+    
+    # Store auto router decisions
+    auto_router_counts: dict[str, int] = field(default_factory=dict)
+
+    def record_auto_router_decision(self, model: str) -> None:
+        self.auto_router_counts[model] = self.auto_router_counts.get(model, 0) + 1
 
     def record_request(self, path: str, latency: float, status_code: int) -> None:
         self.request_count += 1

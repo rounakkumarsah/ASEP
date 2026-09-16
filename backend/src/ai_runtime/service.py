@@ -25,109 +25,136 @@ class AIRuntimeService:
     async def complete(self, request: CompletionRequest) -> CompletionResponse:
         logger.info("RequestStarted", model=request.model, temperature=request.temperature)
 
-        chain = self.registry.get_priority_chain(request.model)
+        router_reason = None
+        is_auto = request.model == "auto-router"
+        if is_auto:
+            from src.ai_runtime.router import auto_router
+            prompt_text = "".join(m.content for m in request.messages if m.content)
+            has_tools = bool(request.tool_callables) or bool(request.tools)
+            decision = auto_router.route(prompt_text, has_tools, request.research_mode)
+            request.model = decision["model"]
+            router_reason = decision["reason"]
+            logger.info("AutoRouterDecision", model=request.model, reason=router_reason)
+
         last_error = None
+        
+        while True:
+            chain = self.registry.get_priority_chain(request.model)
+            model_success = False
 
-        for provider in chain:
-            breaker = self.registry.get_breaker(provider.name)
-            logger.info("ProviderSelected", provider=provider.name, model=request.model)
+            for provider in chain:
+                breaker = self.registry.get_breaker(provider.name)
+                logger.info("ProviderSelected", provider=provider.name, model=request.model)
 
-            # Auto fallback context trimming based on provider capabilities window
-            cap = provider.get_capability_matrix()
-            self.context_manager.token_budget = cap.context_window
-            trimmed_messages = self.context_manager.trim_messages(request.messages)
+                cap = provider.get_capability_matrix()
+                self.context_manager.token_budget = cap.context_window
+                trimmed_messages = self.context_manager.trim_messages(request.messages)
 
-            trimmed_request = CompletionRequest(
-                messages=trimmed_messages,
-                model=request.model,
-                temperature=request.temperature,
-                max_tokens=request.max_tokens,
-                response_format=request.response_format
-            )
+                trimmed_request = CompletionRequest(
+                    messages=trimmed_messages,
+                    model=request.model,
+                    temperature=request.temperature,
+                    max_tokens=request.max_tokens,
+                    response_format=request.response_format
+                )
 
-            # Execution attempt with retries
-            for attempt in range(1, 3):
-                try:
-                    # Implement agentic tool calling loop
-                    current_request = trimmed_request
-                    max_iterations = 10
-                    iterations = 0
-                    
-                    while iterations < max_iterations:
-                        iterations += 1
-                        res = await provider.complete(current_request)
+                for attempt in range(1, 3):
+                    try:
+                        current_request = trimmed_request
+                        max_iterations = 10
+                        iterations = 0
                         
-                        if res.finish_reason == "tool_calls" and res.tool_calls:
-                            import json
-                            import inspect
+                        while iterations < max_iterations:
+                            iterations += 1
+                            res = await provider.complete(current_request)
                             
-                            # Add assistant message with tool calls
-                            from src.ai_runtime.contracts import Message
-                            assistant_msg = Message(role="assistant", content=res.text or "", tool_calls=[tc.model_dump() for tc in res.tool_calls])
-                            current_request.messages.append(assistant_msg)
-                            
-                            # Execute tools
-                            for tool_call in res.tool_calls:
-                                if tool_call.name.startswith("openrouter:"):
-                                    # Server tool - openrouter executed this, we shouldn't execute it locally
-                                    continue
-                                    
-                                tool_result_str = ""
-                                try:
-                                    args = json.loads(tool_call.arguments)
-                                    if current_request.tool_callables and tool_call.name in current_request.tool_callables:
-                                        func = current_request.tool_callables[tool_call.name]
-                                        if inspect.iscoroutinefunction(func):
-                                            tool_result = await func(**args)
-                                        else:
-                                            tool_result = func(**args)
-                                        tool_result_str = json.dumps(tool_result) if not isinstance(tool_result, str) else tool_result
-                                    else:
-                                        tool_result_str = json.dumps({"error": f"Tool '{tool_call.name}' not found locally"})
-                                except Exception as e:
-                                    tool_result_str = json.dumps({"error": str(e)})
+                            if res.finish_reason == "tool_calls" and res.tool_calls:
+                                import json
+                                import inspect
                                 
-                                tool_msg = Message(role="tool", content=tool_result_str, tool_call_id=tool_call.id)
-                                current_request.messages.append(tool_msg)
-                            
-                            # Loop back and call model again
-                            continue
-                            
-                        # Success without tool calls, or completed tool loop
-                        if breaker:
-                            breaker.record_success()
+                                from src.ai_runtime.contracts import Message
+                                assistant_msg = Message(role="assistant", content=res.text or "", tool_calls=[tc.model_dump() for tc in res.tool_calls])
+                                current_request.messages.append(assistant_msg)
+                                
+                                for tool_call in res.tool_calls:
+                                    if tool_call.name.startswith("openrouter:"):
+                                        continue
+                                        
+                                    tool_result_str = ""
+                                    try:
+                                        args = json.loads(tool_call.arguments)
+                                        if current_request.tool_callables and tool_call.name in current_request.tool_callables:
+                                            func = current_request.tool_callables[tool_call.name]
+                                            if inspect.iscoroutinefunction(func):
+                                                tool_result = await func(**args)
+                                            else:
+                                                tool_result = func(**args)
+                                            tool_result_str = json.dumps(tool_result) if not isinstance(tool_result, str) else tool_result
+                                        else:
+                                            tool_result_str = json.dumps({"error": f"Tool '{tool_call.name}' not found locally"})
+                                    except Exception as e:
+                                        tool_result_str = json.dumps({"error": str(e)})
+                                    
+                                    tool_msg = Message(role="tool", content=tool_result_str, tool_call_id=tool_call.id)
+                                    current_request.messages.append(tool_msg)
+                                
+                                continue
+                                
+                            if breaker:
+                                breaker.record_success()
+                                
+                            if is_auto:
+                                auto_router.record_success(request.model)
 
-                        logger.info(
-                            "UsageCollected",
+                            logger.info(
+                                "UsageCollected",
+                                provider=provider.name,
+                                model=request.model,
+                                prompt_tokens=res.usage.prompt_tokens,
+                                completion_tokens=res.usage.completion_tokens,
+                                total_tokens=res.usage.total_tokens,
+                                latency_ms=res.usage.latency_ms
+                            )
+                            if router_reason:
+                                res.router_reason = router_reason
+                            return res
+                    except Exception as exc:
+                        logger.warn(
+                            "RetryAttempt",
                             provider=provider.name,
-                            model=request.model,
-                            prompt_tokens=res.usage.prompt_tokens,
-                            completion_tokens=res.usage.completion_tokens,
-                            total_tokens=res.usage.total_tokens,
-                            latency_ms=res.usage.latency_ms
+                            attempt=attempt,
+                            error=str(exc)
                         )
-                        return res
-                except Exception as exc:
-                    logger.warn(
-                        "RetryAttempt",
-                        provider=provider.name,
-                        attempt=attempt,
-                        error=str(exc)
-                    )
-                    last_error = exc
-                    import time
-                    time.sleep(0.1)  # Brief backoff
+                        last_error = exc
+                        import time
+                        time.sleep(0.1)
 
-            # Record failure to trigger circuit breaker
-            if breaker:
-                breaker.record_failure(last_error)
-
-            error_msg = str(last_error)
-            if not error_msg and type(last_error).__name__ == "ReadTimeout":
-                error_msg = "Connection timed out"
-            
-            logger.warn("Failover", provider=provider.name, error=error_msg)
-
+                if breaker:
+                    breaker.record_failure(last_error)
+                    
+                error_msg = str(last_error)
+                if not error_msg and type(last_error).__name__ == "ReadTimeout":
+                    error_msg = "Connection timed out"
+                    
+                logger.warn("Failover", provider=provider.name, error=error_msg)
+                
+                # If AutoRouter is active, check if we tripped the model circuit breaker
+                if is_auto:
+                    is_429 = "429" in error_msg or "rate limit" in error_msg.lower() or "too many requests" in error_msg.lower() or "quota" in error_msg.lower()
+                    tripped = auto_router.record_failure(request.model, is_429)
+                    if tripped:
+                        decision = auto_router.route(prompt_text, has_tools, request.research_mode)
+                        new_model = decision["model"]
+                        if new_model != request.model:
+                            router_reason = f"Switched to {new_model} due to rate limits. " + decision["reason"]
+                            logger.warn(f"AutoRouter switched from {request.model} to {new_model} due to rate limits")
+                            request.model = new_model
+                            # Break the provider loop to restart the chain logic with the new model
+                            break 
+            else:
+                # If we exhausted the provider chain WITHOUT breaking (which means no AutoRouter model switch happened)
+                break
+                
         logger.error("RuntimeError", error="All providers in priority chain failed")
         
         error_msg = str(last_error) if last_error else "Unknown error"
@@ -180,6 +207,16 @@ class AIRuntimeService:
     async def complete_structured(self, request: CompletionRequest, schema: dict[str, Any]) -> CompletionResponse:
         logger.info("RequestStarted", model=request.model, structured=True)
 
+        router_reason = None
+        if request.model == "auto-router":
+            from src.ai_runtime.router import auto_router
+            prompt_text = "".join(m.content for m in request.messages if m.content)
+            has_tools = bool(request.tool_callables) or bool(request.tools)
+            decision = auto_router.route(prompt_text, has_tools, request.research_mode)
+            request.model = decision["model"]
+            router_reason = decision["reason"]
+            logger.info("AutoRouterDecision", model=request.model, reason=router_reason)
+
         chain = self.registry.get_priority_chain(request.model)
         last_error = None
 
@@ -206,6 +243,8 @@ class AIRuntimeService:
                     if breaker:
                         breaker.record_success()
                     logger.info("UsageCollected", provider=provider.name, total_tokens=res.usage.total_tokens)
+                    if router_reason:
+                        res.router_reason = router_reason
                     return res
                 except Exception as exc:
                     logger.warn("RetryAttempt", provider=provider.name, attempt=attempt, error=str(exc))

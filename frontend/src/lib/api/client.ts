@@ -129,6 +129,18 @@ apiClient.interceptors.response.use(
       }
     }
 
+    if (typeof window !== "undefined" && status !== 401) {
+      window.dispatchEvent(
+        new CustomEvent("api:error", {
+          detail: {
+            message: message,
+            status: status,
+            retry: () => apiClient(originalRequest),
+          },
+        })
+      );
+    }
+
     switch (status) {
       case 401:
         if (typeof window !== "undefined") {
