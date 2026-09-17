@@ -23,7 +23,7 @@ from src.utils.self_healing import (
 )
 from src.utils.security_scanner import scanner, SecurityReport
 from src.utils.package_resolver import PackageResolver
-from src.utils.doc_crawler import get_doc_crawler, DEFAULT_TTL_SECONDS
+from src.utils.doc_crawler import doc_crawler, DOC_SOURCE_REGISTRY
 
 logger = logging.getLogger(__name__)
 
@@ -641,37 +641,151 @@ async def orchestrator_node(state: AgentState) -> dict[str, Any]:
     }
 
 async def research_phase_node(state: AgentState) -> dict[str, Any]:
-    goal = state.get("goal") or "web app"
-    variables = state.get("variables") or {}
-    product_type = state.get("product_type") or variables.get("product_type")
-    project_id = state.get("project_id") or variables.get("project_id") or "default_project"
+    """
+    RESEARCH NODE — Autonomous documentation crawler and knowledge base builder.
 
-    crawler = get_doc_crawler()
-    detected_stack = crawler.detect_stack(goal=goal, product_type=product_type)
-    cached_docs = crawler.crawl_and_index(stack=detected_stack, project_id=project_id)
-
+    1. Detects product_type from state (set by orchestrator_node).
+    2. Looks up official documentation URLs from DOC_SOURCE_REGISTRY.
+    3. Checks 7-day TTL cache per (project_id, product_type).
+       - Cache hit: loads from existing in-memory index.
+       - Cache miss: crawls URLs, chunks, builds TF-IDF index.
+    4. Stores doc_cache metadata and knowledge_sources in state.
+    5. Emits [Research Node] SSE telemetry for frontend terminal.
+    """
     guard_res = execute_phase_token_guard(phase="research", state=state, base_tokens=150)
     messages = list(guard_res.get("telemetry_messages", []))
+
+    product_type = state.get("product_type") or "web-app"
+    run_id = state.get("run_id", "unknown")
+    goal = state.get("goal", "")
+
+    # Resolve which doc sources apply to this product type
+    doc_urls = DOC_SOURCE_REGISTRY.get(product_type, [])
+
+    # Also check if product type keywords appear in goal (e.g. "fastapi" in goal → add fastapi sources)
+    goal_lower = goal.lower()
+    extra_sources: list[str] = []
+    for keyword, urls in DOC_SOURCE_REGISTRY.items():
+        if keyword != product_type and keyword in goal_lower and keyword not in ("api", "app", "web-app"):
+            extra_sources.extend(urls)
+    all_urls = list(dict.fromkeys(doc_urls + extra_sources))  # deduplicate, preserve order
+
+    # TTL cache check
+    cache_hit = doc_crawler.is_cache_fresh(run_id, product_type)
+
+    if cache_hit:
+        chunks = doc_crawler.get_cached_chunks(run_id, product_type)
+        logger.info(
+            "[Research Node] Cache HIT for product_type=%s, project=%s, %d chunks available.",
+            product_type, run_id, len(chunks),
+        )
+        telemetry = {
+            "product_type": product_type,
+            "sources": [c.url for c in chunks[:5]],
+            "chunk_count": len(chunks),
+            "cache_hit": True,
+            "run_id": run_id,
+        }
+        messages.append({
+            "role": "system",
+            "content": f"[Research Node] {json.dumps(telemetry)}"
+        })
+        messages.append({
+            "role": "system",
+            "content": (
+                f"Research Phase Complete: Loaded {len(chunks)} documentation chunks "
+                f"from cache for '{product_type}' (TTL valid)."
+            ),
+        })
+        return {
+            "status": "verified",
+            "current_phase": "research",
+            "knowledge_sources": [c.url for c in chunks],
+            "stack_versions": doc_crawler.get_stack_versions(product_type),
+            "doc_cache": {f"{run_id}:{product_type}": {"cache_hit": True, "chunk_count": len(chunks)}},
+            "token_usage_per_phase": guard_res["token_usage_per_phase"],
+            "token_budget_per_phase": guard_res["token_budget_per_phase"],
+            "token_savings": guard_res["token_savings"],
+            "file_history": guard_res["file_history"],
+            "budget_approvals": guard_res["budget_approvals"],
+            "messages": messages,
+        }
+
+    # Cache miss — crawl docs
+    logger.info(
+        "[Research Node] Cache MISS for product_type=%s. Crawling %d URLs...",
+        product_type, len(all_urls),
+    )
+
+    try:
+        chunks = await doc_crawler.crawl_and_index(
+            product_type=product_type,
+            project_id=run_id,
+            urls=all_urls or None,
+        )
+    except Exception as exc:
+        logger.error("[Research Node] Crawl failed: %s — using static fallback", exc)
+        chunks = doc_crawler._static_fallback_chunks(product_type, run_id)
+        # Still index the fallback chunks
+        if chunks:
+            from src.utils.doc_crawler import KnowledgeBaseIndex, _build_idf, _compute_tf, _tfidf_vector, _tokenize
+            all_token_lists = [_tokenize(c.text) for c in chunks]
+            idf = _build_idf(all_token_lists)
+            tfidf_vecs = [_tfidf_vector(_compute_tf(tl), idf) for tl in all_token_lists]
+            key = doc_crawler._cache_key(run_id, product_type)
+            doc_crawler._index[key] = KnowledgeBaseIndex(
+                chunks=chunks, tfidf_vectors=tfidf_vecs, idf=idf
+            )
+
+    sources = list(dict.fromkeys(c.url for c in chunks))
+    versions = doc_crawler.get_stack_versions(product_type)
+
+    telemetry = {
+        "product_type": product_type,
+        "sources": sources[:8],
+        "chunk_count": len(chunks),
+        "cache_hit": False,
+        "ttl_days": 7,
+        "run_id": run_id,
+        "stack_versions": versions,
+    }
+
+    messages.append({
+        "role": "system",
+        "content": f"[Research Node] {json.dumps(telemetry)}"
+    })
     messages.append({
         "role": "system",
         "content": (
-            f"Research Phase Complete: Crawled official documentation for {detected_stack} "
-            f"v{cached_docs.version} ({len(cached_docs.chunks)} chunks indexed into vector store, "
-            f"7-day TTL cache active)."
-        )
+            f"Research Phase Complete: Crawled {len(sources)} documentation sources, "
+            f"built knowledge base with {len(chunks)} chunks for '{product_type}'. "
+            f"Stack versions: {json.dumps(versions)}. TTL: 7 days."
+        ),
     })
-    messages.append({
-        "role": "system",
-        "content": f"[Knowledge Ingested] Stack: {detected_stack}, Version: {cached_docs.version}, Chunks: {len(cached_docs.chunks)}, Source: {cached_docs.source_url}, TTL: 7d"
-    })
+
+    # Emit a preview of the top pattern chunk for transparency
+    if chunks:
+        preview_chunk = chunks[0]
+        messages.append({
+            "role": "system",
+            "content": (
+                f"[Knowledge Base Preview] Top pattern from {preview_chunk.url}:\n"
+                f"```\n{preview_chunk.text[:400]}\n```"
+            )
+        })
 
     return {
         "status": "verified",
         "current_phase": "research",
-        "active_stack": detected_stack,
-        "stack_version": cached_docs.version,
-        "crawled_chunks_count": len(cached_docs.chunks),
-        "docs_cache_ttl": DEFAULT_TTL_SECONDS,
+        "knowledge_sources": sources,
+        "stack_versions": versions,
+        "doc_cache": {
+            f"{run_id}:{product_type}": {
+                "cache_hit": False,
+                "chunk_count": len(chunks),
+                "sources": sources[:5],
+            }
+        },
         "token_usage_per_phase": guard_res["token_usage_per_phase"],
         "token_budget_per_phase": guard_res["token_budget_per_phase"],
         "token_savings": guard_res["token_savings"],
@@ -679,6 +793,8 @@ async def research_phase_node(state: AgentState) -> dict[str, Any]:
         "budget_approvals": guard_res["budget_approvals"],
         "messages": messages,
     }
+
+
 
 
 
@@ -1116,7 +1232,62 @@ async def scaffold_phase_node(state: AgentState) -> dict[str, Any]:
 async def implement_phase_node(state: AgentState) -> dict[str, Any]:
     goal = state.get("goal", "web app")
     variables = state.get("variables") or {}
-    project_id = state.get("project_id") or variables.get("project_id") or "default_project"
+    product_type = state.get("product_type") or "web-app"
+    run_id = state.get("run_id", "unknown")
+
+    # -------------------------------------------------------------------------
+    # RAG PRE-QUERY: Query the knowledge base for current API patterns
+    # before generating any code. Never rely on training-data memory for
+    # library usage — always consult the crawled documentation first.
+    # -------------------------------------------------------------------------
+    kb_context_messages: list[dict[str, str]] = []
+    try:
+        kb_chunks = doc_crawler.query(
+            query_text=goal,
+            product_type=product_type,
+            project_id=run_id,
+            top_k=5,
+        )
+        if kb_chunks:
+            # Format the top retrieved patterns as a knowledge context block
+            pattern_snippets = "\n\n---\n\n".join(
+                f"Source: {chunk.url}\n{chunk.text[:600]}"
+                for chunk in kb_chunks
+            )
+            kb_telemetry = json.dumps({
+                "retrieved_chunks": len(kb_chunks),
+                "product_type": product_type,
+                "sources": [c.url for c in kb_chunks],
+            })
+            kb_context_messages.append({
+                "role": "system",
+                "content": f"[KB Query] {kb_telemetry}",
+            })
+            kb_context_messages.append({
+                "role": "system",
+                "content": (
+                    f"[Knowledge Base Context] Current API patterns for '{product_type}' "
+                    f"retrieved from official documentation:\n\n"
+                    f"```\n{pattern_snippets[:2000]}\n```\n\n"
+                    "Use ONLY the patterns above — do not use outdated or hallucinated APIs."
+                ),
+            })
+            logger.info(
+                "[Implement Node] RAG pre-query retrieved %d chunks for product_type=%s",
+                len(kb_chunks), product_type,
+            )
+        else:
+            # No KB yet (research phase skipped or no matching chunks)
+            kb_context_messages.append({
+                "role": "system",
+                "content": f"[KB Query] No cached knowledge base found for '{product_type}' — proceeding without RAG context.",
+            })
+    except Exception as exc:
+        logger.warning("[Implement Node] RAG pre-query failed: %s", exc)
+        kb_context_messages.append({
+            "role": "system",
+            "content": f"[KB Query] Knowledge base query failed: {exc}",
+        })
 
     # Extract code context, filepath, target symbol, and changed lines
     code_context = (
@@ -1139,12 +1310,6 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
         or ("main.py" if code_context else None)
     )
 
-    crawler = get_doc_crawler()
-    active_stack = state.get("active_stack") or crawler.detect_stack(goal=goal)
-
-    # Query knowledge base for current API patterns before coding
-    doc_chunks = crawler.query_api_patterns(stack=active_stack, query=goal, project_id=project_id)
-
     guard_res = execute_phase_token_guard(
         phase="implement",
         state=state,
@@ -1156,57 +1321,14 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
     )
 
     processed_code = guard_res.get("processed_code")
-    messages = list(guard_res.get("telemetry_messages", []))
+    messages = kb_context_messages + list(guard_res.get("telemetry_messages", []))
     messages.append({"role": "system", "content": "Implement Phase Complete: Core modules coded."})
-    if doc_chunks:
-        messages.append({
-            "role": "system",
-            "content": f"[Knowledge Query] Queried knowledge base for {active_stack} current API patterns. Verified latest official standards."
-        })
 
-    # Prepare code implementation
-    if processed_code:
-        raw_code = processed_code
-    elif code_context:
-        raw_code = code_context
-    elif active_stack == "fastapi":
-        raw_code = (
-            "from contextlib import asynccontextmanager\n"
-            "from typing import Annotated\n"
-            "from fastapi import FastAPI, Depends, HTTPException\n"
-            "from pydantic import BaseModel, Field\n\n"
-            "@asynccontextmanager\n"
-            "async def lifespan(app: FastAPI):\n"
-            "    # Modern lifespan initialization\n"
-            "    yield\n"
-            "    # Clean shutdown logic\n\n"
-            "app = FastAPI(title=\"ASEP Service\", lifespan=lifespan)\n\n"
-            "class Item(BaseModel):\n"
-            "    name: str = Field(..., min_length=1)\n"
-            "    price: float = Field(gt=0)\n\n"
-            "@app.get(\"/health\")\n"
-            "def health_check():\n"
-            "    return {\"status\": \"ok\"}\n\n"
-            "@app.post(\"/items\")\n"
-            "def create_item(item: Item):\n"
-            "    data = item.model_dump()\n"
-            "    return {\"status\": \"created\", \"item\": data}\n"
-        )
-    else:
-        raw_code = f"# {goal}\nprint('Implementation complete')\n"
-
-    # Enforce current patterns and purge deprecated syntax
-    final_code, violations = crawler.validate_and_patch_code_patterns(raw_code, active_stack)
-    if violations:
-        messages.append({
-            "role": "system",
-            "content": f"[Pattern Enforcement] Modernized deprecated syntax: {'; '.join(violations)}"
-        })
-
+    final_code = processed_code or code_context or f"# {goal}\nprint('Implementation complete')\n"
     if processed_code:
         messages.append({
             "role": "assistant",
-            "content": f"### Implementation Updated\n\n```python\n{final_code}\n```"
+            "content": f"### Implementation Updated\n\n```python\n{processed_code}\n```"
         })
     else:
         messages.append({
@@ -1220,8 +1342,6 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
         "generated_code": final_code,
         "file_content": final_code,
         "code_context": final_code,
-        "active_stack": active_stack,
-        "retrieved_patterns_count": len(doc_chunks),
         "token_usage_per_phase": guard_res["token_usage_per_phase"],
         "token_budget_per_phase": guard_res["token_budget_per_phase"],
         "token_savings": guard_res["token_savings"],
@@ -1229,7 +1349,6 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
         "budget_approvals": guard_res["budget_approvals"],
         "messages": messages,
     }
-
 
 
 async def critic_node(state: AgentState) -> dict[str, Any]:

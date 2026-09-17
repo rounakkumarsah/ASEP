@@ -1,782 +1,734 @@
 """
-ASEP — Autonomous Research Agent & Knowledge Crawler
-=====================================================
-Crawls official documentation sources for detected technology stacks,
-extracts latest stable versions, chunks and embeds documentation for
-semantic vector search, caches per project with a 7-day TTL, and
-provides current API patterns to coding agents so they never rely on
-stale training-data memory.
+ASEP — Autonomous Documentation Crawler & Knowledge Base
+=========================================================
+Crawls official documentation sources for detected stack/product types,
+chunks content, indexes with TF-IDF cosine similarity, and exposes a
+vector-searchable knowledge base with 7-day TTL caching.
+
+No external embedding API calls — uses stdlib math + TF-IDF so the
+entire module works offline, on Windows, with no GPU.
 """
 
 from __future__ import annotations
 
-import hashlib
-import json
+import asyncio
 import logging
 import math
-import os
 import re
 import time
-import urllib.request
-import urllib.error
+from collections import Counter
 from dataclasses import dataclass, field
-from pathlib import Path
+from datetime import datetime, timedelta
+from html.parser import HTMLParser
 from typing import Any
+from urllib.parse import urljoin, urlparse
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_TTL_SECONDS = 7 * 24 * 3600  # 7 days
+# ---------------------------------------------------------------------------
+# Documentation source registry
+# Maps detected product_type / stack keywords → list of official doc URLs
+# ---------------------------------------------------------------------------
+DOC_SOURCE_REGISTRY: dict[str, list[str]] = {
+    # Python web frameworks
+    "fastapi": [
+        "https://fastapi.tiangolo.com/tutorial/",
+        "https://fastapi.tiangolo.com/tutorial/first-steps/",
+        "https://fastapi.tiangolo.com/tutorial/path-params/",
+        "https://fastapi.tiangolo.com/tutorial/query-params/",
+        "https://fastapi.tiangolo.com/tutorial/body/",
+        "https://fastapi.tiangolo.com/tutorial/dependencies/",
+        "https://fastapi.tiangolo.com/tutorial/security/",
+    ],
+    "flask": [
+        "https://flask.palletsprojects.com/en/stable/quickstart/",
+        "https://flask.palletsprojects.com/en/stable/tutorial/",
+    ],
+    "django": [
+        "https://docs.djangoproject.com/en/stable/intro/tutorial01/",
+        "https://docs.djangoproject.com/en/stable/topics/http/views/",
+        "https://docs.djangoproject.com/en/stable/ref/models/",
+    ],
+    # JavaScript / TypeScript frontend
+    "react": [
+        "https://react.dev/learn",
+        "https://react.dev/reference/react",
+        "https://react.dev/learn/state-a-components-memory",
+    ],
+    "nextjs": [
+        "https://nextjs.org/docs/getting-started/installation",
+        "https://nextjs.org/docs/app/building-your-application/routing",
+        "https://nextjs.org/docs/app/building-your-application/data-fetching",
+    ],
+    "vue": [
+        "https://vuejs.org/guide/introduction.html",
+        "https://vuejs.org/guide/essentials/reactivity-fundamentals.html",
+    ],
+    "svelte": [
+        "https://svelte.dev/docs/introduction",
+        "https://svelte.dev/docs/svelte-components",
+    ],
+    # Backend / API
+    "api": [
+        "https://fastapi.tiangolo.com/tutorial/",
+        "https://fastapi.tiangolo.com/tutorial/first-steps/",
+        "https://fastapi.tiangolo.com/tutorial/path-params/",
+        "https://fastapi.tiangolo.com/tutorial/body/",
+        "https://fastapi.tiangolo.com/tutorial/dependencies/",
+    ],
+    # Generic web-app / app / website
+    "web-app": [
+        "https://react.dev/learn",
+        "https://fastapi.tiangolo.com/tutorial/",
+    ],
+    "app": [
+        "https://react.dev/learn",
+        "https://fastapi.tiangolo.com/tutorial/",
+    ],
+    "website": [
+        "https://nextjs.org/docs/getting-started/installation",
+        "https://nextjs.org/docs/app/building-your-application/routing",
+    ],
+    "bot": [
+        "https://fastapi.tiangolo.com/tutorial/",
+        "https://docs.python-telegram-bot.org/en/stable/",
+    ],
+    # AI / ML
+    "ai_agent": [
+        "https://python.langchain.com/docs/concepts/",
+        "https://python.langchain.com/docs/how_to/",
+        "https://fastapi.tiangolo.com/tutorial/",
+    ],
+    "agentic_ai": [
+        "https://python.langchain.com/docs/concepts/",
+        "https://python.langchain.com/docs/how_to/",
+    ],
+    "ai_automation": [
+        "https://python.langchain.com/docs/concepts/",
+        "https://fastapi.tiangolo.com/tutorial/",
+    ],
+    # Package registries / version lookup
+    "npm": [
+        "https://docs.npmjs.com/about-npm",
+        "https://docs.npmjs.com/cli/v10/commands/npm-install",
+    ],
+    "pip": [
+        "https://pip.pypa.io/en/stable/",
+        "https://pypi.org/",
+    ],
+}
+
+# Fallback version hints for common packages (refreshed from docs when crawled)
+_KNOWN_STABLE_VERSIONS: dict[str, str] = {
+    "fastapi": "0.115.x",
+    "react": "18.x",
+    "nextjs": "14.x",
+    "django": "5.x",
+    "flask": "3.x",
+    "vue": "3.x",
+}
 
 
-# =============================================================================
-# DATA MODELS
-# =============================================================================
+# ---------------------------------------------------------------------------
+# HTML → plain text stripper (stdlib only)
+# ---------------------------------------------------------------------------
+class _HTMLTextExtractor(HTMLParser):
+    """Strips all HTML tags and collects visible text content."""
 
+    SKIP_TAGS = frozenset({"script", "style", "nav", "footer", "head", "meta", "link"})
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._parts: list[str] = []
+        self._skip_depth: int = 0
+
+    def handle_starttag(self, tag: str, attrs: list) -> None:
+        if tag.lower() in self.SKIP_TAGS:
+            self._skip_depth += 1
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag.lower() in self.SKIP_TAGS:
+            self._skip_depth = max(0, self._skip_depth - 1)
+
+    def handle_data(self, data: str) -> None:
+        if self._skip_depth == 0 and data.strip():
+            self._parts.append(data)
+
+    def get_text(self) -> str:
+        return " ".join(self._parts)
+
+
+def _html_to_text(html: str) -> str:
+    """Convert HTML to plain text using stdlib HTMLParser."""
+    extractor = _HTMLTextExtractor()
+    try:
+        extractor.feed(html)
+    except Exception:
+        pass
+    text = extractor.get_text()
+    # Collapse whitespace
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+# ---------------------------------------------------------------------------
+# Dataclasses
+# ---------------------------------------------------------------------------
 @dataclass
 class DocChunk:
-    """Semantic chunk of official documentation with vector representation."""
-    chunk_id: str
-    stack: str
-    title: str
+    """A single chunk of crawled documentation."""
+
     url: str
-    version: str
-    section: str
-    content: str
-    code_snippets: list[str] = field(default_factory=list)
-    anti_patterns: list[str] = field(default_factory=list)
-    recommended_patterns: list[str] = field(default_factory=list)
-    tags: list[str] = field(default_factory=list)
-    embedding: list[float] = field(default_factory=list)
+    text: str
+    tokens: int
+    product_type: str
+    project_id: str
+    crawled_at: datetime = field(default_factory=datetime.utcnow)
+    chunk_index: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "chunk_id": self.chunk_id,
-            "stack": self.stack,
-            "title": self.title,
             "url": self.url,
-            "version": self.version,
-            "section": self.section,
-            "content": self.content,
-            "code_snippets": self.code_snippets,
-            "anti_patterns": self.anti_patterns,
-            "recommended_patterns": self.recommended_patterns,
-            "tags": self.tags,
+            "text": self.text[:300],  # truncate for SSE display
+            "tokens": self.tokens,
+            "product_type": self.product_type,
+            "project_id": self.project_id,
+            "crawled_at": self.crawled_at.isoformat(),
+            "chunk_index": self.chunk_index,
         }
 
 
 @dataclass
-class CachedStackDocs:
-    """Cached documentation record for a specific project and tech stack."""
-    project_id: str
-    stack: str
-    version: str
-    created_at: float
-    expires_at: float
+class KnowledgeBaseIndex:
+    """In-memory TF-IDF index over crawled documentation chunks."""
+
     chunks: list[DocChunk] = field(default_factory=list)
-    source_url: str = ""
-
-    def is_expired(self, current_time: float | None = None) -> bool:
-        now = current_time if current_time is not None else time.time()
-        return now >= self.expires_at
-
-
-# =============================================================================
-# VECTOR EMBEDDING & SEARCH INDEX
-# =============================================================================
-
-class VectorSearchIndex:
-    """
-    Lightweight, deterministic semantic vector search index.
-    Generates term-frequency and sub-word n-gram embedding vectors,
-    normalizes them to unit spheres, and performs cosine similarity search.
-    """
-
-    def __init__(self) -> None:
-        self.chunks: list[DocChunk] = []
-        self._vocabulary: dict[str, int] = {}
-
-    def _tokenize(self, text: str) -> list[str]:
-        # Normalize and split into words and code identifiers
-        tokens = re.findall(r"[a-zA-Z_][a-zA-Z0-9_\.]*", text.lower())
-        return tokens
-
-    def _compute_embedding(self, text: str) -> list[float]:
-        tokens = self._tokenize(text)
-        if not tokens:
-            return [0.0] * 64
-
-        # 64-dimensional feature hashing projection
-        dim = 64
-        vec = [0.0] * dim
-        for token in tokens:
-            # Hash token into bucket and sign
-            h = int(hashlib.md5(token.encode("utf-8")).hexdigest()[:8], 16)
-            bucket = h % dim
-            sign = 1.0 if ((h >> 8) & 1) else -1.0
-            vec[bucket] += sign
-
-        # L2 normalization
-        norm = math.sqrt(sum(x * x for x in vec))
-        if norm > 0:
-            vec = [x / norm for x in vec]
-        return vec
-
-    def index_chunk(self, chunk: DocChunk) -> None:
-        if not chunk.embedding:
-            # Generate embedding over title, section, tags, and content
-            text_to_embed = f"{chunk.title} {chunk.section} {' '.join(chunk.tags)} {chunk.content}"
-            chunk.embedding = self._compute_embedding(text_to_embed)
-        self.chunks.append(chunk)
-
-    def search(
-        self,
-        query: str,
-        top_k: int = 3,
-        stack_filter: str | None = None,
-        min_score: float = 0.05,
-    ) -> list[tuple[DocChunk, float]]:
-        """Perform semantic cosine similarity search."""
-        query_vec = self._compute_embedding(query)
-        results: list[tuple[DocChunk, float]] = []
-
-        for chunk in self.chunks:
-            if stack_filter and chunk.stack.lower() != stack_filter.lower():
-                continue
-
-            chunk_vec = chunk.embedding or self._compute_embedding(
-                f"{chunk.title} {chunk.section} {chunk.content}"
-            )
-
-            # Cosine similarity between two unit vectors = dot product
-            dot = sum(q * c for q, c in zip(query_vec, chunk_vec))
-            # Text token overlap bonus
-            query_tokens = set(self._tokenize(query))
-            chunk_tokens = set(self._tokenize(f"{chunk.title} {chunk.section} {chunk.content}"))
-            overlap = len(query_tokens.intersection(chunk_tokens)) / max(1, len(query_tokens))
-            combined_score = 0.7 * dot + 0.3 * overlap
-
-            if combined_score >= min_score:
-                results.append((chunk, combined_score))
-
-        results.sort(key=lambda x: x[1], reverse=True)
-        return results[:top_k]
+    # TF-IDF vectors: chunk_index → {term: tfidf_score}
+    tfidf_vectors: list[dict[str, float]] = field(default_factory=list)
+    # IDF scores: term → idf
+    idf: dict[str, float] = field(default_factory=dict)
+    crawled_at: datetime = field(default_factory=datetime.utcnow)
 
 
-# =============================================================================
-# OFFICIAL DOCUMENTATION REGISTRY & CRAWLER
-# =============================================================================
-
-# Authoritative definitions of official documentation sources
-OFFICIAL_STACK_SOURCES: dict[str, dict[str, Any]] = {
-    "fastapi": {
-        "name": "FastAPI",
-        "docs_url": "https://fastapi.tiangolo.com",
-        "registry_url": "https://pypi.org/pypi/fastapi/json",
-        "default_version": "0.115.6",
-        "aliases": ["fastapi", "fast-api", "python api", "fastapi backend"],
-        "deprecated_patterns": [
-            r"@app\.on_event\(\s*[\"']startup[\"']\s*\)",
-            r"@app\.on_event\(\s*[\"']shutdown[\"']\s*\)",
-            r"\.dict\(\)",
-            r"\.parse_obj\(",
-            r"\.copy\(update=",
-        ],
-        "recommended_patterns": [
-            "@asynccontextmanager async def lifespan(app: FastAPI):",
-            "app = FastAPI(lifespan=lifespan)",
-            "model.model_dump()",
-            "Model.model_validate()",
-            "Annotated[Session, Depends(get_db)]",
-        ],
-    },
-    "react": {
-        "name": "React",
-        "docs_url": "https://react.dev",
-        "registry_url": "https://registry.npmjs.org/react/latest",
-        "default_version": "19.0.0",
-        "aliases": ["react", "react.js", "reactjs", "frontend", "react app"],
-        "deprecated_patterns": [
-            r"React\.createClass",
-            r"componentWillMount",
-            r"componentWillReceiveProps",
-            r"findDOMNode",
-        ],
-        "recommended_patterns": [
-            "function Component({ ... }: Props)",
-            "const [state, setState] = useState()",
-            "useEffect(() => { ... }, [deps])",
-            "useActionState",
-        ],
-    },
-    "nextjs": {
-        "name": "Next.js",
-        "docs_url": "https://nextjs.org/docs",
-        "registry_url": "https://registry.npmjs.org/next/latest",
-        "default_version": "15.1.0",
-        "aliases": ["nextjs", "next.js", "next", "app router"],
-        "deprecated_patterns": [
-            r"getInitialProps",
-            r"getServerSideProps",
-            r"pages/_app\.tsx",
-        ],
-        "recommended_patterns": [
-            "app/page.tsx",
-            "app/layout.tsx",
-            "'use client'",
-            "export async function action(formData: FormData)",
-        ],
-    },
-    "pydantic": {
-        "name": "Pydantic",
-        "docs_url": "https://docs.pydantic.dev/latest",
-        "registry_url": "https://pypi.org/pypi/pydantic/json",
-        "default_version": "2.10.4",
-        "aliases": ["pydantic", "pydantic v2", "pydantic2"],
-        "deprecated_patterns": [
-            r"class Config:",
-            r"\.dict\(",
-            r"\.parse_obj\(",
-            r"\.copy\(",
-        ],
-        "recommended_patterns": [
-            "model_config = ConfigDict(strict=True)",
-            "model.model_dump()",
-            "Model.model_validate()",
-            "Field(..., min_length=1)",
-        ],
-    },
-}
+# ---------------------------------------------------------------------------
+# TF-IDF helpers
+# ---------------------------------------------------------------------------
+_STOP_WORDS = frozenset({
+    "a", "an", "the", "is", "it", "in", "on", "at", "to", "for",
+    "of", "and", "or", "with", "by", "as", "be", "was", "are",
+    "this", "that", "from", "which", "you", "we", "can", "has",
+    "have", "will", "not", "but", "if", "so", "do", "get", "use",
+    "used", "also", "more", "than", "when", "what", "how",
+})
 
 
-# Pre-curated authoritative documentation knowledge base for instantaneous
-# offline resiliency and deterministic testing.
-CURATED_OFFICIAL_DOCS: dict[str, list[dict[str, Any]]] = {
-    "fastapi": [
-        {
-            "title": "FastAPI Lifespan Events",
-            "section": "Events & Lifespan Context Manager",
-            "url": "https://fastapi.tiangolo.com/advanced/events/#lifespan",
-            "tags": ["lifespan", "startup", "shutdown", "events", "contextmanager"],
-            "content": """
-In modern FastAPI (0.93.0+), do not use the deprecated `@app.on_event("startup")`
-or `@app.on_event("shutdown")`. Instead, use the `lifespan` parameter with an
-`@asynccontextmanager` context manager.
-
-```python
-from contextlib import asynccontextmanager
-from fastapi import FastAPI
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup logic: initialize database pools, Redis, or ML models
-    yield
-    # Shutdown logic: close connections, release memory pools
-
-app = FastAPI(title="ASEP Service", lifespan=lifespan)
-```
-""",
-            "code_snippets": [
-                "from contextlib import asynccontextmanager\nfrom fastapi import FastAPI\n\n@asynccontextmanager\nasync def lifespan(app: FastAPI):\n    yield\n\napp = FastAPI(lifespan=lifespan)",
-            ],
-            "anti_patterns": [
-                "@app.on_event('startup')",
-                "@app.on_event('shutdown')",
-            ],
-            "recommended_patterns": [
-                "@asynccontextmanager async def lifespan(app: FastAPI):",
-                "app = FastAPI(lifespan=lifespan)",
-            ],
-        },
-        {
-            "title": "FastAPI with Pydantic V2 Models",
-            "section": "Pydantic V2 Compatibility",
-            "url": "https://fastapi.tiangolo.com/tutorial/body/",
-            "tags": ["pydantic", "pydantic-v2", "model_dump", "schema", "validation"],
-            "content": """
-FastAPI uses Pydantic V2. In Pydantic V2:
-- Replace `.dict()` with `.model_dump()`
-- Replace `.parse_obj()` with `.model_validate()`
-- Replace `.schema()` with `.model_json_schema()`
-- Use `ConfigDict` instead of inner `class Config:`
-
-```python
-from pydantic import BaseModel, Field
-
-class Item(BaseModel):
-    name: str = Field(..., min_length=1)
-    price: float = Field(gt=0)
-
-item = Item(name="Widget", price=19.99)
-item_dict = item.model_dump()
-```
-""",
-            "code_snippets": [
-                "item_dict = item.model_dump()\nitem = Item.model_validate(raw_dict)",
-            ],
-            "anti_patterns": [
-                "item.dict()",
-                "Item.parse_obj(data)",
-            ],
-            "recommended_patterns": [
-                "item.model_dump()",
-                "Item.model_validate(data)",
-            ],
-        },
-        {
-            "title": "FastAPI Dependency Injection with Annotated",
-            "section": "Dependencies & Typing",
-            "url": "https://fastapi.tiangolo.com/tutorial/dependencies/",
-            "tags": ["dependencies", "annotated", "depends", "typing"],
-            "content": """
-The recommended modern pattern for FastAPI dependencies is using `Annotated`:
-
-```python
-from typing import Annotated
-from fastapi import Depends, FastAPI
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-DbSession = Annotated[Session, Depends(get_db)]
-
-@app.get("/items")
-def read_items(db: DbSession):
-    return db.query(Item).all()
-```
-""",
-            "code_snippets": [
-                "DbSession = Annotated[Session, Depends(get_db)]",
-            ],
-            "anti_patterns": [
-                "db: Session = Depends(get_db)",
-            ],
-            "recommended_patterns": [
-                "Annotated[Session, Depends(get_db)]",
-            ],
-        },
-    ],
-    "react": [
-        {
-            "title": "React 19 Hooks and State",
-            "section": "Modern React Hooks",
-            "url": "https://react.dev/reference/react",
-            "tags": ["hooks", "useState", "useEffect", "react19"],
-            "content": """
-Modern React exclusively uses functional components with hooks.
-Never use legacy class components or `createClass`.
-
-```tsx
-import React, { useState, useEffect } from 'react';
-
-export function UserList() {
-  const [users, setUsers] = useState<User[]>([]);
-  
-  useEffect(() => {
-    fetchUsers().then(setUsers);
-  }, []);
-
-  return <ul>{users.map(u => <li key={u.id}>{u.name}</li>)}</ul>;
-}
-```
-""",
-            "code_snippets": [
-                "export function Component() { const [val, setVal] = useState(); return <div>...</div>; }",
-            ],
-            "anti_patterns": ["React.createClass", "componentWillMount"],
-            "recommended_patterns": ["useState", "useEffect", "useCallback"],
-        },
-    ],
-    "nextjs": [
-        {
-            "title": "Next.js App Router Architecture",
-            "section": "Routing and Server Components",
-            "url": "https://nextjs.org/docs/app",
-            "tags": ["app-router", "server-components", "layout", "page"],
-            "content": """
-Next.js 14 and 15 use the App Router (`app/` directory).
-Components are Server Components by default. Add `'use client'` at the top
-only when using hooks or interactive browser events.
-""",
-            "code_snippets": [
-                "export default async function Page() { return <main>...</main>; }",
-            ],
-            "anti_patterns": ["getInitialProps", "pages/index.tsx"],
-            "recommended_patterns": ["app/page.tsx", "app/layout.tsx", "'use client'"],
-        },
-    ],
-}
+def _tokenize(text: str) -> list[str]:
+    """Simple whitespace + punctuation tokenizer, lowercased, stop-words removed."""
+    tokens = re.findall(r"[a-z_][a-z0-9_\.]{1,40}", text.lower())
+    return [t for t in tokens if t not in _STOP_WORDS and len(t) >= 2]
 
 
-# =============================================================================
-# PROJECT DOC CACHE (7-DAY TTL)
-# =============================================================================
-
-class ProjectDocCache:
-    """
-    Thread-safe project documentation cache with 7-day TTL expiration.
-    Caches crawled and indexed chunks both in-memory and on disk per project.
-    """
-
-    def __init__(self, cache_dir: str | Path | None = None) -> None:
-        if cache_dir:
-            self.cache_dir = Path(cache_dir)
-        else:
-            workspace_root = os.environ.get("WORKSPACE_ROOT", os.getcwd())
-            self.cache_dir = Path(workspace_root) / ".asep" / "knowledge_cache"
-        
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
-        self._memory_cache: dict[str, CachedStackDocs] = {}
-
-    def _cache_key(self, project_id: str, stack: str) -> str:
-        clean_proj = re.sub(r"[^a-zA-Z0-9_\-]", "_", project_id)
-        clean_stack = re.sub(r"[^a-zA-Z0-9_\-]", "_", stack.lower())
-        return f"{clean_proj}_{clean_stack}"
-
-    def get(self, project_id: str, stack: str, current_time: float | None = None) -> CachedStackDocs | None:
-        key = self._cache_key(project_id, stack)
-        
-        # Check in-memory first
-        if key in self._memory_cache:
-            entry = self._memory_cache[key]
-            if not entry.is_expired(current_time):
-                return entry
-            else:
-                logger.info(f"In-memory doc cache expired for {key}")
-                del self._memory_cache[key]
-
-        # Check disk cache
-        disk_path = self.cache_dir / f"{key}.json"
-        if disk_path.exists():
-            try:
-                data = json.loads(disk_path.read_text(encoding="utf-8"))
-                expires_at = data.get("expires_at", 0)
-                now = current_time if current_time is not None else time.time()
-                if now < expires_at:
-                    chunks = [DocChunk(**c) for c in data.get("chunks", [])]
-                    entry = CachedStackDocs(
-                        project_id=project_id,
-                        stack=stack,
-                        version=data.get("version", "1.0.0"),
-                        created_at=data.get("created_at", now),
-                        expires_at=expires_at,
-                        chunks=chunks,
-                        source_url=data.get("source_url", ""),
-                    )
-                    self._memory_cache[key] = entry
-                    return entry
-                else:
-                    logger.info(f"Disk doc cache expired for {key}, cleaning up")
-                    disk_path.unlink(missing_ok=True)
-            except Exception as e:
-                logger.warning(f"Failed to read disk cache {disk_path}: {e}")
-
-        return None
-
-    def set(
-        self,
-        project_id: str,
-        stack: str,
-        version: str,
-        chunks: list[DocChunk],
-        source_url: str = "",
-        ttl_seconds: int = DEFAULT_TTL_SECONDS,
-        current_time: float | None = None,
-    ) -> CachedStackDocs:
-        now = current_time if current_time is not None else time.time()
-        expires_at = now + ttl_seconds
-        key = self._cache_key(project_id, stack)
-
-        entry = CachedStackDocs(
-            project_id=project_id,
-            stack=stack,
-            version=version,
-            created_at=now,
-            expires_at=expires_at,
-            chunks=chunks,
-            source_url=source_url,
-        )
-
-        self._memory_cache[key] = entry
-
-        # Persist to disk
-        disk_path = self.cache_dir / f"{key}.json"
-        try:
-            payload = {
-                "project_id": project_id,
-                "stack": stack,
-                "version": version,
-                "created_at": now,
-                "expires_at": expires_at,
-                "source_url": source_url,
-                "chunks": [c.to_dict() for c in chunks],
-            }
-            disk_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-        except Exception as e:
-            logger.warning(f"Failed to write disk cache {disk_path}: {e}")
-
-        return entry
-
-    def invalidate(self, project_id: str, stack: str) -> None:
-        key = self._cache_key(project_id, stack)
-        self._memory_cache.pop(key, None)
-        disk_path = self.cache_dir / f"{key}.json"
-        if disk_path.exists():
-            disk_path.unlink(missing_ok=True)
+def _compute_tf(tokens: list[str]) -> dict[str, float]:
+    counter = Counter(tokens)
+    total = len(tokens) or 1
+    return {term: count / total for term, count in counter.items()}
 
 
-# =============================================================================
-# AUTONOMOUS DOC CRAWLER ENGINE
-# =============================================================================
+def _build_idf(all_token_lists: list[list[str]]) -> dict[str, float]:
+    N = len(all_token_lists) or 1
+    doc_freq: Counter[str] = Counter()
+    for tokens in all_token_lists:
+        for term in set(tokens):
+            doc_freq[term] += 1
+    return {term: math.log((N + 1) / (df + 1)) + 1.0 for term, df in doc_freq.items()}
+
+
+def _tfidf_vector(tf: dict[str, float], idf: dict[str, float]) -> dict[str, float]:
+    return {term: tf_val * idf.get(term, 1.0) for term, tf_val in tf.items()}
+
+
+def _cosine_similarity(vec_a: dict[str, float], vec_b: dict[str, float]) -> float:
+    if not vec_a or not vec_b:
+        return 0.0
+    dot = sum(vec_a.get(t, 0.0) * vec_b.get(t, 0.0) for t in vec_b)
+    norm_a = math.sqrt(sum(v * v for v in vec_a.values())) or 1.0
+    norm_b = math.sqrt(sum(v * v for v in vec_b.values())) or 1.0
+    return dot / (norm_a * norm_b)
+
+
+# ---------------------------------------------------------------------------
+# DocCrawler
+# ---------------------------------------------------------------------------
+_TTL_DAYS = 7
+_CHUNK_MAX_TOKENS = 400
+_HTTP_TIMEOUT = 15.0
+
 
 class DocCrawler:
     """
-    Autonomous Documentation Crawler & Research Engine.
-    Detects technology stacks from goals or specifications,
-    crawls official documentation, indexes semantic chunks,
-    caches with 7-day TTL, and extracts current API patterns.
+    Autonomous documentation crawler and in-memory knowledge base.
+
+    Usage::
+
+        crawler = DocCrawler()
+        chunks = await crawler.crawl_and_index("fastapi", project_id="run-123")
+        results = crawler.query("how to create a route with path parameters", "fastapi")
     """
 
-    def __init__(self, cache: ProjectDocCache | None = None) -> None:
-        self.cache = cache or ProjectDocCache()
-        self.search_index = VectorSearchIndex()
+    def __init__(self) -> None:
+        # Cache key: f"{project_id}:{product_type}" → KnowledgeBaseIndex
+        self._index: dict[str, KnowledgeBaseIndex] = {}
 
-    def detect_stack(self, goal: str, product_type: str | None = None) -> str:
-        """
-        Detect the target stack from user's product type or goal.
-        Defaults to fastapi if backend API requested, or react for web apps.
-        """
-        text = f"{product_type or ''} {goal or ''}".lower()
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
 
-        # Check explicit mappings
-        for stack, info in OFFICIAL_STACK_SOURCES.items():
-            if stack in text:
-                return stack
-            for alias in info.get("aliases", []):
-                if alias in text:
-                    return stack
+    def is_cache_fresh(self, project_id: str, product_type: str) -> bool:
+        """Return True if cached docs are within the 7-day TTL."""
+        key = self._cache_key(project_id, product_type)
+        if key not in self._index:
+            return False
+        kb = self._index[key]
+        if not kb.chunks:
+            return False
+        age = datetime.utcnow() - kb.crawled_at
+        return age < timedelta(days=_TTL_DAYS)
 
-        # Heuristic keywords
-        if any(w in text for w in ["fastapi", "python backend", "rest api", "crud api", "pydantic"]):
-            return "fastapi"
-        if any(w in text for w in ["nextjs", "next.js"]):
-            return "nextjs"
-        if any(w in text for w in ["react", "frontend", "ui", "web app", "dashboard"]):
-            return "react"
-
-        return "fastapi"  # Default backend stack for Python ASEP
-
-    def fetch_latest_version(self, stack: str, timeout_sec: float = 1.5) -> str:
-        """Fetch latest stable release version from PyPI or npm registry."""
-        info = OFFICIAL_STACK_SOURCES.get(stack.lower())
-        if not info:
-            return "1.0.0"
-
-        registry_url = info.get("registry_url")
-        default_version = info.get("default_version", "1.0.0")
-
-        if not registry_url:
-            return default_version
-
-        try:
-            req = urllib.request.Request(
-                registry_url,
-                headers={"User-Agent": "ASEP-Research-Agent/0.2.0"},
-            )
-            with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-                if "info" in data and "version" in data["info"]:
-                    # PyPI format
-                    return data["info"]["version"]
-                elif "version" in data:
-                    # npm registry format
-                    return data["version"]
-        except Exception as e:
-            logger.debug(f"Live version fetch for {stack} fell back to default ({default_version}): {e}")
-
-        return default_version
-
-    def crawl_and_index(
+    async def crawl_and_index(
         self,
-        stack: str,
-        project_id: str = "default_project",
-        force_refresh: bool = False,
-    ) -> CachedStackDocs:
-        """
-        Autonomously crawls official documentation for the stack,
-        chunks the documentation, indexes into the vector store,
-        and saves in the 7-day TTL project cache.
-        """
-        # Check cache if not forcing refresh
-        if not force_refresh:
-            cached = self.cache.get(project_id, stack)
-            if cached:
-                logger.info(f"Using cached official docs for {stack} (project: {project_id})")
-                # Ensure chunks are indexed in the active search index
-                for c in cached.chunks:
-                    self.search_index.index_chunk(c)
-                return cached
-
-        # Fetch latest version
-        latest_version = self.fetch_latest_version(stack)
-        stack_info = OFFICIAL_STACK_SOURCES.get(stack, {})
-        source_url = stack_info.get("docs_url", f"https://{stack}.org")
-
-        # Ingest and chunk official documentation
-        curated = CURATED_OFFICIAL_DOCS.get(stack, [])
-        chunks: list[DocChunk] = []
-
-        for idx, doc in enumerate(curated):
-            chunk = DocChunk(
-                chunk_id=f"{stack}_{idx}",
-                stack=stack,
-                title=doc["title"],
-                url=doc.get("url", source_url),
-                version=latest_version,
-                section=doc["section"],
-                content=doc["content"],
-                code_snippets=doc.get("code_snippets", []),
-                anti_patterns=doc.get("anti_patterns", []),
-                recommended_patterns=doc.get("recommended_patterns", []),
-                tags=doc.get("tags", []),
-            )
-            self.search_index.index_chunk(chunk)
-            chunks.append(chunk)
-
-        # Store in 7-day TTL cache
-        cached_entry = self.cache.set(
-            project_id=project_id,
-            stack=stack,
-            version=latest_version,
-            chunks=chunks,
-            source_url=source_url,
-            ttl_seconds=DEFAULT_TTL_SECONDS,
-        )
-
-        return cached_entry
-
-    def query_api_patterns(
-        self,
-        stack: str,
-        query: str,
-        project_id: str = "default_project",
-        top_k: int = 3,
+        product_type: str,
+        project_id: str,
+        urls: list[str] | None = None,
     ) -> list[DocChunk]:
         """
-        Queries the knowledge base for current API patterns for the specified stack.
-        Ensures docs are crawled and indexed first.
+        Crawl documentation URLs, chunk, embed, and store in index.
+        Returns all chunks produced.
         """
-        # Ensure stack is crawled and cached
-        self.crawl_and_index(stack, project_id=project_id)
+        resolved_urls = urls or DOC_SOURCE_REGISTRY.get(product_type, [])
+        if not resolved_urls:
+            logger.warning("[DocCrawler] No doc sources found for product_type=%s", product_type)
+            return []
 
-        # Perform semantic search over chunks
-        matches = self.search_index.search(
-            query=query,
-            top_k=top_k,
-            stack_filter=stack,
+        logger.info(
+            "[DocCrawler] Crawling %d URLs for product_type=%s, project_id=%s",
+            len(resolved_urls),
+            product_type,
+            project_id,
         )
 
-        return [chunk for chunk, _score in matches]
+        all_chunks: list[DocChunk] = []
+        for url in resolved_urls:
+            try:
+                html = await self._fetch(url)
+                text = _html_to_text(html)
+                chunks = self._chunk(text, url=url, product_type=product_type, project_id=project_id)
+                all_chunks.extend(chunks)
+                logger.info("[DocCrawler] %s → %d chunks", url, len(chunks))
+            except Exception as exc:
+                logger.warning("[DocCrawler] Failed to fetch %s: %s", url, exc)
+                # Produce a fallback chunk with known pattern hints
+                fallback = self._fallback_chunk(url, product_type, project_id)
+                if fallback:
+                    all_chunks.append(fallback)
 
-    def build_system_prompt_guidance(self, stack: str, query: str, project_id: str = "default_project") -> str:
-        """
-        Builds mandatory API pattern guidance injected into coding agents' prompts,
-        preventing outdated training-data usage.
-        """
-        chunks = self.query_api_patterns(stack, query, project_id=project_id)
-        if not chunks:
-            return ""
+        if not all_chunks:
+            logger.warning("[DocCrawler] No chunks produced for %s — using static fallback", product_type)
+            all_chunks = self._static_fallback_chunks(product_type, project_id)
 
-        version = chunks[0].version
-        lines = [
-            f"### Official {stack.upper()} API Guidance (v{version})",
-            "CRITICAL: Do NOT rely on obsolete training-data memory. Follow these current official API patterns:",
-            "",
+        # Build TF-IDF index
+        key = self._cache_key(project_id, product_type)
+        self._index[key] = self._build_index(all_chunks)
+        logger.info("[DocCrawler] Index built: %d chunks for key=%s", len(all_chunks), key)
+        return all_chunks
+
+    def query(
+        self,
+        query_text: str,
+        product_type: str,
+        project_id: str = "global",
+        top_k: int = 5,
+    ) -> list[DocChunk]:
+        """
+        Return top-k chunks most similar to query_text via cosine similarity.
+        Falls back to empty list if nothing is indexed.
+        """
+        key = self._cache_key(project_id, product_type)
+        # Try project-scoped index first, then global
+        kb = self._index.get(key) or self._index.get(self._cache_key("global", product_type))
+        if kb is None or not kb.chunks:
+            return []
+
+        q_tokens = _tokenize(query_text)
+        q_tf = _compute_tf(q_tokens)
+        q_vec = _tfidf_vector(q_tf, kb.idf)
+
+        scored = [
+            (chunk, _cosine_similarity(q_vec, vec))
+            for chunk, vec in zip(kb.chunks, kb.tfidf_vectors)
         ]
+        scored.sort(key=lambda x: x[1], reverse=True)
+        return [chunk for chunk, score in scored[:top_k] if score > 0.0]
 
-        for chunk in chunks:
-            lines.append(f"#### {chunk.title} ({chunk.section})")
-            if chunk.recommended_patterns:
-                lines.append("**REQUIRED CURRENT PATTERNS:**")
-                for rec in chunk.recommended_patterns:
-                    lines.append(f"- `{rec}`")
-            if chunk.anti_patterns:
-                lines.append("**FORBIDDEN DEPRECATED SYNTAX:**")
-                for anti in chunk.anti_patterns:
-                    lines.append(f"- STRICTLY FORBIDDEN: `{anti}`")
-            lines.append("")
-            if chunk.code_snippets:
-                lines.append("```python" if "python" in stack or "fastapi" in stack else "```typescript")
-                lines.append(chunk.code_snippets[0])
-                lines.append("```")
-                lines.append("")
+    async def refresh(self, project_id: str, product_type: str) -> list[DocChunk]:
+        """Evict stale cache and re-crawl."""
+        key = self._cache_key(project_id, product_type)
+        if key in self._index:
+            del self._index[key]
+            logger.info("[DocCrawler] Cache evicted for key=%s", key)
+        return await self.crawl_and_index(product_type, project_id)
 
-        return "\n".join(lines)
+    def get_cached_chunks(self, project_id: str, product_type: str) -> list[DocChunk]:
+        """Return cached chunks without re-crawling."""
+        key = self._cache_key(project_id, product_type)
+        kb = self._index.get(key)
+        return kb.chunks if kb else []
 
-    def validate_and_patch_code_patterns(self, code: str, stack: str) -> tuple[str, list[str]]:
+    def get_stack_versions(self, product_type: str) -> dict[str, str]:
+        """Return known stable version hints for the product type's stack."""
+        versions: dict[str, str] = {}
+        for keyword, version in _KNOWN_STABLE_VERSIONS.items():
+            if keyword in product_type or product_type in keyword:
+                versions[keyword] = version
+        # Always include the product type itself if known
+        if product_type in _KNOWN_STABLE_VERSIONS:
+            versions[product_type] = _KNOWN_STABLE_VERSIONS[product_type]
+        return versions
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _cache_key(project_id: str, product_type: str) -> str:
+        return f"{project_id}:{product_type}"
+
+    async def _fetch(self, url: str) -> str:
+        """Async HTTP GET with timeout. Returns raw HTML string."""
+        try:
+            import httpx
+            async with httpx.AsyncClient(
+                follow_redirects=True,
+                timeout=_HTTP_TIMEOUT,
+                headers={"User-Agent": "ASEP-DocCrawler/1.0 (autonomous research agent)"},
+            ) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                return response.text
+        except ImportError:
+            # Fallback to urllib if httpx not available
+            import urllib.request
+            with urllib.request.urlopen(url, timeout=int(_HTTP_TIMEOUT)) as resp:
+                return resp.read().decode("utf-8", errors="replace")
+
+    def _chunk(
+        self,
+        text: str,
+        url: str,
+        product_type: str,
+        project_id: str,
+    ) -> list[DocChunk]:
         """
-        Scans generated code for deprecated patterns and replaces or warns.
-        E.g., replaces @app.on_event with modern lifespan.
+        Split text into chunks of at most _CHUNK_MAX_TOKENS tokens,
+        splitting on paragraph or sentence boundaries.
         """
-        violations: list[str] = []
-        modified_code = code
+        if not text.strip():
+            return []
 
-        if stack == "fastapi":
-            # Check for deprecated startup / shutdown
-            if re.search(r"@app\.on_event\(\s*[\"']startup[\"']\s*\)", code):
-                violations.append("Detected deprecated @app.on_event('startup') - migrating to lifespan context manager.")
-            if re.search(r"@app\.on_event\(\s*[\"']shutdown[\"']\s*\)", code):
-                violations.append("Detected deprecated @app.on_event('shutdown') - migrating to lifespan context manager.")
-            if re.search(r"\.dict\(\)", code):
-                violations.append("Detected deprecated Pydantic .dict() - migrating to .model_dump().")
-                modified_code = re.sub(r"([a-zA-Z0-9_]+)\.dict\(\)", r"\1.model_dump()", modified_code)
+        # Split on double-newline (paragraph) or ". " or "\n"
+        paragraphs = re.split(r"\n{2,}|\.\s+(?=[A-Z])", text)
+        chunks: list[DocChunk] = []
+        current_parts: list[str] = []
+        current_tokens = 0
+        now = datetime.utcnow()
 
-            # If @app.on_event is present, transform code to modern lifespan structure
-            if any("on_event" in v for v in violations):
-                modified_code = self._modernize_fastapi_code(modified_code)
+        for para in paragraphs:
+            para = para.strip()
+            if not para:
+                continue
+            # Rough token estimate: 1 token ≈ 4 characters
+            para_tokens = max(1, len(para) // 4)
 
-        return modified_code, violations
+            if current_tokens + para_tokens > _CHUNK_MAX_TOKENS and current_parts:
+                chunk_text = " ".join(current_parts)
+                chunks.append(DocChunk(
+                    url=url,
+                    text=chunk_text,
+                    tokens=current_tokens,
+                    product_type=product_type,
+                    project_id=project_id,
+                    crawled_at=now,
+                    chunk_index=len(chunks),
+                ))
+                current_parts = []
+                current_tokens = 0
+
+            current_parts.append(para)
+            current_tokens += para_tokens
+
+        if current_parts:
+            chunk_text = " ".join(current_parts)
+            chunks.append(DocChunk(
+                url=url,
+                text=chunk_text,
+                tokens=current_tokens,
+                product_type=product_type,
+                project_id=project_id,
+                crawled_at=now,
+                chunk_index=len(chunks),
+            ))
+
+        return chunks
+
+    def _build_index(self, chunks: list[DocChunk]) -> KnowledgeBaseIndex:
+        """Build TF-IDF vectors for all chunks."""
+        all_token_lists = [_tokenize(c.text) for c in chunks]
+        idf = _build_idf(all_token_lists)
+        tfidf_vectors = [
+            _tfidf_vector(_compute_tf(tokens), idf)
+            for tokens in all_token_lists
+        ]
+        return KnowledgeBaseIndex(
+            chunks=chunks,
+            tfidf_vectors=tfidf_vectors,
+            idf=idf,
+            crawled_at=datetime.utcnow(),
+        )
+
+    def _fallback_chunk(self, url: str, product_type: str, project_id: str) -> DocChunk | None:
+        """Produce a minimal fallback chunk from known pattern hints when HTTP fails."""
+        hints = _STATIC_PATTERN_HINTS.get(product_type, [])
+        if not hints:
+            return None
+        text = " ".join(hints[:3])
+        return DocChunk(
+            url=url,
+            text=text,
+            tokens=len(text) // 4,
+            product_type=product_type,
+            project_id=project_id,
+            crawled_at=datetime.utcnow(),
+        )
+
+    def _static_fallback_chunks(self, product_type: str, project_id: str) -> list[DocChunk]:
+        """Return hardcoded pattern hints as chunks when all HTTP fetches fail."""
+        hints = _STATIC_PATTERN_HINTS.get(product_type, _STATIC_PATTERN_HINTS.get("api", []))
+        now = datetime.utcnow()
+        chunks: list[DocChunk] = []
+        for i, hint in enumerate(hints):
+            chunks.append(DocChunk(
+                url=f"static://patterns/{product_type}/{i}",
+                text=hint,
+                tokens=max(1, len(hint) // 4),
+                product_type=product_type,
+                project_id=project_id,
+                crawled_at=now,
+                chunk_index=i,
+            ))
+        return chunks
 
 
-    def _modernize_fastapi_code(self, code: str) -> str:
-        """Converts legacy on_event FastAPI code to modern lifespan context manager."""
-        # Replace deprecated on_event with lifespan
-        clean_code = re.sub(r"@app\.on_event\(\s*[\"'](startup|shutdown)[\"']\s*\)\s*def\s+[a-zA-Z0-9_]+\(\):[\s\S]*?(?=\n\n|\n@|\Z)", "", code)
-        
-        # Ensure contextlib and asynccontextmanager are imported
-        if "from contextlib import asynccontextmanager" not in clean_code:
-            clean_code = "from contextlib import asynccontextmanager\n" + clean_code
+# ---------------------------------------------------------------------------
+# Static pattern hints (used as fallback when HTTP crawl fails)
+# These reflect current stable API patterns for common frameworks.
+# ---------------------------------------------------------------------------
+_STATIC_PATTERN_HINTS: dict[str, list[str]] = {
+    "fastapi": [
+        "from fastapi import FastAPI, HTTPException, Depends, status\n"
+        "from fastapi.security import OAuth2PasswordBearer\n"
+        "app = FastAPI(title='My API', version='1.0.0')\n"
+        "@app.get('/items/{item_id}', response_model=ItemResponse)\n"
+        "async def read_item(item_id: int, db: Session = Depends(get_db)):\n"
+        "    item = await db.get(Item, item_id)\n"
+        "    if not item:\n"
+        "        raise HTTPException(status_code=404, detail='Item not found')\n"
+        "    return item",
 
-        # Add modern lifespan definition if not present
-        if "lifespan" not in clean_code:
-            lifespan_block = (
-                "\n@asynccontextmanager\n"
-                "async def lifespan(app: FastAPI):\n"
-                "    # Modern lifespan initialization\n"
-                "    yield\n"
-                "    # Clean shutdown\n\n"
-            )
-            # Insert after imports
-            import_end = 0
-            for match in re.finditer(r"^(?:from|import)\s+.*$", clean_code, re.MULTILINE):
-                import_end = match.end()
+        "from pydantic import BaseModel, Field\n"
+        "class Item(BaseModel):\n"
+        "    name: str = Field(..., min_length=1, max_length=100)\n"
+        "    price: float = Field(..., gt=0)\n"
+        "    description: str | None = None\n"
+        "@app.post('/items/', response_model=Item, status_code=status.HTTP_201_CREATED)\n"
+        "async def create_item(item: Item, db: AsyncSession = Depends(get_async_db)):\n"
+        "    db.add(item)\n"
+        "    await db.commit()\n"
+        "    return item",
 
-            clean_code = clean_code[:import_end] + "\n" + lifespan_block + clean_code[import_end:].lstrip()
+        "from fastapi import APIRouter\n"
+        "router = APIRouter(prefix='/users', tags=['users'])\n"
+        "@router.get('/{user_id}')\n"
+        "async def get_user(user_id: int, current_user: User = Depends(get_current_user)):\n"
+        "    return current_user\n"
+        "app.include_router(router)\n"
+        "# Use lifespan for startup/shutdown events (FastAPI 0.93+):\n"
+        "from contextlib import asynccontextmanager\n"
+        "@asynccontextmanager\n"
+        "async def lifespan(app: FastAPI):\n"
+        "    # startup\n"
+        "    yield\n"
+        "    # shutdown\n"
+        "app = FastAPI(lifespan=lifespan)",
 
-        # Ensure app = FastAPI(lifespan=lifespan)
-        clean_code = re.sub(r"app\s*=\s*FastAPI\(\s*\)", "app = FastAPI(lifespan=lifespan)", clean_code)
+        "# Dependency injection for database sessions\n"
+        "from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker\n"
+        "engine = create_async_engine(DATABASE_URL, echo=False)\n"
+        "AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)\n"
+        "async def get_async_db():\n"
+        "    async with AsyncSessionLocal() as session:\n"
+        "        yield session",
 
-        return clean_code.strip() + "\n"
+        "# Modern FastAPI security pattern (0.100+)\n"
+        "from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials\n"
+        "security = HTTPBearer()\n"
+        "@app.get('/protected')\n"
+        "async def protected_route(credentials: HTTPAuthorizationCredentials = Depends(security)):\n"
+        "    token = credentials.credentials\n"
+        "    # validate token\n"
+        "    return {'user': 'authenticated'}",
+    ],
+    "react": [
+        "// Modern React 18+ with hooks\n"
+        "import { useState, useEffect, useCallback } from 'react';\n"
+        "function MyComponent({ id }: { id: number }) {\n"
+        "  const [data, setData] = useState<Item | null>(null);\n"
+        "  useEffect(() => {\n"
+        "    fetch(`/api/items/${id}`)\n"
+        "      .then(r => r.json())\n"
+        "      .then(setData);\n"
+        "  }, [id]);\n"
+        "  return <div>{data?.name}</div>;\n"
+        "}",
+
+        "// React Server Components (Next.js App Router / React 18)\n"
+        "// No 'use client' needed for server components\n"
+        "async function Page({ params }: { params: { id: string } }) {\n"
+        "  const data = await fetch(`/api/items/${params.id}`);\n"
+        "  const item = await data.json();\n"
+        "  return <div>{item.name}</div>;\n"
+        "}",
+    ],
+    "nextjs": [
+        "// Next.js 14 App Router — page.tsx\n"
+        "export default async function Page({ params, searchParams }: {\n"
+        "  params: { slug: string };\n"
+        "  searchParams: { [key: string]: string | undefined };\n"
+        "}) {\n"
+        "  return <main><h1>{params.slug}</h1></main>;\n"
+        "}\n"
+        "// Metadata API (Next.js 13+)\n"
+        "export const metadata = { title: 'My App', description: '...' };",
+
+        "// Next.js API Route (app/api/route.ts)\n"
+        "import { NextRequest, NextResponse } from 'next/server';\n"
+        "export async function GET(req: NextRequest) {\n"
+        "  return NextResponse.json({ message: 'ok' });\n"
+        "}\n"
+        "export async function POST(req: NextRequest) {\n"
+        "  const body = await req.json();\n"
+        "  return NextResponse.json(body, { status: 201 });\n"
+        "}",
+    ],
+    "django": [
+        "# Django 5.x views with class-based API\n"
+        "from django.views import View\n"
+        "from django.http import JsonResponse\n"
+        "from django.contrib.auth.mixins import LoginRequiredMixin\n"
+        "class ItemView(LoginRequiredMixin, View):\n"
+        "    def get(self, request, pk):\n"
+        "        item = Item.objects.get(pk=pk)\n"
+        "        return JsonResponse({'name': item.name})\n"
+        "    def post(self, request):\n"
+        "        import json\n"
+        "        data = json.loads(request.body)\n"
+        "        item = Item.objects.create(**data)\n"
+        "        return JsonResponse({'id': item.pk}, status=201)",
+    ],
+    "flask": [
+        "# Flask 3.x — modern patterns\n"
+        "from flask import Flask, jsonify, request, abort\n"
+        "from flask.views import MethodView\n"
+        "app = Flask(__name__)\n"
+        "class ItemAPI(MethodView):\n"
+        "    def get(self, item_id):\n"
+        "        item = Item.query.get_or_404(item_id)\n"
+        "        return jsonify(item.to_dict())\n"
+        "    def post(self):\n"
+        "        data = request.get_json()\n"
+        "        item = Item(**data)\n"
+        "        db.session.add(item)\n"
+        "        db.session.commit()\n"
+        "        return jsonify(item.to_dict()), 201\n"
+        "app.add_url_rule('/items/<int:item_id>', view_func=ItemAPI.as_view('item_api'))",
+    ],
+    "vue": [
+        "// Vue 3 Composition API\n"
+        "<script setup lang='ts'>\n"
+        "import { ref, computed, onMounted } from 'vue';\n"
+        "const count = ref(0);\n"
+        "const doubled = computed(() => count.value * 2);\n"
+        "onMounted(() => console.log('mounted'));\n"
+        "</script>",
+    ],
+    "api": [
+        "from fastapi import FastAPI, HTTPException, Depends, status\n"
+        "from fastapi.security import OAuth2PasswordBearer\n"
+        "app = FastAPI(title='My API', version='1.0.0')\n"
+        "@app.get('/items/{item_id}')\n"
+        "async def read_item(item_id: int, db: AsyncSession = Depends(get_async_db)):\n"
+        "    item = await db.get(Item, item_id)\n"
+        "    if not item:\n"
+        "        raise HTTPException(status_code=404, detail='Item not found')\n"
+        "    return item",
+
+        "from pydantic import BaseModel, Field\n"
+        "class ItemCreate(BaseModel):\n"
+        "    name: str = Field(..., min_length=1)\n"
+        "    price: float = Field(..., gt=0)\n"
+        "@app.post('/items/', status_code=status.HTTP_201_CREATED)\n"
+        "async def create_item(item: ItemCreate, db: AsyncSession = Depends(get_async_db)):\n"
+        "    new_item = Item(**item.model_dump())\n"
+        "    db.add(new_item)\n"
+        "    await db.commit()\n"
+        "    return new_item",
+    ],
+    "web-app": [
+        "from fastapi import FastAPI\napp = FastAPI()\n@app.get('/')\nasync def root():\n    return {'message': 'Hello World'}",
+        "import { useState } from 'react';\nfunction App() {\n  const [state, setState] = useState(null);\n  return <div>{state}</div>;\n}",
+    ],
+    "app": [
+        "from fastapi import FastAPI\napp = FastAPI()\n@app.get('/')\nasync def root():\n    return {'message': 'Hello World'}",
+    ],
+    "website": [
+        "// Next.js 14 App Router layout.tsx\n"
+        "export default function RootLayout({ children }: { children: React.ReactNode }) {\n"
+        "  return <html lang='en'><body>{children}</body></html>;\n"
+        "}",
+    ],
+    "bot": [
+        "from telegram.ext import Application, CommandHandler\n"
+        "from telegram import Update\n"
+        "from telegram.ext import ContextTypes\n"
+        "async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:\n"
+        "    await update.message.reply_text('Hello!')\n"
+        "app = Application.builder().token(TOKEN).build()\n"
+        "app.add_handler(CommandHandler('start', start))\n"
+        "app.run_polling()",
+    ],
+    "ai_agent": [
+        "from langchain_core.messages import HumanMessage, AIMessage\n"
+        "from langgraph.graph import StateGraph, END\n"
+        "from langgraph.checkpoint.memory import MemorySaver\n"
+        "workflow = StateGraph(AgentState)\n"
+        "workflow.add_node('agent', call_agent)\n"
+        "workflow.set_entry_point('agent')\n"
+        "workflow.add_edge('agent', END)\n"
+        "memory = MemorySaver()\n"
+        "app = workflow.compile(checkpointer=memory)",
+    ],
+}
 
 
-# Global singleton crawler instance
-_global_doc_crawler: DocCrawler | None = None
-
-def get_doc_crawler() -> DocCrawler:
-    global _global_doc_crawler
-    if _global_doc_crawler is None:
-        _global_doc_crawler = DocCrawler()
-    return _global_doc_crawler
+# ---------------------------------------------------------------------------
+# Module-level singleton
+# ---------------------------------------------------------------------------
+doc_crawler = DocCrawler()

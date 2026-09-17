@@ -369,6 +369,15 @@ export function CenterWorkspace() {
                           messageItem.content.includes("[Self-Healing")
                         ) {
                           addTerminalLog("system", messageItem.content);
+                        } else if (messageItem.content.includes("[Research Node]")) {
+                          addTerminalLog("system", "🔍 " + messageItem.content);
+                        } else if (
+                          messageItem.content.includes("[KB Query]") ||
+                          messageItem.content.includes("[Knowledge Base Context]") ||
+                          messageItem.content.includes("[Knowledge Base Preview]")
+                        ) {
+                          addTerminalLog("system", "📚 " + messageItem.content);
+
                         } else if (messageItem.content.includes("[MCP Confirmation Required]")) {
                           const promptText = messageItem.content.replace("[MCP Confirmation Required]", "").trim();
                           const matchTool = promptText.match(/(?:allow|tool)\s+([a-zA-Z0-9_\-\.]+)/i);
@@ -561,6 +570,14 @@ export function CenterWorkspace() {
                             messageItem.content.includes("[Self-Healing")
                           ) {
                             addTerminalLog("system", messageItem.content);
+                          } else if (messageItem.content.includes("[Research Node]")) {
+                            addTerminalLog("system", "🔍 " + messageItem.content);
+                          } else if (
+                            messageItem.content.includes("[KB Query]") ||
+                            messageItem.content.includes("[Knowledge Base Context]") ||
+                            messageItem.content.includes("[Knowledge Base Preview]")
+                          ) {
+                            addTerminalLog("system", "📚 " + messageItem.content);
                           } else if (messageItem.content.includes("[MCP Confirmation Required]")) {
                             const promptText = messageItem.content.replace("[MCP Confirmation Required]", "").trim();
                             const matchTool = promptText.match(/(?:allow|tool)\s+([a-zA-Z0-9_\-\.]+)/i);

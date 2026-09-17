@@ -70,12 +70,13 @@ class AgentState(TypedDict, total=False):
     filepath: str
     file_content: str
 
-    # Autonomous Research Agent & Doc Crawler Schema
-    active_stack: str
-    stack_version: str
-    crawled_chunks_count: int
-    docs_cache_ttl: int
-    retrieved_patterns_count: int
+    # --- Autonomous Research Agent ---
+    # TTL-cached doc chunks per project+product_type: key = f"{project_id}:{product_type}"
+    doc_cache: dict[str, Any]
+    # Official documentation URLs actually crawled this run
+    knowledge_sources: list[str]
+    # Discovered stable version hints: {"fastapi": "0.115.x", ...}
+    stack_versions: dict[str, str]
 
 
 
