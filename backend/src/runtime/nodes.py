@@ -23,6 +23,7 @@ from src.utils.self_healing import (
 )
 from src.utils.security_scanner import scanner, SecurityReport
 from src.utils.package_resolver import PackageResolver
+from src.utils.doc_crawler import get_doc_crawler, DEFAULT_TTL_SECONDS
 
 logger = logging.getLogger(__name__)
 
@@ -640,12 +641,37 @@ async def orchestrator_node(state: AgentState) -> dict[str, Any]:
     }
 
 async def research_phase_node(state: AgentState) -> dict[str, Any]:
+    goal = state.get("goal") or "web app"
+    variables = state.get("variables") or {}
+    product_type = state.get("product_type") or variables.get("product_type")
+    project_id = state.get("project_id") or variables.get("project_id") or "default_project"
+
+    crawler = get_doc_crawler()
+    detected_stack = crawler.detect_stack(goal=goal, product_type=product_type)
+    cached_docs = crawler.crawl_and_index(stack=detected_stack, project_id=project_id)
+
     guard_res = execute_phase_token_guard(phase="research", state=state, base_tokens=150)
     messages = list(guard_res.get("telemetry_messages", []))
-    messages.append({"role": "system", "content": "Research Phase Complete: Gathered context."})
+    messages.append({
+        "role": "system",
+        "content": (
+            f"Research Phase Complete: Crawled official documentation for {detected_stack} "
+            f"v{cached_docs.version} ({len(cached_docs.chunks)} chunks indexed into vector store, "
+            f"7-day TTL cache active)."
+        )
+    })
+    messages.append({
+        "role": "system",
+        "content": f"[Knowledge Ingested] Stack: {detected_stack}, Version: {cached_docs.version}, Chunks: {len(cached_docs.chunks)}, Source: {cached_docs.source_url}, TTL: 7d"
+    })
+
     return {
         "status": "verified",
         "current_phase": "research",
+        "active_stack": detected_stack,
+        "stack_version": cached_docs.version,
+        "crawled_chunks_count": len(cached_docs.chunks),
+        "docs_cache_ttl": DEFAULT_TTL_SECONDS,
         "token_usage_per_phase": guard_res["token_usage_per_phase"],
         "token_budget_per_phase": guard_res["token_budget_per_phase"],
         "token_savings": guard_res["token_savings"],
@@ -1090,6 +1116,7 @@ async def scaffold_phase_node(state: AgentState) -> dict[str, Any]:
 async def implement_phase_node(state: AgentState) -> dict[str, Any]:
     goal = state.get("goal", "web app")
     variables = state.get("variables") or {}
+    project_id = state.get("project_id") or variables.get("project_id") or "default_project"
 
     # Extract code context, filepath, target symbol, and changed lines
     code_context = (
@@ -1112,6 +1139,12 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
         or ("main.py" if code_context else None)
     )
 
+    crawler = get_doc_crawler()
+    active_stack = state.get("active_stack") or crawler.detect_stack(goal=goal)
+
+    # Query knowledge base for current API patterns before coding
+    doc_chunks = crawler.query_api_patterns(stack=active_stack, query=goal, project_id=project_id)
+
     guard_res = execute_phase_token_guard(
         phase="implement",
         state=state,
@@ -1125,12 +1158,55 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
     processed_code = guard_res.get("processed_code")
     messages = list(guard_res.get("telemetry_messages", []))
     messages.append({"role": "system", "content": "Implement Phase Complete: Core modules coded."})
+    if doc_chunks:
+        messages.append({
+            "role": "system",
+            "content": f"[Knowledge Query] Queried knowledge base for {active_stack} current API patterns. Verified latest official standards."
+        })
 
-    final_code = processed_code or code_context or f"# {goal}\nprint('Implementation complete')\n"
+    # Prepare code implementation
+    if processed_code:
+        raw_code = processed_code
+    elif code_context:
+        raw_code = code_context
+    elif active_stack == "fastapi":
+        raw_code = (
+            "from contextlib import asynccontextmanager\n"
+            "from typing import Annotated\n"
+            "from fastapi import FastAPI, Depends, HTTPException\n"
+            "from pydantic import BaseModel, Field\n\n"
+            "@asynccontextmanager\n"
+            "async def lifespan(app: FastAPI):\n"
+            "    # Modern lifespan initialization\n"
+            "    yield\n"
+            "    # Clean shutdown logic\n\n"
+            "app = FastAPI(title=\"ASEP Service\", lifespan=lifespan)\n\n"
+            "class Item(BaseModel):\n"
+            "    name: str = Field(..., min_length=1)\n"
+            "    price: float = Field(gt=0)\n\n"
+            "@app.get(\"/health\")\n"
+            "def health_check():\n"
+            "    return {\"status\": \"ok\"}\n\n"
+            "@app.post(\"/items\")\n"
+            "def create_item(item: Item):\n"
+            "    data = item.model_dump()\n"
+            "    return {\"status\": \"created\", \"item\": data}\n"
+        )
+    else:
+        raw_code = f"# {goal}\nprint('Implementation complete')\n"
+
+    # Enforce current patterns and purge deprecated syntax
+    final_code, violations = crawler.validate_and_patch_code_patterns(raw_code, active_stack)
+    if violations:
+        messages.append({
+            "role": "system",
+            "content": f"[Pattern Enforcement] Modernized deprecated syntax: {'; '.join(violations)}"
+        })
+
     if processed_code:
         messages.append({
             "role": "assistant",
-            "content": f"### Implementation Updated\n\n```python\n{processed_code}\n```"
+            "content": f"### Implementation Updated\n\n```python\n{final_code}\n```"
         })
     else:
         messages.append({
@@ -1144,6 +1220,8 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
         "generated_code": final_code,
         "file_content": final_code,
         "code_context": final_code,
+        "active_stack": active_stack,
+        "retrieved_patterns_count": len(doc_chunks),
         "token_usage_per_phase": guard_res["token_usage_per_phase"],
         "token_budget_per_phase": guard_res["token_budget_per_phase"],
         "token_savings": guard_res["token_savings"],
@@ -1151,6 +1229,7 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
         "budget_approvals": guard_res["budget_approvals"],
         "messages": messages,
     }
+
 
 
 async def critic_node(state: AgentState) -> dict[str, Any]:

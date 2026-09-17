@@ -70,5 +70,12 @@ class AgentState(TypedDict, total=False):
     filepath: str
     file_content: str
 
+    # Autonomous Research Agent & Doc Crawler Schema
+    active_stack: str
+    stack_version: str
+    crawled_chunks_count: int
+    docs_cache_ttl: int
+    retrieved_patterns_count: int
+
 
 
