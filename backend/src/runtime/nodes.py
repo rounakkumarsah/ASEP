@@ -1,7 +1,10 @@
 import asyncio
 import json
 import logging
+import os
+from pathlib import Path
 import re
+import secrets
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -453,96 +456,309 @@ async def research_phase_node(state: AgentState) -> dict[str, Any]:
 
 
 
-async def clarification_gate_node(state: AgentState) -> dict[str, Any]:
-    goal = state.get("goal", "").lower()
-    env_mode = state.get("environment_mode", "local")
-    credentials_status = state.get("credentials_status", {})
-    local_secrets = state.get("local_secrets", {})
-    
-    # Identify dependencies
-    dependencies = []
-    if "google login" in goal or "oauth" in goal:
-        dependencies.append("Google OAuth Client ID and Secret")
-    if "stripe" in goal or "payment" in goal:
-        dependencies.append("Stripe Secret Key")
-    if "email" in goal or "smtp" in goal:
-        dependencies.append("SMTP Credentials or Email API Key")
+# =============================================================================
+# EXTENSIBLE DEPENDENCY REGISTRY & CREDENTIAL POLICY
+# =============================================================================
 
-    if not dependencies:
+_SERVER_MEMORY_SECRETS: dict[str, str] = {}
+
+
+def write_secrets_to_env_file(secrets_dict: dict[str, str]) -> None:
+    """Write secrets directly to the project's .env file on disk.
+    Values are kept only on disk and in server memory (_SERVER_MEMORY_SECRETS),
+    never returned over SSE or exposed to the frontend.
+    """
+    workspace_root = os.environ.get("WORKSPACE_ROOT", os.getcwd())
+    env_path = Path(workspace_root) / ".env"
+
+    # Store in memory
+    _SERVER_MEMORY_SECRETS.update(secrets_dict)
+
+    lines: list[str] = []
+    existing_keys: set[str] = set()
+    if env_path.exists():
+        try:
+            with open(env_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    stripped = line.strip()
+                    if stripped and not stripped.startswith("#") and "=" in stripped:
+                        k = stripped.split("=", 1)[0].strip()
+                        if k in secrets_dict:
+                            lines.append(f"{k}={secrets_dict[k]}\n")
+                            existing_keys.add(k)
+                            continue
+                    lines.append(line)
+        except Exception as e:
+            logger.warning("Could not read existing .env: %s", e)
+
+    for k, v in secrets_dict.items():
+        if k not in existing_keys:
+            if lines and not lines[-1].endswith("\n"):
+                lines.append("\n")
+            lines.append(f"{k}={v}\n")
+
+    try:
+        with open(env_path, "w", encoding="utf-8") as f:
+            f.writelines(lines)
+        logger.info("Directly wrote %d secrets to %s (values omitted from SSE)", len(secrets_dict), env_path)
+    except Exception as e:
+        logger.error("Failed to write secrets to .env: %s", e)
+
+
+def get_or_create_local_secrets(state: AgentState) -> list[str]:
+    """Auto-generate cryptographically secure local secrets on project init if missing.
+    Returns only the KEY NAMES list (e.g. ['JWT_SECRET', 'SESSION_SECRET', 'DB_PASSWORD']).
+    Values are written to .env and kept in server memory only.
+    """
+    existing_keys = state.get("local_secrets")
+    if existing_keys and isinstance(existing_keys, list) and len(existing_keys) > 0:
+        return existing_keys
+
+    # Auto-generate cryptographically random secrets for local mode
+    generated_values = {
+        "JWT_SECRET": secrets.token_urlsafe(32),
+        "SESSION_SECRET": secrets.token_urlsafe(32),
+        "DB_PASSWORD": secrets.token_urlsafe(16),
+    }
+    write_secrets_to_env_file(generated_values)
+    return list(generated_values.keys())
+
+
+def load_dependency_registry() -> list[dict[str, Any]]:
+    """Loads the extensible dependency registry from dependencies.json."""
+    registry_path = Path(__file__).resolve().parent / "dependencies.json"
+    if registry_path.exists():
+        try:
+            with open(registry_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error("Failed to load dependency registry: %s", e)
+    return []
+
+
+def scan_dependencies_from_goal(goal: str) -> list[dict[str, Any]]:
+    """Scans natural language goal against all keywords in dependencies.json."""
+    registry = load_dependency_registry()
+    detected = []
+    goal_lower = goal.lower()
+    for item in registry:
+        keywords = item.get("keywords", [])
+        if any(kw.lower() in goal_lower for kw in keywords):
+            detected.append(item)
+    return detected
+
+
+def validate_credential_format(service_def: dict[str, Any], field_name: str, value: str) -> tuple[bool, str]:
+    """
+    Validates format syntax per dependency.
+    Wrong format does NOT count toward the 3-attempt limit.
+    """
+    service = service_def.get("service", "")
+    val = value.strip()
+
+    if service == "stripe":
+        if not (val.startswith("sk_live_") or val.startswith("rk_live_")):
+            return False, "Stripe LIVE key must start with 'sk_live_' or 'rk_live_' (~107 chars expected)."
+        return True, ""
+
+    if service == "google_oauth":
+        if "id" in field_name.lower():
+            if not val.endswith(".apps.googleusercontent.com"):
+                return False, "Google OAuth client ID must end with '.apps.googleusercontent.com'."
+        elif "secret" in field_name.lower():
+            if len(val) < 16:
+                return False, "Google OAuth client secret must be at least 16 characters."
+        return True, ""
+
+    if service == "smtp":
+        val_lower = val.lower()
+        has_named = ("host" in val_lower and "user" in val_lower and "pass" in val_lower)
+        has_parts = len(val.split(":")) >= 3
+        if not (has_named or has_parts):
+            return False, "SMTP credentials must contain host, user, and pass (e.g. host=smtp.mail.com user=... pass=... or host:user:pass)."
+        return True, ""
+
+    if service == "razorpay":
+        if not val.startswith("rzp_live_"):
+            return False, "Razorpay key must start with 'rzp_live_'."
+        return True, ""
+
+    if service == "mongodb":
+        if not (val.startswith("mongodb://") or val.startswith("mongodb+srv://")):
+            return False, "MongoDB connection URI must start with 'mongodb://' or 'mongodb+srv://'."
+        return True, ""
+
+    if service == "supabase":
+        if "url" in field_name.lower():
+            if not re.match(r"^https://[a-zA-Z0-9-]+\.supabase\.co/?$", val):
+                return False, "Supabase URL must match 'https://<project-ref>.supabase.co'."
+        elif "key" in field_name.lower():
+            if len(val) < 20:
+                return False, "Supabase key must be a valid API key string."
+        return True, ""
+
+    pattern = service_def.get("pattern")
+    if pattern:
+        if not re.search(pattern, val):
+            return False, f"Value must match format pattern '{pattern}'."
+
+    return True, ""
+
+
+async def validate_credential_live(service_def: dict[str, Any], field_name: str, value: str) -> tuple[bool, str]:
+    """
+    Validates the key against live/provider rules.
+    A failure here DOES count toward the 3-attempt limit.
+    """
+    val = value.strip()
+    service = service_def.get("service", "")
+
+    # Dummy/test words in live mode count as an invalid attempt
+    if any(dummy in val.lower() for dummy in ["dummy", "fake", "invalid", "test", "example", "badkey"]):
+        return False, "Dummy or test keys cannot be used in production mode."
+
+    if service == "stripe":
+        if len(val) < 30:
+            return False, "Key is too short to be an authentic Stripe live key (~107 characters expected)."
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                res = await client.get(
+                    "https://api.stripe.com/v1/customers?limit=1",
+                    headers={"Authorization": f"Bearer {val}"}
+                )
+                if res.status_code == 401:
+                    return False, "Stripe authentication failed: Invalid API Key."
+        except Exception as e:
+            logger.debug("Live Stripe ping bypassed: %s", e)
+
+    elif service == "razorpay":
+        if len(val) < 18:
+            return False, "Razorpay key ID is too short to be an authentic live key."
+
+    elif service == "mongodb":
+        if len(val) < 15 or ("@" not in val and "localhost" not in val):
+            return False, "MongoDB URI appears incomplete or missing credentials."
+
+    return True, ""
+
+
+async def clarification_gate_node(state: AgentState) -> dict[str, Any]:
+    goal = state.get("goal", "")
+    env_mode = state.get("environment_mode", "local")
+    credentials_status = dict(state.get("credentials_status", {}))
+    
+    # 1. Auto-generate local secrets on disk and memory; retrieve only key names
+    local_secret_keys = get_or_create_local_secrets(state)
+
+    # 2. Extensible dependency registry scan
+    detected_services = scan_dependencies_from_goal(goal)
+
+    if not detected_services:
         return {
             "status": "verified",
             "current_phase": "clarification_gate",
-            "local_secrets": local_secrets,
-            "messages": [{"role": "system", "content": "Clarification Gate: No external dependencies detected."}]
+            "local_secrets": local_secret_keys,
+            "credentials_status": credentials_status,
+            "messages": [
+                {"role": "system", "content": f"[Local Secrets] {json.dumps(local_secret_keys)}"},
+                {"role": "system", "content": f"[Credentials Status] {json.dumps(credentials_status)}"},
+                {"role": "system", "content": "Clarification Gate: No external dependencies detected."}
+            ]
         }
 
-    clarifications_gathered = credentials_status
-    blocked_items = []
-    
-    # Environment-Aware Credential Policy
+    # 3. Environment-Aware Credential Policy
     if env_mode == "local":
-        # System auto-generates mocks, NEVER asks user for API keys in local mode
-        for dep in dependencies:
-            clarifications_gathered[dep] = "mock"
-        
-        msg = f"Clarification Gate Complete [LOCAL MODE]. Auto-mocked {len(dependencies)} external services."
+        # System auto-mocks external services, NEVER asks user for API keys in local mode
+        for s in detected_services:
+            for field in s.get("fields", []):
+                credentials_status[field] = "mock"
+
+        msg = f"Clarification Gate Complete [LOCAL MODE]. Auto-mocked {len(detected_services)} external services."
         return {
             "status": "verified",
             "current_phase": "clarification_gate",
-            "credentials_status": clarifications_gathered,
-            "local_secrets": local_secrets,
+            "credentials_status": credentials_status,
+            "local_secrets": local_secret_keys,
             "messages": [
-                {"role": "system", "content": f"[Local Secrets] {json.dumps(local_secrets)}"},
-                {"role": "system", "content": f"[Credentials Status] {json.dumps(clarifications_gathered)}"},
+                {"role": "system", "content": f"[Local Secrets] {json.dumps(local_secret_keys)}"},
+                {"role": "system", "content": f"[Credentials Status] {json.dumps(credentials_status)}"},
                 {"role": "system", "content": msg}
             ]
         }
 
-    # Deploy Mode (Initial or Switched)
-    for dep in dependencies:
-        if dep in clarifications_gathered and clarifications_gathered[dep] != "mock":
-            continue # already have a real key
-            
-        attempts = 0
-        prompt_msg = f"[Clarification Required] DEPLOY MODE: To integrate this feature in production, I need: {dep}. Please provide valid LIVE credentials, or type 'mock' to deliberately deploy with test services."
-        
-        while attempts < 3:
-            decision = interrupt({
-                "action": "clarification_required",
-                "reason": f"External production dependency detected: {dep}",
-                "prompt": prompt_msg
-            })
-            
-            human_input = str(decision)
-            if "mock" in human_input.lower():
-                clarifications_gathered[dep] = "mock"
-                break
-                
-            # Basic validation: minimum length
-            if len(human_input.strip()) > 8:
-                clarifications_gathered[dep] = human_input
-                break
-                
-            attempts += 1
-            if attempts >= 3:
-                blocked_items.append(dep)
-                break
-                
-            prompt_msg = f"[Clarification Required] The credentials provided for {dep} were invalid or too short. Attempt {attempts}/3. Please provide valid LIVE credentials or type 'mock'."
+    # 4. Deploy Mode (Initial)
+    blocked_items: list[str] = []
+    for s in detected_services:
+        service_name = s.get("service", "")
+        for field in s.get("fields", []):
+            if credentials_status.get(field) and credentials_status[field] != "mock":
+                continue  # already verified live key
 
-    msg = f"Clarification Gate Complete. Resolved: {len(clarifications_gathered)}, Blocked: {len(blocked_items)}."
+            attempts = 0
+            prompt_msg = (
+                f"[Clarification Required] DEPLOY MODE: To integrate {service_name} in production, "
+                f"I need: {field}. Please provide valid LIVE credentials, or type 'mock' to deliberately deploy with test services."
+            )
+
+            while attempts < 3:
+                decision = interrupt({
+                    "action": "clarification_required",
+                    "reason": f"External production dependency detected: {field}",
+                    "prompt": prompt_msg
+                })
+
+                human_input = str(decision).strip()
+                if "mock" in human_input.lower():
+                    credentials_status[field] = "mock"
+                    break
+
+                # Step A: Format validation (Wrong format does NOT count toward attempts)
+                is_valid_format, format_hint = validate_credential_format(s, field, human_input)
+                if not is_valid_format:
+                    prompt_msg = (
+                        f"[Clarification Required] Invalid format for {service_name} ({field}). "
+                        f"{format_hint} Please try again (format check does not count toward attempt limit)."
+                    )
+                    continue
+
+                # Step B: Live validation (Failures DO count toward attempts)
+                is_valid_live, live_err = await validate_credential_live(s, field, human_input)
+                if not is_valid_live:
+                    attempts += 1
+                    if attempts >= 3:
+                        blocked_items.append(field)
+                        break
+                    prompt_msg = (
+                        f"[Clarification Required] Verification failed for {field}: {live_err} "
+                        f"Attempt {attempts}/3. Please provide a valid LIVE key."
+                    )
+                    continue
+
+                # Success: write to .env file and memory, record 'connected' in status (never the secret value)
+                write_secrets_to_env_file({field: human_input})
+                credentials_status[field] = "connected"
+                break
+
+    msg = f"Clarification Gate Complete. Resolved: {len(credentials_status) - len(blocked_items)}, Blocked: {len(blocked_items)}."
     return {
-        "status": "verified",
+        "status": "blocked" if blocked_items else "verified",
         "current_phase": "clarification_gate",
-        "credentials_status": clarifications_gathered,
-        "local_secrets": local_secrets,
-        "messages": [{"role": "system", "content": msg}]
+        "credentials_status": credentials_status,
+        "local_secrets": local_secret_keys,
+        "messages": [
+            {"role": "system", "content": f"[Local Secrets] {json.dumps(local_secret_keys)}"},
+            {"role": "system", "content": f"[Credentials Status] {json.dumps(credentials_status)}"},
+            {"role": "system", "content": msg}
+        ]
     }
+
 
 async def deploy_clarification_gate_node(state: AgentState) -> dict[str, Any]:
     env_mode = state.get("environment_mode", "local")
-    credentials_status = state.get("credentials_status", {})
-    
+    credentials_status = dict(state.get("credentials_status", {}))
+    goal = state.get("goal", "")
+
     if env_mode == "local":
         return {
             "status": "verified",
@@ -550,40 +766,69 @@ async def deploy_clarification_gate_node(state: AgentState) -> dict[str, Any]:
             "messages": [{"role": "system", "content": "Deploy Clarification Gate skipped in LOCAL mode."}]
         }
 
-    # Deploy Mode Checklist
-    missing_live_keys = [dep for dep, val in credentials_status.items() if val == "mock"]
-    if not missing_live_keys:
+    # Scan required dependencies from registry
+    detected_services = scan_dependencies_from_goal(goal)
+    service_by_field: dict[str, dict[str, Any]] = {}
+    for s in detected_services:
+        for f in s.get("fields", []):
+            service_by_field[f] = s
+
+    # Find missing or mocked keys
+    missing_fields = [
+        f for f, s in service_by_field.items()
+        if credentials_status.get(f) == "mock" or f not in credentials_status
+    ]
+
+    if not missing_fields:
         return {
             "status": "verified",
             "current_phase": "deploy_clarification_gate",
             "messages": [{"role": "system", "content": "Deploy Clarification Gate: All production keys are present."}]
         }
-        
-    blocked_items = []
-    
-    for dep in missing_live_keys:
+
+    blocked_items: list[str] = []
+
+    for field in missing_fields:
+        service_def = service_by_field.get(field, {})
+        service_title = service_def.get("service", "service").replace("_", " ").title()
         attempts = 0
-        # Exact prompt requested by user
-        prompt_msg = f"[Clarification Required] To deploy with {dep.split()[0].lower()}, I need your {dep.split()[0]} LIVE key ID and secret. Get them from the dashboard ? Settings ? API Keys."
-        
+        prompt_msg = (
+            f"[Clarification Required] To deploy with {service_title.lower()}, I need your {field}. "
+            f"Get it from your {service_title} dashboard → Settings → API Keys."
+        )
+
         while attempts < 3:
             decision = interrupt({
                 "action": "clarification_required",
-                "reason": f"Missing production key for: {dep}",
+                "reason": f"Missing production key for: {field}",
                 "prompt": prompt_msg
             })
-            
-            human_input = str(decision)
-            if len(human_input.strip()) > 8 and "mock" not in human_input.lower():
-                credentials_status[dep] = human_input
-                break
-                
-            attempts += 1
-            if attempts >= 3:
-                blocked_items.append(dep)
-                break
-                
-            prompt_msg = f"[Clarification Required] Invalid key for {dep}. Attempt {attempts}/3. Please provide a valid LIVE key."
+
+            human_input = str(decision).strip()
+
+            # Format validation (does not count toward attempt limit)
+            is_valid_format, format_hint = validate_credential_format(service_def, field, human_input)
+            if not is_valid_format:
+                prompt_msg = (
+                    f"[Clarification Required] Invalid format for {service_title} ({field}). "
+                    f"{format_hint} Please try again (format check does not count toward attempt limit)."
+                )
+                continue
+
+            # Live validation (counts toward 3 attempts)
+            is_valid_live, live_err = await validate_credential_live(service_def, field, human_input)
+            if not is_valid_live:
+                attempts += 1
+                if attempts >= 3:
+                    blocked_items.append(field)
+                    break
+                prompt_msg = f"[Clarification Required] Invalid key for {field}: {live_err} Attempt {attempts}/3. Please provide a valid LIVE key."
+                continue
+
+            # Key validated! Write to .env on disk and server memory; record status as 'connected'
+            write_secrets_to_env_file({field: human_input})
+            credentials_status[field] = "connected"
+            break
 
     if blocked_items:
         # Deploy proceeds only when credential checklist = 100% complete
@@ -591,14 +836,20 @@ async def deploy_clarification_gate_node(state: AgentState) -> dict[str, Any]:
             "status": "blocked",
             "current_phase": "deploy_clarification_gate",
             "credentials_status": credentials_status,
-            "messages": [{"role": "system", "content": f"DEPLOY BLOCKED. Missing keys: {', '.join(blocked_items)}"}]
+            "messages": [
+                {"role": "system", "content": f"[Credentials Status] {json.dumps(credentials_status)}"},
+                {"role": "system", "content": f"DEPLOY BLOCKED. Missing keys: {', '.join(blocked_items)}"}
+            ]
         }
-        
+
     return {
         "status": "verified",
         "current_phase": "deploy_clarification_gate",
         "credentials_status": credentials_status,
-        "messages": [{"role": "system", "content": "Deploy Clarification Gate: 100% Production keys secured. Swapping .env to production values."}]
+        "messages": [
+            {"role": "system", "content": f"[Credentials Status] {json.dumps(credentials_status)}"},
+            {"role": "system", "content": "Deploy Clarification Gate: 100% Production keys secured. Swapping .env to production values."}
+        ]
     }
 
 

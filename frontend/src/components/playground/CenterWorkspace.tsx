@@ -288,6 +288,15 @@ const [clarificationPrompt, setClarificationPrompt] = React.useState<string | nu
                               setSecurityFindings(JSON.parse(findingsStr));
                               setActiveCenterTab("security");
                           } catch {}
+                        } else if (messageItem.content.includes("[Local Secrets]")) {
+                          try {
+                            const parsed = JSON.parse(messageItem.content.replace("[Local Secrets]", "").trim());
+                            setLocalSecrets(Array.isArray(parsed) ? parsed : Object.keys(parsed || {}));
+                          } catch {}
+                        } else if (messageItem.content.includes("[Credentials Status]")) {
+                          try {
+                            setCredentialsStatus(JSON.parse(messageItem.content.replace("[Credentials Status]", "").trim()));
+                          } catch {}
                         } else if (messageItem.content.includes("[Metrics]")) {
                           const metricsStr = messageItem.content.replace("[Metrics]", "").trim();
                           try {
@@ -422,7 +431,8 @@ const [clarificationPrompt, setClarificationPrompt] = React.useState<string | nu
 
                           } else if (messageItem.content.includes("[Local Secrets]")) {
                             try {
-                                setLocalSecrets(JSON.parse(messageItem.content.replace("[Local Secrets]", "").trim()));
+                              const parsed = JSON.parse(messageItem.content.replace("[Local Secrets]", "").trim());
+                              setLocalSecrets(Array.isArray(parsed) ? parsed : Object.keys(parsed || {}));
                             } catch {}
                           } else if (messageItem.content.includes("[Credentials Status]")) {
                             try {

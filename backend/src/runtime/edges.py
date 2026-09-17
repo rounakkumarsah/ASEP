@@ -37,7 +37,8 @@ class EdgeRegistry:
 def human_validation_router_default(state: AgentState) -> str:
     """Routes based on human input. Returns next node name."""
     human_input = state.get("human_input")
-    logger.info("Conditional routing edge checking human_input: '%s'", human_input)
+    safe_input = human_input if human_input in ("reject", "deny", "revise", "approve", "mock") else "[REDACTED]"
+    logger.info("Conditional routing edge checking human_input: '%s'", safe_input)
 
     # Only loop back to coding if operator explicitly rejected or requested revision
     if human_input in ("reject", "deny", "revise"):

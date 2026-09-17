@@ -1,0 +1,38 @@
+[
+  {
+    "service": "stripe",
+    "keywords": ["stripe", "card payment"],
+    "fields": ["STRIPE_LIVE_KEY"],
+    "pattern": "^(sk|rk)_live_.+"
+  },
+  {
+    "service": "razorpay",
+    "keywords": ["razorpay", "upi"],
+    "fields": ["RAZORPAY_KEY_ID", "RAZORPAY_SECRET"],
+    "pattern": "^rzp_live_.+"
+  },
+  {
+    "service": "google_oauth",
+    "keywords": ["google login", "oauth"],
+    "fields": ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
+    "pattern": ".+\\.apps\\.googleusercontent\\.com$"
+  },
+  {
+    "service": "smtp",
+    "keywords": ["email", "smtp", "send mail"],
+    "fields": ["SMTP_HOST", "SMTP_USER", "SMTP_PASS"],
+    "pattern": null
+  },
+  {
+    "service": "mongodb",
+    "keywords": ["mongodb", "mongo atlas"],
+    "fields": ["MONGODB_URI"],
+    "pattern": "^mongodb(\\+srv)?://"
+  },
+  {
+    "service": "supabase",
+    "keywords": ["supabase"],
+    "fields": ["SUPABASE_URL", "SUPABASE_KEY"],
+    "pattern": "^https://.+\\.supabase\\.co$"
+  }
+]

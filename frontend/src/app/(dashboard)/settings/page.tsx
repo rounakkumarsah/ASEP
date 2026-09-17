@@ -1360,7 +1360,7 @@ export default function SettingsPage() {
                 <h3 className="text-sm font-medium text-[#F5F7FA]">Auto-Generated Local Secrets</h3>
                 <p className="text-xs text-[#9CA6B5]">These are cryptographically secure random values used only for local development.</p>
                 <div className="space-y-3">
-                  {Object.entries(localSecrets).map(([key, value]) => (
+                  {(Array.isArray(localSecrets) ? localSecrets : Object.keys(localSecrets || {})).map((key) => (
                     <div key={key} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg border border-[#202833] bg-[#0D1117]">
                       <span className="text-sm font-mono text-[#F5F7FA]">{key}</span>
                       <div className="flex items-center gap-3 mt-2 sm:mt-0">
@@ -1370,7 +1370,7 @@ export default function SettingsPage() {
                       </div>
                     </div>
                   ))}
-                  {Object.keys(localSecrets).length === 0 && (
+                  {(Array.isArray(localSecrets) ? localSecrets.length : Object.keys(localSecrets || {}).length) === 0 && (
                     <div className="text-xs text-muted-foreground italic">No local secrets generated yet. Start a project run to initialize them.</div>
                   )}
                 </div>

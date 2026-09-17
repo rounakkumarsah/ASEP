@@ -29,8 +29,8 @@ export interface PlaygroundState {
   // Environment Mode
   environmentMode: "local" | "deploy";
   setEnvironmentMode: (mode: "local" | "deploy") => void;
-  localSecrets: Record<string, string>;
-  setLocalSecrets: (secrets: Record<string, string>) => void;
+  localSecrets: string[];
+  setLocalSecrets: (secrets: string[] | Record<string, string>) => void;
   credentialsStatus: Record<string, string | boolean>;
   setCredentialsStatus: (status: Record<string, string | boolean>) => void;
 
@@ -106,8 +106,8 @@ export const usePlaygroundStore = create<PlaygroundState>()(
       // Environment Mode
       environmentMode: "local",
       setEnvironmentMode: (mode) => set({ environmentMode: mode }),
-      localSecrets: {},
-      setLocalSecrets: (secrets) => set({ localSecrets: secrets }),
+      localSecrets: [],
+      setLocalSecrets: (secrets) => set({ localSecrets: Array.isArray(secrets) ? secrets : Object.keys(secrets || {}) }),
       credentialsStatus: {},
       setCredentialsStatus: (status) => set({ credentialsStatus: status }),
 

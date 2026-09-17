@@ -83,9 +83,11 @@ export function DashboardHeader() {
             <button 
               onClick={() => {
                 if (environmentMode === 'local') {
-                  const mocks = Object.values(credentialsStatus).filter(v => v === 'mock').length;
-                  if (mocks > 0) {
-                    if (confirm(`Deploy Mode Activation:\n\n${mocks} local mocks will be replaced with real services.\nYou will be prompted for LIVE keys during deployment.\n\nProceed?`)) {
+                  const mockEntries = Object.entries(credentialsStatus).filter(([, v]) => v === 'mock');
+                  const mockCount = mockEntries.length;
+                  if (mockCount > 0) {
+                    const keysNeeded = mockEntries.map(([k]) => k).join(', ');
+                    if (confirm(`Deploy Mode Activation:\n\n${mockCount} local mocks will be replaced with real services.\nKeys needed: ${keysNeeded}\n\nYou will be prompted for LIVE keys during deployment.\n\nProceed?`)) {
                       setEnvironmentMode('deploy');
                     }
                   } else {

@@ -116,7 +116,7 @@ class LangGraphRuntime:
             "messages": [{"role": "user", "content": goal}] if goal else [],
             "environment_mode": environment_mode,
             "credentials_status": {},
-            "local_secrets": {},
+            "local_secrets": [],
             "plan": [],
             "status": "started",
             "next_action": None,
@@ -133,7 +133,8 @@ class LangGraphRuntime:
         self, thread_id: str, human_input: str
     ) -> AsyncGenerator[dict[str, Any], None]:
         """Resumes a paused run, feeding operator feedback to the active interrupt node."""
-        logger.info(f"Resuming paused run on thread: '{thread_id}' with response: '{human_input}'")
+        safe_response = human_input if human_input in ("approve", "reject", "mock") else (f"{human_input[:3]}...[REDACTED]" if len(human_input) > 6 else "[REDACTED]")
+        logger.info(f"Resuming paused run on thread: '{thread_id}' with response: '{safe_response}'")
 
         from langchain_core.runnables.config import RunnableConfig
         config = RunnableConfig(configurable={"thread_id": thread_id})

@@ -511,8 +511,7 @@ async def forgot_password(
 
     token = await auth_service.generate_password_reset_token(data.email)
     if token:
-        # Mock reset email logging/print for tests and verify
-        logger.info(f"Password reset requested for {data.email}. Token generated: {token}")
+        logger.info(f"Password reset requested for {data.email}.")
 
         await audit_service.log_event(
             actor_type=ActorType.SYSTEM,

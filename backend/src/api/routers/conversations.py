@@ -194,6 +194,15 @@ async def start_run(
     )
 
 
+def _sanitize_credential_log(val: str | None) -> str:
+    """Redact raw secrets or credentials from logs and SSE frames."""
+    if not val:
+        return ""
+    if val in ("approve", "reject", "mock", "deny", "revise"):
+        return val
+    return f"{val[:3]}...[REDACTED]" if len(val) > 6 else "[REDACTED]"
+
+
 @router.post(
     "/{thread_id}/resume",
     summary="Resume a paused (HITL-interrupted) run",
@@ -229,7 +238,7 @@ async def resume_run(
     logger.info(
         "Resuming thread_id=%s decision=%r user=%s",
         thread_id,
-        payload.decision,
+        _sanitize_credential_log(payload.decision),
         current_user.id,
     )
 
@@ -253,7 +262,7 @@ async def resume_run(
                 yield _sse_line(
                     {
                         "thread_id": thread_id,
-                        "decision": payload.decision,
+                        "decision": _sanitize_credential_log(payload.decision),
                         "event": event,
                     }
                 )
@@ -309,7 +318,7 @@ async def get_thread_state(
         status=values.get("status"),
         next=next_nodes,
         run_id=values.get("run_id"),
-        human_input=values.get("human_input"),
+        human_input=_sanitize_credential_log(values.get("human_input")),
         messages=values.get("messages", []),
         variables=values.get("variables", {}),
         is_paused=is_paused,

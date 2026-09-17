@@ -49,5 +49,5 @@ class AgentState(TypedDict, total=False):
     # Environment Policy
     environment_mode: str
     credentials_status: dict[str, Any]
-    local_secrets: dict[str, str]
+    local_secrets: list[str]
 
