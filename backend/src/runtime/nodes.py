@@ -10,6 +10,9 @@ from typing import Any
 
 from langgraph.types import interrupt
 from src.runtime.state import AgentState
+from src.utils.ast_slicer import ASTSlicer, estimate_tokens
+from src.utils.diff_streamer import DiffStreamer
+from src.utils.token_manager import TokenBudgetManager, DEFAULT_PHASE_BUDGETS
 
 logger = logging.getLogger(__name__)
 
@@ -336,9 +339,21 @@ async def coding_node(state: AgentState) -> dict[str, Any]:
             "content": f"[Security Audit] {json.dumps(findings)}"
         })
     
+    guard_res = execute_phase_token_guard(
+        phase="coding",
+        state=state,
+        base_tokens=estimate_tokens(answer),
+    )
+    all_messages = guard_res["telemetry_messages"] + messages
+
     return {
         "status": "coded",
-        "messages": messages,
+        "token_usage_per_phase": guard_res["token_usage_per_phase"],
+        "token_budget_per_phase": guard_res["token_budget_per_phase"],
+        "token_savings": guard_res["token_savings"],
+        "file_history": guard_res["file_history"],
+        "budget_approvals": guard_res["budget_approvals"],
+        "messages": all_messages,
     }
 
 
@@ -389,22 +404,150 @@ async def end_node_default(state: AgentState) -> dict[str, Any]:
             }
         ],
     }
-import json
+def execute_phase_token_guard(
+    phase: str,
+    state: AgentState,
+    base_tokens: int = 150,
+    code_context: str | None = None,
+    filepath: str | None = None,
+    target_symbol: str | None = None,
+    changed_lines: list[int] | None = None,
+    force_full: bool = False,
+) -> dict[str, Any]:
+    """Applies AST slicing, diff-only streaming, and per-phase token budget guard.
 
-import logging
+    1. AST Slicing: If code_context is provided, extracts relevant AST nodes if a target_symbol
+       or changed_lines is specified, or if file exceeds threshold.
+    2. Diff-Only Streaming: If filepath is provided, converts subsequent versions into unified diffs.
+    3. Token Budget Evaluation: Sums consumed tokens and evaluates against the phase budget.
+       If exceeded and unapproved, triggers LangGraph interrupt() pausing execution.
+    """
+    telemetry_messages: list[dict[str, str]] = []
 
-from typing import Any
+    # 1. AST Slicing
+    processed_code = code_context
+    ast_saved = 0
+    if code_context:
+        slice_res = ASTSlicer.slice_code(
+            source_code=code_context,
+            filename=filepath or "main.py",
+            target_symbol=target_symbol,
+            changed_lines=changed_lines,
+        )
+        processed_code = slice_res.sliced_content
+        ast_saved = max(0, slice_res.original_tokens - slice_res.sliced_tokens)
+        logger.info(
+            "[AST Slicer] Sliced %s from %d lines to %d lines (targeting '%s'). %d tokens saved.",
+            filepath or "code",
+            slice_res.original_lines,
+            slice_res.sliced_lines,
+            target_symbol or "auto",
+            ast_saved,
+        )
+        if slice_res.is_sliced:
+            telemetry_messages.append({
+                "role": "system",
+                "content": (
+                    f"[AST Slicer] Targeted slice extracted for '{target_symbol or 'relevant'}' "
+                    f"in {filepath or 'file'} ({slice_res.sliced_tokens} tokens vs {slice_res.original_tokens} full, "
+                    f"{slice_res.token_reduction_pct:.1f}% reduction)."
+                ),
+            })
 
-from langgraph.types import interrupt
+    # 2. Diff-Only Streaming
+    file_history = dict(state.get("file_history") or {})
+    diff_streamer = DiffStreamer(history=file_history)
+    diff_saved = 0
+    final_payload = processed_code
+    if filepath and processed_code is not None:
+        diff_res = diff_streamer.process_file_content(
+            filepath=filepath,
+            new_content=processed_code,
+            force_full=force_full,
+        )
+        final_payload = diff_res.payload
+        diff_saved = diff_res.tokens_saved
+        file_history = diff_streamer.history
+        if diff_res.is_diff:
+            logger.info(
+                "[Diff Streamer] Unified diff emitted for %s: %d tokens saved (%.1f%% reduction).",
+                filepath,
+                diff_saved,
+                diff_res.token_reduction_pct,
+            )
+            telemetry_messages.append({
+                "role": "system",
+                "content": (
+                    f"[Diff Streamer] Unified diff transmitted for {filepath} "
+                    f"({diff_res.streamed_tokens} tokens vs {diff_res.original_tokens} full, "
+                    f"{diff_res.token_reduction_pct:.1f}% reduction)."
+                ),
+            })
 
+    # 3. Token Accounting & Budget Guard
+    payload_tokens = estimate_tokens(final_payload) if final_payload else 0
+    phase_tokens = base_tokens + payload_tokens
 
+    usage_map = dict(state.get("token_usage_per_phase") or {})
+    budget_map = dict(state.get("token_budget_per_phase") or DEFAULT_PHASE_BUDGETS)
+    approvals = list(state.get("budget_approvals") or [])
 
-from src.runtime.state import AgentState
+    budget_status = TokenBudgetManager.evaluate_phase_budget(
+        phase=phase,
+        tokens_to_add=phase_tokens,
+        usage_map=usage_map,
+        budget_map=budget_map,
+        approvals=approvals,
+    )
 
+    if budget_status.interrupt_required:
+        prompt_msg = budget_status.prompt_message or (
+            f"[Token Budget Exceeded] Phase '{phase}' consumed {budget_status.tokens_used} tokens "
+            f"(allocated budget: {budget_status.budget}). Approval required to continue."
+        )
+        logger.warning("Token budget exceeded in phase '%s': %s", phase, prompt_msg)
+        telemetry_messages.append({
+            "role": "system",
+            "content": prompt_msg,
+        })
+        decision = interrupt({
+            "action": "token_budget_exceeded",
+            "phase": phase,
+            "tokens_used": budget_status.tokens_used,
+            "budget": budget_status.budget,
+            "percent_used": budget_status.percent_used,
+            "prompt": prompt_msg,
+        })
+        logger.info("Resumed from token budget interrupt for phase '%s' with decision: %s", phase, decision)
+        if phase not in approvals:
+            approvals.append(phase)
 
+    # Update state maps
+    usage_map[phase] = budget_status.tokens_used
 
-logger = logging.getLogger(__name__)
+    savings_map = dict(state.get("token_savings") or {"ast_slicing": 0, "diff_streaming": 0, "total_saved": 0})
+    savings_map["ast_slicing"] = savings_map.get("ast_slicing", 0) + ast_saved
+    savings_map["diff_streaming"] = savings_map.get("diff_streaming", 0) + diff_saved
+    savings_map["total_saved"] = savings_map["ast_slicing"] + savings_map["diff_streaming"]
 
+    telemetry_messages.append({
+        "role": "system",
+        "content": f"[Token Usage] {json.dumps(usage_map)}",
+    })
+    telemetry_messages.append({
+        "role": "system",
+        "content": f"[Token Savings] {json.dumps(savings_map)}",
+    })
+
+    return {
+        "processed_code": final_payload,
+        "file_history": file_history,
+        "token_usage_per_phase": usage_map,
+        "token_budget_per_phase": budget_map,
+        "token_savings": savings_map,
+        "budget_approvals": approvals,
+        "telemetry_messages": telemetry_messages,
+    }
 
 
 async def orchestrator_node(state: AgentState) -> dict[str, Any]:
@@ -449,31 +592,55 @@ async def orchestrator_node(state: AgentState) -> dict[str, Any]:
         "- Ship partial-but-real over complete-but-fake."
     )
 
+    budgets = state.get("token_budget_per_phase") or DEFAULT_PHASE_BUDGETS.copy()
+    usage = state.get("token_usage_per_phase") or {}
+    savings = state.get("token_savings") or {"ast_slicing": 0, "diff_streaming": 0, "total_saved": 0}
+    file_history = state.get("file_history") or {}
+    budget_approvals = state.get("budget_approvals") or []
+
     return {
         "status": "orchestrating",
         "product_type": product_type,
         "phase_map": phase_map,
         "current_phase": phase_map[0] if phase_map else "end",
+        "token_budget_per_phase": budgets,
+        "token_usage_per_phase": usage,
+        "token_savings": savings,
+        "file_history": file_history,
+        "budget_approvals": budget_approvals,
         "messages": [
             {
                 "role": "system",
                 "content": f"Orchestrator classified product as '{product_type}'. Phase map generated: {' -> '.join(phase_map)}.\n\n{hallucination_rules}"
-            }
+            },
+            {
+                "role": "system",
+                "content": f"[Token Budgets] {json.dumps(budgets)}"
+            },
+            {
+                "role": "system",
+                "content": f"[Token Usage] {json.dumps(usage)}"
+            },
+            {
+                "role": "system",
+                "content": f"[Token Savings] {json.dumps(savings)}"
+            },
         ]
     }
 
 async def research_phase_node(state: AgentState) -> dict[str, Any]:
-
+    guard_res = execute_phase_token_guard(phase="research", state=state, base_tokens=150)
+    messages = list(guard_res.get("telemetry_messages", []))
+    messages.append({"role": "system", "content": "Research Phase Complete: Gathered context."})
     return {
-
         "status": "verified",
-
         "current_phase": "research",
-
-        "token_usage_per_phase": {"research": 150},
-
-        "messages": [{"role": "system", "content": "Research Phase Complete: Gathered context."}]
-
+        "token_usage_per_phase": guard_res["token_usage_per_phase"],
+        "token_budget_per_phase": guard_res["token_budget_per_phase"],
+        "token_savings": guard_res["token_savings"],
+        "file_history": guard_res["file_history"],
+        "budget_approvals": guard_res["budget_approvals"],
+        "messages": messages,
     }
 
 
@@ -878,250 +1045,360 @@ async def deploy_clarification_gate_node(state: AgentState) -> dict[str, Any]:
 
 
 async def blueprint_phase_node(state: AgentState) -> dict[str, Any]:
-
+    guard_res = execute_phase_token_guard(phase="blueprint", state=state, base_tokens=300)
+    messages = list(guard_res.get("telemetry_messages", []))
+    messages.append({"role": "system", "content": "Blueprint Phase Complete: System design approved."})
     return {
-
         "status": "verified",
-
         "current_phase": "blueprint",
-
-        "token_usage_per_phase": {"blueprint": 300},
-
-        "messages": [{"role": "system", "content": "Blueprint Phase Complete: System design approved."}]
-
+        "token_usage_per_phase": guard_res["token_usage_per_phase"],
+        "token_budget_per_phase": guard_res["token_budget_per_phase"],
+        "token_savings": guard_res["token_savings"],
+        "file_history": guard_res["file_history"],
+        "budget_approvals": guard_res["budget_approvals"],
+        "messages": messages,
     }
-
 
 
 async def scaffold_phase_node(state: AgentState) -> dict[str, Any]:
-
+    guard_res = execute_phase_token_guard(phase="scaffold", state=state, base_tokens=400)
+    messages = list(guard_res.get("telemetry_messages", []))
+    messages.append({"role": "system", "content": "Scaffold Phase Complete: Boilerplate generated."})
     return {
-
         "status": "verified",
-
         "current_phase": "scaffold",
-
-        "token_usage_per_phase": {"scaffold": 400},
-
-        "messages": [{"role": "system", "content": "Scaffold Phase Complete: Boilerplate generated."}]
-
+        "token_usage_per_phase": guard_res["token_usage_per_phase"],
+        "token_budget_per_phase": guard_res["token_budget_per_phase"],
+        "token_savings": guard_res["token_savings"],
+        "file_history": guard_res["file_history"],
+        "budget_approvals": guard_res["budget_approvals"],
+        "messages": messages,
     }
-
 
 
 async def implement_phase_node(state: AgentState) -> dict[str, Any]:
-
     goal = state.get("goal", "web app")
+    variables = state.get("variables") or {}
 
-    # Actually simulate code generation
+    # Extract code context, filepath, target symbol, and changed lines
+    code_context = (
+        state.get("code_context")
+        or variables.get("code_context")
+        or state.get("file_content")
+        or variables.get("file_content")
+    )
+    target_symbol = (
+        state.get("target_symbol")
+        or variables.get("target_symbol")
+    )
+    changed_lines = (
+        state.get("changed_lines")
+        or variables.get("changed_lines")
+    )
+    filepath = (
+        state.get("filepath")
+        or variables.get("filepath")
+        or ("main.py" if code_context else None)
+    )
+
+    guard_res = execute_phase_token_guard(
+        phase="implement",
+        state=state,
+        base_tokens=400,
+        code_context=code_context,
+        filepath=filepath,
+        target_symbol=target_symbol,
+        changed_lines=changed_lines,
+    )
+
+    processed_code = guard_res.get("processed_code")
+    messages = list(guard_res.get("telemetry_messages", []))
+    messages.append({"role": "system", "content": "Implement Phase Complete: Core modules coded."})
+
+    if processed_code:
+        messages.append({
+            "role": "assistant",
+            "content": f"### Implementation Updated\n\n```python\n{processed_code}\n```"
+        })
+    else:
+        messages.append({
+            "role": "assistant",
+            "content": f"```python\n# {goal}\nprint('Implementation complete')\n```"
+        })
 
     return {
-
         "status": "verified",
-
         "current_phase": "implement",
-
-        "token_usage_per_phase": {"implement": 1200},
-
-        "messages": [
-
-            {"role": "system", "content": "Implement Phase Complete: Core modules coded."},
-
-            {"role": "assistant", "content": f"```python\n# {goal}\nprint('Implementation complete')\n```"}
-
-        ]
-
+        "token_usage_per_phase": guard_res["token_usage_per_phase"],
+        "token_budget_per_phase": guard_res["token_budget_per_phase"],
+        "token_savings": guard_res["token_savings"],
+        "file_history": guard_res["file_history"],
+        "budget_approvals": guard_res["budget_approvals"],
+        "messages": messages,
     }
-
 
 
 async def test_phase_node(state: AgentState) -> dict[str, Any]:
-
+    guard_res = execute_phase_token_guard(phase="test", state=state, base_tokens=250)
+    messages = list(guard_res.get("telemetry_messages", []))
+    messages.append({"role": "system", "content": "Test Phase Complete: All units passed."})
     return {
-
         "status": "verified",
-
         "current_phase": "test",
-
         "test_results": {"coverage": "95%", "status": "PASS"},
-
-        "token_usage_per_phase": {"test": 250},
-
-        "messages": [{"role": "system", "content": "Test Phase Complete: All units passed."}]
-
+        "token_usage_per_phase": guard_res["token_usage_per_phase"],
+        "token_budget_per_phase": guard_res["token_budget_per_phase"],
+        "token_savings": guard_res["token_savings"],
+        "file_history": guard_res["file_history"],
+        "budget_approvals": guard_res["budget_approvals"],
+        "messages": messages,
     }
-
 
 
 async def security_audit_phase_node(state: AgentState) -> dict[str, Any]:
-
+    guard_res = execute_phase_token_guard(phase="security_audit", state=state, base_tokens=350)
+    messages = list(guard_res.get("telemetry_messages", []))
+    messages.append({"role": "system", "content": "Security Audit Complete: No critical vulnerabilities."})
     return {
-
         "status": "verified",
-
         "current_phase": "security_audit",
-
         "security_report": {"vulnerabilities": 0, "status": "SAFE"},
-
-        "token_usage_per_phase": {"security_audit": 350},
-
-        "messages": [{"role": "system", "content": "Security Audit Complete: No critical vulnerabilities."}]
-
+        "token_usage_per_phase": guard_res["token_usage_per_phase"],
+        "token_budget_per_phase": guard_res["token_budget_per_phase"],
+        "token_savings": guard_res["token_savings"],
+        "file_history": guard_res["file_history"],
+        "budget_approvals": guard_res["budget_approvals"],
+        "messages": messages,
     }
-
 
 
 async def deploy_phase_node(state: AgentState) -> dict[str, Any]:
-
+    guard_res = execute_phase_token_guard(phase="deploy", state=state, base_tokens=100)
+    messages = list(guard_res.get("telemetry_messages", []))
+    messages.append({"role": "system", "content": "Deploy Phase Complete: Artifacts bundled."})
     return {
-
         "status": "verified",
-
         "current_phase": "deploy",
-
-        "token_usage_per_phase": {"deploy": 100},
-
-        "messages": [{"role": "system", "content": "Deploy Phase Complete: Artifacts bundled."}]
-
+        "token_usage_per_phase": guard_res["token_usage_per_phase"],
+        "token_budget_per_phase": guard_res["token_budget_per_phase"],
+        "token_savings": guard_res["token_savings"],
+        "file_history": guard_res["file_history"],
+        "budget_approvals": guard_res["budget_approvals"],
+        "messages": messages,
     }
 
 
-
 async def end_node_default(state: AgentState) -> dict[str, Any]:
-
     return {
-
         "status": "completed",
-
         "messages": [{"role": "system", "content": "LangGraph multi-agent execution pipeline finished successfully."}]
-
     }
 
 
 async def capability_blueprint_phase_node(state: AgentState) -> dict[str, Any]:
+    guard_res = execute_phase_token_guard("capability_blueprint", state, base_tokens=300)
     return {
         "status": "verified",
         "current_phase": "capability_blueprint",
-        "token_usage_per_phase": {"capability_blueprint": 300},
-        "messages": [{"role": "system", "content": "Phase Complete: Capability Blueprint verified."}]
+        "token_usage_per_phase": guard_res["token_usage_per_phase"],
+        "token_budget_per_phase": guard_res["token_budget_per_phase"],
+        "token_savings": guard_res["token_savings"],
+        "file_history": guard_res["file_history"],
+        "budget_approvals": guard_res["budget_approvals"],
+        "messages": guard_res["telemetry_messages"] + [{"role": "system", "content": "Phase Complete: Capability Blueprint verified."}]
     }
 
 async def tool_design_phase_node(state: AgentState) -> dict[str, Any]:
+    guard_res = execute_phase_token_guard("tool_design", state, base_tokens=300)
     return {
         "status": "verified",
         "current_phase": "tool_design",
-        "token_usage_per_phase": {"tool_design": 300},
-        "messages": [{"role": "system", "content": "Phase Complete: Tool Design verified."}]
+        "token_usage_per_phase": guard_res["token_usage_per_phase"],
+        "token_budget_per_phase": guard_res["token_budget_per_phase"],
+        "token_savings": guard_res["token_savings"],
+        "file_history": guard_res["file_history"],
+        "budget_approvals": guard_res["budget_approvals"],
+        "messages": guard_res["telemetry_messages"] + [{"role": "system", "content": "Phase Complete: Tool Design verified."}]
     }
 
 async def agent_loop_implementation_phase_node(state: AgentState) -> dict[str, Any]:
+    guard_res = execute_phase_token_guard("agent_loop_implementation", state, base_tokens=300)
     return {
         "status": "verified",
         "current_phase": "agent_loop_implementation",
-        "token_usage_per_phase": {"agent_loop_implementation": 300},
-        "messages": [{"role": "system", "content": "Phase Complete: Agent Loop Implementation verified."}]
+        "token_usage_per_phase": guard_res["token_usage_per_phase"],
+        "token_budget_per_phase": guard_res["token_budget_per_phase"],
+        "token_savings": guard_res["token_savings"],
+        "file_history": guard_res["file_history"],
+        "budget_approvals": guard_res["budget_approvals"],
+        "messages": guard_res["telemetry_messages"] + [{"role": "system", "content": "Phase Complete: Agent Loop Implementation verified."}]
     }
 
 async def memory_state_design_phase_node(state: AgentState) -> dict[str, Any]:
+    guard_res = execute_phase_token_guard("memory_state_design", state, base_tokens=300)
     return {
         "status": "verified",
         "current_phase": "memory_state_design",
-        "token_usage_per_phase": {"memory_state_design": 300},
-        "messages": [{"role": "system", "content": "Phase Complete: Memory State Design verified."}]
+        "token_usage_per_phase": guard_res["token_usage_per_phase"],
+        "token_budget_per_phase": guard_res["token_budget_per_phase"],
+        "token_savings": guard_res["token_savings"],
+        "file_history": guard_res["file_history"],
+        "budget_approvals": guard_res["budget_approvals"],
+        "messages": guard_res["telemetry_messages"] + [{"role": "system", "content": "Phase Complete: Memory State Design verified."}]
     }
 
 async def sandbox_tests_phase_node(state: AgentState) -> dict[str, Any]:
+    guard_res = execute_phase_token_guard("sandbox_tests", state, base_tokens=300)
     return {
         "status": "verified",
         "current_phase": "sandbox_tests",
-        "token_usage_per_phase": {"sandbox_tests": 300},
-        "messages": [{"role": "system", "content": "Phase Complete: Sandbox Tests verified."}]
+        "token_usage_per_phase": guard_res["token_usage_per_phase"],
+        "token_budget_per_phase": guard_res["token_budget_per_phase"],
+        "token_savings": guard_res["token_savings"],
+        "file_history": guard_res["file_history"],
+        "budget_approvals": guard_res["budget_approvals"],
+        "messages": guard_res["telemetry_messages"] + [{"role": "system", "content": "Phase Complete: Sandbox Tests verified."}]
     }
 
 async def evaluation_runs_phase_node(state: AgentState) -> dict[str, Any]:
+    guard_res = execute_phase_token_guard("evaluation_runs", state, base_tokens=300)
     return {
         "status": "verified",
         "current_phase": "evaluation_runs",
-        "token_usage_per_phase": {"evaluation_runs": 300},
-        "messages": [{"role": "system", "content": "Phase Complete: Evaluation Runs verified."}]
+        "token_usage_per_phase": guard_res["token_usage_per_phase"],
+        "token_budget_per_phase": guard_res["token_budget_per_phase"],
+        "token_savings": guard_res["token_savings"],
+        "file_history": guard_res["file_history"],
+        "budget_approvals": guard_res["budget_approvals"],
+        "messages": guard_res["telemetry_messages"] + [{"role": "system", "content": "Phase Complete: Evaluation Runs verified."}]
     }
 
 async def goal_decomposition_design_phase_node(state: AgentState) -> dict[str, Any]:
+    guard_res = execute_phase_token_guard("goal_decomposition_design", state, base_tokens=300)
     return {
         "status": "verified",
         "current_phase": "goal_decomposition_design",
-        "token_usage_per_phase": {"goal_decomposition_design": 300},
-        "messages": [{"role": "system", "content": "Phase Complete: Goal Decomposition Design verified."}]
+        "token_usage_per_phase": guard_res["token_usage_per_phase"],
+        "token_budget_per_phase": guard_res["token_budget_per_phase"],
+        "token_savings": guard_res["token_savings"],
+        "file_history": guard_res["file_history"],
+        "budget_approvals": guard_res["budget_approvals"],
+        "messages": guard_res["telemetry_messages"] + [{"role": "system", "content": "Phase Complete: Goal Decomposition Design verified."}]
     }
 
 async def planner_executor_critic_architecture_phase_node(state: AgentState) -> dict[str, Any]:
+    guard_res = execute_phase_token_guard("planner_executor_critic_architecture", state, base_tokens=300)
     return {
         "status": "verified",
         "current_phase": "planner_executor_critic_architecture",
-        "token_usage_per_phase": {"planner_executor_critic_architecture": 300},
-        "messages": [{"role": "system", "content": "Phase Complete: Planner Executor Critic Architecture verified."}]
+        "token_usage_per_phase": guard_res["token_usage_per_phase"],
+        "token_budget_per_phase": guard_res["token_budget_per_phase"],
+        "token_savings": guard_res["token_savings"],
+        "file_history": guard_res["file_history"],
+        "budget_approvals": guard_res["budget_approvals"],
+        "messages": guard_res["telemetry_messages"] + [{"role": "system", "content": "Phase Complete: Planner Executor Critic Architecture verified."}]
     }
 
 async def tool_integration_phase_node(state: AgentState) -> dict[str, Any]:
+    guard_res = execute_phase_token_guard("tool_integration", state, base_tokens=300)
     return {
         "status": "verified",
         "current_phase": "tool_integration",
-        "token_usage_per_phase": {"tool_integration": 300},
-        "messages": [{"role": "system", "content": "Phase Complete: Tool Integration verified."}]
+        "token_usage_per_phase": guard_res["token_usage_per_phase"],
+        "token_budget_per_phase": guard_res["token_budget_per_phase"],
+        "token_savings": guard_res["token_savings"],
+        "file_history": guard_res["file_history"],
+        "budget_approvals": guard_res["budget_approvals"],
+        "messages": guard_res["telemetry_messages"] + [{"role": "system", "content": "Phase Complete: Tool Integration verified."}]
     }
 
 async def multi_step_test_scenarios_phase_node(state: AgentState) -> dict[str, Any]:
+    guard_res = execute_phase_token_guard("multi_step_test_scenarios", state, base_tokens=300)
     return {
         "status": "verified",
         "current_phase": "multi_step_test_scenarios",
-        "token_usage_per_phase": {"multi_step_test_scenarios": 300},
-        "messages": [{"role": "system", "content": "Phase Complete: Multi Step Test Scenarios verified."}]
+        "token_usage_per_phase": guard_res["token_usage_per_phase"],
+        "token_budget_per_phase": guard_res["token_budget_per_phase"],
+        "token_savings": guard_res["token_savings"],
+        "file_history": guard_res["file_history"],
+        "budget_approvals": guard_res["budget_approvals"],
+        "messages": guard_res["telemetry_messages"] + [{"role": "system", "content": "Phase Complete: Multi Step Test Scenarios verified."}]
     }
 
 async def failure_recovery_tests_phase_node(state: AgentState) -> dict[str, Any]:
+    guard_res = execute_phase_token_guard("failure_recovery_tests", state, base_tokens=300)
     return {
         "status": "verified",
         "current_phase": "failure_recovery_tests",
-        "token_usage_per_phase": {"failure_recovery_tests": 300},
-        "messages": [{"role": "system", "content": "Phase Complete: Failure Recovery Tests verified."}]
+        "token_usage_per_phase": guard_res["token_usage_per_phase"],
+        "token_budget_per_phase": guard_res["token_budget_per_phase"],
+        "token_savings": guard_res["token_savings"],
+        "file_history": guard_res["file_history"],
+        "budget_approvals": guard_res["budget_approvals"],
+        "messages": guard_res["telemetry_messages"] + [{"role": "system", "content": "Phase Complete: Failure Recovery Tests verified."}]
     }
 
 async def workflow_mapping_phase_node(state: AgentState) -> dict[str, Any]:
+    guard_res = execute_phase_token_guard("workflow_mapping", state, base_tokens=300)
     return {
         "status": "verified",
         "current_phase": "workflow_mapping",
-        "token_usage_per_phase": {"workflow_mapping": 300},
-        "messages": [{"role": "system", "content": "Phase Complete: Workflow Mapping verified."}]
+        "token_usage_per_phase": guard_res["token_usage_per_phase"],
+        "token_budget_per_phase": guard_res["token_budget_per_phase"],
+        "token_savings": guard_res["token_savings"],
+        "file_history": guard_res["file_history"],
+        "budget_approvals": guard_res["budget_approvals"],
+        "messages": guard_res["telemetry_messages"] + [{"role": "system", "content": "Phase Complete: Workflow Mapping verified."}]
     }
 
 async def trigger_action_design_phase_node(state: AgentState) -> dict[str, Any]:
+    guard_res = execute_phase_token_guard("trigger_action_design", state, base_tokens=300)
     return {
         "status": "verified",
         "current_phase": "trigger_action_design",
-        "token_usage_per_phase": {"trigger_action_design": 300},
-        "messages": [{"role": "system", "content": "Phase Complete: Trigger Action Design verified."}]
+        "token_usage_per_phase": guard_res["token_usage_per_phase"],
+        "token_budget_per_phase": guard_res["token_budget_per_phase"],
+        "token_savings": guard_res["token_savings"],
+        "file_history": guard_res["file_history"],
+        "budget_approvals": guard_res["budget_approvals"],
+        "messages": guard_res["telemetry_messages"] + [{"role": "system", "content": "Phase Complete: Trigger Action Design verified."}]
     }
 
 async def integration_points_phase_node(state: AgentState) -> dict[str, Any]:
+    guard_res = execute_phase_token_guard("integration_points", state, base_tokens=300)
     return {
         "status": "verified",
         "current_phase": "integration_points",
-        "token_usage_per_phase": {"integration_points": 300},
-        "messages": [{"role": "system", "content": "Phase Complete: Integration Points verified."}]
+        "token_usage_per_phase": guard_res["token_usage_per_phase"],
+        "token_budget_per_phase": guard_res["token_budget_per_phase"],
+        "token_savings": guard_res["token_savings"],
+        "file_history": guard_res["file_history"],
+        "budget_approvals": guard_res["budget_approvals"],
+        "messages": guard_res["telemetry_messages"] + [{"role": "system", "content": "Phase Complete: Integration Points verified."}]
     }
 
 async def end_to_end_automation_tests_phase_node(state: AgentState) -> dict[str, Any]:
+    guard_res = execute_phase_token_guard("end_to_end_automation_tests", state, base_tokens=300)
     return {
         "status": "verified",
         "current_phase": "end_to_end_automation_tests",
-        "token_usage_per_phase": {"end_to_end_automation_tests": 300},
-        "messages": [{"role": "system", "content": "Phase Complete: End To End Automation Tests verified."}]
+        "token_usage_per_phase": guard_res["token_usage_per_phase"],
+        "token_budget_per_phase": guard_res["token_budget_per_phase"],
+        "token_savings": guard_res["token_savings"],
+        "file_history": guard_res["file_history"],
+        "budget_approvals": guard_res["budget_approvals"],
+        "messages": guard_res["telemetry_messages"] + [{"role": "system", "content": "Phase Complete: End To End Automation Tests verified."}]
     }
 
 async def error_handling_paths_phase_node(state: AgentState) -> dict[str, Any]:
+    guard_res = execute_phase_token_guard("error_handling_paths", state, base_tokens=300)
     return {
         "status": "verified",
         "current_phase": "error_handling_paths",
-        "token_usage_per_phase": {"error_handling_paths": 300},
-        "messages": [{"role": "system", "content": "Phase Complete: Error Handling Paths verified."}]
+        "token_usage_per_phase": guard_res["token_usage_per_phase"],
+        "token_budget_per_phase": guard_res["token_budget_per_phase"],
+        "token_savings": guard_res["token_savings"],
+        "file_history": guard_res["file_history"],
+        "budget_approvals": guard_res["budget_approvals"],
+        "messages": guard_res["telemetry_messages"] + [{"role": "system", "content": "Phase Complete: Error Handling Paths verified."}]
     }

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { MessageSquare, Code, Terminal, Send, Loader2, Bot, User as UserIcon, Plus, GitCompare, Paperclip, Wrench, Cpu, Workflow, Play, FileText, FolderGit2, ShieldAlert } from "lucide-react";
+import { MessageSquare, Code, Terminal, Send, Loader2, Bot, User as UserIcon, Plus, GitCompare, Paperclip, Wrench, Cpu, Workflow, Play, FileText, FolderGit2, ShieldAlert, Gauge, Zap, BarChart2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -90,6 +90,15 @@ export function CenterWorkspace() {
     environmentMode,
     setLocalSecrets,
     setCredentialsStatus,
+    phaseMap,
+    tokenUsagePerPhase,
+    setTokenUsagePerPhase,
+    tokenBudgets,
+    setTokenBudgets,
+    tokenSavings,
+    setTokenSavings,
+    budgetExceeded,
+    setBudgetExceeded,
   } = usePlaygroundStore();
   const [input, setInput] = React.useState("");
   const [cmdMenu, setCmdMenu] = React.useState<'tool' | 'model' | null>(null);
@@ -129,6 +138,11 @@ export function CenterWorkspace() {
     } finally {
       setIsApprovingMcp(false);
     }
+  };
+
+  const handleApproveBudget = () => {
+    addTerminalLog("system", "[Token Budget] Operator approved phase budget continuation.");
+    handleResume(undefined, "approve");
   };
   const [cmdIndex, setCmdIndex] = React.useState(0);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -234,19 +248,20 @@ export function CenterWorkspace() {
   }, [messages, isThinking]);
 
 
-  const handleResume = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!clarificationInput.trim() || !clarificationThreadId || isThinking) return;
+  const handleResume = async (e?: React.FormEvent, overrideDecision?: string) => {
+    if (e) e.preventDefault();
+    const decision = overrideDecision || clarificationInput;
+    if (!decision.trim() || !clarificationThreadId || isThinking) return;
 
     addMessage({
       role: 'user',
-      content: clarificationInput,
+      content: overrideDecision ? `[Approved continuation for phase budget]` : clarificationInput,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     });
 
-    const decision = clarificationInput;
     setClarificationInput("");
     setClarificationPrompt(null);
+    setBudgetExceeded(null);
     setIsThinking(true);
 
     try {
@@ -314,6 +329,39 @@ export function CenterWorkspace() {
                           }
                         } else if (messageItem.content.includes("[Clarification Required]")) {
                           setClarificationPrompt(messageItem.content.replace("[Clarification Required]", "").trim());
+                        } else if (messageItem.content.includes("[Token Budgets]")) {
+                          try {
+                            const budgets = JSON.parse(messageItem.content.replace("[Token Budgets]", "").trim());
+                            setTokenBudgets(budgets);
+                          } catch {}
+                        } else if (messageItem.content.includes("[Token Usage]")) {
+                          try {
+                            const usage = JSON.parse(messageItem.content.replace("[Token Usage]", "").trim());
+                            setTokenUsagePerPhase(usage);
+                          } catch {}
+                        } else if (messageItem.content.includes("[Token Savings]")) {
+                          try {
+                            const savings = JSON.parse(messageItem.content.replace("[Token Savings]", "").trim());
+                            setTokenSavings(savings);
+                          } catch {}
+                        } else if (messageItem.content.includes("[Token Budget Exceeded]")) {
+                          const content = messageItem.content;
+                          const matchPhase = content.match(/Phase '([^']+)'/);
+                          const matchTokens = content.match(/consumed (\d+) tokens/);
+                          const matchBudget = content.match(/allocated budget: (\d+)/);
+                          const phase = matchPhase ? matchPhase[1] : "current_phase";
+                          const used = matchTokens ? parseInt(matchTokens[1], 10) : 0;
+                          const budget = matchBudget ? parseInt(matchBudget[1], 10) : 2500;
+                          const percent = budget > 0 ? Math.round((used / budget) * 100) : 100;
+                          setBudgetExceeded({
+                            phase,
+                            prompt: content.replace("[Token Budget Exceeded]", "").trim(),
+                            used,
+                            budget,
+                            percent,
+                          });
+                        } else if (messageItem.content.includes("[AST Slicer]") || messageItem.content.includes("[Diff Streamer]")) {
+                          addTerminalLog("system", messageItem.content);
                         } else if (messageItem.content.includes("[MCP Confirmation Required]")) {
                           const promptText = messageItem.content.replace("[MCP Confirmation Required]", "").trim();
                           const matchTool = promptText.match(/(?:allow|tool)\s+([a-zA-Z0-9_\-\.]+)/i);
@@ -466,6 +514,39 @@ export function CenterWorkspace() {
                             }
                           } else if (messageItem.content.includes("[Clarification Required]")) {
                             setClarificationPrompt(messageItem.content.replace("[Clarification Required]", "").trim());
+                          } else if (messageItem.content.includes("[Token Budgets]")) {
+                            try {
+                              const budgets = JSON.parse(messageItem.content.replace("[Token Budgets]", "").trim());
+                              setTokenBudgets(budgets);
+                            } catch {}
+                          } else if (messageItem.content.includes("[Token Usage]")) {
+                            try {
+                              const usage = JSON.parse(messageItem.content.replace("[Token Usage]", "").trim());
+                              setTokenUsagePerPhase(usage);
+                            } catch {}
+                          } else if (messageItem.content.includes("[Token Savings]")) {
+                            try {
+                              const savings = JSON.parse(messageItem.content.replace("[Token Savings]", "").trim());
+                              setTokenSavings(savings);
+                            } catch {}
+                          } else if (messageItem.content.includes("[Token Budget Exceeded]")) {
+                            const content = messageItem.content;
+                            const matchPhase = content.match(/Phase '([^']+)'/);
+                            const matchTokens = content.match(/consumed (\d+) tokens/);
+                            const matchBudget = content.match(/allocated budget: (\d+)/);
+                            const phase = matchPhase ? matchPhase[1] : "current_phase";
+                            const used = matchTokens ? parseInt(matchTokens[1], 10) : 0;
+                            const budget = matchBudget ? parseInt(matchBudget[1], 10) : 2500;
+                            const percent = budget > 0 ? Math.round((used / budget) * 100) : 100;
+                            setBudgetExceeded({
+                              phase,
+                              prompt: content.replace("[Token Budget Exceeded]", "").trim(),
+                              used,
+                              budget,
+                              percent,
+                            });
+                          } else if (messageItem.content.includes("[AST Slicer]") || messageItem.content.includes("[Diff Streamer]")) {
+                            addTerminalLog("system", messageItem.content);
                           } else if (messageItem.content.includes("[MCP Confirmation Required]")) {
                             const promptText = messageItem.content.replace("[MCP Confirmation Required]", "").trim();
                             const matchTool = promptText.match(/(?:allow|tool)\s+([a-zA-Z0-9_\-\.]+)/i);
@@ -584,6 +665,7 @@ export function CenterWorkspace() {
             <TabsTrigger value="artifacts" className="text-xs gap-2"><Code className="h-3.5 w-3.5" /> Artifacts</TabsTrigger>
             <TabsTrigger value="diff" className="text-xs gap-2"><GitCompare className="h-3.5 w-3.5" /> Diff Viewer</TabsTrigger>
             <TabsTrigger value="terminal" className="text-xs gap-2"><Terminal className="h-3.5 w-3.5" /> Terminal</TabsTrigger>
+            <TabsTrigger value="metrics" className="text-xs gap-2"><Gauge className="h-3.5 w-3.5" /> Token Metrics</TabsTrigger>
             {securityFindings.length > 0 && <TabsTrigger value="security" className="text-xs gap-2 text-destructive"><ShieldAlert className="h-3.5 w-3.5" /> Security Audit</TabsTrigger>}
           </TabsList>
         </div>
@@ -693,6 +775,35 @@ export function CenterWorkspace() {
                           className="text-xs h-8"
                         >
                           Deny
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  {budgetExceeded && (
+                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 my-4 max-w-[85%] space-y-3">
+                      <div className="flex items-center gap-2 text-amber-400 font-semibold text-sm">
+                        <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0" />
+                        <span>Token Budget Exceeded — Continuation Approval Required</span>
+                      </div>
+                      <div className="text-sm text-foreground space-y-1">
+                        <p>
+                          Phase: <code className="px-1.5 py-0.5 rounded bg-muted/60 font-mono text-xs text-amber-300 capitalize">{budgetExceeded.phase.replace(/_/g, " ")}</code>
+                        </p>
+                        <p className="text-xs text-muted-foreground">{budgetExceeded.prompt}</p>
+                        <div className="flex flex-wrap items-center gap-4 text-xs font-mono pt-1 text-muted-foreground">
+                          <span>Consumed: <strong className="text-foreground">{budgetExceeded.used.toLocaleString()}</strong> tokens</span>
+                          <span>Quota: <strong className="text-foreground">{budgetExceeded.budget.toLocaleString()}</strong> tokens</span>
+                          <span className="text-amber-400 font-bold">({budgetExceeded.percent}% used)</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 pt-1">
+                        <Button
+                          size="sm"
+                          onClick={handleApproveBudget}
+                          disabled={isThinking}
+                          className="bg-amber-500 hover:bg-amber-600 text-black font-semibold text-xs h-8"
+                        >
+                          Approve Budget & Continue
                         </Button>
                       </div>
                     </div>
@@ -954,11 +1065,151 @@ export function CenterWorkspace() {
               </div>
             </div>
           </TabsContent>
+
+          <TabsContent value="metrics" className="flex-1 mt-0 border-0 overflow-y-auto data-[state=active]:block data-[state=inactive]:hidden min-h-0 p-6">
+            <div className="max-w-5xl mx-auto space-y-6 pb-12">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border/40 pb-4">
+                <div>
+                  <h2 className="text-xl font-bold flex items-center gap-2 text-foreground">
+                    <Gauge className="h-5 w-5 text-[#22D3EE]" />
+                    Token Efficiency & Per-Phase Quota Telemetry
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    First-class token optimization engine with AST Slicing, Diff-Only Streaming, and per-phase pause gates.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <Zap className="h-3 w-3" />
+                    Adaptive AST Active
+                  </span>
+                </div>
+              </div>
+
+              {/* Efficiency Stat Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="rounded-xl border border-border/40 bg-card/40 p-4 relative overflow-hidden">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground font-medium">AST Slicing Saved</span>
+                    <Code className="h-4 w-4 text-[#22D3EE]" />
+                  </div>
+                  <div className="text-2xl font-bold font-mono text-[#22D3EE] mt-2">
+                    {(tokenSavings?.ast_slicing || 0).toLocaleString()}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">Tokens spared by symbol extraction</p>
+                </div>
+
+                <div className="rounded-xl border border-border/40 bg-card/40 p-4 relative overflow-hidden">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground font-medium">Diff Streaming Saved</span>
+                    <GitCompare className="h-4 w-4 text-purple-400" />
+                  </div>
+                  <div className="text-2xl font-bold font-mono text-purple-400 mt-2">
+                    {(tokenSavings?.diff_streaming || 0).toLocaleString()}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">Tokens spared by unified diffs</p>
+                </div>
+
+                <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/10 p-4 relative overflow-hidden">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-emerald-300 font-medium">Total Tokens Saved</span>
+                    <Zap className="h-4 w-4 text-emerald-400" />
+                  </div>
+                  <div className="text-2xl font-bold font-mono text-emerald-400 mt-2">
+                    {((tokenSavings?.total_saved || (tokenSavings?.ast_slicing || 0) + (tokenSavings?.diff_streaming || 0))).toLocaleString()}
+                  </div>
+                  <p className="text-[11px] text-emerald-400/80 mt-1">Context reduction across all phases</p>
+                </div>
+              </div>
+
+              {/* Phase Budget Comparison Table / Chart */}
+              <div className="rounded-xl border border-border/40 bg-card/30 overflow-hidden">
+                <div className="p-4 border-b border-border/30 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold flex items-center gap-2">
+                    <BarChart2 className="h-4 w-4 text-primary" />
+                    Per-Phase Token Quota vs Consumed Breakdown
+                  </h3>
+                  <span className="text-xs text-muted-foreground font-mono">
+                    {Object.keys(tokenUsagePerPhase || {}).length} phases tracked
+                  </span>
+                </div>
+
+                <div className="p-4 space-y-4">
+                  {(() => {
+                    const defaultPhases = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "test", "security_audit", "deploy"];
+                    const phases = Array.from(new Set([
+                      ...(phaseMap && phaseMap.length > 0 ? phaseMap : defaultPhases),
+                      ...Object.keys(tokenUsagePerPhase || {}),
+                    ]));
+
+                    return phases.map((phase) => {
+                      const used = tokenUsagePerPhase?.[phase] || 0;
+                      const budget = tokenBudgets?.[phase] || 2500;
+                      const percent = Math.round((used / Math.max(1, budget)) * 100);
+                      const isExceeded = used > budget;
+                      const isWarning = percent >= 75 && !isExceeded;
+
+                      return (
+                        <div key={phase} className="p-3 rounded-lg bg-muted/20 border border-border/20 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-sm capitalize text-foreground">
+                                {phase.replace(/_/g, " ")}
+                              </span>
+                              {isExceeded ? (
+                                <span className="text-[10px] px-2 py-0.5 rounded font-bold bg-destructive/20 text-destructive border border-destructive/30">
+                                  BUDGET EXCEEDED
+                                </span>
+                              ) : isWarning ? (
+                                <span className="text-[10px] px-2 py-0.5 rounded font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                                  NEAR LIMIT ({percent}%)
+                                </span>
+                              ) : used > 0 ? (
+                                <span className="text-[10px] px-2 py-0.5 rounded font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                                  OPTIMAL ({percent}%)
+                                </span>
+                              ) : (
+                                <span className="text-[10px] px-2 py-0.5 rounded font-normal text-muted-foreground">
+                                  Pending
+                                </span>
+                              )}
+                            </div>
+                            <div className="font-mono text-xs text-muted-foreground flex items-center gap-2">
+                              <span className={isExceeded ? "text-destructive font-bold" : "text-foreground font-semibold"}>
+                                {used.toLocaleString()}
+                              </span>
+                              <span>/</span>
+                              <span>{budget.toLocaleString()} tokens</span>
+                            </div>
+                          </div>
+
+                          {/* Progress Meter */}
+                          <div className="w-full h-2 rounded-full bg-muted/60 overflow-hidden relative">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                isExceeded
+                                  ? "bg-destructive"
+                                  : isWarning
+                                  ? "bg-amber-500"
+                                  : "bg-emerald-500"
+                              }`}
+                              style={{ width: `${Math.min(100, percent)}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+            </div>
+          </TabsContent>
         </div>
       </Tabs>
 
-      {/* Input Box - Positioned absolutely at the bottom over the content (hidden on terminal to give full interactive CLI) */}
-      {activeCenterTab !== "terminal" && (
+      {/* Input Box - Positioned absolutely at the bottom over the content (hidden on terminal/metrics to give full view) */}
+      {activeCenterTab !== "terminal" && activeCenterTab !== "metrics" && (
       <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-[#0D1117] via-[#0D1117]/90 to-transparent pt-12">
         <div className="max-w-4xl mx-auto relative">
           <form onSubmit={handleSend} className="relative rounded-xl border border-border/50 bg-card shadow-2xl focus-within:ring-1 focus-within:ring-primary/50 focus-within:border-primary/50 transition-all flex flex-col">

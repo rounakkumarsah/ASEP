@@ -44,10 +44,17 @@ class AgentState(TypedDict, total=False):
     test_results: dict[str, Any]
     error_log: list[str]
     security_report: dict[str, Any]
+    # Token Efficiency & Per-Phase Budgeting
     token_usage_per_phase: dict[str, int]
+    token_budget_per_phase: dict[str, int]
+    file_history: dict[str, str]
+    budget_approvals: list[str]
+    budget_exceeded_info: dict[str, Any]
+    token_savings: dict[str, int]
 
     # Environment Policy
     environment_mode: str
     credentials_status: dict[str, Any]
     local_secrets: list[str]
+
 

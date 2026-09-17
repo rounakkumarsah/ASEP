@@ -89,7 +89,29 @@ export interface PlaygroundState {
   // Metrics
   sessionMetrics: { estimatedCost: number | null; confidence: number | null } | null;
   setSessionMetrics: (metrics: { estimatedCost: number | null; confidence: number | null } | null) => void;
+
+  // Token Efficiency & Phase Budget Telemetry
+  tokenUsagePerPhase: Record<string, number>;
+  setTokenUsagePerPhase: (usage: Record<string, number> | ((prev: Record<string, number>) => Record<string, number>)) => void;
+  tokenBudgets: Record<string, number>;
+  setTokenBudgets: (budgets: Record<string, number>) => void;
+  tokenSavings: { ast_slicing: number; diff_streaming: number; total_saved: number };
+  setTokenSavings: (savings: { ast_slicing: number; diff_streaming: number; total_saved: number }) => void;
+  budgetExceeded: { phase: string; prompt: string; used: number; budget: number; percent: number } | null;
+  setBudgetExceeded: (info: { phase: string; prompt: string; used: number; budget: number; percent: number } | null) => void;
 }
+
+export const DEFAULT_PHASE_BUDGETS: Record<string, number> = {
+  research: 1500,
+  clarification_gate: 500,
+  blueprint: 2000,
+  scaffold: 2500,
+  implement: 3500,
+  test: 2000,
+  security_audit: 1500,
+  deploy_clarification_gate: 500,
+  deploy: 1000,
+};
 
 import { persist } from 'zustand/middleware';
 
@@ -181,6 +203,18 @@ export const usePlaygroundStore = create<PlaygroundState>()(
 
       sessionMetrics: null,
       setSessionMetrics: (sessionMetrics) => set({ sessionMetrics }),
+
+      tokenUsagePerPhase: {},
+      setTokenUsagePerPhase: (usage) =>
+        set((state) => ({
+          tokenUsagePerPhase: typeof usage === 'function' ? usage(state.tokenUsagePerPhase) : usage,
+        })),
+      tokenBudgets: DEFAULT_PHASE_BUDGETS,
+      setTokenBudgets: (tokenBudgets) => set({ tokenBudgets }),
+      tokenSavings: { ast_slicing: 0, diff_streaming: 0, total_saved: 0 },
+      setTokenSavings: (tokenSavings) => set({ tokenSavings }),
+      budgetExceeded: null,
+      setBudgetExceeded: (budgetExceeded) => set({ budgetExceeded }),
     }),
     {
       name: 'asep-playground-storage',
@@ -197,6 +231,9 @@ export const usePlaygroundStore = create<PlaygroundState>()(
         terminalLogs: state.terminalLogs,
         activeNode: state.activeNode,
         completedNodes: state.completedNodes,
+        tokenUsagePerPhase: state.tokenUsagePerPhase,
+        tokenBudgets: state.tokenBudgets,
+        tokenSavings: state.tokenSavings,
       }),
     }
   )
