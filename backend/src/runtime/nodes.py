@@ -21,6 +21,8 @@ from src.utils.self_healing import (
     TracebackAnalyzer,
     UnifiedDiffPatcher,
 )
+from src.utils.security_scanner import scanner, SecurityReport
+from src.utils.package_resolver import PackageResolver
 
 logger = logging.getLogger(__name__)
 
@@ -1348,13 +1350,89 @@ async def test_phase_node(state: AgentState) -> dict[str, Any]:
 
 
 async def security_audit_phase_node(state: AgentState) -> dict[str, Any]:
+    """Security Auditor Node: runs before final commit and deploy.
+    Scans for:
+    - Injection (SQL, Command, Template/SSTI)
+    - Hardcoded secrets and credentials
+    - Debug mode flags in production
+    - Missing authentication on data-modifying endpoints
+    - Vulnerable dependencies against known CVEs
+    Outputs formatted severity table; CRITICAL = block deploy until fixed.
+    """
+    code = (
+        state.get("generated_code")
+        or state.get("code_context")
+        or state.get("file_content")
+        or ""
+    )
+    variables = state.get("variables") or {}
+    artifacts = state.get("artifacts") or {}
+    deps = variables.get("dependencies") or state.get("dependencies") or []
+
+    # If artifacts contain code files, aggregate them
+    files_to_scan: dict[str, str] = {"main.py": code}
+    for art_name, art_val in artifacts.items():
+        if isinstance(art_val, str) and (art_name.endswith((".py", ".js", ".ts", ".tsx", ".json", ".txt"))):
+            files_to_scan[art_name] = art_val
+
     guard_res = execute_phase_token_guard(phase="security_audit", state=state, base_tokens=350)
     messages = list(guard_res.get("telemetry_messages", []))
-    messages.append({"role": "system", "content": "Security Audit Complete: No critical vulnerabilities."})
+
+    # Run security audit scan
+    report = scanner.generate_security_report(code_or_files=files_to_scan, dependencies=deps)
+
+    # 1. Output Markdown Severity Table
+    messages.append({
+        "role": "assistant",
+        "content": report.severity_table,
+    })
+
+    # 2. Emit SSE telemetry frame for frontend Security Audit tab
+    findings_json = json.dumps([f.to_dict() for f in report.findings])
+    messages.append({
+        "role": "system",
+        "content": f"[Security Audit] {findings_json}",
+    })
+
+    # 3. CRITICAL = block deploy until fixed
+    if report.critical_count > 0:
+        logger.warning("Security Audit Gate: %s CRITICAL vulnerabilities detected. Deploy is BLOCKED.", report.critical_count)
+        messages.append({
+            "role": "system",
+            "content": f"[Security Gate Blocked] Detected {report.critical_count} CRITICAL security vulnerability. Deploy is BLOCKED until remediated.",
+        })
+        try:
+            interrupt({
+                "action": "security_gate_blocked",
+                "critical_count": report.critical_count,
+                "findings": [f.to_dict() for f in report.findings if f.severity.lower() == "critical"],
+            })
+        except Exception:
+            pass
+
+        return {
+            "status": "security_blocked",
+            "current_phase": "security_audit",
+            "security_report": report.to_dict(),
+            "token_usage_per_phase": guard_res["token_usage_per_phase"],
+            "token_budget_per_phase": guard_res["token_budget_per_phase"],
+            "token_savings": guard_res["token_savings"],
+            "file_history": guard_res["file_history"],
+            "budget_approvals": guard_res["budget_approvals"],
+            "messages": messages,
+        }
+
+    # Passed verification
+    logger.info("Security Audit Passed: 0 critical vulnerabilities. Total findings: %s", report.total_findings)
+    messages.append({
+        "role": "system",
+        "content": f"Security Audit Complete: Verified with 0 critical vulnerabilities ({report.high_count} High, {report.medium_count} Medium, {report.low_count} Low).",
+    })
+
     return {
         "status": "verified",
         "current_phase": "security_audit",
-        "security_report": {"vulnerabilities": 0, "status": "SAFE"},
+        "security_report": report.to_dict(),
         "token_usage_per_phase": guard_res["token_usage_per_phase"],
         "token_budget_per_phase": guard_res["token_budget_per_phase"],
         "token_savings": guard_res["token_savings"],
@@ -1365,9 +1443,30 @@ async def security_audit_phase_node(state: AgentState) -> dict[str, Any]:
 
 
 async def deploy_phase_node(state: AgentState) -> dict[str, Any]:
+    """Deploy node: requires passed security audit report before bundling and release."""
+    sec_report = state.get("security_report") or {}
     guard_res = execute_phase_token_guard(phase="deploy", state=state, base_tokens=100)
     messages = list(guard_res.get("telemetry_messages", []))
-    messages.append({"role": "system", "content": "Deploy Phase Complete: Artifacts bundled."})
+
+    # Security Gate: verify security report passed
+    if not sec_report.get("passed", False) or sec_report.get("critical_count", 0) > 0:
+        logger.error("Deploy Gate Blocked: Cannot deploy artifact without passed security report.")
+        messages.append({
+            "role": "system",
+            "content": "Deploy Blocked: Deployment gate rejected artifact due to unpassed security audit.",
+        })
+        return {
+            "status": "security_blocked",
+            "current_phase": "deploy",
+            "token_usage_per_phase": guard_res["token_usage_per_phase"],
+            "token_budget_per_phase": guard_res["token_budget_per_phase"],
+            "token_savings": guard_res["token_savings"],
+            "file_history": guard_res["file_history"],
+            "budget_approvals": guard_res["budget_approvals"],
+            "messages": messages,
+        }
+
+    messages.append({"role": "system", "content": "Deploy Phase Complete: Artifacts bundled and verified against security policies."})
     return {
         "status": "verified",
         "current_phase": "deploy",
@@ -1381,9 +1480,35 @@ async def deploy_phase_node(state: AgentState) -> dict[str, Any]:
 
 
 async def end_node_default(state: AgentState) -> dict[str, Any]:
+    """Final pipeline node.
+    Gate: Final artifact CANNOT be marked 'complete' without a passed security report in state.
+    """
+    sec_report = state.get("security_report") or {}
+    has_passed_security = sec_report.get("passed", False) and (sec_report.get("critical_count", 0) == 0)
+
+    if not has_passed_security:
+        logger.error("Final Gate Blocked: Cannot mark execution 'complete' without a passed security report in state.")
+        return {
+            "status": "security_blocked",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "Execution Gate Blocked: Final artifact cannot be marked 'complete' without a passed "
+                        "security report in state (0 CRITICAL vulnerabilities required)."
+                    ),
+                }
+            ],
+        }
+
     return {
         "status": "completed",
-        "messages": [{"role": "system", "content": "LangGraph multi-agent execution pipeline finished successfully."}]
+        "messages": [
+            {
+                "role": "system",
+                "content": "LangGraph multi-agent execution pipeline finished successfully with verified security compliance.",
+            }
+        ],
     }
 
 
