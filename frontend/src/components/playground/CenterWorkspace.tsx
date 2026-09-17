@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePlaygroundStore } from "@/lib/stores/playgroundStore";
 const Editor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 import ReactMarkdown from 'react-markdown';
+import { ExplorationCard } from "./ExplorationCard";
 
 // Dynamic imports for components that use browser-only APIs (DOM/canvas/WebGL)
 // ssr:false prevents hydration mismatches and React Error Boundary crashes
@@ -122,6 +123,8 @@ export function CenterWorkspace() {
     selectedProjectName,
     activeSkills,
     skillCitations,
+    addExplorationEvent,
+    setPhaseExploration,
   } = usePlaygroundStore();
   const [input, setInput] = React.useState("");
   const [cmdMenu, setCmdMenu] = React.useState<'tool' | 'model' | null>(null);
@@ -656,6 +659,23 @@ export function CenterWorkspace() {
                               const metrics = JSON.parse(metricsStr);
                               usePlaygroundStore.getState().setSessionMetrics(metrics);
                           } catch {}
+                        } else if (messageItem.content.includes("[Explore Event]")) {
+                          try {
+                            const raw = messageItem.content.replace("[Explore Event]", "").trim();
+                            const ev = JSON.parse(raw);
+                            addExplorationEvent(ev);
+                          } catch {}
+                        } else if (messageItem.content.includes("[Explore Summary]")) {
+                          try {
+                            const raw = messageItem.content.replace("[Explore Summary]", "").trim();
+                            const summary = JSON.parse(raw);
+                            setPhaseExploration(summary.phase, summary);
+                            addMessage({
+                              role: "system",
+                              content: `[Explore Summary] ${raw}`,
+                              timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                            });
+                          } catch {}
                         }
                       }
                     }
@@ -870,6 +890,23 @@ export function CenterWorkspace() {
                                   confidence: metrics.confidence || null
                                 });
                             } catch {}
+                          } else if (messageItem.content.includes("[Explore Event]")) {
+                            try {
+                              const raw = messageItem.content.replace("[Explore Event]", "").trim();
+                              const ev = JSON.parse(raw);
+                              addExplorationEvent(ev);
+                            } catch {}
+                          } else if (messageItem.content.includes("[Explore Summary]")) {
+                            try {
+                              const raw = messageItem.content.replace("[Explore Summary]", "").trim();
+                              const summary = JSON.parse(raw);
+                              setPhaseExploration(summary.phase, summary);
+                              addMessage({
+                                role: "system",
+                                content: `[Explore Summary] ${raw}`,
+                                timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                              });
+                            } catch {}
                           } else {
                             streamMessages.push(messageItem.content);
                           }
@@ -1009,6 +1046,13 @@ export function CenterWorkspace() {
                             <FileText className="h-3 w-3 text-cyan-400 shrink-0" />
                             <span>{msg.content}</span>
                           </div>
+                        </div>
+                      );
+                    }
+                    if (msg.content?.startsWith('[Explore Summary]')) {
+                      return (
+                        <div key={idx} className="w-full my-2 animate-in fade-in">
+                          <ExplorationCard content={msg.content} />
                         </div>
                       );
                     }

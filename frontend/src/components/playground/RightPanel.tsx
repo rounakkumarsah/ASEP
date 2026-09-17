@@ -1,13 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { Activity, CheckCircle2, CircleDashed, TerminalSquare, BookOpen, DollarSign, Target, PanelRightClose, RotateCcw, GitBranch, Sparkles, FileText } from "lucide-react";
+import { Activity, CheckCircle2, CircleDashed, TerminalSquare, BookOpen, DollarSign, Target, PanelRightClose, RotateCcw, GitBranch, Sparkles, FileText, Compass, Search } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { usePlaygroundStore } from "@/lib/stores/playgroundStore";
 import { useSidebarStore } from "@/lib/stores/sidebarStore";
+import { ExplorePanel } from "./ExplorePanel";
 
 export function RightPanel() {
   const {
@@ -20,6 +21,10 @@ export function RightPanel() {
     githubCommits,
     activeSkills,
     skillCitations,
+    explorationEvents,
+    phaseExplorations,
+    activeRightTab,
+    setActiveRightTab,
   } = usePlaygroundStore();
   const { toggleRightPanel } = useSidebarStore();
   const hasActivity = messages.length > 0 || isThinking || completedNodes.length > 0;
@@ -85,82 +90,117 @@ export function RightPanel() {
 
   return (
     <div className="flex h-full flex-col border-l border-border/40 bg-background/50 backdrop-blur">
-      <div className="p-4 pb-2 border-b border-border/40 flex items-center justify-between">
-        <h2 className="text-sm font-semibold flex items-center gap-2">
-          <Activity className="h-4 w-4 text-[#22D3EE]" />
-          Execution Trace
-        </h2>
+      <div className="p-2 border-b border-border/40 bg-zinc-950/40 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1 bg-muted/40 p-0.5 rounded-lg">
+          <Button
+            variant={activeRightTab === "trace" ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setActiveRightTab("trace")}
+            className="h-7 text-xs gap-1.5 px-2.5 font-medium"
+          >
+            <Activity className="h-3.5 w-3.5 text-[#22D3EE]" />
+            Execution Trace
+          </Button>
+          <Button
+            variant={activeRightTab === "explore" ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setActiveRightTab("explore")}
+            className="h-7 text-xs gap-1.5 px-2.5 font-medium"
+          >
+            <Compass className="h-3.5 w-3.5 text-cyan-400" />
+            Explore Feed
+            {explorationEvents.length > 0 && (
+              <Badge variant="outline" className="h-4 px-1 text-[9px] bg-cyan-500/10 text-cyan-400 border-cyan-500/30">
+                {explorationEvents.length}
+              </Badge>
+            )}
+          </Button>
+        </div>
         <Button
           variant="ghost"
           size="icon"
           onClick={toggleRightPanel}
-          className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
-          title="Collapse Execution Trace Panel (Ctrl+])"
-          aria-label="Collapse Execution Trace Panel"
+          className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors shrink-0"
+          title="Collapse Panel (Ctrl+])"
+          aria-label="Collapse Panel"
         >
           <PanelRightClose className="h-4 w-4" />
         </Button>
       </div>
 
-      <ScrollArea className="flex-1">
-        <div className="p-4 space-y-6">
-          
-          {/* Execution Timeline */}
-          <div className="space-y-3">
-            <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Plan Timeline</h3>
+      {activeRightTab === "explore" ? (
+        <div className="flex-1 min-h-0">
+          <ExplorePanel />
+        </div>
+      ) : (
+        <ScrollArea className="flex-1">
+          <div className="p-4 space-y-6">
             
-            {!hasActivity ? (
-              <div className="relative border-l border-border/60 ml-2 space-y-4 py-2 opacity-60">
-                <div className="absolute -inset-2 bg-gradient-to-b from-transparent via-background/20 to-background z-10 pointer-events-none" />
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 text-center w-full">
-                  <Badge variant="outline" className="bg-background shadow-lg mb-2 text-[10px]">Example Trace</Badge>
-                </div>
-                {PIPELINE_STEPS.map((step) => (
-                  <div key={step.id} className="relative pl-4 transition-all">
-                    <CheckCircle2 className="absolute -left-2 top-0 h-4 w-4 text-emerald-500/50 bg-background" />
-                    <p className="text-xs font-medium text-muted-foreground">
-                      {step.label}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">{step.desc}</p>
+            {/* Execution Timeline */}
+            <div className="space-y-3">
+              <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Plan Timeline</h3>
+              
+              {!hasActivity ? (
+                <div className="relative border-l border-border/60 ml-2 space-y-4 py-2 opacity-60">
+                  <div className="absolute -inset-2 bg-gradient-to-b from-transparent via-background/20 to-background z-10 pointer-events-none" />
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 text-center w-full">
+                    <Badge variant="outline" className="bg-background shadow-lg mb-2 text-[10px]">Example Trace</Badge>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="relative border-l border-border/60 ml-2 space-y-4 py-2">
-                {PIPELINE_STEPS.map((step) => {
-                  const isActive = activeNode === step.id;
-                  const isDone = completedNodes.includes(step.id) && !isActive;
-                  const commitSha = githubCommits?.[step.id];
-
-                  return (
-                    <div key={step.id} className={`relative pl-4 transition-all ${!isActive && !isDone ? "opacity-40" : "opacity-100"}`}>
-                      {isActive ? (
-                        <CircleDashed className="absolute -left-2 top-0 h-4 w-4 text-[#22D3EE] animate-spin bg-background" />
-                      ) : isDone ? (
-                        <CheckCircle2 className="absolute -left-2 top-0 h-4 w-4 text-emerald-500 bg-background" />
-                      ) : (
-                        <div className="absolute -left-[5px] top-1 h-2.5 w-2.5 rounded-full border-2 border-muted-foreground bg-background" />
-                      )}
-                      <div className="flex items-center justify-between gap-2">
-                        <p className={`text-xs font-medium ${isActive ? "text-[#22D3EE] font-semibold" : isDone ? "text-foreground" : "text-muted-foreground"}`}>
-                          {step.label}
-                        </p>
-                        {isDone && commitSha && (
-                          <span
-                            className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-emerald-400 border border-emerald-500/30 flex items-center gap-1 shrink-0"
-                            title={`GitHub Phase Commit SHA: ${commitSha}`}
-                          >
-                            <GitBranch className="h-2.5 w-2.5" />
-                            {commitSha.slice(0, 7)}
-                          </span>
-                        )}
-                      </div>
+                  {PIPELINE_STEPS.map((step) => (
+                    <div key={step.id} className="relative pl-4 transition-all">
+                      <CheckCircle2 className="absolute -left-2 top-0 h-4 w-4 text-emerald-500/50 bg-background" />
+                      <p className="text-xs font-medium text-muted-foreground">
+                        {step.label}
+                      </p>
                       <p className="text-[10px] text-muted-foreground mt-0.5">{step.desc}</p>
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                  ))}
+                </div>
+              ) : (
+                <div className="relative border-l border-border/60 ml-2 space-y-4 py-2">
+                  {PIPELINE_STEPS.map((step) => {
+                    const isActive = activeNode === step.id;
+                    const isDone = completedNodes.includes(step.id) && !isActive;
+                    const commitSha = githubCommits?.[step.id];
+                    const exploreSummary = phaseExplorations?.[step.id];
+
+                    return (
+                      <div key={step.id} className={`relative pl-4 transition-all ${!isActive && !isDone ? "opacity-40" : "opacity-100"}`}>
+                        {isActive ? (
+                          <CircleDashed className="absolute -left-2 top-0 h-4 w-4 text-[#22D3EE] animate-spin bg-background" />
+                        ) : isDone ? (
+                          <CheckCircle2 className="absolute -left-2 top-0 h-4 w-4 text-emerald-500 bg-background" />
+                        ) : (
+                          <div className="absolute -left-[5px] top-1 h-2.5 w-2.5 rounded-full border-2 border-muted-foreground bg-background" />
+                        )}
+                        <div className="flex items-center justify-between gap-2">
+                          <p className={`text-xs font-medium ${isActive ? "text-[#22D3EE] font-semibold" : isDone ? "text-foreground" : "text-muted-foreground"}`}>
+                            {step.label}
+                          </p>
+                          {isDone && commitSha && (
+                            <span
+                              className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-emerald-400 border border-emerald-500/30 flex items-center gap-1 shrink-0"
+                              title={`GitHub Phase Commit SHA: ${commitSha}`}
+                            >
+                              <GitBranch className="h-2.5 w-2.5" />
+                              {commitSha.slice(0, 7)}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{step.desc}</p>
+                        {isDone && exploreSummary && (
+                          <div className="mt-1 text-[9.5px] font-mono text-cyan-400 flex items-center gap-1 bg-cyan-950/20 px-1.5 py-0.5 rounded border border-cyan-500/20">
+                            <Search className="h-2.5 w-2.5 shrink-0" />
+                            <span>
+                              {exploreSummary.files_explored_count} files explored, {exploreSummary.searches_count} searches, ~{Math.round(exploreSummary.tokens_saved / 100) / 10}k tokens
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
             {/* Active Skills in Trace */}
             {traceSkills.length > 0 && (
@@ -304,6 +344,7 @@ export function RightPanel() {
           )}
         </div>
       </ScrollArea>
+      )}
     </div>
   );
 }

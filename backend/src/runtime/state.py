@@ -103,3 +103,10 @@ class AgentState(TypedDict, total=False):
     skill_citations: list[str]
     forced_skills: list[str]
     disabled_skills: list[str]
+
+    # --- Live Exploration Feed ---
+    exploration_events: list[dict[str, Any]]
+    exploration_summary: dict[str, Any]
+    phase_explorations: dict[str, dict[str, Any]]
+    explored_files: list[str]
+

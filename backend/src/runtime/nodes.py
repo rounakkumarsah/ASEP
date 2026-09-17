@@ -27,6 +27,7 @@ from src.utils.security_scanner import scanner, SecurityReport
 from src.utils.package_resolver import PackageResolver
 from src.utils.doc_crawler import doc_crawler, DOC_SOURCE_REGISTRY
 from src.utils.host_manager import host_manager, find_free_port, HostManagerResult
+from src.runtime.explore_manager import get_explore_manager, ExploreEvent, ExplorationSummary
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +60,40 @@ async def start_node_default(state: AgentState) -> dict[str, Any]:
                 "content": f"LangGraph execution initiated for run {run_id}. Target objective: {goal}",
             }
         ],
+    }
+
+
+async def explore_node(state: AgentState) -> dict[str, Any]:
+    """
+    EXPLORE NODE:
+    Performs workspace exploration: search_files, list_directory, read_file, grep_pattern.
+    Emits structured events and outputs exploration_summary to state.
+    """
+    explore_mgr = get_explore_manager()
+    goal = state.get("goal") or "Software Engineering Task"
+    current_phase = state.get("current_phase") or "explore"
+
+    events, summary = await explore_mgr.explore_phase(current_phase, goal, state)
+
+    event_messages = []
+    for ev in events:
+        event_messages.append({
+            "role": "system",
+            "content": f"[Explore Event] {json.dumps(ev)}"
+        })
+    event_messages.append({
+        "role": "system",
+        "content": f"[Explore Summary] {json.dumps(summary)}"
+    })
+
+    return {
+        "status": "explored",
+        "current_phase": current_phase,
+        "exploration_events": events,
+        "exploration_summary": summary,
+        "phase_explorations": {**(state.get("phase_explorations") or {}), current_phase: summary},
+        "explored_files": list(set((state.get("explored_files") or []) + summary.get("relevant_files", []))),
+        "messages": event_messages,
     }
 
 
@@ -738,6 +773,21 @@ async def research_phase_node(state: AgentState) -> dict[str, Any]:
     run_id = state.get("run_id", "unknown")
     goal = state.get("goal", "")
 
+    # -------------------------------------------------------------------------
+    # EXPLORE STEP: Run exploration at the start of research phase
+    # -------------------------------------------------------------------------
+    explore_mgr = get_explore_manager()
+    explore_events, explore_summary = await explore_mgr.explore_phase("research", goal, state)
+    for ev in explore_events:
+        messages.append({
+            "role": "system",
+            "content": f"[Explore Event] {json.dumps(ev)}"
+        })
+    messages.append({
+        "role": "system",
+        "content": f"[Explore Summary] {json.dumps(explore_summary)}"
+    })
+
     # Resolve which doc sources apply to this product type
     doc_urls = DOC_SOURCE_REGISTRY.get(product_type, [])
 
@@ -782,6 +832,10 @@ async def research_phase_node(state: AgentState) -> dict[str, Any]:
             "knowledge_sources": [c.url for c in chunks],
             "stack_versions": doc_crawler.get_stack_versions(product_type),
             "doc_cache": {f"{run_id}:{product_type}": {"cache_hit": True, "chunk_count": len(chunks)}},
+            "exploration_events": explore_events,
+            "exploration_summary": explore_summary,
+            "phase_explorations": {**(state.get("phase_explorations") or {}), "research": explore_summary},
+            "explored_files": list(set((state.get("explored_files") or []) + explore_summary.get("relevant_files", []))),
             "token_usage_per_phase": guard_res["token_usage_per_phase"],
             "token_budget_per_phase": guard_res["token_budget_per_phase"],
             "token_savings": guard_res["token_savings"],
@@ -865,6 +919,10 @@ async def research_phase_node(state: AgentState) -> dict[str, Any]:
                 "sources": sources[:5],
             }
         },
+        "exploration_events": explore_events,
+        "exploration_summary": explore_summary,
+        "phase_explorations": {**(state.get("phase_explorations") or {}), "research": explore_summary},
+        "explored_files": list(set((state.get("explored_files") or []) + explore_summary.get("relevant_files", []))),
         "token_usage_per_phase": guard_res["token_usage_per_phase"],
         "token_budget_per_phase": guard_res["token_budget_per_phase"],
         "token_savings": guard_res["token_savings"],
@@ -1279,10 +1337,20 @@ async def deploy_clarification_gate_node(state: AgentState) -> dict[str, Any]:
 async def blueprint_phase_node(state: AgentState) -> dict[str, Any]:
     guard_res = execute_phase_token_guard(phase="blueprint", state=state, base_tokens=300)
     messages = list(guard_res.get("telemetry_messages", []))
+    goal = state.get("goal", "")
+    explore_mgr = get_explore_manager()
+    explore_events, explore_summary = await explore_mgr.explore_phase("blueprint", goal, state)
+    for ev in explore_events:
+        messages.append({"role": "system", "content": f"[Explore Event] {json.dumps(ev)}"})
+    messages.append({"role": "system", "content": f"[Explore Summary] {json.dumps(explore_summary)}"})
     messages.append({"role": "system", "content": "Blueprint Phase Complete: System design approved."})
     return {
         "status": "verified",
         "current_phase": "blueprint",
+        "exploration_events": explore_events,
+        "exploration_summary": explore_summary,
+        "phase_explorations": {**(state.get("phase_explorations") or {}), "blueprint": explore_summary},
+        "explored_files": list(set((state.get("explored_files") or []) + explore_summary.get("relevant_files", []))),
         "token_usage_per_phase": guard_res["token_usage_per_phase"],
         "token_budget_per_phase": guard_res["token_budget_per_phase"],
         "token_savings": guard_res["token_savings"],
@@ -1295,10 +1363,20 @@ async def blueprint_phase_node(state: AgentState) -> dict[str, Any]:
 async def scaffold_phase_node(state: AgentState) -> dict[str, Any]:
     guard_res = execute_phase_token_guard(phase="scaffold", state=state, base_tokens=400)
     messages = list(guard_res.get("telemetry_messages", []))
+    goal = state.get("goal", "")
+    explore_mgr = get_explore_manager()
+    explore_events, explore_summary = await explore_mgr.explore_phase("scaffold", goal, state)
+    for ev in explore_events:
+        messages.append({"role": "system", "content": f"[Explore Event] {json.dumps(ev)}"})
+    messages.append({"role": "system", "content": f"[Explore Summary] {json.dumps(explore_summary)}"})
     messages.append({"role": "system", "content": "Scaffold Phase Complete: Boilerplate generated."})
     return {
         "status": "verified",
         "current_phase": "scaffold",
+        "exploration_events": explore_events,
+        "exploration_summary": explore_summary,
+        "phase_explorations": {**(state.get("phase_explorations") or {}), "scaffold": explore_summary},
+        "explored_files": list(set((state.get("explored_files") or []) + explore_summary.get("relevant_files", []))),
         "token_usage_per_phase": guard_res["token_usage_per_phase"],
         "token_budget_per_phase": guard_res["token_budget_per_phase"],
         "token_savings": guard_res["token_savings"],
@@ -1313,6 +1391,47 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
     variables = state.get("variables") or {}
     product_type = state.get("product_type") or "web-app"
     run_id = state.get("run_id", "unknown")
+
+    # -------------------------------------------------------------------------
+    # EXPLORE STEP: Run exploration before coding & cache exploration summary
+    # -------------------------------------------------------------------------
+    explore_mgr = get_explore_manager()
+    existing_summaries = state.get("phase_explorations") or {}
+    implement_summary = existing_summaries.get("implement")
+    explore_messages: list[dict[str, str]] = []
+    explore_events: list[dict[str, Any]] = []
+
+    if not implement_summary:
+        explore_events, implement_summary = await explore_mgr.explore_phase("implement", goal, state)
+        for ev in explore_events:
+            explore_messages.append({
+                "role": "system",
+                "content": f"[Explore Event] {json.dumps(ev)}"
+            })
+        explore_messages.append({
+            "role": "system",
+            "content": f"[Explore Summary] {json.dumps(implement_summary)}"
+        })
+    else:
+        explore_messages.append({
+            "role": "system",
+            "content": f"[Explore Summary] {json.dumps(implement_summary)}"
+        })
+
+    # Summary shown to coding agent so it never re-explores the same files (token saving, per-phase)
+    relevant_files = implement_summary.get("relevant_files", [])
+    exploration_context = (
+        f"[Exploration Summary — Phase 'implement']\n"
+        f"Relevant files already explored ({len(relevant_files)}): {', '.join(relevant_files)}\n"
+        f"Architecture Understanding: {implement_summary.get('architecture_understanding', '')}\n"
+        f"Risks Identified: {'; '.join(implement_summary.get('risks_identified', []))}\n"
+        f"Token Savings: ~{implement_summary.get('tokens_saved', 3200)} tokens spared.\n"
+        f"Rule: DO NOT re-explore or duplicate file reads; implement directly using this cached context."
+    )
+    explore_messages.append({
+        "role": "system",
+        "content": exploration_context
+    })
 
     # -------------------------------------------------------------------------
     # RAG PRE-QUERY: Query the knowledge base for current API patterns
@@ -1490,12 +1609,16 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
         "generated_code": final_code,
         "file_content": final_code,
         "code_context": final_code,
+        "exploration_events": explore_events,
+        "exploration_summary": implement_summary,
+        "phase_explorations": {**(state.get("phase_explorations") or {}), "implement": implement_summary},
+        "explored_files": list(set((state.get("explored_files") or []) + relevant_files)),
         "token_usage_per_phase": guard_res["token_usage_per_phase"],
         "token_budget_per_phase": guard_res["token_budget_per_phase"],
         "token_savings": guard_res["token_savings"],
         "file_history": guard_res["file_history"],
         "budget_approvals": guard_res["budget_approvals"],
-        "messages": messages,
+        "messages": [*explore_messages, *messages],
     }
 
 

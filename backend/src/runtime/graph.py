@@ -87,7 +87,7 @@ class StateGraphWrapper:
 
         # Register all possible phases in conditional edges
         all_phases = [
-            "research", "blueprint", "scaffold", "implement", "critic", "debugger", "test", "security_audit", "deploy",
+            "explore", "research", "blueprint", "scaffold", "implement", "critic", "debugger", "test", "security_audit", "deploy",
             "host_manager",
             "capability_blueprint", "tool_design", "agent_loop_implementation", "memory_state_design",
             "sandbox_tests", "evaluation_runs", "goal_decomposition_design", "planner_executor_critic_architecture",

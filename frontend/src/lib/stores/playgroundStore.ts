@@ -138,6 +138,42 @@ export interface PlaygroundState {
   setActiveSkills: (skills: string[]) => void;
   skillCitations: string[];
   setSkillCitations: (citations: string[]) => void;
+
+  // Live Exploration Feed
+  explorationEvents: ExploreEvent[];
+  addExplorationEvent: (event: ExploreEvent) => void;
+  setExplorationEvents: (events: ExploreEvent[]) => void;
+  phaseExplorations: Record<string, ExplorationSummary>;
+  setPhaseExploration: (phase: string, summary: ExplorationSummary) => void;
+  activeRightTab: 'trace' | 'explore';
+  setActiveRightTab: (tab: 'trace' | 'explore') => void;
+}
+
+export interface ExploreEvent {
+  id: string;
+  phase: string;
+  type: "search" | "read" | "analyze" | "think" | "tool_call";
+  detail: string;
+  file?: string;
+  duration_ms: number;
+  timestamp: string;
+  match_count?: number;
+  size_bytes?: number;
+  content_preview?: string;
+  status: "running" | "completed" | "failed";
+  error?: string;
+  tool_args?: Record<string, unknown>;
+}
+
+export interface ExplorationSummary {
+  phase: string;
+  relevant_files: string[];
+  architecture_understanding: string;
+  risks_identified: string[];
+  files_explored_count: number;
+  searches_count: number;
+  duration_ms: number;
+  tokens_saved: number;
 }
 
 export const DEFAULT_PHASE_BUDGETS: Record<string, number> = {
@@ -286,6 +322,21 @@ export const usePlaygroundStore = create<PlaygroundState>()(
       setActiveSkills: (activeSkills) => set({ activeSkills }),
       skillCitations: [],
       setSkillCitations: (skillCitations) => set({ skillCitations }),
+
+      // Live Exploration Feed
+      explorationEvents: [],
+      addExplorationEvent: (event) =>
+        set((state) => ({
+          explorationEvents: [...state.explorationEvents, event].slice(-500),
+        })),
+      setExplorationEvents: (events) => set({ explorationEvents: events.slice(-500) }),
+      phaseExplorations: {},
+      setPhaseExploration: (phase, summary) =>
+        set((state) => ({
+          phaseExplorations: { ...state.phaseExplorations, [phase]: summary },
+        })),
+      activeRightTab: 'trace',
+      setActiveRightTab: (activeRightTab) => set({ activeRightTab }),
     }),
     {
       name: 'asep-playground-storage',
@@ -313,6 +364,9 @@ export const usePlaygroundStore = create<PlaygroundState>()(
         githubActiveBranch: state.githubActiveBranch,
         activeSkills: state.activeSkills,
         skillCitations: state.skillCitations,
+        explorationEvents: state.explorationEvents,
+        phaseExplorations: state.phaseExplorations,
+        activeRightTab: state.activeRightTab,
       }),
     }
   )

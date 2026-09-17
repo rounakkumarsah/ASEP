@@ -43,6 +43,7 @@ from src.runtime.nodes import (
     integration_points_phase_node,
     end_to_end_automation_tests_phase_node,
     error_handling_paths_phase_node,
+    explore_node,
     start_node_default,
     end_node_default,
 )
@@ -63,6 +64,7 @@ class LangGraphRuntime:
 
         # 2. Register agent node behaviors
         self.nodes.register("start", start_node_default)
+        self.nodes.register("explore", explore_node)
         self.nodes.register("orchestrator", orchestrator_node)
         self.nodes.register("research", research_phase_node)
         self.nodes.register("clarification_gate", clarification_gate_node)
