@@ -95,9 +95,41 @@ export function CenterWorkspace() {
   const [cmdMenu, setCmdMenu] = React.useState<'tool' | 'model' | null>(null);
   const [artifactCode, setArtifactCode] = React.useState<string>("");
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
-const [clarificationPrompt, setClarificationPrompt] = React.useState<string | null>(null);
+  const [clarificationPrompt, setClarificationPrompt] = React.useState<string | null>(null);
   const [clarificationThreadId, setClarificationThreadId] = React.useState<string | null>(null);
   const [clarificationInput, setClarificationInput] = React.useState<string>("");
+  const [mcpConfirmation, setMcpConfirmation] = React.useState<{ tool: string; server?: string; message: string } | null>(null);
+  const [isApprovingMcp, setIsApprovingMcp] = React.useState(false);
+
+  const handleApproveMcpTool = async (allow: boolean) => {
+    if (!mcpConfirmation) return;
+    if (!allow) {
+      addTerminalLog("system", `[MCP Security] User denied execution of tool: ${mcpConfirmation.tool}`);
+      setMcpConfirmation(null);
+      return;
+    }
+    setIsApprovingMcp(true);
+    try {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL.replace(/\/+$/, "") : "";
+      await fetch(`${apiBase}/api/v1/mcp/tools/approve`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem('asep_auth_token') || sessionStorage.getItem('asep_auth_token') || ''}`
+        },
+        body: JSON.stringify({
+          session_id: "default_session",
+          tool_name: mcpConfirmation.tool,
+        }),
+      });
+      addTerminalLog("system", `[MCP Security] Approved '${mcpConfirmation.tool}' for this session.`);
+      setMcpConfirmation(null);
+    } catch (err) {
+      console.error("Failed to approve MCP tool:", err);
+    } finally {
+      setIsApprovingMcp(false);
+    }
+  };
   const [cmdIndex, setCmdIndex] = React.useState(0);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [securityFindings, setSecurityFindings] = React.useState<any[]>([]);
@@ -282,6 +314,15 @@ const [clarificationPrompt, setClarificationPrompt] = React.useState<string | nu
                           }
                         } else if (messageItem.content.includes("[Clarification Required]")) {
                           setClarificationPrompt(messageItem.content.replace("[Clarification Required]", "").trim());
+                        } else if (messageItem.content.includes("[MCP Confirmation Required]")) {
+                          const promptText = messageItem.content.replace("[MCP Confirmation Required]", "").trim();
+                          const matchTool = promptText.match(/(?:allow|tool)\s+([a-zA-Z0-9_\-\.]+)/i);
+                          setMcpConfirmation({
+                            tool: matchTool ? matchTool[1] : "mcp_tool",
+                            message: promptText,
+                          });
+                        } else if (messageItem.content.includes("[MCP:")) {
+                          addTerminalLog("system", messageItem.content);
                         } else if (messageItem.content.includes("[Security Audit]")) {
                           const findingsStr = messageItem.content.replace("[Security Audit]", "").trim();
                           try {
@@ -425,9 +466,15 @@ const [clarificationPrompt, setClarificationPrompt] = React.useState<string | nu
                             }
                           } else if (messageItem.content.includes("[Clarification Required]")) {
                             setClarificationPrompt(messageItem.content.replace("[Clarification Required]", "").trim());
-                            // Extract threadId if not explicitly provided, we fallback to the global one
-                            // But actually, we don't know the threadId here directly!
-                            // wait, we can store it when calling fetch
+                          } else if (messageItem.content.includes("[MCP Confirmation Required]")) {
+                            const promptText = messageItem.content.replace("[MCP Confirmation Required]", "").trim();
+                            const matchTool = promptText.match(/(?:allow|tool)\s+([a-zA-Z0-9_\-\.]+)/i);
+                            setMcpConfirmation({
+                              tool: matchTool ? matchTool[1] : "mcp_tool",
+                              message: promptText,
+                            });
+                          } else if (messageItem.content.includes("[MCP:")) {
+                            addTerminalLog("system", messageItem.content);
 
                           } else if (messageItem.content.includes("[Local Secrets]")) {
                             try {
@@ -609,6 +656,45 @@ const [clarificationPrompt, setClarificationPrompt] = React.useState<string | nu
                           Submit
                         </Button>
                       </form>
+                    </div>
+                  )}
+                  {mcpConfirmation && (
+                    <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-xl p-4 my-4 max-w-[85%] space-y-3">
+                      <div className="flex items-center gap-2 text-cyan-400 font-semibold text-sm">
+                        <ShieldAlert className="h-5 w-5 text-cyan-400 shrink-0" />
+                        <span>Security Confirmation: External MCP Tool</span>
+                      </div>
+                      <div className="text-sm text-foreground space-y-1">
+                        <p>
+                          An agent requested to call external tool{" "}
+                          <code className="px-1.5 py-0.5 rounded bg-muted/60 font-mono text-xs text-cyan-300">
+                            {mcpConfirmation.tool}
+                          </code>
+                          .
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {mcpConfirmation.message || "Model Context Protocol tools can access external systems or execute actions outside the sandbox."}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 pt-1">
+                        <Button
+                          size="sm"
+                          onClick={() => handleApproveMcpTool(true)}
+                          disabled={isApprovingMcp}
+                          className="bg-cyan-500 hover:bg-cyan-600 text-black font-semibold text-xs h-8"
+                        >
+                          {isApprovingMcp ? "Approving..." : "Allow for This Session"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleApproveMcpTool(false)}
+                          disabled={isApprovingMcp}
+                          className="text-xs h-8"
+                        >
+                          Deny
+                        </Button>
+                      </div>
                     </div>
                   )}
                   {isThinking && (

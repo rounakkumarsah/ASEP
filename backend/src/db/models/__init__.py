@@ -37,11 +37,13 @@ from src.db.models.project import Project
 from src.db.models.subscription import Subscription
 from src.db.models.task import Task, TaskPriority, TaskStatus
 from src.db.models.user import User
+from src.db.models.mcp_server import MCPServer
 
 __all__: list[str] = [
     # multi-tenancy
     "Organization",
     "Project",
+    "MCPServer",
     "Subscription",
     "ApiKey",
     # user

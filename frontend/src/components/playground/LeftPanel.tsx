@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Settings2, Cpu, Shield, Database, Globe, PanelLeftClose } from "lucide-react";
+import { Settings2, Cpu, Shield, Database, Globe, PanelLeftClose, Server, ChevronRight } from "lucide-react";
 import { GitHubIcon } from "@/components/icons/GitHubIcon";
 import dynamic from "next/dynamic";
 const Editor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { usePlaygroundStore } from "@/lib/stores/playgroundStore";
 import { useSidebarStore } from "@/lib/stores/sidebarStore";
 
@@ -64,6 +65,44 @@ export function LeftPanel() {
   React.useEffect(() => {
     fetchPrompt();
   }, [fetchPrompt]);
+
+  interface MCPToolItem {
+    name: string;
+    description: string;
+    server: string;
+    inputSchema?: Record<string, unknown>;
+  }
+  const [mcpTools, setMcpTools] = React.useState<MCPToolItem[]>([]);
+  const [isMcpLoading, setIsMcpLoading] = React.useState(false);
+  const [expandedSchemas, setExpandedSchemas] = React.useState<Record<string, boolean>>({});
+
+  const fetchMcpTools = React.useCallback(async () => {
+    setIsMcpLoading(true);
+    try {
+      const apiBase = typeof window !== 'undefined'
+        ? (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/+$/, '')
+        : '';
+      const res = await fetch(`${apiBase}/api/v1/mcp/tools`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('asep_auth_token') || sessionStorage.getItem('asep_auth_token') || ''}`
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.tools) {
+          setMcpTools(data.tools);
+        }
+      }
+    } catch {
+      // ignore
+    } finally {
+      setIsMcpLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    fetchMcpTools();
+  }, [fetchMcpTools]);
 
   return (
     <div className="flex h-full flex-col border-r border-border/40 bg-background/50 backdrop-blur">
@@ -198,6 +237,101 @@ export function LeftPanel() {
                     </div>
                   ))}
                 </div>
+              </div>
+
+              <div className="h-px bg-border/40" />
+
+              {/* MCP Tools Section */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Server className="h-3.5 w-3.5 text-primary" />
+                    MCP Tools
+                  </Label>
+                  <span className="text-[10px] text-muted-foreground font-mono bg-muted/40 px-1.5 py-0.5 rounded">
+                    {mcpTools.length} connected
+                  </span>
+                </div>
+
+                {isMcpLoading && mcpTools.length === 0 ? (
+                  <div className="space-y-2">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="h-8 rounded bg-muted/20 animate-pulse" />
+                    ))}
+                  </div>
+                ) : mcpTools.length === 0 ? (
+                  <div className="p-3 border border-dashed border-border/50 rounded-lg text-center text-xs text-muted-foreground space-y-1">
+                    <p>No MCP tools connected.</p>
+                    <a href="/settings?tab=mcp" className="text-primary hover:underline font-medium text-[11px] inline-block">
+                      Configure MCP Servers &rarr;
+                    </a>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    {mcpTools.map((t) => {
+                      const isExpanded = Boolean(expandedSchemas[t.name]);
+                      const isChecked = activeTools.includes(t.name) || !activeTools.length;
+                      return (
+                        <div
+                          key={t.name}
+                          className="p-2 rounded-lg border border-border/40 bg-background/40 space-y-1 text-xs hover:border-border/70 transition-colors"
+                        >
+                          <div className="flex items-center justify-between gap-1">
+                            <div className="flex items-center space-x-2 truncate">
+                              <Checkbox
+                                id={`mcp-tool-${t.name}`}
+                                checked={isChecked}
+                                onCheckedChange={() => toggleTool(t.name)}
+                              />
+                              <Label
+                                htmlFor={`mcp-tool-${t.name}`}
+                                className="font-mono text-[11px] font-semibold truncate cursor-pointer hover:text-foreground"
+                              >
+                                {t.name}
+                              </Label>
+                            </div>
+                            <Badge
+                              variant="outline"
+                              className="text-[9px] border-cyan-500/30 bg-cyan-500/10 text-cyan-400 shrink-0 font-medium px-1.5 py-0"
+                            >
+                              via MCP: {t.server}
+                            </Badge>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground line-clamp-2 pl-6">
+                            {t.description}
+                          </p>
+
+                          {t.inputSchema && Object.keys(t.inputSchema).length > 0 && (
+                            <div className="pl-6 pt-0.5">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setExpandedSchemas((prev) => ({
+                                    ...prev,
+                                    [t.name]: !prev[t.name],
+                                  }))
+                                }
+                                className="text-[10px] text-muted-foreground/80 hover:text-foreground flex items-center gap-1 font-mono transition-colors"
+                              >
+                                <ChevronRight
+                                  className={`h-2.5 w-2.5 transition-transform ${
+                                    isExpanded ? "rotate-90 text-primary" : ""
+                                  }`}
+                                />
+                                {isExpanded ? "Hide Schema" : "View Schema"}
+                              </button>
+                              {isExpanded && (
+                                <pre className="mt-1 p-1.5 rounded bg-muted/30 border border-border/30 text-[9px] font-mono text-muted-foreground overflow-x-auto max-h-28">
+                                  {JSON.stringify(t.inputSchema, null, 2)}
+                                </pre>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               <div className="h-px bg-border/40" />

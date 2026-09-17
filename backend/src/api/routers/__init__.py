@@ -11,6 +11,7 @@ from .memory import router as memory_router
 from .organizations import router as organizations_router
 from .payments import router as payments_router
 from .tasks import router as tasks_router
+from .mcp import router as mcp_router
 
 __all__ = [
     "agent_runs_router",
@@ -22,4 +23,5 @@ __all__ = [
     "payments_router",
     "organizations_router",
     "api_keys_router",
+    "mcp_router",
 ]

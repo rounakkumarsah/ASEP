@@ -143,15 +143,35 @@ async def planner_node(state: AgentState) -> dict[str, Any]:
 
 
 async def research_node(state: AgentState) -> dict[str, Any]:
-    """Research node: queries external documentation or MCP tools."""
+    """Research node: queries external documentation or live MCP tools."""
     goal = state.get("goal", "")
     logger.info("Research Agent searching for context: %s", goal)
 
+    from src.tools.mcp_service import get_mcp_service
+    mcp_svc = get_mcp_service()
+    await mcp_svc.initialize_defaults()
+    active_mcp_tools = mcp_svc.get_all_active_tools()
+
     findings: list[str] = []
+    trace_messages: list[str] = []
+
+    # If goal involves GitHub, repositories, or issues, dispatch to connected GitHub MCP server
+    goal_lower = goal.lower()
+    if any(kw in goal_lower for kw in ("github", "repo", "issue", "pull request", "pr")):
+        if mcp_svc.is_tool_connected("search_repositories"):
+            res = await mcp_svc.execute_tool("search_repositories", {"query": goal[:40]})
+            if res.success:
+                findings.append(f"GitHub MCP: Queried repository index for '{goal[:30]}'.")
+                trace_messages.append("[MCP: github] search_repositories completed successfully.")
+        if "issue" in goal_lower and mcp_svc.is_tool_connected("list_issues"):
+            res = await mcp_svc.execute_tool("list_issues", {"owner": "asep-ai", "repo": "ASEP"})
+            if res.success:
+                findings.append("GitHub MCP: Fetched active repository issue tracker.")
+                trace_messages.append("[MCP: github] list_issues completed successfully.")
+
     try:
         from src.agents.research_swarm import ResearchSwarm
         swarm = ResearchSwarm()
-        # Perform targeted query
         query = f"{goal} best practices documentation"
         results = await swarm._duckduckgo_search(query[:80], max_results=3)
         for r in results:
@@ -163,22 +183,26 @@ async def research_node(state: AgentState) -> dict[str, Any]:
     if not findings:
         findings = [
             "Verified Python 3.12 & Next.js 15 App Router architecture best practices.",
-            "Integrated Model Context Protocol (MCP) tool dispatch patterns.",
+            f"Connected {len(active_mcp_tools)} Model Context Protocol (MCP) tools across active servers.",
         ]
 
-    research_msg = "Research & MCP Context Gathered:\n" + "\n".join(f"• {f}" for f in findings[:3])
+    research_msg = "Research & MCP Context Gathered:\n" + "\n".join(f"• {f}" for f in findings[:4])
     var_dict = state.get("variables", {}) or {}
     var_dict["research_findings"] = findings
+    var_dict["mcp_tools"] = [t["name"] for t in active_mcp_tools]
+
+    messages = []
+    for trace in trace_messages:
+        messages.append({"role": "system", "content": trace})
+    messages.append({
+        "role": "system",
+        "content": research_msg,
+    })
 
     return {
         "status": "researched",
         "variables": var_dict,
-        "messages": [
-            {
-                "role": "system",
-                "content": research_msg,
-            }
-        ],
+        "messages": messages,
     }
 
 

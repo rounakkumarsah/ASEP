@@ -52,6 +52,7 @@ from src.api.routers.users import router as users_router
 from src.api.routers.workflows import router as workflows_router
 from src.api.routers.workspace import router as workspace_router
 from src.api.routers.sandbox import router as sandbox_router
+from src.api.routers.mcp import router as mcp_router
 from src.cache.redis import close_redis, init_redis
 from src.config.settings import get_settings
 from src.db.postgres import close_db, init_db
@@ -293,6 +294,7 @@ def create_app() -> FastAPI:
     app.include_router(workspace_router, prefix="/api/v1")
     app.include_router(terminal_router, prefix="/api/v1")
     app.include_router(sandbox_router, prefix="/api/v1")
+    app.include_router(mcp_router, prefix="/api/v1")
 
     # -----------------------------------------------------------------------
     # Observability (Prometheus Metrics)
