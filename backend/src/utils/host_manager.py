@@ -53,6 +53,7 @@ class HostedApp:
     pid: int
     workspace_dir: str
     product_type: str
+    session_id: str = ""
     startup_logs: list[str] = field(default_factory=list)
     health_ok: bool = False
     install_output: str = ""
@@ -65,6 +66,7 @@ class HostedApp:
             "pid": self.pid,
             "workspace_dir": self.workspace_dir,
             "product_type": self.product_type,
+            "session_id": self.session_id,
             "startup_logs": self.startup_logs[:20],
             "health_ok": self.health_ok,
             "install_output": self.install_output[:500],
@@ -285,6 +287,12 @@ class HostManager:
     def __init__(self) -> None:
         # Registry of active hosted processes: port → subprocess.Popen
         self._processes: dict[int, subprocess.Popen] = {}  # type: ignore[type-arg]
+        # Session mapping: session_id -> set of active ports
+        self._session_to_ports: dict[str, set[int]] = {}
+        # Port to session mapping: port -> session_id
+        self._port_to_session: dict[int, str] = {}
+        # PID to port mapping: pid -> port
+        self._pid_to_port: dict[int, int] = {}
 
     # ------------------------------------------------------------------
     # Public API
@@ -295,6 +303,7 @@ class HostManager:
         code: str,
         product_type: str,
         run_id: str,
+        session_id: str | None = None,
         preferred_port: int = _DEFAULT_PORT,
         progress_cb: Any = None,  # Optional[Callable[[str], Awaitable[None]]]
     ) -> HostManagerResult:
@@ -306,6 +315,7 @@ class HostManager:
           4. Health-check until responding or timeout
           5. Return HostedApp with URL
         """
+        sess_id = session_id or run_id
         logs: list[str] = []
 
         def _log(msg: str) -> None:
@@ -391,6 +401,11 @@ class HostManager:
                 text=True,
             )
             self._processes[port] = proc
+            self._port_to_session[port] = sess_id
+            self._pid_to_port[proc.pid] = port
+            if sess_id not in self._session_to_ports:
+                self._session_to_ports[sess_id] = set()
+            self._session_to_ports[sess_id].add(port)
         except Exception as exc:
             return HostManagerResult(
                 success=False,
@@ -399,7 +414,7 @@ class HostManager:
                 install_step=install_step,
             )
 
-        _log(f"Server process started (PID={proc.pid}) on port {port}")
+        _log(f"Server process started (PID={proc.pid}) on port {port} [session={sess_id}]")
 
         # ----- Step 5: Health check --------------------------------------------
         url = f"http://localhost:{port}"
@@ -414,8 +429,6 @@ class HostManager:
             if proc.stdout:
                 try:
                     import select
-                    # On Windows, select on a pipe is not supported, so we use
-                    # proc.stdout.readline with a timeout approach
                     proc.stdout.flush()
                 except Exception:
                     pass
@@ -443,8 +456,6 @@ class HostManager:
         if not health_ok:
             # Collect final process output
             if proc.poll() is None:
-                # Process still running but not responding — could be a plain Python script
-                # that exited before we could catch it. Consider this a success if exit 0.
                 await asyncio.sleep(1.0)
                 if proc.poll() == 0:
                     health_ok = True
@@ -452,8 +463,6 @@ class HostManager:
                     _log("Script completed with exit code 0.")
                 else:
                     _log(f"Server not responding after {_HEALTH_CHECK_TIMEOUT}s — may still be starting.")
-                    # Don't kill the process — it may be slow to start.
-                    # Return partial success.
                     health_ok = False
 
         hosted = HostedApp(
@@ -462,6 +471,7 @@ class HostManager:
             pid=proc.pid,
             workspace_dir=str(workspace),
             product_type=product_type,
+            session_id=sess_id,
             startup_logs=startup_logs,
             health_ok=health_ok,
             install_output=install_output[:600],
@@ -475,21 +485,117 @@ class HostManager:
             logs=logs,
         )
 
-    def stop(self, port: int) -> None:
-        """Terminate the process listening on the given port."""
-        proc = self._processes.pop(port, None)
-        if proc and proc.poll() is None:
+    def _kill_proc_tree(self, proc: subprocess.Popen, pid: int) -> None:
+        """Terminate a process and its full subprocess tree cleanly across OS platforms."""
+        try:
             proc.terminate()
-            try:
-                proc.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                proc.kill()
-            logger.info("[HostManager] Stopped process on port %d", port)
+        except Exception:
+            pass
 
-    def stop_all(self) -> None:
-        """Terminate all managed processes."""
+        if sys.platform == "win32":
+            try:
+                subprocess.run(
+                    ["taskkill", "/F", "/T", "/PID", str(pid)],
+                    capture_output=True,
+                    timeout=5,
+                )
+            except Exception:
+                pass
+        else:
+            try:
+                import signal
+                os.kill(pid, signal.SIGTERM)
+            except Exception:
+                pass
+
+        try:
+            proc.kill()
+        except Exception:
+            pass
+
+    def stop(self, port: int) -> bool:
+        """Terminate the process listening on the given port and clean tracking."""
+        proc = self._processes.pop(port, None)
+        sess_id = self._port_to_session.pop(port, None)
+        if sess_id and sess_id in self._session_to_ports:
+            self._session_to_ports[sess_id].discard(port)
+            if not self._session_to_ports[sess_id]:
+                self._session_to_ports.pop(sess_id, None)
+
+        if proc:
+            pid = proc.pid
+            self._pid_to_port.pop(pid, None)
+            if proc.poll() is None:
+                self._kill_proc_tree(proc, pid)
+                logger.info("[HostManager] Stopped process (PID=%d) on port %d", pid, port)
+                return True
+        return False
+
+    def stop_pid(self, pid: int) -> bool:
+        """Terminate a process by its PID."""
+        port = self._pid_to_port.get(pid)
+        if port is not None:
+            return self.stop(port)
+        if sys.platform == "win32":
+            try:
+                res = subprocess.run(
+                    ["taskkill", "/F", "/T", "/PID", str(pid)],
+                    capture_output=True,
+                    timeout=5,
+                )
+                return res.returncode == 0
+            except Exception:
+                return False
+        else:
+            try:
+                import signal
+                os.kill(pid, signal.SIGKILL)
+                return True
+            except Exception:
+                return False
+
+    def stop_session(self, session_id: str) -> list[int]:
+        """Terminate all processes tracked under session_id. Returns list of stopped ports."""
+        ports = list(self._session_to_ports.get(session_id, set()))
+        stopped: list[int] = []
+        for port in ports:
+            if self.stop(port):
+                stopped.append(port)
+        self._session_to_ports.pop(session_id, None)
+        if stopped:
+            logger.info(
+                "[HostManager] Stopped %d process(es) for session '%s': ports=%s",
+                len(stopped),
+                session_id,
+                stopped,
+            )
+        return stopped
+
+    def stop_all(self) -> list[int]:
+        """Terminate all managed processes across all sessions."""
+        stopped: list[int] = []
         for port in list(self._processes.keys()):
-            self.stop(port)
+            if self.stop(port):
+                stopped.append(port)
+        return stopped
+
+    def get_running_apps(self, session_id: str | None = None) -> list[dict[str, Any]]:
+        """Return metadata for currently running hosted processes."""
+        apps: list[dict[str, Any]] = []
+        for port, proc in list(self._processes.items()):
+            if proc.poll() is None:
+                sess = self._port_to_session.get(port, "")
+                if session_id and sess != session_id:
+                    continue
+                apps.append({
+                    "port": port,
+                    "pid": proc.pid,
+                    "session_id": sess,
+                    "url": f"http://localhost:{port}",
+                })
+            else:
+                self.stop(port)
+        return apps
 
     # ------------------------------------------------------------------
     # Private helpers

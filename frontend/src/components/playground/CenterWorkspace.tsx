@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { MessageSquare, Code, Terminal, Send, Loader2, Bot, User as UserIcon, Plus, GitCompare, Paperclip, Wrench, Cpu, Workflow, Play, FileText, FolderGit2, ShieldAlert, Gauge, Zap, BarChart2, AlertTriangle } from "lucide-react";
+import { MessageSquare, Code, Terminal, Send, Loader2, Bot, User as UserIcon, Plus, GitCompare, Paperclip, Wrench, Cpu, Workflow, Play, FileText, FolderGit2, ShieldAlert, Gauge, Zap, BarChart2, AlertTriangle, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -205,6 +205,31 @@ export function CenterWorkspace() {
       }
     } catch (err) {
       addTerminalLog("error", `Sandbox execution failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
+  const handleStopApp = async () => {
+    if (!appUrl) return;
+    const urlCopy = appUrl;
+    const portMatch = urlCopy.match(/:(\d+)/);
+    const port = portMatch ? parseInt(portMatch[1], 10) : undefined;
+
+    addTerminalLog("system", `[Host Manager] Stopping app at ${urlCopy}...`);
+    setAppUrl(null);
+
+    try {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL.replace(/\/+$/, "") : "";
+      await fetch(`${apiBase}/api/v1/host/stop`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem('asep_auth_token') || sessionStorage.getItem('asep_auth_token') || ''}`
+        },
+        body: JSON.stringify({ port }),
+      });
+      addTerminalLog("system", `⏹️ [Host Manager] App at ${urlCopy} was stopped.`);
+    } catch (err) {
+      addTerminalLog("system", `⚠️ [Host Manager] Stop request finished (${err instanceof Error ? err.message : String(err)})`);
     }
   };
 
@@ -1083,13 +1108,23 @@ export function CenterWorkspace() {
                 >
                   {appUrl}
                 </a>
-                <button
-                  onClick={() => { navigator.clipboard?.writeText(appUrl); }}
-                  className="ml-auto text-emerald-600 hover:text-emerald-300 text-[10px] border border-emerald-800/50 px-2 py-0.5 rounded transition-colors"
-                  title="Copy URL"
-                >
-                  Copy
-                </button>
+                <div className="ml-auto flex items-center gap-2">
+                  <button
+                    onClick={() => { navigator.clipboard?.writeText(appUrl); }}
+                    className="text-emerald-400 hover:text-emerald-200 text-[10px] border border-emerald-800/50 hover:bg-emerald-900/40 px-2 py-0.5 rounded transition-colors"
+                    title="Copy URL"
+                  >
+                    Copy
+                  </button>
+                  <button
+                    onClick={handleStopApp}
+                    className="text-rose-400 hover:text-rose-200 text-[10px] border border-rose-800/50 bg-rose-950/40 hover:bg-rose-900/60 px-2 py-0.5 rounded transition-colors flex items-center gap-1 font-sans font-medium"
+                    title="Stop running application"
+                  >
+                    <Square className="h-2.5 w-2.5 fill-current" />
+                    Stop App
+                  </button>
+                </div>
               </div>
             )}
             <PlaygroundTerminal />

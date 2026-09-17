@@ -1732,11 +1732,14 @@ async def host_manager_node(state: AgentState) -> dict[str, Any]:
         "content": f"[Host Manager] Starting app for product_type='{product_type}', run_id={run_id}",
     })
 
+    thread_id = state.get("thread_id") or run_id
+
     try:
         result: HostManagerResult = await host_manager.host(
             code=code,
             product_type=product_type,
             run_id=run_id,
+            session_id=thread_id,
         )
     except Exception as exc:
         logger.error("[Host Manager] Unexpected error: %s", exc)

@@ -102,7 +102,8 @@ def test_chunk_splits_on_paragraph_boundaries():
 # ===========================================================================
 # Test 3 — crawl_and_index() with mocked HTTP returns DocChunk list
 # ===========================================================================
-def test_crawl_and_index_with_mock_http():
+@pytest.mark.asyncio
+async def test_crawl_and_index_with_mock_http():
     """crawl_and_index() should return DocChunk list when HTTP is mocked."""
     crawler = _make_crawler()
 
@@ -120,16 +121,13 @@ def test_crawl_and_index_with_mock_http():
     </body></html>
     """
 
-    async def run():
-        with patch.object(crawler, "_fetch", new_callable=AsyncMock, return_value=html_content):
-            chunks = await crawler.crawl_and_index(
-                product_type="fastapi",
-                project_id="run-test-001",
-                urls=["https://fastapi.tiangolo.com/tutorial/"],
-            )
-        return chunks
+    with patch.object(crawler, "_fetch", new_callable=AsyncMock, return_value=html_content):
+        chunks = await crawler.crawl_and_index(
+            product_type="fastapi",
+            project_id="run-test-001",
+            urls=["https://fastapi.tiangolo.com/tutorial/"],
+        )
 
-    chunks = asyncio.get_event_loop().run_until_complete(run())
     assert isinstance(chunks, list)
     assert len(chunks) >= 1, "At least 1 chunk should be produced from the mocked HTML"
     for chunk in chunks:
@@ -195,7 +193,8 @@ def test_cache_ttl_fresh_and_stale():
 # ===========================================================================
 # Test 6 — refresh() evicts stale cache and re-crawls
 # ===========================================================================
-def test_refresh_evicts_and_recrawls():
+@pytest.mark.asyncio
+async def test_refresh_evicts_and_recrawls():
     """refresh() should clear the old cache and produce a new index."""
     crawler = _make_crawler()
     project_id = "proj-refresh"
@@ -215,13 +214,10 @@ def test_refresh_evicts_and_recrawls():
         chunks=old_chunks, tfidf_vectors=[{}], idf={}, crawled_at=datetime.utcnow() - timedelta(days=10)
     )
 
-    async def run():
-        html = "<html><body><p>Flask 3.x modern patterns. Use MethodView for class-based views.</p></body></html>"
-        with patch.object(crawler, "_fetch", new_callable=AsyncMock, return_value=html):
-            new_chunks = await crawler.refresh(project_id, product_type)
-        return new_chunks
+    html = "<html><body><p>Flask 3.x modern patterns. Use MethodView for class-based views.</p></body></html>"
+    with patch.object(crawler, "_fetch", new_callable=AsyncMock, return_value=html):
+        new_chunks = await crawler.refresh(project_id, product_type)
 
-    new_chunks = asyncio.get_event_loop().run_until_complete(run())
     assert key in crawler._index, "Index should be rebuilt after refresh"
     # Old content should be gone
     for chunk in crawler._index[key].chunks:
@@ -231,7 +227,8 @@ def test_refresh_evicts_and_recrawls():
 # ===========================================================================
 # Test 7 — research_phase_node: cache-hit emits [Research Node] message
 # ===========================================================================
-def test_research_phase_node_cache_hit():
+@pytest.mark.asyncio
+async def test_research_phase_node_cache_hit():
     """research_phase_node should emit [Research Node] message with cache_hit=True."""
     from src.runtime.nodes import research_phase_node
 
@@ -259,7 +256,7 @@ def test_research_phase_node_cache_hit():
         "budget_approvals": [],
     }
 
-    result = asyncio.get_event_loop().run_until_complete(research_phase_node(state))
+    result = await research_phase_node(state)
     assert result["status"] == "verified"
     assert result["current_phase"] == "research"
     assert "knowledge_sources" in result
@@ -281,7 +278,8 @@ def test_research_phase_node_cache_hit():
 # ===========================================================================
 # Test 8 — research_phase_node: cache-miss crawls and emits chunk count
 # ===========================================================================
-def test_research_phase_node_cache_miss_crawls():
+@pytest.mark.asyncio
+async def test_research_phase_node_cache_miss_crawls():
     """research_phase_node should crawl and emit chunk_count > 0 on cache miss."""
     from src.runtime.nodes import research_phase_node
 
@@ -314,12 +312,9 @@ def test_research_phase_node_cache_miss_crawls():
         "</body></html>"
     )
 
-    async def run():
-        with patch.object(doc_crawler, "_fetch", new_callable=AsyncMock, return_value=html):
-            result = await research_phase_node(state)
-        return result
+    with patch.object(doc_crawler, "_fetch", new_callable=AsyncMock, return_value=html):
+        result = await research_phase_node(state)
 
-    result = asyncio.get_event_loop().run_until_complete(run())
     assert result["status"] == "verified"
 
     research_msgs = [
@@ -338,7 +333,8 @@ def test_research_phase_node_cache_miss_crawls():
 # ===========================================================================
 # Test 9 — implement_phase_node prepends [Knowledge Base Context] message
 # ===========================================================================
-def test_implement_phase_node_prepends_kb_context():
+@pytest.mark.asyncio
+async def test_implement_phase_node_prepends_kb_context():
     """implement_phase_node should prepend [Knowledge Base Context] from the KB."""
     from src.runtime.nodes import implement_phase_node
 
@@ -361,7 +357,7 @@ def test_implement_phase_node_prepends_kb_context():
         "variables": {},
     }
 
-    result = asyncio.get_event_loop().run_until_complete(implement_phase_node(state))
+    result = await implement_phase_node(state)
     assert result["status"] == "verified"
     assert result["current_phase"] == "implement"
 

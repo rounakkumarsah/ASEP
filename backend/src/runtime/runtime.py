@@ -112,6 +112,12 @@ class LangGraphRuntime:
         """Initiates a new run and streams step-by-step workflow updates."""
         logger.info(f"Initiating run '{run_id}' under thread: '{thread_id}' with goal: '{goal}'")
 
+        # Kill any existing hosted app from previous runs on this thread/session
+        from src.utils.host_manager import host_manager
+        host_manager.stop_session(thread_id)
+        if run_id != thread_id:
+            host_manager.stop_session(run_id)
+
         # Preserve active execution parameters strictly through MemoryManager (Working Memory)
         await self.memory.working.set_state(thread_id, "active_run_id", run_id)
 
@@ -127,6 +133,7 @@ class LangGraphRuntime:
             "status": "started",
             "next_action": None,
             "run_id": run_id,
+            "thread_id": thread_id,
             "variables": {"research_mode": research_mode},
             "human_input": None,
         }
