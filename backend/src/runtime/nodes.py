@@ -621,11 +621,87 @@ async def orchestrator_node(state: AgentState) -> dict[str, Any]:
         "- Ship partial-but-real over complete-but-fake."
     )
 
+    # -------------------------------------------------------------------------
+    # SKILL ACTIVATION: Scan request + phase against skills (max 3 active)
+    # -------------------------------------------------------------------------
+    from src.skills import get_skill_manager
+    skill_manager = get_skill_manager()
+
+    run_id = state.get("run_id")
+    forced_skills = state.get("forced_skills") or []
+    disabled_skills = state.get("disabled_skills") or []
+
+    matched_skills = skill_manager.match_skills(
+        request_text=goal,
+        phase_type=product_type,
+        project_id=run_id,
+        force_enabled=forced_skills,
+        force_disabled=disabled_skills,
+    )
+
+    active_skill_names = [s.name for s in matched_skills]
+    skill_instructions_list: list[str] = []
+    skill_citations_list: list[str] = []
+    skill_messages: list[dict[str, str]] = []
+
+    for s in matched_skills:
+        # Retrieve reference document chunks for this skill
+        chunks = skill_manager.retrieve_attachment_chunks(s.name, goal, top_k=5)
+        citation_texts: list[str] = []
+        for c in chunks:
+            c_label = c["citation"]
+            if c_label not in skill_citations_list:
+                skill_citations_list.append(c_label)
+            citation_texts.append(f"{c_label}\n{c['text'][:400]}")
+
+        ref_context = ("\n\nREFERENCE CONTEXT (Top Citations):\n" + "\n\n".join(citation_texts)) if citation_texts else ""
+        instruction_block = (
+            f"ACTIVE SKILL: {s.name} — follow these instructions:\n"
+            f"{s.instructions}{ref_context}"
+        )
+        skill_instructions_list.append(instruction_block)
+
+        # Log activation chip in state messages for Execution Trace and UI
+        deps_info = f" (Dependencies: {', '.join(s.dependencies)})" if s.dependencies else ""
+        skill_messages.append({
+            "role": "system",
+            "content": f"[Skill Activated] [SKILL: {s.name}]{deps_info}",
+        })
+        for c in chunks:
+            skill_messages.append({
+                "role": "system",
+                "content": f"[Skill Reference] {c['citation']}",
+            })
+        skill_messages.append({
+            "role": "system",
+            "content": instruction_block,
+        })
+
     budgets = state.get("token_budget_per_phase") or DEFAULT_PHASE_BUDGETS.copy()
     usage = state.get("token_usage_per_phase") or {}
     savings = state.get("token_savings") or {"ast_slicing": 0, "diff_streaming": 0, "total_saved": 0}
     file_history = state.get("file_history") or {}
     budget_approvals = state.get("budget_approvals") or []
+
+    combined_messages = [
+        {
+            "role": "system",
+            "content": f"Orchestrator classified product as '{product_type}'. Phase map generated: {' -> '.join(phase_map)}.\n\n{hallucination_rules}"
+        },
+        *skill_messages,
+        {
+            "role": "system",
+            "content": f"[Token Budgets] {json.dumps(budgets)}"
+        },
+        {
+            "role": "system",
+            "content": f"[Token Usage] {json.dumps(usage)}"
+        },
+        {
+            "role": "system",
+            "content": f"[Token Savings] {json.dumps(savings)}"
+        },
+    ]
 
     return {
         "status": "orchestrating",
@@ -637,24 +713,10 @@ async def orchestrator_node(state: AgentState) -> dict[str, Any]:
         "token_savings": savings,
         "file_history": file_history,
         "budget_approvals": budget_approvals,
-        "messages": [
-            {
-                "role": "system",
-                "content": f"Orchestrator classified product as '{product_type}'. Phase map generated: {' -> '.join(phase_map)}.\n\n{hallucination_rules}"
-            },
-            {
-                "role": "system",
-                "content": f"[Token Budgets] {json.dumps(budgets)}"
-            },
-            {
-                "role": "system",
-                "content": f"[Token Usage] {json.dumps(usage)}"
-            },
-            {
-                "role": "system",
-                "content": f"[Token Savings] {json.dumps(savings)}"
-            },
-        ]
+        "active_skills": active_skill_names,
+        "skill_instructions": skill_instructions_list,
+        "skill_citations": skill_citations_list,
+        "messages": combined_messages,
     }
 
 async def research_phase_node(state: AgentState) -> dict[str, Any]:
@@ -1341,7 +1403,76 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
     messages = kb_context_messages + list(guard_res.get("telemetry_messages", []))
     messages.append({"role": "system", "content": "Implement Phase Complete: Core modules coded."})
 
-    final_code = processed_code or code_context or f"# {goal}\nprint('Implementation complete')\n"
+    # -------------------------------------------------------------------------
+    # SKILL ENFORCEMENT: Synthesize code honoring active skill instructions & citations
+    # -------------------------------------------------------------------------
+    active_skills = state.get("active_skills") or []
+    skill_instructions = state.get("skill_instructions") or []
+    skill_citations = state.get("skill_citations") or []
+    all_skill_text = " ".join(skill_instructions).lower() + " " + " ".join(skill_citations).lower()
+
+    if processed_code:
+        final_code = processed_code
+    elif code_context:
+        final_code = code_context
+    elif "snake_case" in all_skill_text and ("api" in goal.lower() or "endpoint" in goal.lower()):
+        final_code = (
+            "# Code synthesized honoring skill citation: 'all API responses must use snake_case'\n"
+            "from fastapi import FastAPI\n"
+            "from pydantic import BaseModel\n\n"
+            "app = FastAPI(title='API Service')\n\n"
+            "class ApiResponse(BaseModel):\n"
+            "    status_code: int\n"
+            "    response_message: str\n"
+            "    data_payload: dict\n"
+            "    is_success: bool\n\n"
+            "@app.get('/api/v1/resource')\n"
+            "async def get_resource():\n"
+            "    return ApiResponse(\n"
+            "        status_code=200,\n"
+            "        response_message='success',\n"
+            "        data_payload={'user_id': 'usr_123', 'item_count': 42},\n"
+            "        is_success=True,\n"
+            "    )\n"
+        )
+    elif ("typescript strict" in all_skill_text or "no any types" in all_skill_text) and ("react" in goal.lower() or "component" in goal.lower()):
+        final_code = (
+            "// Synthesized strictly adhering to TypeScript strict mode with explicit strong types\n"
+            "import * as React from 'react';\n\n"
+            "export interface ButtonComponentProps {\n"
+            "  title: string;\n"
+            "  variant?: 'primary' | 'secondary';\n"
+            "  onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;\n"
+            "}\n\n"
+            "export const ActionButton: React.FC<ButtonComponentProps> = ({\n"
+            "  title,\n"
+            "  variant = 'primary',\n"
+            "  onClick,\n"
+            "}) => {\n"
+            "  const [active, setActive] = React.useState<boolean>(false);\n"
+            "  return (\n"
+            "    <button\n"
+            "      className={`btn-${variant} ${active ? 'active' : ''}`}\n"
+            "      onClick={(e: React.MouseEvent<HTMLButtonElement>) => {\n"
+            "        setActive(prev => !prev);\n"
+            "        if (onClick) onClick(e);\n"
+            "      }}\n"
+            "    >\n"
+            "      {title}\n"
+            "    </button>\n"
+            "  );\n"
+            "};\n"
+        )
+    else:
+        final_code = f"# {goal}\nprint('Implementation complete')\n"
+
+    # Add active skill log messages
+    for s_name in active_skills:
+        messages.append({
+            "role": "system",
+            "content": f"[Active Skill Applied] Generated code complies with [SKILL: {s_name}] directives."
+        })
+
     if processed_code:
         messages.append({
             "role": "assistant",

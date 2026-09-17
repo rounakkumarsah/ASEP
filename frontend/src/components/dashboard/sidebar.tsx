@@ -22,6 +22,7 @@ import {
   Cpu,
   ExternalLink,
   PanelLeftClose,
+  Sparkles,
 } from "lucide-react";
 import { useSidebarStore } from "@/lib/stores/sidebarStore";
 
@@ -41,6 +42,7 @@ const navigationGroups = [
       { name: "Sessions", href: "/sessions", icon: Activity },
       { name: "Memory", href: "/memory", icon: Database },
       { name: "Knowledge", href: "/knowledge", icon: BookOpen },
+      { name: "Skills", href: "/skills", icon: Sparkles },
     ],
   },
   {

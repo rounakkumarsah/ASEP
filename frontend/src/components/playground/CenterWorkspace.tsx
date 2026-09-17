@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { MessageSquare, Code, Terminal, Send, Loader2, Bot, User as UserIcon, Plus, GitCompare, Paperclip, Wrench, Cpu, Workflow, Play, FileText, FolderGit2, ShieldAlert, Gauge, Zap, BarChart2, AlertTriangle, Square, GitBranch, ExternalLink, Check, RefreshCw, GitPullRequest, CheckCircle2 } from "lucide-react";
+import { MessageSquare, Code, Terminal, Send, Loader2, Bot, User as UserIcon, Plus, GitCompare, Paperclip, Wrench, Cpu, Workflow, Play, FileText, FolderGit2, ShieldAlert, Gauge, Zap, BarChart2, AlertTriangle, Square, GitBranch, ExternalLink, Check, RefreshCw, GitPullRequest, CheckCircle2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -120,6 +120,8 @@ export function CenterWorkspace() {
     githubActiveBranch,
     setGithubActiveBranch,
     selectedProjectName,
+    activeSkills,
+    skillCitations,
   } = usePlaygroundStore();
   const [input, setInput] = React.useState("");
   const [cmdMenu, setCmdMenu] = React.useState<'tool' | 'model' | null>(null);
@@ -951,8 +953,8 @@ export function CenterWorkspace() {
         </div>
       )}
       <Tabs value={activeCenterTab} onValueChange={setActiveCenterTab} className="flex-1 flex flex-col min-h-0">
-        <div className="px-4 py-2 border-b border-border/40 bg-background/50 backdrop-blur">
-          <TabsList className="bg-muted/50 h-9 p-1">
+        <div className="px-4 py-2 border-b border-border/40 bg-background/50 backdrop-blur flex items-center justify-between gap-2 overflow-x-auto">
+          <TabsList className="bg-muted/50 h-9 p-1 shrink-0">
             <TabsTrigger value="chat" className="text-xs gap-2"><MessageSquare className="h-3.5 w-3.5" /> Chat</TabsTrigger>
             <TabsTrigger value="workflow" className="text-xs gap-2"><Workflow className="h-3.5 w-3.5" /> Visual Workflow</TabsTrigger>
             <TabsTrigger value="artifacts" className="text-xs gap-2"><Code className="h-3.5 w-3.5" /> Artifacts</TabsTrigger>
@@ -961,6 +963,17 @@ export function CenterWorkspace() {
             <TabsTrigger value="metrics" className="text-xs gap-2"><Gauge className="h-3.5 w-3.5" /> Token Metrics</TabsTrigger>
             {securityFindings.length > 0 && <TabsTrigger value="security" className="text-xs gap-2 text-destructive"><ShieldAlert className="h-3.5 w-3.5" /> Security Audit</TabsTrigger>}
           </TabsList>
+          {activeSkills && activeSkills.length > 0 && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider hidden sm:inline">Active Skills:</span>
+              {activeSkills.map((s) => (
+                <Badge key={s} variant="outline" className="bg-purple-500/10 text-purple-400 border-purple-500/30 text-[11px] font-mono py-0.5 px-2 flex items-center gap-1">
+                  <Sparkles className="w-2.5 h-2.5" />
+                  [SKILL: {s}]
+                </Badge>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex-1 min-h-0 relative flex flex-col">
@@ -978,36 +991,68 @@ export function CenterWorkspace() {
                     </div>
                   </div>
                 ) : (
-                  messages.map((msg, idx) => (
-                    <div key={idx} className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      {msg.role === 'assistant' && (
-                        <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
-                          <Bot className="h-4 w-4 text-primary" />
+                  messages.map((msg, idx) => {
+                    if (msg.content?.startsWith('[Skill Activated]')) {
+                      return (
+                        <div key={idx} className="flex justify-center my-1.5 animate-in fade-in">
+                          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-950/40 border border-purple-500/30 text-purple-300 text-xs font-mono shadow-sm">
+                            <Sparkles className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+                            <span>{msg.content}</span>
+                          </div>
                         </div>
-                      )}
-                      
-                      <div className={`group relative max-w-[85%] rounded-xl px-4 py-3 text-sm shadow-sm ${
-                        msg.role === 'user' 
-                          ? 'bg-[#22D3EE]/10 text-foreground border border-[#22D3EE]/20' 
-                          : 'bg-card border border-border/50 text-card-foreground'
-                      }`}>
-                        <div className="prose prose-sm dark:prose-invert max-w-none">
-                          <ReactMarkdown>
-                            {msg.content}
-                          </ReactMarkdown>
+                      );
+                    }
+                    if (msg.content?.startsWith('[Skill Reference]')) {
+                      return (
+                        <div key={idx} className="flex justify-center my-1 animate-in fade-in">
+                          <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-cyan-950/40 border border-cyan-500/30 text-cyan-300 text-[11px] font-mono shadow-sm">
+                            <FileText className="h-3 w-3 text-cyan-400 shrink-0" />
+                            <span>{msg.content}</span>
+                          </div>
                         </div>
-                        <span className="text-[9px] text-muted-foreground absolute -bottom-4 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {msg.timestamp}
-                        </span>
-                      </div>
+                      );
+                    }
 
-                      {msg.role === 'user' && (
-                        <div className="h-8 w-8 rounded bg-muted flex items-center justify-center shrink-0 border border-border/50">
-                          <UserIcon className="h-4 w-4 text-muted-foreground" />
+                    return (
+                      <div key={idx} className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        {msg.role === 'assistant' && (
+                          <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
+                            <Bot className="h-4 w-4 text-primary" />
+                          </div>
+                        )}
+                        
+                        <div className={`group relative max-w-[85%] rounded-xl px-4 py-3 text-sm shadow-sm ${
+                          msg.role === 'user' 
+                            ? 'bg-[#22D3EE]/10 text-foreground border border-[#22D3EE]/20' 
+                            : 'bg-card border border-border/50 text-card-foreground'
+                        }`}>
+                          <div className="prose prose-sm dark:prose-invert max-w-none">
+                            <ReactMarkdown>
+                              {msg.content}
+                            </ReactMarkdown>
+                          </div>
+                          {skillCitations && skillCitations.length > 0 && msg.role === 'assistant' && idx === messages.length - 1 && (
+                            <div className="mt-2 pt-2 border-t border-border/30 flex flex-wrap gap-1">
+                              {skillCitations.map((cit, cIdx) => (
+                                <span key={cIdx} className="text-[10px] font-mono text-cyan-400 bg-cyan-950/40 px-1.5 py-0.5 rounded border border-cyan-800/40">
+                                  {cit}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          <span className="text-[9px] text-muted-foreground absolute -bottom-4 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {msg.timestamp}
+                          </span>
                         </div>
-                      )}
-                    </div>
-                  ))
+
+                        {msg.role === 'user' && (
+                          <div className="h-8 w-8 rounded bg-muted flex items-center justify-center shrink-0 border border-border/50">
+                            <UserIcon className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
                 )}
                 {clarificationPrompt && (
                     <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 my-4 max-w-[85%]">

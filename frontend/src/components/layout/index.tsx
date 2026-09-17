@@ -17,6 +17,7 @@ import {
   LogOut,
   Moon,
   Sun,
+  Sparkles,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 
@@ -28,6 +29,7 @@ export function Sidebar() {
     { name: "Projects", href: "/projects", icon: FolderOpen },
     { name: "Sessions", href: "/sessions", icon: Activity },
     { name: "Knowledge", href: "/knowledge", icon: Database },
+    { name: "Skills", href: "/skills", icon: Sparkles },
     { name: "Playground", href: "/playground", icon: TerminalSquare },
     { name: "Approvals", href: "/approvals", icon: CheckSquare },
     { name: "Metrics", href: "/metrics", icon: BarChart },

@@ -96,3 +96,10 @@ class AgentState(TypedDict, total=False):
     github_commits: dict[str, str]
     github_sync_status: str
     github_pr_url: str
+
+    # --- Skill System ---
+    active_skills: list[str]
+    skill_instructions: list[str]
+    skill_citations: list[str]
+    forced_skills: list[str]
+    disabled_skills: list[str]

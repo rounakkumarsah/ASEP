@@ -46,6 +46,7 @@ export function AppLayout({ children }: LayoutProps) {
     { name: "Research", href: "/research", icon: "🔍" },
     { name: "Developer Copilot", href: "/copilot", icon: "🤖" },
     { name: "Knowledge Base", href: "/knowledge", icon: "📚" },
+    { name: "Skills", href: "/skills", icon: "✨" },
     { name: "Dashboard", href: "/dashboard", icon: "📊" },
     { name: "Billing", href: "/billing", icon: "💳" },
     { name: "Settings", href: "/settings", icon: "⚙️" },

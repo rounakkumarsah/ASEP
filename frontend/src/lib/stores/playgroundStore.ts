@@ -132,6 +132,12 @@ export interface PlaygroundState {
   setGithubActiveRepo: (repo: string | null) => void;
   githubActiveBranch: string | null;
   setGithubActiveBranch: (branch: string | null) => void;
+
+  // Skills System
+  activeSkills: string[];
+  setActiveSkills: (skills: string[]) => void;
+  skillCitations: string[];
+  setSkillCitations: (citations: string[]) => void;
 }
 
 export const DEFAULT_PHASE_BUDGETS: Record<string, number> = {
@@ -276,6 +282,10 @@ export const usePlaygroundStore = create<PlaygroundState>()(
       setGithubActiveRepo: (githubActiveRepo) => set({ githubActiveRepo }),
       githubActiveBranch: null,
       setGithubActiveBranch: (githubActiveBranch) => set({ githubActiveBranch }),
+      activeSkills: [],
+      setActiveSkills: (activeSkills) => set({ activeSkills }),
+      skillCitations: [],
+      setSkillCitations: (skillCitations) => set({ skillCitations }),
     }),
     {
       name: 'asep-playground-storage',
@@ -301,6 +311,8 @@ export const usePlaygroundStore = create<PlaygroundState>()(
         githubCommits: state.githubCommits,
         githubActiveRepo: state.githubActiveRepo,
         githubActiveBranch: state.githubActiveBranch,
+        activeSkills: state.activeSkills,
+        skillCitations: state.skillCitations,
       }),
     }
   )

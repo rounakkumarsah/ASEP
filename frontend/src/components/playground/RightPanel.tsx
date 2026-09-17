@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Activity, CheckCircle2, CircleDashed, TerminalSquare, BookOpen, DollarSign, Target, PanelRightClose, RotateCcw, GitBranch } from "lucide-react";
+import { Activity, CheckCircle2, CircleDashed, TerminalSquare, BookOpen, DollarSign, Target, PanelRightClose, RotateCcw, GitBranch, Sparkles, FileText } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -10,9 +10,43 @@ import { usePlaygroundStore } from "@/lib/stores/playgroundStore";
 import { useSidebarStore } from "@/lib/stores/sidebarStore";
 
 export function RightPanel() {
-  const { messages, isThinking, activeNode, completedNodes, sessionMetrics, phaseMap, githubCommits } = usePlaygroundStore();
+  const {
+    messages,
+    isThinking,
+    activeNode,
+    completedNodes,
+    sessionMetrics,
+    phaseMap,
+    githubCommits,
+    activeSkills,
+    skillCitations,
+  } = usePlaygroundStore();
   const { toggleRightPanel } = useSidebarStore();
   const hasActivity = messages.length > 0 || isThinking || completedNodes.length > 0;
+
+  // Extract skills from store or execution trace
+  const traceSkills = React.useMemo(() => {
+    const list = new Set<string>(activeSkills || []);
+    messages.forEach((m) => {
+      const match = m.content?.match(/\[SKILL:\s*([^\]]+)\]/i);
+      if (match && match[1]) list.add(match[1].trim());
+    });
+    return Array.from(list);
+  }, [messages, activeSkills]);
+
+  // Extract attachment citations from store or execution trace
+  const traceCitations = React.useMemo(() => {
+    const list = new Set<string>(skillCitations || []);
+    messages.forEach((m) => {
+      const matches = m.content?.matchAll(/(\[FROM:[^\]]+\])/gi);
+      if (matches) {
+        for (const match of matches) {
+          if (match[1]) list.add(match[1].trim());
+        }
+      }
+    });
+    return Array.from(list);
+  }, [messages, skillCitations]);
 
   // Extract Self-Healing Execution Trace logs
   const healLogs = React.useMemo(() => {
@@ -127,6 +161,28 @@ export function RightPanel() {
                 })}
               </div>
             )}
+
+            {/* Active Skills in Trace */}
+            {traceSkills.length > 0 && (
+              <div className="pt-2 border-t border-border/30 space-y-1.5">
+                <div className="text-[10px] font-semibold text-purple-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Sparkles className="h-3 w-3 text-purple-400" />
+                  Active Skills
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {traceSkills.map((skill) => (
+                    <Badge
+                      key={skill}
+                      variant="outline"
+                      className="bg-purple-500/10 text-purple-400 border-purple-500/30 text-[10px] font-mono py-0.5 px-2 flex items-center gap-1"
+                    >
+                      <Sparkles className="h-2.5 w-2.5 text-purple-400" />
+                      [SKILL: {skill}]
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="h-px bg-border/40" />
@@ -192,15 +248,23 @@ export function RightPanel() {
 
           {/* Sources */}
           <div className="space-y-3">
-            <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Referenced Sources</h3>
-            {!hasActivity ? (
+            <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Referenced Sources & Attachments</h3>
+            {traceCitations.length === 0 && !hasActivity ? (
               <p className="text-xs text-muted-foreground italic">No sources referenced yet.</p>
             ) : (
               <div className="space-y-2">
-                <div className="flex items-center gap-2 text-xs border border-border/50 rounded p-2 bg-card/50 hover:bg-card transition-colors cursor-pointer">
-                  <BookOpen className="h-3.5 w-3.5 text-blue-400 shrink-0" />
-                  <span className="truncate">Next.js App Router Docs</span>
-                </div>
+                {traceCitations.map((citation, idx) => (
+                  <div key={idx} className="flex items-center gap-2 text-xs border border-cyan-500/30 rounded p-2 bg-cyan-950/20 text-cyan-300">
+                    <FileText className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
+                    <span className="font-mono text-[11px] truncate" title={citation}>{citation}</span>
+                  </div>
+                ))}
+                {hasActivity && (
+                  <div className="flex items-center gap-2 text-xs border border-border/50 rounded p-2 bg-card/50 hover:bg-card transition-colors cursor-pointer">
+                    <BookOpen className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                    <span className="truncate">Next.js App Router Docs</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
