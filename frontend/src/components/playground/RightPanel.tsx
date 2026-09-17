@@ -34,6 +34,7 @@ export function RightPanel() {
     { id: "test", label: "Test Phase", desc: "Unit & integration testing" },
     { id: "security_audit", label: "Security Audit", desc: "Vulnerability scanning" },
     { id: "deploy", label: "Deploy Phase", desc: "Release & deployment prep" },
+    { id: "host_manager", label: "Host Manager", desc: "Install deps, start server, health check" },
   ];
 
   let PIPELINE_STEPS = DEFAULT_PIPELINE_STEPS;

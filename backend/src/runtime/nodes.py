@@ -24,6 +24,7 @@ from src.utils.self_healing import (
 from src.utils.security_scanner import scanner, SecurityReport
 from src.utils.package_resolver import PackageResolver
 from src.utils.doc_crawler import doc_crawler, DOC_SOURCE_REGISTRY
+from src.utils.host_manager import host_manager, find_free_port, HostManagerResult
 
 logger = logging.getLogger(__name__)
 
@@ -570,28 +571,28 @@ async def orchestrator_node(state: AgentState) -> dict[str, Any]:
     # Classify product type based on keywords
     if "ai agent" in goal_lower:
         product_type = "ai_agent"
-        phase_map = ["research", "clarification_gate", "capability_blueprint", "tool_design", "agent_loop_implementation", "critic", "memory_state_design", "sandbox_tests", "evaluation_runs", "security_audit", "deploy_clarification_gate", "deploy"]
+        phase_map = ["research", "clarification_gate", "capability_blueprint", "tool_design", "agent_loop_implementation", "critic", "memory_state_design", "sandbox_tests", "evaluation_runs", "security_audit", "deploy_clarification_gate", "deploy", "host_manager"]
     elif "agentic ai" in goal_lower or "multi-agent" in goal_lower:
         product_type = "agentic_ai"
-        phase_map = ["research", "clarification_gate", "goal_decomposition_design", "planner_executor_critic_architecture", "tool_integration", "critic", "multi_step_test_scenarios", "failure_recovery_tests", "security_audit", "deploy_clarification_gate", "deploy"]
+        phase_map = ["research", "clarification_gate", "goal_decomposition_design", "planner_executor_critic_architecture", "tool_integration", "critic", "multi_step_test_scenarios", "failure_recovery_tests", "security_audit", "deploy_clarification_gate", "deploy", "host_manager"]
     elif "automation" in goal_lower or "workflow" in goal_lower:
         product_type = "ai_automation"
-        phase_map = ["research", "clarification_gate", "workflow_mapping", "trigger_action_design", "integration_points", "critic", "end_to_end_automation_tests", "error_handling_paths", "security_audit", "deploy_clarification_gate", "deploy"]
-    elif "api" in goal_lower: 
+        phase_map = ["research", "clarification_gate", "workflow_mapping", "trigger_action_design", "integration_points", "critic", "end_to_end_automation_tests", "error_handling_paths", "security_audit", "deploy_clarification_gate", "deploy", "host_manager"]
+    elif "api" in goal_lower:
         product_type = "api"
-        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "critic", "test", "security_audit", "deploy_clarification_gate", "deploy"]
-    elif "bot" in goal_lower: 
+        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "critic", "test", "security_audit", "deploy_clarification_gate", "deploy", "host_manager"]
+    elif "bot" in goal_lower:
         product_type = "bot"
-        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "critic", "test", "security_audit", "deploy_clarification_gate", "deploy"]
-    elif "website" in goal_lower: 
+        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "critic", "test", "security_audit", "deploy_clarification_gate", "deploy", "host_manager"]
+    elif "website" in goal_lower:
         product_type = "website"
-        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "critic", "test", "security_audit", "deploy_clarification_gate", "deploy"]
-    elif "app" in goal_lower: 
+        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "critic", "test", "security_audit", "deploy_clarification_gate", "deploy", "host_manager"]
+    elif "app" in goal_lower:
         product_type = "app"
-        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "critic", "test", "security_audit", "deploy_clarification_gate", "deploy"]
+        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "critic", "test", "security_audit", "deploy_clarification_gate", "deploy", "host_manager"]
     else:
         product_type = "web-app"
-        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "critic", "test", "security_audit", "deploy_clarification_gate", "deploy"]
+        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "critic", "test", "security_audit", "deploy_clarification_gate", "deploy", "host_manager"]
 
 
     # No Hallucination Rules constraints injected into system message
@@ -1677,10 +1678,151 @@ async def deploy_phase_node(state: AgentState) -> dict[str, Any]:
     }
 
 
+async def host_manager_node(state: AgentState) -> dict[str, Any]:
+    """
+    HOST MANAGER NODE — Runs after all phases pass.
+
+    Automatically:
+      1. Installs dependencies (pip/npm) using PackageResolver for error handling.
+      2. Writes generated code to a temporary workspace.
+      3. Starts the dev server / build in a subprocess.
+      4. Runs health checks (HTTP endpoint responds, no startup errors).
+      5. Auto-increments port on conflict (address already in use).
+      6. Exposes the running app at http://localhost:<port>.
+      7. Emits [Host Manager] SSE telemetry for the Terminal tab.
+
+    Success: [OK] App running at http://localhost:<port>
+    Failure: logs error but does NOT block pipeline — marks status as "host_failed".
+    """
+    code = (
+        state.get("generated_code")
+        or state.get("file_content")
+        or state.get("code_context")
+        or ""
+    )
+    product_type = state.get("product_type") or "web-app"
+    run_id = state.get("run_id", "unknown")
+    guard_res = execute_phase_token_guard(phase="host_manager", state=state, base_tokens=80)
+    messages = list(guard_res.get("telemetry_messages", []))
+
+    if not code.strip():
+        messages.append({
+            "role": "system",
+            "content": "[Host Manager] No generated code found — skipping app hosting.",
+        })
+        return {
+            "status": "verified",
+            "current_phase": "host_manager",
+            "app_url": "",
+            "app_port": 0,
+            "hosted_app": {},
+            "host_logs": ["No code to host"],
+            "install_step": "",
+            "token_usage_per_phase": guard_res["token_usage_per_phase"],
+            "token_budget_per_phase": guard_res["token_budget_per_phase"],
+            "token_savings": guard_res["token_savings"],
+            "file_history": guard_res["file_history"],
+            "budget_approvals": guard_res["budget_approvals"],
+            "messages": messages,
+        }
+
+    # Emit startup telemetry
+    messages.append({
+        "role": "system",
+        "content": f"[Host Manager] Starting app for product_type='{product_type}', run_id={run_id}",
+    })
+
+    try:
+        result: HostManagerResult = await host_manager.host(
+            code=code,
+            product_type=product_type,
+            run_id=run_id,
+        )
+    except Exception as exc:
+        logger.error("[Host Manager] Unexpected error: %s", exc)
+        messages.append({
+            "role": "system",
+            "content": f"[Host Manager] Error: {exc}",
+        })
+        return {
+            "status": "host_failed",
+            "current_phase": "host_manager",
+            "app_url": "",
+            "app_port": 0,
+            "hosted_app": {},
+            "host_logs": [str(exc)],
+            "install_step": "",
+            "token_usage_per_phase": guard_res["token_usage_per_phase"],
+            "token_budget_per_phase": guard_res["token_budget_per_phase"],
+            "token_savings": guard_res["token_savings"],
+            "file_history": guard_res["file_history"],
+            "budget_approvals": guard_res["budget_approvals"],
+            "messages": messages,
+        }
+
+    # Build SSE telemetry payload
+    telemetry: dict[str, Any] = {
+        "success": result.success,
+        "install_step": result.install_step,
+        "logs": result.logs[:10],
+    }
+    if result.app:
+        telemetry.update({
+            "port": result.app.port,
+            "url": result.app.url,
+            "pid": result.app.pid,
+            "health_ok": result.app.health_ok,
+            "workspace": result.app.workspace_dir,
+        })
+
+    messages.append({
+        "role": "system",
+        "content": f"[Host Manager] {json.dumps(telemetry)}",
+    })
+
+    # Emit the canonical status line
+    if result.success and result.app and result.app.health_ok:
+        status_line = f"[OK] App running at {result.app.url}"
+        logger.info("[Host Manager] %s", status_line)
+    elif result.success and result.app:
+        status_line = f"[OK] App started (PID={result.app.pid}) at {result.app.url} — health check pending"
+    else:
+        status_line = f"[WARN] App hosting failed: {result.error}"
+
+    messages.append({
+        "role": "system",
+        "content": f"[Host Manager Status] {status_line}",
+    })
+
+    # Emit install step info
+    if result.install_step and result.install_step != "skipped":
+        messages.append({
+            "role": "system",
+            "content": f"[Host Manager Install] {result.install_step}",
+        })
+
+    return {
+        "status": "verified" if result.success else "host_failed",
+        "current_phase": "host_manager",
+        "app_url": result.app.url if result.app else "",
+        "app_port": result.app.port if result.app else 0,
+        "hosted_app": result.app.to_dict() if result.app else {},
+        "host_logs": result.logs,
+        "install_step": result.install_step,
+        "token_usage_per_phase": guard_res["token_usage_per_phase"],
+        "token_budget_per_phase": guard_res["token_budget_per_phase"],
+        "token_savings": guard_res["token_savings"],
+        "file_history": guard_res["file_history"],
+        "budget_approvals": guard_res["budget_approvals"],
+        "messages": messages,
+    }
+
+
 async def end_node_default(state: AgentState) -> dict[str, Any]:
     """Final pipeline node.
     Gate: Final artifact CANNOT be marked 'complete' without a passed security report in state.
     """
+
     sec_report = state.get("security_report") or {}
     has_passed_security = sec_report.get("passed", False) and (sec_report.get("critical_count", 0) == 0)
 

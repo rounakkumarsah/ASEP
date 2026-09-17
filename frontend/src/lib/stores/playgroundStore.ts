@@ -99,6 +99,10 @@ export interface PlaygroundState {
   setTokenSavings: (savings: { ast_slicing: number; diff_streaming: number; total_saved: number }) => void;
   budgetExceeded: { phase: string; prompt: string; used: number; budget: number; percent: number } | null;
   setBudgetExceeded: (info: { phase: string; prompt: string; used: number; budget: number; percent: number } | null) => void;
+
+  // Host Manager — live app URL
+  appUrl: string | null;
+  setAppUrl: (url: string | null) => void;
 }
 
 export const DEFAULT_PHASE_BUDGETS: Record<string, number> = {
@@ -111,6 +115,7 @@ export const DEFAULT_PHASE_BUDGETS: Record<string, number> = {
   security_audit: 1500,
   deploy_clarification_gate: 500,
   deploy: 1000,
+  host_manager: 500,
 };
 
 import { persist } from 'zustand/middleware';
@@ -215,6 +220,10 @@ export const usePlaygroundStore = create<PlaygroundState>()(
       setTokenSavings: (tokenSavings) => set({ tokenSavings }),
       budgetExceeded: null,
       setBudgetExceeded: (budgetExceeded) => set({ budgetExceeded }),
+
+      // Host Manager — live app URL
+      appUrl: null,
+      setAppUrl: (appUrl) => set({ appUrl }),
     }),
     {
       name: 'asep-playground-storage',

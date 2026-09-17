@@ -78,5 +78,18 @@ class AgentState(TypedDict, total=False):
     # Discovered stable version hints: {"fastapi": "0.115.x", ...}
     stack_versions: dict[str, str]
 
+    # --- Host Manager ---
+    # Result of the host manager phase: {port, url, pid, health_ok, ...}
+    hosted_app: dict[str, Any]
+    # Assigned port for the running app (0 = not hosted)
+    app_port: int
+    # Live URL exposed to user e.g. "http://localhost:3000"
+    app_url: str
+    # Install step executed e.g. "pip install fastapi uvicorn"
+    install_step: str
+    # Host manager phase logs
+    host_logs: list[str]
+
+
 
 

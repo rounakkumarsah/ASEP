@@ -28,6 +28,7 @@ DEFAULT_PHASE_BUDGETS: dict[str, int] = {
     "security_audit": 1500,
     "deploy_clarification_gate": 500,
     "deploy": 1000,
+    "host_manager": 500,
     # Dynamic agentic phase budgets
     "capability_blueprint": 2000,
     "tool_design": 2000,

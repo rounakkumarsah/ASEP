@@ -26,6 +26,7 @@ from src.runtime.nodes import (
     test_phase_node,
     security_audit_phase_node,
     deploy_phase_node,
+    host_manager_node,
     capability_blueprint_phase_node,
     tool_design_phase_node,
     agent_loop_implementation_phase_node,
@@ -74,6 +75,7 @@ class LangGraphRuntime:
         self.nodes.register("test", test_phase_node)
         self.nodes.register("security_audit", security_audit_phase_node)
         self.nodes.register("deploy", deploy_phase_node)
+        self.nodes.register("host_manager", host_manager_node)
         self.nodes.register("capability_blueprint", capability_blueprint_phase_node)
         self.nodes.register("tool_design", tool_design_phase_node)
         self.nodes.register("agent_loop_implementation", agent_loop_implementation_phase_node)

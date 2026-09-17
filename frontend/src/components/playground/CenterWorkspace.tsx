@@ -99,6 +99,8 @@ export function CenterWorkspace() {
     setTokenSavings,
     budgetExceeded,
     setBudgetExceeded,
+    appUrl,
+    setAppUrl,
   } = usePlaygroundStore();
   const [input, setInput] = React.useState("");
   const [cmdMenu, setCmdMenu] = React.useState<'tool' | 'model' | null>(null);
@@ -378,6 +380,24 @@ export function CenterWorkspace() {
                         ) {
                           addTerminalLog("system", "📚 " + messageItem.content);
 
+                        } else if (messageItem.content.includes("[Host Manager Status]")) {
+                          const statusText = messageItem.content.replace("[Host Manager Status]", "").trim();
+                          // Extract URL for live banner
+                          const urlMatch = statusText.match(/https?:\/\/localhost:\d+/);
+                          if (urlMatch) {
+                            setAppUrl(urlMatch[0]);
+                          }
+                          if (statusText.startsWith("[OK]")) {
+                            addTerminalLog("success", "🚀 " + statusText);
+                            setActiveCenterTab("terminal");
+                          } else {
+                            addTerminalLog("system", "⚠️ " + statusText);
+                          }
+                        } else if (messageItem.content.includes("[Host Manager]")) {
+                          addTerminalLog("system", "🖥️ " + messageItem.content);
+                        } else if (messageItem.content.includes("[Host Manager Install]")) {
+                          addTerminalLog("system", "📦 " + messageItem.content);
+
                         } else if (messageItem.content.includes("[MCP Confirmation Required]")) {
                           const promptText = messageItem.content.replace("[MCP Confirmation Required]", "").trim();
                           const matchTool = promptText.match(/(?:allow|tool)\s+([a-zA-Z0-9_\-\.]+)/i);
@@ -578,6 +598,22 @@ export function CenterWorkspace() {
                             messageItem.content.includes("[Knowledge Base Preview]")
                           ) {
                             addTerminalLog("system", "📚 " + messageItem.content);
+                          } else if (messageItem.content.includes("[Host Manager Status]")) {
+                            const statusText = messageItem.content.replace("[Host Manager Status]", "").trim();
+                            const urlMatch = statusText.match(/https?:\/\/localhost:\d+/);
+                            if (urlMatch) {
+                              setAppUrl(urlMatch[0]);
+                            }
+                            if (statusText.startsWith("[OK]")) {
+                              addTerminalLog("success", "🚀 " + statusText);
+                              setActiveCenterTab("terminal");
+                            } else {
+                              addTerminalLog("system", "⚠️ " + statusText);
+                            }
+                          } else if (messageItem.content.includes("[Host Manager]")) {
+                            addTerminalLog("system", "🖥️ " + messageItem.content);
+                          } else if (messageItem.content.includes("[Host Manager Install]")) {
+                            addTerminalLog("system", "📦 " + messageItem.content);
                           } else if (messageItem.content.includes("[MCP Confirmation Required]")) {
                             const promptText = messageItem.content.replace("[MCP Confirmation Required]", "").trim();
                             const matchTool = promptText.match(/(?:allow|tool)\s+([a-zA-Z0-9_\-\.]+)/i);
@@ -1029,6 +1065,33 @@ export function CenterWorkspace() {
           </TabsContent>
 
           <TabsContent value="terminal" className="flex-1 mt-0 border-0 data-[state=active]:flex data-[state=inactive]:hidden min-h-0 flex-col overflow-hidden">
+            {appUrl && (
+              <div className="flex items-center gap-3 px-4 py-2 bg-emerald-950/60 border-b border-emerald-800/40 text-emerald-400 font-mono text-xs shrink-0">
+                <span className="flex items-center gap-1.5">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  <span className="font-semibold text-emerald-300">[OK]</span>
+                  App running at
+                </span>
+                <a
+                  href={appUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-emerald-300 hover:text-emerald-100 underline underline-offset-2 font-semibold transition-colors"
+                >
+                  {appUrl}
+                </a>
+                <button
+                  onClick={() => { navigator.clipboard?.writeText(appUrl); }}
+                  className="ml-auto text-emerald-600 hover:text-emerald-300 text-[10px] border border-emerald-800/50 px-2 py-0.5 rounded transition-colors"
+                  title="Copy URL"
+                >
+                  Copy
+                </button>
+              </div>
+            )}
             <PlaygroundTerminal />
           </TabsContent>
 

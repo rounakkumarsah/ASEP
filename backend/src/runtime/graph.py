@@ -57,13 +57,23 @@ class StateGraphWrapper:
                     return "end"
             elif current == "debugger":
                 return "critic"
-                
+
+            # host_failed is non-blocking: treat same as verified, let pipeline continue
+            if status == "host_failed":
+                try:
+                    idx = phase_map.index(current)
+                    if idx + 1 < len(phase_map):
+                        return phase_map[idx + 1]
+                    return "end"
+                except ValueError:
+                    return "end"
+
             if status != "verified":
                 # Strict enforcement: if status is not verified, it is a hard error.
-                # In real execution, we would log it and pause or retry. 
+                # In real execution, we would log it and pause or retry.
                 # For this implementation, we loop back to current to retry.
                 return current
-                
+
             try:
                 idx = phase_map.index(current)
                 if idx + 1 < len(phase_map):
@@ -74,21 +84,23 @@ class StateGraphWrapper:
 
         # The orchestrator decides the first phase
         self.workflow.add_conditional_edges("orchestrator", phase_router)
-        
+
         # Register all possible phases in conditional edges
         all_phases = [
             "research", "blueprint", "scaffold", "implement", "critic", "debugger", "test", "security_audit", "deploy",
+            "host_manager",
             "capability_blueprint", "tool_design", "agent_loop_implementation", "memory_state_design",
             "sandbox_tests", "evaluation_runs", "goal_decomposition_design", "planner_executor_critic_architecture",
             "tool_integration", "multi_step_test_scenarios", "failure_recovery_tests", "workflow_mapping",
             "trigger_action_design", "integration_points", "end_to_end_automation_tests", "error_handling_paths"
         ]
-        
+
         for phase in all_phases:
             if phase in self.nodes.get_all():
                 self.workflow.add_conditional_edges(phase, phase_router)
-                
+
         self.workflow.add_edge("end", END)
+
 
     def compile(self) -> CompiledStateGraph:
         """Compile the assembled StateGraph with checkpointing.
