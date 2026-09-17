@@ -22,6 +22,8 @@ DEFAULT_PHASE_BUDGETS: dict[str, int] = {
     "blueprint": 2000,
     "scaffold": 2500,
     "implement": 3500,
+    "critic": 1500,
+    "debugger": 2500,
     "test": 2000,
     "security_audit": 1500,
     "deploy_clarification_gate": 500,

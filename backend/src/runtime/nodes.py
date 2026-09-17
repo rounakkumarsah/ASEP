@@ -13,6 +13,14 @@ from src.runtime.state import AgentState
 from src.utils.ast_slicer import ASTSlicer, estimate_tokens
 from src.utils.diff_streamer import DiffStreamer
 from src.utils.token_manager import TokenBudgetManager, DEFAULT_PHASE_BUDGETS
+from src.utils.self_healing import (
+    FailingFunctionInfo,
+    SandboxRunResult,
+    SandboxRunner,
+    SelfHealingDebugger,
+    TracebackAnalyzer,
+    UnifiedDiffPatcher,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -559,28 +567,29 @@ async def orchestrator_node(state: AgentState) -> dict[str, Any]:
     # Classify product type based on keywords
     if "ai agent" in goal_lower:
         product_type = "ai_agent"
-        phase_map = ["research", "clarification_gate", "capability_blueprint", "tool_design", "agent_loop_implementation", "memory_state_design", "sandbox_tests", "evaluation_runs", "security_audit", "deploy_clarification_gate", "deploy"]
+        phase_map = ["research", "clarification_gate", "capability_blueprint", "tool_design", "agent_loop_implementation", "critic", "memory_state_design", "sandbox_tests", "evaluation_runs", "security_audit", "deploy_clarification_gate", "deploy"]
     elif "agentic ai" in goal_lower or "multi-agent" in goal_lower:
         product_type = "agentic_ai"
-        phase_map = ["research", "clarification_gate", "goal_decomposition_design", "planner_executor_critic_architecture", "tool_integration", "multi_step_test_scenarios", "failure_recovery_tests", "security_audit", "deploy_clarification_gate", "deploy"]
+        phase_map = ["research", "clarification_gate", "goal_decomposition_design", "planner_executor_critic_architecture", "tool_integration", "critic", "multi_step_test_scenarios", "failure_recovery_tests", "security_audit", "deploy_clarification_gate", "deploy"]
     elif "automation" in goal_lower or "workflow" in goal_lower:
         product_type = "ai_automation"
-        phase_map = ["research", "clarification_gate", "workflow_mapping", "trigger_action_design", "integration_points", "end_to_end_automation_tests", "error_handling_paths", "security_audit", "deploy_clarification_gate", "deploy"]
+        phase_map = ["research", "clarification_gate", "workflow_mapping", "trigger_action_design", "integration_points", "critic", "end_to_end_automation_tests", "error_handling_paths", "security_audit", "deploy_clarification_gate", "deploy"]
     elif "api" in goal_lower: 
         product_type = "api"
-        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "test", "security_audit", "deploy_clarification_gate", "deploy"]
+        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "critic", "test", "security_audit", "deploy_clarification_gate", "deploy"]
     elif "bot" in goal_lower: 
         product_type = "bot"
-        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "test", "security_audit", "deploy_clarification_gate", "deploy"]
+        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "critic", "test", "security_audit", "deploy_clarification_gate", "deploy"]
     elif "website" in goal_lower: 
         product_type = "website"
-        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "test", "security_audit", "deploy_clarification_gate", "deploy"]
+        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "critic", "test", "security_audit", "deploy_clarification_gate", "deploy"]
     elif "app" in goal_lower: 
         product_type = "app"
-        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "test", "security_audit", "deploy_clarification_gate", "deploy"]
+        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "critic", "test", "security_audit", "deploy_clarification_gate", "deploy"]
     else:
         product_type = "web-app"
-        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "test", "security_audit", "deploy_clarification_gate", "deploy"]
+        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "critic", "test", "security_audit", "deploy_clarification_gate", "deploy"]
+
 
     # No Hallucination Rules constraints injected into system message
     hallucination_rules = (
@@ -1115,6 +1124,7 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
     messages = list(guard_res.get("telemetry_messages", []))
     messages.append({"role": "system", "content": "Implement Phase Complete: Core modules coded."})
 
+    final_code = processed_code or code_context or f"# {goal}\nprint('Implementation complete')\n"
     if processed_code:
         messages.append({
             "role": "assistant",
@@ -1123,17 +1133,199 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
     else:
         messages.append({
             "role": "assistant",
-            "content": f"```python\n# {goal}\nprint('Implementation complete')\n```"
+            "content": f"```python\n{final_code}\n```"
         })
 
     return {
         "status": "verified",
         "current_phase": "implement",
+        "generated_code": final_code,
+        "file_content": final_code,
+        "code_context": final_code,
         "token_usage_per_phase": guard_res["token_usage_per_phase"],
         "token_budget_per_phase": guard_res["token_budget_per_phase"],
         "token_savings": guard_res["token_savings"],
         "file_history": guard_res["file_history"],
         "budget_approvals": guard_res["budget_approvals"],
+        "messages": messages,
+    }
+
+
+async def critic_node(state: AgentState) -> dict[str, Any]:
+    """Critic node: after code generation, runs the code in the sandbox (tests or direct execution),
+    captures stdout/stderr/exit code and full stack trace.
+    Success criteria: exit code 0 AND tests pass AND no new warnings.
+    If failure: routes to DEBUGGER node or escalates to user if max 5 retries reached.
+    """
+    code = (
+        state.get("generated_code")
+        or state.get("code_context")
+        or state.get("file_content")
+        or "print('No code to evaluate')\n"
+    )
+    entrypoint = state.get("filepath") or "main.py"
+    heal_count = state.get("heal_cycle_count", 0)
+
+    # 1. Run in isolated sandbox (subprocess or docker)
+    runner = SandboxRunner()
+    result = runner.run_code(code, filename=entrypoint)
+
+    # 2. Success criteria: exit code 0 AND tests pass AND no new warnings
+    success = (result.exit_code == 0) and result.tests_passed and (len(result.warnings) == 0)
+
+    messages: list[dict[str, Any]] = []
+
+    if success:
+        logger.info("Critic verified code execution successfully (exit_code=0, 0 warnings).")
+        messages.append({
+            "role": "system",
+            "content": f"Critic Phase Complete: Sandbox execution verified successfully (exit code 0, tests passed, {len(result.warnings)} warnings).",
+        })
+        if result.stdout:
+            messages.append({
+                "role": "assistant",
+                "content": f"Sandbox Output:\n```\n{result.stdout.strip()}\n```",
+            })
+        return {
+            "status": "verified",
+            "current_phase": "critic",
+            "critic_result": result.to_dict(),
+            "messages": messages,
+        }
+
+    # Failure handling
+    logger.warning("Critic detected execution failure: exit_code=%s", result.exit_code)
+    trace_to_analyze = result.stack_trace or result.stderr
+    analysis = TracebackAnalyzer.analyze(trace_to_analyze, code, filename=entrypoint)
+
+    next_cycle = heal_count + 1
+    if next_cycle > 5:
+        # Max 5 retry attempts, then escalate to user with full error context
+        logger.error("Critic: Maximum self-healing cycles (5) exceeded. Escalating to user.")
+        escalation_info = {
+            "error_type": analysis.error_type,
+            "error_message": analysis.error_message,
+            "failing_file": analysis.failing_file,
+            "failing_line": analysis.line_number,
+            "failing_function": analysis.function_name,
+            "stack_trace": trace_to_analyze,
+            "heal_cycle_count": heal_count,
+            "attempts": state.get("heal_history", []),
+        }
+        messages.append({
+            "role": "system",
+            "content": f"[Self-Healing Escalation] Max retry attempts (5) exceeded. Error: {analysis.error_type}: {analysis.error_message}",
+        })
+        messages.append({
+            "role": "assistant",
+            "content": f"⚠️ **Self-Healing Escalation Required**\n\nThe autonomous healer reached the maximum limit of 5 retry cycles without resolving the runtime issue.\n\n**Error Details:**\n- **Type:** `{analysis.error_type}`\n- **Message:** `{analysis.error_message}`\n- **Location:** `{analysis.failing_file}:{analysis.line_number}` in `{analysis.function_name or 'top-level'}`\n\n```python\n{trace_to_analyze}\n```",
+        })
+        try:
+            interrupt({
+                "action": "self_healing_escalation",
+                "escalation_info": escalation_info,
+            })
+        except Exception:
+            pass
+
+        return {
+            "status": "escalated",
+            "current_phase": "critic",
+            "critic_result": result.to_dict(),
+            "escalation_info": escalation_info,
+            "messages": messages,
+        }
+
+    # Route to DEBUGGER node
+    messages.append({
+        "role": "system",
+        "content": f"[Critic Execution] Detected failure ({analysis.error_type}): {analysis.error_message}. Routing to Debugger for heal cycle #{next_cycle}."
+    })
+
+    return {
+        "status": "healing",
+        "current_phase": "critic",
+        "critic_result": result.to_dict(),
+        "variables": {
+            **(state.get("variables") or {}),
+            "critic_analysis": analysis.to_dict(),
+        },
+        "messages": messages,
+    }
+
+
+async def debugger_node(state: AgentState) -> dict[str, Any]:
+    """Debugger node: receives (a) stack trace, (b) AST slice of failing function,
+    (c) last 3 attempts' history to avoid repeated fixes. Produces a unified diff patch only,
+    applies it, logs the heal cycle in Execution Trace, and routes back to critic for re-run.
+    """
+    code = (
+        state.get("generated_code")
+        or state.get("code_context")
+        or state.get("file_content")
+        or ""
+    )
+    variables = state.get("variables") or {}
+    raw_analysis = variables.get("critic_analysis") or {}
+
+    analysis = FailingFunctionInfo(
+        failing_file=raw_analysis.get("failing_file", "main.py"),
+        line_number=raw_analysis.get("line_number", 1),
+        function_name=raw_analysis.get("function_name"),
+        error_type=raw_analysis.get("error_type", "RuntimeError"),
+        error_message=raw_analysis.get("error_message", "Execution error"),
+        raw_traceback=raw_analysis.get("raw_traceback", ""),
+    )
+
+    heal_cycle = state.get("heal_cycle_count", 0) + 1
+    heal_history = list(state.get("heal_history") or [])
+    last_3_attempts = heal_history[-3:]
+    heal_logs = list(state.get("heal_logs") or [])
+
+    # Debugger produces a unified diff patch only
+    patch, fix_summary = SelfHealingDebugger.generate_patch(
+        source_code=code,
+        failing_info=analysis,
+        past_attempts=last_3_attempts,
+        filename=analysis.failing_file,
+    )
+
+    # Apply unified diff patch
+    patched_code = UnifiedDiffPatcher.apply_patch(code, patch)
+
+    # Success criteria & logging format:
+    # "heal cycle #N: <error> → <fix summary>"
+    error_str = f"{analysis.error_type}: {analysis.error_message}".strip() if analysis.error_message else analysis.error_type
+    heal_log_entry = f"heal cycle #{heal_cycle}: {error_str} → {fix_summary}"
+    heal_logs.append(heal_log_entry)
+
+    heal_history.append({
+        "cycle": heal_cycle,
+        "error": error_str,
+        "error_type": analysis.error_type,
+        "error_message": analysis.error_message,
+        "patch": patch,
+        "fix_summary": fix_summary,
+    })
+
+    messages = [
+        {"role": "system", "content": heal_log_entry},
+        {"role": "system", "content": f"[Heal Cycle #{heal_cycle}] {heal_log_entry}"},
+        {
+            "role": "assistant",
+            "content": f"### Self-Healing Patch (Cycle #{heal_cycle})\n\n**Log:** `{heal_log_entry}`\n\n```diff\n{patch}\n```\n\n**Fix Summary:** {fix_summary}",
+        }
+    ]
+
+    return {
+        "status": "retest",
+        "current_phase": "debugger",
+        "generated_code": patched_code,
+        "file_content": patched_code,
+        "code_context": patched_code,
+        "heal_cycle_count": heal_cycle,
+        "heal_history": heal_history,
+        "heal_logs": heal_logs,
         "messages": messages,
     }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Activity, CheckCircle2, CircleDashed, TerminalSquare, BookOpen, DollarSign, Target, PanelRightClose } from "lucide-react";
+import { Activity, CheckCircle2, CircleDashed, TerminalSquare, BookOpen, DollarSign, Target, PanelRightClose, RotateCcw } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -13,6 +13,17 @@ export function RightPanel() {
   const { messages, isThinking, activeNode, completedNodes, sessionMetrics, phaseMap } = usePlaygroundStore();
   const { toggleRightPanel } = useSidebarStore();
   const hasActivity = messages.length > 0 || isThinking || completedNodes.length > 0;
+
+  // Extract Self-Healing Execution Trace logs
+  const healLogs = React.useMemo(() => {
+    return messages
+      .filter((m) => m.content && (m.content.includes("heal cycle #") || m.content.includes("[Heal Cycle")))
+      .map((m) => {
+        const text = m.content;
+        const match = text.match(/heal cycle #\d+:[^\n]+/i);
+        return match ? match[0] : text;
+      });
+  }, [messages]);
 
   const DEFAULT_PIPELINE_STEPS = [
     { id: "orchestrator", label: "Orchestrator", desc: "Product classification & phase mapping" },
@@ -106,6 +117,31 @@ export function RightPanel() {
           </div>
 
           <div className="h-px bg-border/40" />
+
+          {/* Self-Healing Loop Trace */}
+          {healLogs.length > 0 && (
+            <>
+              <div className="space-y-3">
+                <h3 className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <RotateCcw className="h-3.5 w-3.5 text-emerald-400 animate-spin" />
+                    Self-Healing Loop
+                  </span>
+                  <Badge variant="outline" className="text-[9px] h-4 px-1.5 bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
+                    {healLogs.length} cycle{healLogs.length > 1 ? "s" : ""}
+                  </Badge>
+                </h3>
+                <div className="space-y-1.5 font-mono text-[10px]">
+                  {healLogs.map((log, idx) => (
+                    <div key={idx} className="p-2 rounded bg-emerald-950/20 border border-emerald-500/30 text-emerald-300 leading-relaxed">
+                      <span className="text-emerald-400 font-semibold">{log}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="h-px bg-border/40" />
+            </>
+          )}
 
           {/* Tool Calls */}
           <div className="space-y-3">

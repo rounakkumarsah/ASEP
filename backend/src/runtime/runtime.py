@@ -21,6 +21,8 @@ from src.runtime.nodes import (
     blueprint_phase_node,
     scaffold_phase_node,
     implement_phase_node,
+    critic_node,
+    debugger_node,
     test_phase_node,
     security_audit_phase_node,
     deploy_phase_node,
@@ -67,6 +69,8 @@ class LangGraphRuntime:
         self.nodes.register("blueprint", blueprint_phase_node)
         self.nodes.register("scaffold", scaffold_phase_node)
         self.nodes.register("implement", implement_phase_node)
+        self.nodes.register("critic", critic_node)
+        self.nodes.register("debugger", debugger_node)
         self.nodes.register("test", test_phase_node)
         self.nodes.register("security_audit", security_audit_phase_node)
         self.nodes.register("deploy", deploy_phase_node)

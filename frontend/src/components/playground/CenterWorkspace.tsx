@@ -360,7 +360,14 @@ export function CenterWorkspace() {
                             budget,
                             percent,
                           });
-                        } else if (messageItem.content.includes("[AST Slicer]") || messageItem.content.includes("[Diff Streamer]")) {
+                        } else if (
+                          messageItem.content.includes("[AST Slicer]") ||
+                          messageItem.content.includes("[Diff Streamer]") ||
+                          messageItem.content.includes("heal cycle #") ||
+                          messageItem.content.includes("[Heal Cycle") ||
+                          messageItem.content.includes("[Critic Execution]") ||
+                          messageItem.content.includes("[Self-Healing")
+                        ) {
                           addTerminalLog("system", messageItem.content);
                         } else if (messageItem.content.includes("[MCP Confirmation Required]")) {
                           const promptText = messageItem.content.replace("[MCP Confirmation Required]", "").trim();
@@ -545,7 +552,14 @@ export function CenterWorkspace() {
                               budget,
                               percent,
                             });
-                          } else if (messageItem.content.includes("[AST Slicer]") || messageItem.content.includes("[Diff Streamer]")) {
+                          } else if (
+                            messageItem.content.includes("[AST Slicer]") ||
+                            messageItem.content.includes("[Diff Streamer]") ||
+                            messageItem.content.includes("heal cycle #") ||
+                            messageItem.content.includes("[Heal Cycle") ||
+                            messageItem.content.includes("[Critic Execution]") ||
+                            messageItem.content.includes("[Self-Healing")
+                          ) {
                             addTerminalLog("system", messageItem.content);
                           } else if (messageItem.content.includes("[MCP Confirmation Required]")) {
                             const promptText = messageItem.content.replace("[MCP Confirmation Required]", "").trim();

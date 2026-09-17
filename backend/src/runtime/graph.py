@@ -48,6 +48,15 @@ class StateGraphWrapper:
             
             if not current or not phase_map:
                 return "end"
+
+            # Self-healing loop dynamic routing: critic -> debugger -> critic
+            if current == "critic":
+                if status == "healing":
+                    return "debugger"
+                if status == "escalated":
+                    return "end"
+            elif current == "debugger":
+                return "critic"
                 
             if status != "verified":
                 # Strict enforcement: if status is not verified, it is a hard error.
@@ -68,7 +77,7 @@ class StateGraphWrapper:
         
         # Register all possible phases in conditional edges
         all_phases = [
-            "research", "blueprint", "scaffold", "implement", "test", "security_audit", "deploy",
+            "research", "blueprint", "scaffold", "implement", "critic", "debugger", "test", "security_audit", "deploy",
             "capability_blueprint", "tool_design", "agent_loop_implementation", "memory_state_design",
             "sandbox_tests", "evaluation_runs", "goal_decomposition_design", "planner_executor_critic_architecture",
             "tool_integration", "multi_step_test_scenarios", "failure_recovery_tests", "workflow_mapping",

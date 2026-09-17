@@ -57,4 +57,18 @@ class AgentState(TypedDict, total=False):
     credentials_status: dict[str, Any]
     local_secrets: list[str]
 
+    # Self-Healing Execution Loop Schema
+    generated_code: str
+    critic_result: dict[str, Any]
+    heal_cycle_count: int
+    heal_history: list[dict[str, Any]]
+    heal_logs: list[str]
+    escalation_info: dict[str, Any]
+    target_symbol: str
+    changed_lines: list[int]
+    code_context: str
+    filepath: str
+    file_content: str
+
+
 
