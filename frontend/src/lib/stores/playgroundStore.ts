@@ -10,6 +10,15 @@ export interface Attachment {
   isImage?: boolean;
 }
 
+export interface GitHubUser {
+  username: string;
+  avatar_url: string;
+  email?: string | null;
+  scopes: string[];
+}
+
+export type GitHubSyncStatus = 'idle' | 'synced' | 'behind' | 'conflict';
+
 export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
@@ -103,6 +112,26 @@ export interface PlaygroundState {
   // Host Manager — live app URL
   appUrl: string | null;
   setAppUrl: (url: string | null) => void;
+
+  // GitHub Integration & Sync
+  githubConnected: boolean;
+  setGithubConnected: (connected: boolean) => void;
+  githubUser: GitHubUser | null;
+  setGithubUser: (user: GitHubUser | null) => void;
+  githubSyncStatus: GitHubSyncStatus;
+  setGithubSyncStatus: (status: GitHubSyncStatus) => void;
+  githubLastSyncedSha: string | null;
+  setGithubLastSyncedSha: (sha: string | null) => void;
+  githubDiffs: Record<string, string>;
+  setGithubDiffs: (diffs: Record<string, string>) => void;
+  githubProposals: Record<string, string>;
+  setGithubProposals: (proposals: Record<string, string>) => void;
+  githubCommits: Record<string, string>;
+  setGithubCommits: (commits: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => void;
+  githubActiveRepo: string | null;
+  setGithubActiveRepo: (repo: string | null) => void;
+  githubActiveBranch: string | null;
+  setGithubActiveBranch: (branch: string | null) => void;
 }
 
 export const DEFAULT_PHASE_BUDGETS: Record<string, number> = {
@@ -224,6 +253,29 @@ export const usePlaygroundStore = create<PlaygroundState>()(
       // Host Manager — live app URL
       appUrl: null,
       setAppUrl: (appUrl) => set({ appUrl }),
+
+      // GitHub Integration & Sync
+      githubConnected: false,
+      setGithubConnected: (githubConnected) => set({ githubConnected }),
+      githubUser: null,
+      setGithubUser: (githubUser) => set({ githubUser }),
+      githubSyncStatus: 'idle',
+      setGithubSyncStatus: (githubSyncStatus) => set({ githubSyncStatus }),
+      githubLastSyncedSha: null,
+      setGithubLastSyncedSha: (githubLastSyncedSha) => set({ githubLastSyncedSha }),
+      githubDiffs: {},
+      setGithubDiffs: (githubDiffs) => set({ githubDiffs }),
+      githubProposals: {},
+      setGithubProposals: (githubProposals) => set({ githubProposals }),
+      githubCommits: {},
+      setGithubCommits: (commits) =>
+        set((state) => ({
+          githubCommits: typeof commits === 'function' ? commits(state.githubCommits) : commits,
+        })),
+      githubActiveRepo: null,
+      setGithubActiveRepo: (githubActiveRepo) => set({ githubActiveRepo }),
+      githubActiveBranch: null,
+      setGithubActiveBranch: (githubActiveBranch) => set({ githubActiveBranch }),
     }),
     {
       name: 'asep-playground-storage',
@@ -243,6 +295,12 @@ export const usePlaygroundStore = create<PlaygroundState>()(
         tokenUsagePerPhase: state.tokenUsagePerPhase,
         tokenBudgets: state.tokenBudgets,
         tokenSavings: state.tokenSavings,
+        githubConnected: state.githubConnected,
+        githubUser: state.githubUser,
+        githubSyncStatus: state.githubSyncStatus,
+        githubCommits: state.githubCommits,
+        githubActiveRepo: state.githubActiveRepo,
+        githubActiveBranch: state.githubActiveBranch,
       }),
     }
   )

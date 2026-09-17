@@ -90,6 +90,9 @@ class AgentState(TypedDict, total=False):
     # Host manager phase logs
     host_logs: list[str]
 
-
-
-
+    # --- GitHub Sync Engine ---
+    github_repo: str
+    github_branch: str
+    github_commits: dict[str, str]
+    github_sync_status: str
+    github_pr_url: str

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Activity, CheckCircle2, CircleDashed, TerminalSquare, BookOpen, DollarSign, Target, PanelRightClose, RotateCcw } from "lucide-react";
+import { Activity, CheckCircle2, CircleDashed, TerminalSquare, BookOpen, DollarSign, Target, PanelRightClose, RotateCcw, GitBranch } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -10,7 +10,7 @@ import { usePlaygroundStore } from "@/lib/stores/playgroundStore";
 import { useSidebarStore } from "@/lib/stores/sidebarStore";
 
 export function RightPanel() {
-  const { messages, isThinking, activeNode, completedNodes, sessionMetrics, phaseMap } = usePlaygroundStore();
+  const { messages, isThinking, activeNode, completedNodes, sessionMetrics, phaseMap, githubCommits } = usePlaygroundStore();
   const { toggleRightPanel } = useSidebarStore();
   const hasActivity = messages.length > 0 || isThinking || completedNodes.length > 0;
 
@@ -96,6 +96,7 @@ export function RightPanel() {
                 {PIPELINE_STEPS.map((step) => {
                   const isActive = activeNode === step.id;
                   const isDone = completedNodes.includes(step.id) && !isActive;
+                  const commitSha = githubCommits?.[step.id];
 
                   return (
                     <div key={step.id} className={`relative pl-4 transition-all ${!isActive && !isDone ? "opacity-40" : "opacity-100"}`}>
@@ -106,9 +107,20 @@ export function RightPanel() {
                       ) : (
                         <div className="absolute -left-[5px] top-1 h-2.5 w-2.5 rounded-full border-2 border-muted-foreground bg-background" />
                       )}
-                      <p className={`text-xs font-medium ${isActive ? "text-[#22D3EE] font-semibold" : isDone ? "text-foreground" : "text-muted-foreground"}`}>
-                        {step.label}
-                      </p>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className={`text-xs font-medium ${isActive ? "text-[#22D3EE] font-semibold" : isDone ? "text-foreground" : "text-muted-foreground"}`}>
+                          {step.label}
+                        </p>
+                        {isDone && commitSha && (
+                          <span
+                            className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-emerald-400 border border-emerald-500/30 flex items-center gap-1 shrink-0"
+                            title={`GitHub Phase Commit SHA: ${commitSha}`}
+                          >
+                            <GitBranch className="h-2.5 w-2.5" />
+                            {commitSha.slice(0, 7)}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[10px] text-muted-foreground mt-0.5">{step.desc}</p>
                     </div>
                   );

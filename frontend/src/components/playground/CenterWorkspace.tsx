@@ -2,8 +2,10 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { MessageSquare, Code, Terminal, Send, Loader2, Bot, User as UserIcon, Plus, GitCompare, Paperclip, Wrench, Cpu, Workflow, Play, FileText, FolderGit2, ShieldAlert, Gauge, Zap, BarChart2, AlertTriangle, Square } from "lucide-react";
+import { MessageSquare, Code, Terminal, Send, Loader2, Bot, User as UserIcon, Plus, GitCompare, Paperclip, Wrench, Cpu, Workflow, Play, FileText, FolderGit2, ShieldAlert, Gauge, Zap, BarChart2, AlertTriangle, Square, GitBranch, ExternalLink, Check, RefreshCw, GitPullRequest, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePlaygroundStore } from "@/lib/stores/playgroundStore";
@@ -101,6 +103,23 @@ export function CenterWorkspace() {
     setBudgetExceeded,
     appUrl,
     setAppUrl,
+    githubConnected,
+    setGithubConnected,
+    githubUser,
+    setGithubUser,
+    githubSyncStatus,
+    setGithubSyncStatus,
+    githubLastSyncedSha,
+    setGithubLastSyncedSha,
+    githubDiffs,
+    setGithubDiffs,
+    githubProposals,
+    setGithubProposals,
+    githubActiveRepo,
+    setGithubActiveRepo,
+    githubActiveBranch,
+    setGithubActiveBranch,
+    selectedProjectName,
   } = usePlaygroundStore();
   const [input, setInput] = React.useState("");
   const [cmdMenu, setCmdMenu] = React.useState<'tool' | 'model' | null>(null);
@@ -151,6 +170,188 @@ export function CenterWorkspace() {
   const [securityFindings, setSecurityFindings] = React.useState<any[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [editorInstance, setEditorInstance] = React.useState<any>(null);
+
+  // GitHub Push & Sync Dialog State
+  const [showPushModal, setShowPushModal] = React.useState(false);
+  const [pushRepoName, setPushRepoName] = React.useState(selectedProjectName ? selectedProjectName.toLowerCase().replace(/\s+/g, "-") : "my-app");
+  const [pushCreateNew, setPushCreateNew] = React.useState(true);
+  const [pushPrivate, setPushPrivate] = React.useState(true);
+  const [pushAutoReadme, setPushAutoReadme] = React.useState(true);
+  const [pushLanguage, setPushLanguage] = React.useState("python");
+  const [pushTaskSummary, setPushTaskSummary] = React.useState(selectedProjectName || "Application built with ASEP");
+  const [pushBranchSlug, setPushBranchSlug] = React.useState(selectedProjectName ? selectedProjectName.toLowerCase().replace(/\s+/g, "-").slice(0, 20) : "feature-app");
+  const [pushLoading, setPushLoading] = React.useState(false);
+  const [pushError, setPushError] = React.useState<string | null>(null);
+  const [pushResult, setPushResult] = React.useState<{ repo_url: string; branch: string; commit_sha: string; pr_url: string } | null>(null);
+  const [userRepoList, setUserRepoList] = React.useState<Array<{ name: string; full_name: string }>>([]);
+  const [fetchingRepos, setFetchingRepos] = React.useState(false);
+  const [syncLoading, setSyncLoading] = React.useState(false);
+
+  // Sync GitHub status from API on mount
+  React.useEffect(() => {
+    async function fetchGhStatus() {
+      try {
+        const token = localStorage.getItem("asep_auth_token") || sessionStorage.getItem("asep_auth_token") || "";
+        const res = await fetch("/api/v1/integrations/github/status", {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setGithubConnected(data.connected);
+          if (data.connected && data.username) {
+            setGithubUser({
+              username: data.username,
+              avatar_url: data.avatar_url || "",
+              email: data.email,
+              scopes: data.scopes || [],
+            });
+          }
+        }
+      } catch (err) {
+        console.warn("Could not check GitHub integration status", err);
+      }
+    }
+    fetchGhStatus();
+  }, [setGithubConnected, setGithubUser]);
+
+  const fetchUserRepos = async () => {
+    setFetchingRepos(true);
+    try {
+      const token = localStorage.getItem("asep_auth_token") || sessionStorage.getItem("asep_auth_token") || "";
+      const res = await fetch("/api/v1/integrations/github/repos", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUserRepoList(data.repos || []);
+      }
+    } catch (err) {
+      console.warn("Failed to fetch user repos", err);
+    } finally {
+      setFetchingRepos(false);
+    }
+  };
+
+  const handlePushToGitHub = async () => {
+    if (!pushRepoName.trim()) return;
+    setPushLoading(true);
+    setPushError(null);
+    try {
+      const token = localStorage.getItem("asep_auth_token") || sessionStorage.getItem("asep_auth_token") || "";
+      const codeToPush = artifactCode || "# Generated by ASEP\nprint('Hello from ASEP')";
+      const res = await fetch("/api/v1/integrations/github/push", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          repo_name: pushRepoName.trim(),
+          create_new: pushCreateNew,
+          private: pushPrivate,
+          auto_readme: pushAutoReadme,
+          language: pushLanguage,
+          task_summary: pushTaskSummary.trim() || "Application built with ASEP",
+          task_slug: pushBranchSlug.trim() || "app",
+          files: {
+            "main.py": codeToPush,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || "Failed to push to GitHub");
+      }
+      setPushResult({
+        repo_url: data.repo_url,
+        branch: data.branch,
+        commit_sha: data.commit_sha,
+        pr_url: data.pr_url,
+      });
+      setGithubActiveRepo(pushRepoName);
+      setGithubActiveBranch(data.branch);
+      setGithubLastSyncedSha(data.commit_sha);
+      setGithubSyncStatus("synced");
+      addTerminalLog("success", `[GitHub Push] Successfully pushed commit ${data.commit_sha.slice(0, 7)} to branch '${data.branch}'.`);
+      setToastMessage("Pushed to GitHub branch successfully!");
+      setTimeout(() => setToastMessage(null), 4000);
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : "Failed to push to GitHub";
+      setPushError(errMsg);
+      addTerminalLog("error", `[GitHub Push Error] ${errMsg}`);
+    } finally {
+      setPushLoading(false);
+    }
+  };
+
+  const handleSyncFromGitHub = async () => {
+    const targetRepo = githubActiveRepo || pushRepoName;
+    if (!targetRepo) {
+      setToastMessage("Please push to a repository first.");
+      setTimeout(() => setToastMessage(null), 3000);
+      return;
+    }
+    setSyncLoading(true);
+    try {
+      const token = localStorage.getItem("asep_auth_token") || sessionStorage.getItem("asep_auth_token") || "";
+      const res = await fetch("/api/v1/integrations/github/sync", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          repo_name: targetRepo,
+          branch: githubActiveBranch || "asep/app",
+          local_files: {
+            "main.py": artifactCode || "",
+          },
+          last_synced_sha: githubLastSyncedSha,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || "Failed to sync with GitHub");
+      }
+      setGithubSyncStatus(data.status);
+      setGithubDiffs(data.diffs || {});
+      setGithubProposals(data.reconciliation_proposals || {});
+      setGithubLastSyncedSha(data.latest_remote_sha);
+
+      if (data.status === "synced") {
+        setToastMessage("Workspace is fully synced with GitHub!");
+        addTerminalLog("success", "[GitHub Sync] Workspace is up to date with remote.");
+      } else {
+        setToastMessage(`GitHub sync status: ${data.status.toUpperCase()}. Incoming changes opened in Diff Viewer.`);
+        addTerminalLog("system", `[GitHub Sync] Status '${data.status}': ${data.changed_files?.length || 0} files modified on remote.`);
+        setActiveCenterTab("diff");
+      }
+      setTimeout(() => setToastMessage(null), 4000);
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : "Failed to sync with GitHub";
+      setToastMessage(`GitHub Sync Error: ${errMsg}`);
+      addTerminalLog("error", `[GitHub Sync Error] ${errMsg}`);
+      setTimeout(() => setToastMessage(null), 4000);
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
+  const handleAcceptReconciliation = (filename: string) => {
+    const proposal = githubProposals[filename];
+    if (proposal) {
+      setArtifactCode(proposal);
+      const remainingDiffs = { ...githubDiffs };
+      delete remainingDiffs[filename];
+      setGithubDiffs(remainingDiffs);
+      if (Object.keys(remainingDiffs).length === 0) {
+        setGithubSyncStatus("synced");
+      }
+      addTerminalLog("success", `[GitHub Reconciliation] Reconciled and merged changes for '${filename}'.`);
+      setToastMessage(`Reconciled changes for ${filename}`);
+      setTimeout(() => setToastMessage(null), 3000);
+    }
+  };
 
   const jumpToLine = (file: string, line: number) => {
     setActiveCenterTab("artifacts");
@@ -1039,7 +1240,54 @@ export function CenterWorkspace() {
                   </Button>
                 </div>
               )}
-              <div className="absolute top-4 right-4 flex gap-2 z-40">
+              {/* GitHub Status & Actions Banner */}
+              <div className="absolute top-4 right-4 flex items-center gap-2 z-40">
+                {/* Sync status badge */}
+                {githubSyncStatus !== 'idle' && (
+                  <Badge
+                    variant="outline"
+                    className={`text-[11px] gap-1 px-2 py-0.5 font-mono ${
+                      githubSyncStatus === 'synced'
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                        : githubSyncStatus === 'behind'
+                        ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                        : 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                    }`}
+                  >
+                    {githubSyncStatus === 'synced' && <Check className="h-3 w-3" />}
+                    {githubSyncStatus === 'behind' && <RefreshCw className="h-3 w-3" />}
+                    {githubSyncStatus === 'conflict' && <AlertTriangle className="h-3 w-3" />}
+                    {githubSyncStatus.toUpperCase()}
+                  </Badge>
+                )}
+
+                {/* Sync from GitHub button */}
+                <Button
+                  onClick={handleSyncFromGitHub}
+                  disabled={syncLoading}
+                  variant="outline"
+                  size="sm"
+                  className="bg-[#202833]/80 hover:bg-[#2A3441] text-zinc-200 border-border/60 text-xs gap-1.5 shadow-sm"
+                  title="Pull latest changes from GitHub"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${syncLoading ? 'animate-spin text-cyan-400' : 'text-cyan-400'}`} />
+                  Sync
+                </Button>
+
+                {/* Push to GitHub button */}
+                <Button
+                  onClick={() => {
+                    fetchUserRepos();
+                    setShowPushModal(true);
+                  }}
+                  size="sm"
+                  className="bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700 text-xs gap-1.5 shadow-sm"
+                  title="Push artifacts to asep/<slug> branch on GitHub"
+                >
+                  <GitBranch className="h-3.5 w-3.5 text-emerald-400" />
+                  Push to GitHub
+                </Button>
+
                 <Button 
                   onClick={() => {
                     if (securityFindings.some(f => f.severity === 'critical')) return;
@@ -1051,8 +1299,9 @@ export function CenterWorkspace() {
                   size="sm"
                   disabled={securityFindings.some(f => f.severity === 'critical')}
                 >
-                  <Code className="h-4 w-4" fill="currentColor" /> Copy Code
+                  <Code className="h-4 w-4" fill="currentColor" /> Copy
                 </Button>
+
                 <Button 
                   onClick={handleRunArtifact}
                   className={`bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg gap-2 ${securityFindings.some(f => f.severity === 'critical') ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -1062,31 +1311,351 @@ export function CenterWorkspace() {
                   <Play className="h-4 w-4" fill="currentColor" /> Run Code
                 </Button>
               </div>
+
+              {/* Push Result Banner */}
+              {pushResult && (
+                <div className="absolute bottom-4 left-4 right-4 bg-zinc-950/90 border border-emerald-500/40 rounded-xl p-3 flex items-center justify-between text-xs text-zinc-200 backdrop-blur z-40 shadow-2xl">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                    <span>
+                      Pushed to branch <code className="font-mono text-emerald-300 font-semibold">{pushResult.branch}</code> (commit: <code className="font-mono">{pushResult.commit_sha.slice(0, 7)}</code>)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={pushResult.repo_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-zinc-300 hover:text-white underline flex items-center gap-1"
+                    >
+                      View on GitHub <ExternalLink className="h-3 w-3" />
+                    </a>
+                    {pushResult.pr_url && (
+                      <a
+                        href={pushResult.pr_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-2.5 py-1 rounded font-medium flex items-center gap-1 transition-colors"
+                      >
+                        <GitPullRequest className="h-3 w-3" /> Open PR
+                      </a>
+                    )}
+                    <button
+                      onClick={() => setPushResult(null)}
+                      className="text-zinc-500 hover:text-zinc-300 text-xs px-1"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Push to GitHub Dialog Modal */}
+              {showPushModal && (
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                  <div className="bg-background border border-border/80 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="flex items-center justify-between border-b border-border/40 pb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-lg bg-zinc-900 border border-border flex items-center justify-center text-emerald-400">
+                          <GitBranch className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-sm text-foreground">Push to GitHub</h3>
+                          <p className="text-[11px] text-muted-foreground">Atomic Git Data commit with branch isolation</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setShowPushModal(false);
+                          setPushError(null);
+                        }}
+                        className="text-muted-foreground hover:text-foreground text-sm"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    {/* Mode: New vs Existing */}
+                    <div className="flex rounded-lg bg-muted/40 p-1 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setPushCreateNew(true)}
+                        className={`flex-1 py-1.5 font-medium rounded-md transition-all ${
+                          pushCreateNew ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        Create New Repo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPushCreateNew(false);
+                          fetchUserRepos();
+                        }}
+                        className={`flex-1 py-1.5 font-medium rounded-md transition-all ${
+                          !pushCreateNew ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        Push to Existing Repo
+                      </button>
+                    </div>
+
+                    {/* Fields */}
+                    {pushCreateNew ? (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-xs font-semibold text-muted-foreground">Repository Name</label>
+                          <Input
+                            placeholder="e.g. my-awesome-app"
+                            value={pushRepoName}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPushRepoName(e.target.value)}
+                            className="text-xs mt-1"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-xs font-semibold text-muted-foreground">Visibility</label>
+                            <select
+                              value={pushPrivate ? "private" : "public"}
+                              onChange={(e) => setPushPrivate(e.target.value === "private")}
+                              className="w-full text-xs p-2 rounded-md border border-input bg-background mt-1"
+                            >
+                              <option value="private">Private</option>
+                              <option value="public">Public</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-xs font-semibold text-muted-foreground">Language (.gitignore)</label>
+                            <select
+                              value={pushLanguage}
+                              onChange={(e) => setPushLanguage(e.target.value)}
+                              className="w-full text-xs p-2 rounded-md border border-input bg-background mt-1"
+                            >
+                              <option value="python">Python</option>
+                              <option value="typescript">TypeScript / Node</option>
+                              <option value="go">Go</option>
+                              <option value="rust">Rust</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
+                            <span>Select Repository</span>
+                            {fetchingRepos && <span className="text-[10px] text-muted-foreground">Loading...</span>}
+                          </label>
+                          {userRepoList.length > 0 ? (
+                            <select
+                              value={pushRepoName}
+                              onChange={(e) => setPushRepoName(e.target.value)}
+                              className="w-full text-xs p-2 rounded-md border border-input bg-background mt-1"
+                            >
+                              {userRepoList.map((r) => (
+                                <option key={r.full_name} value={r.full_name}>
+                                  {r.full_name}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <Input
+                              placeholder="owner/repo-name"
+                              value={pushRepoName}
+                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPushRepoName(e.target.value)}
+                              className="text-xs mt-1"
+                            />
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Branch & Safety Invariant Card */}
+                    <div className="p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 space-y-1.5 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-emerald-400 flex items-center gap-1.5">
+                          <GitBranch className="h-3.5 w-3.5" /> Target Branch:
+                        </span>
+                        <code className="font-mono text-emerald-300 font-semibold bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/40">
+                          asep/{pushBranchSlug || "feature"}
+                        </code>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        🛡️ Safety Rule: Direct pushes to <code className="text-rose-400 font-mono">main</code> are blocked. ASEP pushes to an isolated branch with PR generation.
+                      </p>
+                    </div>
+
+                    {/* Commit Message Preview */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-muted-foreground uppercase">Commit Message</label>
+                      <div className="p-2 rounded bg-muted/30 border border-border/40 font-mono text-[11px] text-foreground">
+                        ASEP: {pushTaskSummary || "Autonomous Application"} [phase: deploy]
+                      </div>
+                    </div>
+
+                    {pushError && (
+                      <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 p-2.5 rounded-lg">
+                        {pushError}
+                      </p>
+                    )}
+
+                    {/* Modal Footer */}
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/40">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setShowPushModal(false);
+                          setPushError(null);
+                        }}
+                        className="text-xs"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        disabled={pushLoading || !pushRepoName.trim()}
+                        onClick={handlePushToGitHub}
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs gap-1.5"
+                      >
+                        {pushLoading ? (
+                          <>
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Pushing to GitHub...
+                          </>
+                        ) : (
+                          <>
+                            <GitBranch className="h-3.5 w-3.5" /> Push to asep/{pushBranchSlug || "app"}
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </TabsContent>
 
-          <TabsContent value="diff" className="flex-1 mt-0 border-0 p-8 data-[state=active]:flex data-[state=inactive]:hidden flex-col items-center justify-center text-muted-foreground min-h-0">
-            <div className="text-center mb-8">
-              <GitCompare className="h-8 w-8 mx-auto mb-3 opacity-50 text-emerald-500" />
-              <h3 className="text-lg font-medium text-foreground">No active diffs to show</h3>
-              <p className="text-sm">Run a generation task to see code changes.</p>
-            </div>
-            
-            <div className="w-full max-w-3xl border border-border/50 rounded-lg overflow-hidden bg-background shadow-xl opacity-75">
-              <div className="bg-muted px-4 py-2 border-b border-border/50 flex justify-between items-center text-xs font-mono">
-                <span>Example: how changes will appear</span>
-                <span className="text-muted-foreground">backend/main.py</span>
+          <TabsContent value="diff" className="flex-1 mt-0 border-0 p-6 data-[state=active]:flex data-[state=inactive]:hidden flex-col min-h-0 overflow-y-auto">
+            {Object.keys(githubDiffs).length > 0 ? (
+              <div className="space-y-6 max-w-4xl mx-auto w-full">
+                <div className="flex items-center justify-between border-b border-border/50 pb-3">
+                  <div>
+                    <h3 className="text-base font-semibold flex items-center gap-2">
+                      <GitCompare className="h-5 w-5 text-emerald-400" />
+                      Incoming Remote Changes from GitHub
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Target branch: <code className="font-mono text-emerald-400">{githubActiveBranch || "asep/app"}</code>. Review changes before reconciling.
+                    </p>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className={`font-mono text-xs ${
+                      githubSyncStatus === 'conflict'
+                        ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                        : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                    }`}
+                  >
+                    {githubSyncStatus.toUpperCase()}
+                  </Badge>
+                </div>
+
+                {Object.entries(githubDiffs).map(([filename, diffText]) => (
+                  <div key={filename} className="border border-border/50 rounded-xl overflow-hidden bg-background shadow-md space-y-0">
+                    <div className="bg-muted/60 px-4 py-2.5 border-b border-border/50 flex justify-between items-center text-xs font-mono">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-3.5 w-3.5 text-primary" />
+                        <span className="font-semibold text-foreground">{filename}</span>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => handleAcceptReconciliation(filename)}
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-7 gap-1"
+                      >
+                        <Check className="h-3 w-3" /> Accept & Merge
+                      </Button>
+                    </div>
+
+                    {/* Unified Diff View */}
+                    <div className="p-4 font-mono text-xs overflow-x-auto text-left leading-relaxed max-h-64 overflow-y-auto bg-zinc-950">
+                      {diffText.split("\n").map((line, idx) => {
+                        const isAdd = line.startsWith("+") && !line.startsWith("+++");
+                        const isDel = line.startsWith("-") && !line.startsWith("---");
+                        const isHunk = line.startsWith("@@");
+
+                        return (
+                          <div
+                            key={idx}
+                            className={`px-2 py-0.5 -mx-2 ${
+                              isAdd
+                                ? "bg-emerald-500/15 text-emerald-400"
+                                : isDel
+                                ? "bg-rose-500/15 text-rose-400"
+                                : isHunk
+                                ? "bg-cyan-500/15 text-cyan-400 font-semibold"
+                                : "text-zinc-300"
+                            }`}
+                          >
+                            {line || " "}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Reconciliation proposal preview */}
+                    {githubProposals[filename] && (
+                      <div className="border-t border-border/40 p-4 bg-muted/10 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                            <Workflow className="h-3.5 w-3.5 text-cyan-400" />
+                            Reconciliation Proposal (Preserves workspace code & merges incoming edits)
+                          </p>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              navigator.clipboard.writeText(githubProposals[filename]);
+                              setToastMessage("Copied reconciled version to clipboard");
+                              setTimeout(() => setToastMessage(null), 3000);
+                            }}
+                            className="text-xs h-6 text-muted-foreground hover:text-foreground"
+                          >
+                            Copy Reconciled
+                          </Button>
+                        </div>
+                        <pre className="p-3 bg-zinc-950/80 rounded-lg text-xs font-mono text-zinc-300 overflow-x-auto max-h-48 border border-border/30">
+                          {githubProposals[filename]}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
-              <div className="p-4 font-mono text-xs overflow-x-auto text-left leading-relaxed">
-                <div className="text-muted-foreground">@@ -15,7 +15,8 @@</div>
-                <div className="text-foreground"> def initialize_agent():</div>
-                <div className="bg-destructive/10 text-destructive-foreground px-2 py-0.5 -mx-4">-    return LangGraph(checkpointer=MemorySaver())</div>
-                <div className="bg-emerald-500/10 text-emerald-500 px-2 py-0.5 -mx-4">+    # Now utilizing Postgres-backed persistent memory</div>
-                <div className="bg-emerald-500/10 text-emerald-500 px-2 py-0.5 -mx-4">+    return LangGraph(checkpointer=AsyncPostgresSaver(pool))</div>
-                <div className="text-foreground"> </div>
-                <div className="text-foreground"> async def run_agent():</div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-center">
+                <div className="text-center mb-8">
+                  <GitCompare className="h-8 w-8 mx-auto mb-3 opacity-50 text-emerald-500" />
+                  <h3 className="text-lg font-medium text-foreground">No active diffs to show</h3>
+                  <p className="text-sm">Click &quot;Sync from GitHub&quot; on the Artifacts panel to check for remote updates.</p>
+                </div>
+                
+                <div className="w-full max-w-3xl border border-border/50 rounded-lg overflow-hidden bg-background shadow-xl opacity-75">
+                  <div className="bg-muted px-4 py-2 border-b border-border/50 flex justify-between items-center text-xs font-mono">
+                    <span>Example: how incoming changes will appear</span>
+                    <span className="text-muted-foreground">backend/main.py</span>
+                  </div>
+                  <div className="p-4 font-mono text-xs overflow-x-auto text-left leading-relaxed">
+                    <div className="text-muted-foreground">@@ -15,7 +15,8 @@</div>
+                    <div className="text-foreground"> def initialize_agent():</div>
+                    <div className="bg-destructive/10 text-destructive-foreground px-2 py-0.5 -mx-4">-    return LangGraph(checkpointer=MemorySaver())</div>
+                    <div className="bg-emerald-500/10 text-emerald-500 px-2 py-0.5 -mx-4">+    # Now utilizing Postgres-backed persistent memory</div>
+                    <div className="bg-emerald-500/10 text-emerald-500 px-2 py-0.5 -mx-4">+    return LangGraph(checkpointer=AsyncPostgresSaver(pool))</div>
+                    <div className="text-foreground"> </div>
+                    <div className="text-foreground"> async def run_agent():</div>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
           </TabsContent>
 
           <TabsContent value="terminal" className="flex-1 mt-0 border-0 data-[state=active]:flex data-[state=inactive]:hidden min-h-0 flex-col overflow-hidden">

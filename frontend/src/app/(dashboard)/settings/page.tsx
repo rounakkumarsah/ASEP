@@ -33,7 +33,10 @@ import {
   Terminal,
   Globe,
   ChevronRight,
-  Play
+  Play,
+  GitBranch,
+  ExternalLink,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -137,6 +140,92 @@ export default function SettingsPage() {
   // Preferences Form State
   const [preferredProvider, setPreferredProvider] = React.useState("gemini-1.5-pro");
   const [prefSaved, setPrefSaved] = React.useState(false);
+
+  // GitHub Integration State
+  const {
+    githubConnected,
+    setGithubConnected,
+    githubUser,
+    setGithubUser,
+  } = usePlaygroundStore();
+  const [ghTokenInput, setGhTokenInput] = React.useState("");
+  const [ghConnecting, setGhConnecting] = React.useState(false);
+  const [ghError, setGhError] = React.useState<string | null>(null);
+  const [showGhConnectDialog, setShowGhConnectDialog] = React.useState(false);
+
+  React.useEffect(() => {
+    async function checkGhStatus() {
+      try {
+        const token = localStorage.getItem("asep_auth_token") || sessionStorage.getItem("asep_auth_token") || "";
+        const res = await fetch("/api/v1/integrations/github/status", {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setGithubConnected(data.connected);
+          if (data.connected && data.username) {
+            setGithubUser({
+              username: data.username,
+              avatar_url: data.avatar_url || "",
+              email: data.email,
+              scopes: data.scopes || [],
+            });
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to check GitHub status", err);
+      }
+    }
+    checkGhStatus();
+  }, [setGithubConnected, setGithubUser]);
+
+  const handleConnectGitHub = async () => {
+    if (!ghTokenInput.trim()) return;
+    setGhConnecting(true);
+    setGhError(null);
+    try {
+      const authToken = localStorage.getItem("asep_auth_token") || sessionStorage.getItem("asep_auth_token") || "";
+      const res = await fetch("/api/v1/integrations/github/connect", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+        },
+        body: JSON.stringify({ token: ghTokenInput.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || "Failed to connect GitHub account");
+      }
+      setGithubConnected(true);
+      setGithubUser({
+        username: data.username,
+        avatar_url: data.avatar_url || "",
+        email: data.email,
+        scopes: data.scopes || [],
+      });
+      setGhTokenInput("");
+      setShowGhConnectDialog(false);
+    } catch (err: unknown) {
+      setGhError(err instanceof Error ? err.message : "Failed to connect to GitHub");
+    } finally {
+      setGhConnecting(false);
+    }
+  };
+
+  const handleDisconnectGitHub = async () => {
+    try {
+      const authToken = localStorage.getItem("asep_auth_token") || sessionStorage.getItem("asep_auth_token") || "";
+      await fetch("/api/v1/integrations/github/disconnect", {
+        method: "POST",
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+      });
+      setGithubConnected(false);
+      setGithubUser(null);
+    } catch (err) {
+      console.warn("Error disconnecting GitHub", err);
+    }
+  };
 
   // Active Sessions state
   const [sessions, setSessions] = React.useState<Array<{ id: string; ip_address: string; user_agent: string; current: boolean; last_active: string }>>([]);
@@ -1857,11 +1946,156 @@ export default function SettingsPage() {
           <AnimatedCard className="border-border/40 bg-card/30 shadow-sm">
             <CardHeader>
               <CardTitle className="text-xl font-bold flex items-center gap-2">
-                <Plug className="h-5 w-5 text-primary" /> Production Integrations
+                <Plug className="h-5 w-5 text-primary" /> Developer & Platform Integrations
               </CardTitle>
-              <CardDescription>Connected developer platforms and security infrastructure.</CardDescription>
+              <CardDescription>Connect GitHub to push code artifacts, open pull requests, and sync changes.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-4">
+              {/* GitHub Integration Card */}
+              <div className="p-5 border border-border/50 rounded-xl bg-background/60 space-y-4 relative z-10">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-zinc-900 border border-border flex items-center justify-center text-white">
+                      <GitBranch className="h-5 w-5 text-emerald-400" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-sm">GitHub</p>
+                        {githubConnected ? (
+                          <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[10px] font-mono">
+                            Connected
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-muted-foreground text-[10px]">
+                            Not Connected
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Two-way sync, branch isolation (asep/*), automated pull requests, and per-phase commits.
+                      </p>
+                    </div>
+                  </div>
+
+                  {githubConnected ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleDisconnectGitHub}
+                      className="text-rose-400 border-rose-500/20 hover:bg-rose-500/10 text-xs"
+                    >
+                      Disconnect
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      onClick={() => setShowGhConnectDialog(!showGhConnectDialog)}
+                      className="bg-primary text-primary-foreground hover:bg-primary/90 text-xs gap-1.5"
+                    >
+                      <GitBranch className="h-3.5 w-3.5" />
+                      Connect GitHub
+                    </Button>
+                  )}
+                </div>
+
+                {/* Connected Account Details */}
+                {githubConnected && githubUser && (
+                  <div className="flex items-center justify-between p-3 rounded-lg border border-border/40 bg-muted/20">
+                    <div className="flex items-center gap-3">
+                      {githubUser.avatar_url ? (
+                        <img
+                          src={githubUser.avatar_url}
+                          alt={githubUser.username}
+                          className="h-9 w-9 rounded-full border border-border/60 object-cover"
+                        />
+                      ) : (
+                        <div className="h-9 w-9 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs">
+                          {githubUser.username.slice(0, 2).toUpperCase()}
+                        </div>
+                      )}
+                      <div>
+                        <p className="font-semibold text-xs text-foreground">@{githubUser.username}</p>
+                        {githubUser.email && (
+                          <p className="text-[11px] text-muted-foreground">{githubUser.email}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-muted-foreground">Scope:</span>
+                      <Badge variant="secondary" className="font-mono text-[10px] bg-secondary/40">
+                        repo (create, push, read)
+                      </Badge>
+                    </div>
+                  </div>
+                )}
+
+                {/* Connect Token Form Dialog */}
+                {!githubConnected && showGhConnectDialog && (
+                  <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-3">
+                    <div>
+                      <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                        <span>Personal Access Token (PAT)</span>
+                        <a
+                          href="https://github.com/settings/tokens/new?scopes=repo&description=ASEP%20Platform"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[11px] text-primary hover:underline flex items-center gap-1"
+                        >
+                          Generate Token on GitHub <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </label>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Tokens are encrypted at rest with Fernet PBKDF2 encryption. Required scope: <code className="text-primary font-mono text-[11px]">repo</code>.
+                      </p>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Input
+                        type="password"
+                        placeholder="ghp_..."
+                        value={ghTokenInput}
+                        onChange={(e) => setGhTokenInput(e.target.value)}
+                        className="text-xs font-mono bg-background"
+                      />
+                      <Button
+                        size="sm"
+                        disabled={ghConnecting || !ghTokenInput.trim()}
+                        onClick={handleConnectGitHub}
+                        className="shrink-0 text-xs gap-1.5"
+                      >
+                        {ghConnecting ? (
+                          <>
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Connecting...
+                          </>
+                        ) : (
+                          <>
+                            <Check className="h-3.5 w-3.5" /> Connect
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setShowGhConnectDialog(false);
+                          setGhError(null);
+                        }}
+                        className="text-xs"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+
+                    {ghError && (
+                      <p className="text-xs text-rose-400 font-medium bg-rose-500/10 border border-rose-500/20 p-2 rounded-lg">
+                        {ghError}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Other Platform Integrations */}
               <div className="p-4 border border-border/40 rounded-xl bg-background/40 flex items-center justify-between relative z-10">
                 <div>
                   <p className="font-semibold text-sm">Cloudflare Turnstile</p>

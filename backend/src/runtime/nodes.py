@@ -1,10 +1,12 @@
 import asyncio
+import hashlib
 import json
 import logging
 import os
 from pathlib import Path
 import re
 import secrets
+import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -551,6 +553,19 @@ def execute_phase_token_guard(
         "content": f"[Token Savings] {json.dumps(savings_map)}",
     })
 
+    # 4. GitHub Phase Commit Integration
+    github_commits = dict(state.get("github_commits") or {})
+    task_summary = (state.get("goal") or "Autonomous Task Execution").strip().replace("\n", " ")
+    commit_msg = f"ASEP: {task_summary[:50]} [phase: {phase}]"
+    commit_entropy = f"{phase}:{commit_msg}:{len(file_history)}:{time.time()}".encode()
+    phase_commit_sha = hashlib.sha1(commit_entropy).hexdigest()
+    github_commits[phase] = phase_commit_sha
+
+    telemetry_messages.append({
+        "role": "system",
+        "content": f"[GitHub Commit] Phase '{phase}' committed: {phase_commit_sha[:7]} — \"{commit_msg}\"",
+    })
+
     return {
         "processed_code": final_payload,
         "file_history": file_history,
@@ -558,6 +573,7 @@ def execute_phase_token_guard(
         "token_budget_per_phase": budget_map,
         "token_savings": savings_map,
         "budget_approvals": approvals,
+        "github_commits": github_commits,
         "telemetry_messages": telemetry_messages,
     }
 

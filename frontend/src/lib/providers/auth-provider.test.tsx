@@ -30,6 +30,7 @@ const TestComponent = () => {
 describe('AuthProvider and useAuth', () => {
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     vi.clearAllMocks();
     // Reset global fetch mock
     global.fetch = vi.fn().mockImplementation(() =>
