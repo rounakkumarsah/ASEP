@@ -246,7 +246,6 @@ def _build_server_command(
                 f"{module}:{app_var}",
                 "--host", "127.0.0.1",
                 "--port", str(port),
-                "--reload",
             ]
         elif "flask" in code_lower:
             # FLASK_APP=main.py flask run --host 127.0.0.1 --port PORT
