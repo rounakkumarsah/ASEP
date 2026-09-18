@@ -1,10 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { Terminal as TerminalIcon, CheckCircle2, Sparkles } from "lucide-react";
+import { Terminal as TerminalIcon, CheckCircle2, Sparkles, Plus, RefreshCw, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { usePlaygroundStore } from "@/lib/stores/playgroundStore";
-
-
 
 export function PlaygroundTerminal() {
   const {
@@ -22,8 +22,18 @@ export function PlaygroundTerminal() {
     addMessage,
     terminalLogs: logs,
     addTerminalLog: addLog,
-    clearTerminalLogs: clearLogs
+    clearTerminalLogs: clearLogs,
+    terminalSessions = [],
+    activeTerminalSessionId,
+    setActiveTerminalSessionId,
+    createTerminalSession,
+    closeTerminalSession,
+    refreshTerminalSession,
   } = usePlaygroundStore();
+
+  const activeSession = terminalSessions.find((s) => s.id === activeTerminalSessionId) || terminalSessions[0];
+  const activeLogs = activeSession?.logs || logs;
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
 
   const [currentInput, setCurrentInput] = React.useState("");
   const [history, setHistory] = React.useState<string[]>([
@@ -38,11 +48,36 @@ export function PlaygroundTerminal() {
   // Auto scroll to bottom of terminal
   React.useEffect(() => {
     terminalEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [logs]);
+  }, [activeLogs]);
 
   // Keep focus on input when clicking inside terminal
   const handleContainerClick = () => {
     inputRef.current?.focus();
+  };
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    setIsExecuting(false);
+    refreshTerminalSession(activeTerminalSessionId);
+    setTimeout(() => {
+      setIsRefreshing(false);
+      inputRef.current?.focus();
+    }, 400);
+  };
+
+  const handleNewTerminal = () => {
+    createTerminalSession();
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 100);
+  };
+
+  const handleCloseTerminal = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    closeTerminalSession(id);
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 100);
   };
 
   const handleCommand = async (rawCmd: string) => {
@@ -75,10 +110,32 @@ export function PlaygroundTerminal() {
             `  python <code>         - Execute Python code in the sandbox tool\n` +
             `  ls                    - List active workspace repository files\n` +
             `  cat <file>            - Print contents of a workspace file\n` +
+            `  refresh               - Restart & reinitialize active terminal environment\n` +
+            `  new                   - Open a new concurrent terminal session\n` +
+            `  exit                  - Close active terminal tab\n` +
             `  clear                 - Clear terminal screen\n` +
             `  whoami                - Display current user context\n` +
             `  date                  - Print system timestamp`
         );
+        break;
+
+      case "refresh":
+      case "reset":
+      case "reload":
+        handleRefresh();
+        break;
+
+      case "new":
+      case "new-terminal":
+        handleNewTerminal();
+        break;
+
+      case "exit":
+        if (terminalSessions.length > 1) {
+          closeTerminalSession(activeTerminalSessionId);
+        } else {
+          clearLogs();
+        }
         break;
 
       case "clear":
@@ -292,64 +349,132 @@ export function PlaygroundTerminal() {
       onClick={handleContainerClick}
     >
       {/* Terminal Top Navigation Bar */}
-      <div className="flex items-center justify-between px-4 py-2 bg-[#0D1117] border-b border-[#202833] shrink-0">
-        <div className="flex items-center gap-2">
-          <TerminalIcon className="h-4 w-4 text-[#22D3EE]" />
-          <span className="text-xs font-semibold tracking-wide text-foreground">Interactive Agent CLI</span>
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono bg-[#22D3EE]/10 text-[#22D3EE] border border-[#22D3EE]/20 ml-2">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-[#0D1117] border-b border-[#202833] shrink-0 gap-2 min-h-[42px] overflow-x-auto no-scrollbar">
+        {/* Terminal Sessions / Tabs */}
+        <div className="flex items-center gap-1.5 min-w-0">
+          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5">
+            {terminalSessions.map((session) => {
+              const isActive = session.id === (activeTerminalSessionId || terminalSessions[0]?.id);
+              return (
+                <div
+                  key={session.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveTerminalSessionId(session.id);
+                    inputRef.current?.focus();
+                  }}
+                  className={cn(
+                    "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono cursor-pointer transition-all shrink-0 border select-none",
+                    isActive
+                      ? "bg-[#161B22] border-[#22D3EE]/50 text-foreground font-semibold shadow-xs"
+                      : "bg-[#090B0F]/60 border-border/30 text-muted-foreground hover:bg-[#161B22]/70 hover:text-slate-200"
+                  )}
+                  title={`Switch to ${session.title}`}
+                >
+                  <TerminalIcon className={cn("h-3 w-3 shrink-0", isActive ? "text-[#22D3EE]" : "text-muted-foreground")} />
+                  <span className="text-[11px] truncate max-w-[130px]">{session.title}</span>
+                  {terminalSessions.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={(e) => handleCloseTerminal(e, session.id)}
+                      className="opacity-60 hover:opacity-100 hover:text-rose-400 p-0.5 rounded transition-opacity ml-0.5 shrink-0"
+                      title="Close Terminal"
+                      aria-label={`Close ${session.title}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* New Terminal Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleNewTerminal();
+            }}
+            className="h-7 px-2 text-xs text-muted-foreground hover:text-primary hover:bg-[#161B22] gap-1 shrink-0 border border-dashed border-border/50"
+            title="Open New Terminal Tab (CLI command: 'new')"
+          >
+            <Plus className="h-3.5 w-3.5 text-primary" />
+            <span className="text-[11px] hidden sm:inline">New Terminal</span>
+          </Button>
+
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono bg-[#22D3EE]/10 text-[#22D3EE] border border-[#22D3EE]/20 shrink-0 hidden lg:inline-flex ml-1">
             <span className="h-1.5 w-1.5 rounded-full bg-[#22D3EE] animate-pulse" />
             LIVE REPL
           </span>
         </div>
 
-        {/* Quick Command Chips */}
-        <div className="hidden sm:flex items-center gap-1.5 text-[11px]">
-          <button
-            type="button"
+        {/* Terminal Actions & Quick Chips */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={(e) => {
               e.stopPropagation();
-              handleCommand("help");
+              handleRefresh();
             }}
-            className="px-2 py-0.5 rounded bg-[#111720] hover:bg-[#202833] text-[#9CA6B5] hover:text-[#F5F7FA] transition-colors border border-[#202833]"
+            className="h-7 px-2.5 text-xs text-muted-foreground hover:text-[#22D3EE] hover:bg-[#161B22] gap-1.5 border border-border/40 font-medium"
+            title="Refresh Terminal Environment (CLI command: 'refresh')"
           >
-            help
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleCommand("status");
-            }}
-            className="px-2 py-0.5 rounded bg-[#111720] hover:bg-[#202833] text-[#9CA6B5] hover:text-[#F5F7FA] transition-colors border border-[#202833]"
-          >
-            status
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleCommand("workflow");
-            }}
-            className="px-2 py-0.5 rounded bg-[#111720] hover:bg-[#202833] text-[#22D3EE] hover:text-[#67E8F9] transition-colors border border-[#22D3EE]/30"
-          >
-            workflow
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              clearLogs();
-            }}
-            className="px-2 py-0.5 rounded bg-[#111720] hover:bg-[#202833] text-[#9CA6B5] hover:text-[#F5F7FA] transition-colors border border-[#202833]"
-          >
-            clear
-          </button>
+            <RefreshCw className={cn("h-3.5 w-3.5", isRefreshing && "animate-spin text-[#22D3EE]")} />
+            <span className="text-[11px]">Refresh</span>
+          </Button>
+
+          <div className="hidden md:flex items-center gap-1 text-[11px] ml-1">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCommand("help");
+              }}
+              className="px-2 py-0.5 rounded bg-[#111720] hover:bg-[#202833] text-[#9CA6B5] hover:text-[#F5F7FA] transition-colors border border-[#202833]"
+            >
+              help
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCommand("status");
+              }}
+              className="px-2 py-0.5 rounded bg-[#111720] hover:bg-[#202833] text-[#9CA6B5] hover:text-[#F5F7FA] transition-colors border border-[#202833]"
+            >
+              status
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCommand("workflow");
+              }}
+              className="px-2 py-0.5 rounded bg-[#111720] hover:bg-[#202833] text-[#22D3EE] hover:text-[#67E8F9] transition-colors border border-[#22D3EE]/30"
+            >
+              workflow
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                clearLogs();
+              }}
+              className="px-2 py-0.5 rounded bg-[#111720] hover:bg-[#202833] text-[#9CA6B5] hover:text-[#F5F7FA] transition-colors border border-[#202833]"
+              title="Clear active terminal screen"
+            >
+              clear
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Terminal Log Output Area */}
       <div className="flex-1 p-4 overflow-y-auto space-y-1.5 text-xs leading-relaxed">
-        {logs.map((log) => {
+        {activeLogs.map((log) => {
           if (log.type === "input") {
             return (
               <div key={log.id} className="flex items-start gap-2 text-foreground font-semibold">
@@ -414,7 +539,7 @@ export function PlaygroundTerminal() {
             onKeyDown={handleKeyDown}
             disabled={isExecuting}
             className="flex-1 bg-transparent border-none outline-none text-xs text-white font-mono placeholder:text-muted-foreground/40 focus:ring-0 p-0"
-            placeholder="Type a command (e.g. 'help', 'status', 'workflow', 'run <task>')..."
+            placeholder="Type a command (e.g. 'help', 'status', 'workflow', 'refresh', 'new')..."
           />
         </div>
 
@@ -428,7 +553,11 @@ export function PlaygroundTerminal() {
           <span><kbd className="px-1.5 py-0.5 rounded bg-muted/30 border border-border/40 font-mono text-[10px]">↑</kbd> <kbd className="px-1.5 py-0.5 rounded bg-muted/30 border border-border/40 font-mono text-[10px]">↓</kbd> history</span>
           <span><kbd className="px-1.5 py-0.5 rounded bg-muted/30 border border-border/40 font-mono text-[10px]">Ctrl+L</kbd> clear</span>
         </div>
-        <span className="font-mono text-[10px] text-[#22D3EE]">Ready</span>
+        <div className="flex items-center gap-2.5 font-mono text-[10px]">
+          <span className="text-muted-foreground">{activeSession?.title || "1: agent-cli"}</span>
+          <span className="h-1.5 w-1.5 rounded-full bg-[#22D3EE] animate-pulse" />
+          <span className="text-[#22D3EE]">Ready</span>
+        </div>
       </div>
     </div>
   );

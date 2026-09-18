@@ -26,6 +26,20 @@ export interface Message {
   attachments?: Attachment[];
 }
 
+export interface TerminalLogItem {
+  id: string;
+  type: "input" | "output" | "error" | "system" | "success" | "agent";
+  text: string;
+  time?: string;
+}
+
+export interface TerminalSession {
+  id: string;
+  title: string;
+  logs: TerminalLogItem[];
+  history: string[];
+}
+
 export interface PlaygroundState {
   // Model Settings
   model: string;
@@ -86,9 +100,15 @@ export interface PlaygroundState {
   resetActiveNodes: () => void;
 
   // Terminal State
-  terminalLogs: { id: string; type: "input" | "output" | "error" | "system" | "success" | "agent"; text: string; time?: string }[];
-  addTerminalLog: (type: "input" | "output" | "error" | "system" | "success" | "agent", text: string) => void;
-  clearTerminalLogs: () => void;
+  terminalLogs: TerminalLogItem[];
+  terminalSessions: TerminalSession[];
+  activeTerminalSessionId: string;
+  createTerminalSession: (title?: string) => string;
+  closeTerminalSession: (id: string) => void;
+  setActiveTerminalSessionId: (id: string) => void;
+  refreshTerminalSession: (id?: string) => void;
+  addTerminalLog: (type: "input" | "output" | "error" | "system" | "success" | "agent", text: string, sessionId?: string) => void;
+  clearTerminalLogs: (sessionId?: string) => void;
 
   // GitHub Repo State
   githubRepo: { url: string; files: string[]; activeFile: string | null } | null;
@@ -256,6 +276,21 @@ export const usePlaygroundStore = create<PlaygroundState>()(
         })),
       resetActiveNodes: () => set({ activeNode: null, completedNodes: [] }),
 
+      terminalSessions: [
+        {
+          id: "term-1",
+          title: "1: agent-cli",
+          logs: [
+            { id: "init-1", type: "system", text: "ASEP AI Engine v0.1.0 (x86_64-pc-linux-gnu)" },
+            { id: "init-2", type: "system", text: "Type 'help' to view available commands, or 'run <task>' to dispatch agents." },
+            { id: "init-3", type: "input", text: "agent-cli run --mode=deep --workspace=default" },
+            { id: "init-4", type: "output", text: "Initializing LangGraph multi-agent supervisor..." },
+            { id: "init-5", type: "success", text: "[OK] Agent Swarm ready. Interactive session established." },
+          ],
+          history: ["agent-cli run --mode=deep --workspace=default"],
+        }
+      ],
+      activeTerminalSessionId: "term-1",
       terminalLogs: [
         { id: "init-1", type: "system", text: "ASEP AI Engine v0.1.0 (x86_64-pc-linux-gnu)" },
         { id: "init-2", type: "system", text: "Type 'help' to view available commands, or 'run <task>' to dispatch agents." },
@@ -263,10 +298,116 @@ export const usePlaygroundStore = create<PlaygroundState>()(
         { id: "init-4", type: "output", text: "Initializing LangGraph multi-agent supervisor..." },
         { id: "init-5", type: "success", text: "[OK] Agent Swarm ready. Interactive session established." },
       ],
-      addTerminalLog: (type, text) => set((state) => ({
-        terminalLogs: [...state.terminalLogs, { id: Math.random().toString(), type, text, time: new Date().toLocaleTimeString() }]
-      })),
-      clearTerminalLogs: () => set({ terminalLogs: [] }),
+      createTerminalSession: (title) => {
+        const id = `term-${Date.now()}`;
+        set((state) => {
+          const sessionCount = state.terminalSessions.length + 1;
+          const sessionTitle = title || `${sessionCount}: agent-cli`;
+          const initialLogs: TerminalLogItem[] = [
+            { id: `init-${id}-1`, type: "system", text: `ASEP AI Agent CLI — Terminal #${sessionCount} [${new Date().toLocaleTimeString()}]` },
+            { id: `init-${id}-2`, type: "system", text: "Interactive REPL ready. Type 'help' for commands, 'refresh' to restart session." },
+            { id: `init-${id}-3`, type: "success", text: "[OK] Isolated terminal session established." },
+          ];
+          const newSession: TerminalSession = {
+            id,
+            title: sessionTitle,
+            logs: initialLogs,
+            history: ["agent-cli run --mode=deep --workspace=default"],
+          };
+          return {
+            terminalSessions: [...state.terminalSessions, newSession],
+            activeTerminalSessionId: id,
+            terminalLogs: initialLogs,
+          };
+        });
+        return id;
+      },
+      closeTerminalSession: (id) => {
+        set((state) => {
+          if (state.terminalSessions.length <= 1) {
+            const targetSession = state.terminalSessions[0];
+            const refreshedLogs: TerminalLogItem[] = [
+              { id: `term-reset-${Date.now()}`, type: "system", text: `ASEP Terminal reset at ${new Date().toLocaleTimeString()}` },
+              { id: `term-reset-ok`, type: "success", text: "[OK] Ready for instructions." },
+            ];
+            return {
+              terminalSessions: [{ ...targetSession, logs: refreshedLogs }],
+              terminalLogs: refreshedLogs,
+            };
+          }
+          const remaining = state.terminalSessions.filter((s) => s.id !== id);
+          const nextActiveId = state.activeTerminalSessionId === id ? remaining[remaining.length - 1].id : state.activeTerminalSessionId;
+          const nextActiveSession = remaining.find((s) => s.id === nextActiveId) || remaining[0];
+          return {
+            terminalSessions: remaining,
+            activeTerminalSessionId: nextActiveId,
+            terminalLogs: nextActiveSession.logs,
+          };
+        });
+      },
+      setActiveTerminalSessionId: (id) => {
+        set((state) => {
+          const target = state.terminalSessions.find((s) => s.id === id);
+          if (!target) return state;
+          return {
+            activeTerminalSessionId: id,
+            terminalLogs: target.logs,
+          };
+        });
+      },
+      refreshTerminalSession: (id) => {
+        set((state) => {
+          const targetId = id || state.activeTerminalSessionId || state.terminalSessions[0]?.id || "term-1";
+          const timestamp = new Date().toLocaleTimeString();
+          const refreshedLogs: TerminalLogItem[] = [
+            { id: `ref-${Date.now()}-1`, type: "system", text: `[Terminal Refreshed] Environment re-initialized at ${timestamp}.` },
+            { id: `ref-${Date.now()}-2`, type: "output", text: "Reloading agent supervisor and local execution context..." },
+            { id: `ref-${Date.now()}-3`, type: "success", text: "[OK] Agent Swarm ready. Interactive session established." },
+          ];
+          const updatedSessions = state.terminalSessions.map((sess) => {
+            if (sess.id === targetId) {
+              return { ...sess, logs: refreshedLogs };
+            }
+            return sess;
+          });
+          return {
+            terminalSessions: updatedSessions,
+            terminalLogs: targetId === state.activeTerminalSessionId ? refreshedLogs : state.terminalLogs,
+          };
+        });
+      },
+      addTerminalLog: (type, text, sessionId) => set((state) => {
+        const newLog: TerminalLogItem = {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          type,
+          text,
+          time: new Date().toLocaleTimeString(),
+        };
+        const targetId = sessionId || state.activeTerminalSessionId || state.terminalSessions[0]?.id || "term-1";
+        const updatedSessions = state.terminalSessions.map((sess) => {
+          if (sess.id === targetId) {
+            return { ...sess, logs: [...sess.logs, newLog] };
+          }
+          return sess;
+        });
+        return {
+          terminalSessions: updatedSessions,
+          terminalLogs: targetId === state.activeTerminalSessionId ? [...state.terminalLogs, newLog] : state.terminalLogs,
+        };
+      }),
+      clearTerminalLogs: (sessionId) => set((state) => {
+        const targetId = sessionId || state.activeTerminalSessionId || state.terminalSessions[0]?.id || "term-1";
+        const updatedSessions = state.terminalSessions.map((sess) => {
+          if (sess.id === targetId) {
+            return { ...sess, logs: [] };
+          }
+          return sess;
+        });
+        return {
+          terminalSessions: updatedSessions,
+          terminalLogs: targetId === state.activeTerminalSessionId ? [] : state.terminalLogs,
+        };
+      }),
 
       githubRepo: null,
       setGithubRepo: (githubRepo) => set({ githubRepo }),
