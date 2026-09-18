@@ -56,6 +56,7 @@ from src.api.routers.mcp import router as mcp_router
 from src.api.routers.host import router as host_router
 from src.api.routers.integrations_github import router as integrations_github_router
 from src.api.routers.skills import router as skills_router
+from src.api.routers.voice import router as voice_router
 from src.cache.redis import close_redis, init_redis
 from src.config.settings import get_settings
 from src.db.postgres import close_db, init_db
@@ -257,7 +258,7 @@ def create_app() -> FastAPI:
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(self), geolocation=()"
         return response
 
     # -----------------------------------------------------------------------
@@ -301,6 +302,7 @@ def create_app() -> FastAPI:
     app.include_router(host_router, prefix="/api/v1")
     app.include_router(integrations_github_router, prefix="/api/v1")
     app.include_router(skills_router)
+    app.include_router(voice_router, prefix="/api/v1")
 
     # -----------------------------------------------------------------------
     # Observability (Prometheus Metrics)

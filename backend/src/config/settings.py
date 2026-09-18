@@ -141,6 +141,36 @@ class Settings(BaseSettings):
     # Gemini AI
     GEMINI_API_KEY: str | None = Field(default=None, description="Google AI Studio Gemini API key")
 
+    # Groq & OpenRouter
+    GROQ_API_KEY: str | None = Field(default=None, description="Groq API Key for Whisper / LLMs")
+    OPENROUTER_API_KEY: str | None = Field(default=None, description="OpenRouter API Key")
+
+    # Voice Transcription Configuration
+    VOICE_PROVIDER_ORDER: str = Field(
+        default="groq,gemini,openrouter",
+        description="Comma-separated provider order for voice transcription fallback chain."
+    )
+    VOICE_GROQ_MODEL: str = Field(
+        default="whisper-large-v3",
+        description="Groq Whisper model for speech transcription."
+    )
+    VOICE_GEMINI_MODEL: str = Field(
+        default="gemini-2.0-flash",
+        description="Gemini model for audio transcription fallback."
+    )
+    VOICE_OPENROUTER_MODEL: str = Field(
+        default="google/gemini-2.0-flash-exp:free",
+        description="OpenRouter model for audio transcription fallback."
+    )
+    VOICE_MAX_DURATION: int = Field(
+        default=15,
+        description="Maximum voice audio duration in seconds."
+    )
+    VOICE_MAX_SIZE_MB: int = Field(
+        default=25,
+        description="Maximum audio file size in MB."
+    )
+
     # -----------------------------------------------------------------------
     # PostgreSQL
     # -----------------------------------------------------------------------

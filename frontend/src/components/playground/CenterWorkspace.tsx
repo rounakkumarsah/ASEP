@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { MessageSquare, Code, Terminal, Send, Loader2, Bot, User as UserIcon, Plus, GitCompare, Paperclip, Wrench, Cpu, Workflow, Play, FileText, FolderGit2, ShieldAlert, Gauge, Zap, BarChart2, AlertTriangle, Square, GitBranch, ExternalLink, Check, RefreshCw, GitPullRequest, CheckCircle2, Sparkles, PanelLeftOpen, PanelRightOpen } from "lucide-react";
+import { MessageSquare, Code, Terminal, Send, Loader2, Bot, User as UserIcon, Plus, GitCompare, Paperclip, Wrench, Cpu, Workflow, Play, FileText, FolderGit2, ShieldAlert, Gauge, Zap, BarChart2, AlertTriangle, Square, GitBranch, ExternalLink, Check, RefreshCw, GitPullRequest, CheckCircle2, Sparkles, PanelLeftOpen, PanelRightOpen, Mic, MicOff, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { usePlaygroundStore } from "@/lib/stores/playgroundStore";
 import { useWorkspaceStore } from "@/lib/stores/workspaceStore";
 import { useChatHistoryStore } from "@/lib/stores/chatHistoryStore";
 import { useSidebarStore } from "@/lib/stores/sidebarStore";
+import { useVoiceTyping } from "@/hooks/useVoiceTyping";
 const Editor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 import ReactMarkdown from 'react-markdown';
 import { ExplorationCard } from "./ExplorationCard";
@@ -129,12 +130,38 @@ export function CenterWorkspace() {
     skillCitations,
     addExplorationEvent,
     setPhaseExploration,
+    voiceMetrics,
   } = usePlaygroundStore();
   const { isLeftPanelOpen, toggleLeftPanel, isRightPanelOpen, toggleRightPanel } = useSidebarStore();
   const [input, setInput] = React.useState("");
   const [cmdMenu, setCmdMenu] = React.useState<'tool' | 'model' | null>(null);
   const [artifactCode, setArtifactCode] = React.useState<string>("");
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
+
+  // Universal Voice Typing
+  const initialVoiceInputRef = React.useRef<string>("");
+  const { isListening, isTranscribing, toggleListening, layer } = useVoiceTyping({
+    onTranscript: (transcript, isFinal) => {
+      setInput(() => {
+        const base = initialVoiceInputRef.current;
+        const combined = base.trim() ? `${base.trim()} ${transcript.trim()}` : transcript.trim();
+        if (isFinal) {
+          initialVoiceInputRef.current = combined;
+        }
+        return combined;
+      });
+    },
+    onToast: (msg) => {
+      setToastMessage(msg);
+      setTimeout(() => setToastMessage(null), 4500);
+    },
+  });
+
+  React.useEffect(() => {
+    if (isListening) {
+      initialVoiceInputRef.current = input;
+    }
+  }, [isListening]);
   const [clarificationPrompt, setClarificationPrompt] = React.useState<string | null>(null);
   const [clarificationThreadId, setClarificationThreadId] = React.useState<string | null>(null);
   const [clarificationInput, setClarificationInput] = React.useState<string>("");
@@ -2066,6 +2093,155 @@ export function CenterWorkspace() {
                   })()}
                 </div>
               </div>
+
+              {/* Voice Transcription Metrics */}
+              <div className="rounded-xl border border-border/40 bg-card/30 overflow-hidden">
+                <div className="p-4 border-b border-border/30 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold flex items-center gap-2">
+                      <Mic className="h-4 w-4 text-[#22D3EE]" />
+                      Voice Transcription Telemetry
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Universal Voice Typing with 3-provider fallback chain (Groq → Gemini → OpenRouter) & Layer 1 Web Speech API.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono px-2 py-0.5 rounded bg-muted/50 border border-border/50 text-muted-foreground">
+                      Total: {voiceMetrics?.totalTranscriptions || 0}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-4 space-y-4">
+                  {/* Provider Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {/* Groq Whisper */}
+                    <div className="rounded-lg border border-border/40 bg-background/40 p-3 relative space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                          Groq Whisper
+                        </span>
+                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-[#F55036]/10 text-[#F55036] border-[#F55036]/30">
+                          Primary
+                        </Badge>
+                      </div>
+                      <div className="text-xl font-bold font-mono text-foreground">
+                        {voiceMetrics?.providerUsage?.groq || 0} <span className="text-[11px] font-normal text-muted-foreground">uses</span>
+                      </div>
+                      <div className="text-[11px] font-mono text-muted-foreground flex items-center justify-between pt-1 border-t border-border/30">
+                        <span>Last Latency:</span>
+                        <span className="text-[#22D3EE] font-semibold">
+                          {voiceMetrics?.lastLatencyMs?.groq ? `${voiceMetrics.lastLatencyMs.groq}ms` : "—"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Gemini 2.0 Flash */}
+                    <div className="rounded-lg border border-border/40 bg-background/40 p-3 relative space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                          Gemini 2.0 Flash
+                        </span>
+                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-blue-500/10 text-blue-400 border-blue-500/30">
+                          Backup 1
+                        </Badge>
+                      </div>
+                      <div className="text-xl font-bold font-mono text-foreground">
+                        {voiceMetrics?.providerUsage?.gemini || 0} <span className="text-[11px] font-normal text-muted-foreground">uses</span>
+                      </div>
+                      <div className="text-[11px] font-mono text-muted-foreground flex items-center justify-between pt-1 border-t border-border/30">
+                        <span>Last Latency:</span>
+                        <span className="text-blue-400 font-semibold">
+                          {voiceMetrics?.lastLatencyMs?.gemini ? `${voiceMetrics.lastLatencyMs.gemini}ms` : "—"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* OpenRouter */}
+                    <div className="rounded-lg border border-border/40 bg-background/40 p-3 relative space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                          OpenRouter
+                        </span>
+                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-purple-500/10 text-purple-400 border-purple-500/30">
+                          Backup 2
+                        </Badge>
+                      </div>
+                      <div className="text-xl font-bold font-mono text-foreground">
+                        {voiceMetrics?.providerUsage?.openrouter || 0} <span className="text-[11px] font-normal text-muted-foreground">uses</span>
+                      </div>
+                      <div className="text-[11px] font-mono text-muted-foreground flex items-center justify-between pt-1 border-t border-border/30">
+                        <span>Last Latency:</span>
+                        <span className="text-purple-400 font-semibold">
+                          {voiceMetrics?.lastLatencyMs?.openrouter ? `${voiceMetrics.lastLatencyMs.openrouter}ms` : "—"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Web Speech API */}
+                    <div className="rounded-lg border border-border/40 bg-background/40 p-3 relative space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                          Web Speech API
+                        </span>
+                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
+                          Layer 1
+                        </Badge>
+                      </div>
+                      <div className="text-xl font-bold font-mono text-foreground">
+                        {voiceMetrics?.providerUsage?.webSpeech || 0} <span className="text-[11px] font-normal text-muted-foreground">uses</span>
+                      </div>
+                      <div className="text-[11px] font-mono text-muted-foreground flex items-center justify-between pt-1 border-t border-border/30">
+                        <span>Last Latency:</span>
+                        <span className="text-emerald-400 font-semibold">
+                          {voiceMetrics?.lastLatencyMs?.webSpeech ? `${voiceMetrics.lastLatencyMs.webSpeech}ms` : "Real-time"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Failover Event History */}
+                  <div className="space-y-2 pt-2">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span className="font-semibold uppercase text-[10px] tracking-wider flex items-center gap-1">
+                        <Zap className="h-3 w-3 text-amber-400" /> Failover & Switch History
+                      </span>
+                      <span className="font-mono text-[10px]">
+                        {voiceMetrics?.failoverEvents?.length || 0} events
+                      </span>
+                    </div>
+
+                    {(!voiceMetrics?.failoverEvents || voiceMetrics.failoverEvents.length === 0) ? (
+                      <div className="rounded-lg border border-border/20 bg-muted/10 p-3 text-center text-xs text-muted-foreground italic">
+                        No failover events recorded yet. Providers are operating nominally.
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                        {voiceMetrics.failoverEvents.map((ev, idx) => (
+                          <div
+                            key={idx}
+                            className="text-xs p-2 rounded-md bg-amber-500/5 border border-amber-500/20 flex items-center justify-between gap-3"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-[10px] font-mono text-muted-foreground shrink-0">{ev.timestamp}</span>
+                              <span className="font-mono text-[11px] font-semibold text-amber-400 shrink-0">
+                                {ev.from.toUpperCase()} → {ev.to.toUpperCase()}
+                              </span>
+                              <span className="text-muted-foreground truncate text-[11px]">
+                                {ev.toast || ev.reason}
+                              </span>
+                            </div>
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 shrink-0">
+                              Switched
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           </TabsContent>
         </div>
@@ -2169,6 +2345,37 @@ export function CenterWorkspace() {
                   rows={1}
                 />
               </div>
+
+              <Button
+                type="button"
+                onClick={toggleListening}
+                disabled={isThinking}
+                variant="ghost"
+                size="icon"
+                className={`h-9 w-9 rounded-lg shrink-0 mb-1 transition-all ${
+                  isListening
+                    ? "bg-rose-500/20 text-rose-400 border border-rose-500/50 animate-pulse shadow-sm shadow-rose-500/20"
+                    : isTranscribing
+                    ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/50"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                }`}
+                title={
+                  isListening
+                    ? "Listening (Click to finish speech typing)..."
+                    : isTranscribing
+                    ? "Transcribing voice audio..."
+                    : "Voice Typing (Web Speech API / Groq Whisper 3-provider fallback)"
+                }
+                aria-label="Voice Typing"
+              >
+                {isTranscribing ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
+                ) : isListening ? (
+                  <Mic className="h-4 w-4 text-rose-400 animate-bounce" />
+                ) : (
+                  <Mic className="h-4 w-4" />
+                )}
+              </Button>
 
               <Button 
                 type="submit" 

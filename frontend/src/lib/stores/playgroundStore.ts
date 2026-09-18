@@ -167,6 +167,39 @@ export interface PlaygroundState {
   setPhaseExploration: (phase: string, summary: ExplorationSummary) => void;
   activeRightTab: 'trace' | 'explore';
   setActiveRightTab: (tab: 'trace' | 'explore') => void;
+
+  // Voice Transcription Telemetry
+  voiceMetrics: VoiceMetrics;
+  recordVoiceTranscription: (
+    provider: string,
+    latencyMs: number,
+    fallbacks?: Array<{ from: string; to: string; reason: string; toast?: string }>
+  ) => void;
+}
+
+export interface VoiceFailoverEvent {
+  timestamp: string;
+  from: string;
+  to: string;
+  reason: string;
+  toast?: string;
+}
+
+export interface VoiceMetrics {
+  totalTranscriptions: number;
+  providerUsage: {
+    groq: number;
+    gemini: number;
+    openrouter: number;
+    webSpeech: number;
+  };
+  lastLatencyMs: {
+    groq?: number;
+    gemini?: number;
+    openrouter?: number;
+    webSpeech?: number;
+  };
+  failoverEvents: VoiceFailoverEvent[];
 }
 
 export interface ExploreEvent {
@@ -478,6 +511,46 @@ export const usePlaygroundStore = create<PlaygroundState>()(
         })),
       activeRightTab: 'trace',
       setActiveRightTab: (activeRightTab) => set({ activeRightTab }),
+
+      // Voice Transcription Telemetry
+      voiceMetrics: {
+        totalTranscriptions: 0,
+        providerUsage: { groq: 0, gemini: 0, openrouter: 0, webSpeech: 0 },
+        lastLatencyMs: {},
+        failoverEvents: [],
+      },
+      recordVoiceTranscription: (provider, latencyMs, fallbacks = []) =>
+        set((state) => {
+          const normProvider = provider.toLowerCase().replace(/[^a-z]/g, "");
+          const currentUsage = state.voiceMetrics?.providerUsage || { groq: 0, gemini: 0, openrouter: 0, webSpeech: 0 };
+          const currentLatency = state.voiceMetrics?.lastLatencyMs || {};
+          const currentEvents = state.voiceMetrics?.failoverEvents || [];
+
+          const key = normProvider === "webspeech" ? "webSpeech" : (normProvider as "groq" | "gemini" | "openrouter");
+
+          const newEvents: VoiceFailoverEvent[] = (fallbacks || []).map((fb) => ({
+            timestamp: new Date().toLocaleTimeString(),
+            from: fb.from,
+            to: fb.to,
+            reason: fb.reason,
+            toast: fb.toast,
+          }));
+
+          return {
+            voiceMetrics: {
+              totalTranscriptions: (state.voiceMetrics?.totalTranscriptions || 0) + 1,
+              providerUsage: {
+                ...currentUsage,
+                [key]: (currentUsage[key as keyof typeof currentUsage] || 0) + 1,
+              },
+              lastLatencyMs: {
+                ...currentLatency,
+                [key]: latencyMs,
+              },
+              failoverEvents: [...newEvents, ...currentEvents].slice(0, 50),
+            },
+          };
+        }),
     }),
     {
       name: 'asep-playground-storage',
@@ -512,6 +585,7 @@ export const usePlaygroundStore = create<PlaygroundState>()(
         selectedProjectName: state.selectedProjectName,
         terminalSessions: state.terminalSessions,
         activeTerminalSessionId: state.activeTerminalSessionId,
+        voiceMetrics: state.voiceMetrics,
       }),
     }
   )
