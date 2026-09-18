@@ -34,7 +34,7 @@ class OCRImageLoader(BaseLoader):
                 from PIL import Image
                 img = Image.open(file_path)
                 w, h = img.size
-            except (ImportError, ModuleNotFoundError):
+            except Exception:
                 img = None
                 w, h = 1920, 1080
 

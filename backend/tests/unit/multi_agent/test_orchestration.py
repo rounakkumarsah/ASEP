@@ -62,7 +62,14 @@ async def test_supervisor_workflow_orchestration():
     knowledge = get_mock_knowledge_agent()
     research = ResearchAgent()
     memory = MemoryAgent()
-    executor = ExecutionAgent()
+    
+    service_mock = MagicMock()
+    async def mock_complete(*args, **kwargs):
+        from src.ai_runtime.contracts import CompletionResponse, UsageInfo
+        return CompletionResponse(text="Mocked AI Response", usage=UsageInfo(total_tokens=10), provider="mock")
+    service_mock.complete = mock_complete
+    
+    executor = ExecutionAgent(service=service_mock)
     reflection = ReflectionAgent()
     evaluator = EvaluationAgent()
     governance = GovernanceAgent()
@@ -97,7 +104,14 @@ async def test_governance_rejection_gate():
     planner = PlannerAgent()
     knowledge = get_mock_knowledge_agent()
     research = ResearchAgent()
-    executor = ExecutionAgent()
+    
+    service_mock = MagicMock()
+    async def mock_complete(*args, **kwargs):
+        from src.ai_runtime.contracts import CompletionResponse, UsageInfo
+        return CompletionResponse(text="Mocked AI Response", usage=UsageInfo(total_tokens=10), provider="mock")
+    service_mock.complete = mock_complete
+    
+    executor = ExecutionAgent(service=service_mock)
     governance = GovernanceAgent()
 
     registry.register(supervisor)
