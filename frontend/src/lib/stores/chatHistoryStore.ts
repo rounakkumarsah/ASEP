@@ -44,16 +44,8 @@ interface ChatHistoryState {
   getSession: (id: string) => ChatSession | undefined;
 }
 
-const deduplicateEmptySessions = (sessions: ChatSession[]): ChatSession[] => {
-  let seenEmpty = false;
-  return sessions.filter((s) => {
-    const isEmpty = !s.messages || s.messages.length === 0;
-    if (isEmpty) {
-      if (seenEmpty) return false;
-      seenEmpty = true;
-    }
-    return true;
-  });
+const sanitizeSessions = (sessions: ChatSession[]): ChatSession[] => {
+  return sessions.filter((s) => s.messages && s.messages.length > 0);
 };
 
 export const useChatHistoryStore = create<ChatHistoryState>()(
@@ -74,6 +66,26 @@ export const useChatHistoryStore = create<ChatHistoryState>()(
         workspaceName = null,
       }) => {
         const state = get();
+
+        // If messages is empty (0 messages), never store or retain an empty session in history!
+        if (!messages || messages.length === 0) {
+          const filtered = state.sessions.filter((s) => s.id !== id);
+          set({ sessions: filtered });
+          return {
+            id,
+            title: "New Chat",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            messages: [],
+            messageCount: 0,
+            projectId,
+            projectName,
+            workspaceId,
+            workspaceName,
+            lastMessageSnippet: "No messages yet",
+          };
+        }
+
         const existingIdx = state.sessions.findIndex((s) => s.id === id);
 
         const lastMessage = messages[messages.length - 1];
@@ -113,7 +125,7 @@ export const useChatHistoryStore = create<ChatHistoryState>()(
           // Sort by updatedAt descending
           newSessions.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
-          set({ sessions: deduplicateEmptySessions(newSessions) });
+          set({ sessions: sanitizeSessions(newSessions) });
           return updated;
         } else {
           const newSession: ChatSession = {
@@ -132,7 +144,7 @@ export const useChatHistoryStore = create<ChatHistoryState>()(
 
           const newSessions = [newSession, ...state.sessions];
           set({
-            sessions: deduplicateEmptySessions(newSessions),
+            sessions: sanitizeSessions(newSessions),
             activeSessionId: id,
           });
           return newSession;
@@ -140,24 +152,6 @@ export const useChatHistoryStore = create<ChatHistoryState>()(
       },
 
       createSession: (params) => {
-        const state = get();
-        // If an empty session already exists (0 messages), do NOT create a new duplicate empty one!
-        const existingEmpty = state.sessions.find(
-          (s) => !s.messages || s.messages.length === 0
-        );
-        if (existingEmpty) {
-          if (params?.projectId !== undefined) {
-            existingEmpty.projectId = params.projectId;
-            existingEmpty.projectName = params.projectName || null;
-          }
-          if (params?.workspaceId !== undefined) {
-            existingEmpty.workspaceId = params.workspaceId;
-            existingEmpty.workspaceName = params.workspaceName || null;
-          }
-          set({ activeSessionId: existingEmpty.id });
-          return existingEmpty;
-        }
-
         const id = `chat_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
         const now = new Date().toISOString();
         const newSession: ChatSession = {
@@ -174,8 +168,10 @@ export const useChatHistoryStore = create<ChatHistoryState>()(
           lastMessageSnippet: "No messages yet",
         };
 
+        // Note: Empty sessions (0 messages) are NEVER stored in the history list!
+        // A conversation enters history only once the user sends a message.
         set((state) => ({
-          sessions: [newSession, ...deduplicateEmptySessions(state.sessions)],
+          sessions: sanitizeSessions(state.sessions),
           activeSessionId: id,
         }));
 
@@ -223,7 +219,7 @@ export const useChatHistoryStore = create<ChatHistoryState>()(
       migrate: (persistedState: unknown) => {
         const state = persistedState as { sessions?: ChatSession[] } | null;
         if (state && Array.isArray(state.sessions)) {
-          state.sessions = deduplicateEmptySessions(state.sessions);
+          state.sessions = sanitizeSessions(state.sessions);
         }
         return state as ChatHistoryState;
       },

@@ -78,7 +78,7 @@ describe('Workspace and Chat History System', () => {
   });
 
   describe('useChatHistoryStore', () => {
-    it('creates a new chat session and sets it as active', () => {
+    it('creates a new chat session and sets it as active without storing empty session in history', () => {
       const store = useChatHistoryStore.getState();
       const session = store.createSession({
         projectId: 'prj_1',
@@ -93,7 +93,8 @@ describe('Workspace and Chat History System', () => {
       expect(session.projectName).toBe('ASEP Platform');
 
       const state = useChatHistoryStore.getState();
-      expect(state.sessions.length).toBe(1);
+      // Empty sessions are not stored in history list
+      expect(state.sessions.length).toBe(0);
       expect(state.activeSessionId).toBe(session.id);
     });
 
@@ -114,30 +115,37 @@ describe('Workspace and Chat History System', () => {
       expect(updated.messageCount).toBe(2);
       expect(updated.projectName).toBe('Payments API');
       expect(updated.lastMessageSnippet).toContain('Here is the architecture');
+      expect(useChatHistoryStore.getState().sessions.length).toBe(1);
     });
 
     it('renames a chat session', () => {
       const store = useChatHistoryStore.getState();
       const session = store.createSession();
+      store.saveOrUpdateSession({
+        id: session.id,
+        messages: [{ role: 'user', content: 'Architecture draft', timestamp: '12:00 PM' }],
+      });
       store.renameSession(session.id, 'Payment System Architecture Refactor');
 
       const found = useChatHistoryStore.getState().getSession(session.id);
       expect(found?.title).toBe('Payment System Architecture Refactor');
     });
 
-    it('reuses existing empty chat session when createSession is called without messages', () => {
+    it('does not save empty chat sessions (0 messages) to history list', () => {
       const store = useChatHistoryStore.getState();
-      const s1 = store.createSession();
+      store.createSession();
       const s2 = store.createSession();
 
-      // Since s1 was empty, s2 should be s1 and total sessions should remain 1
-      expect(useChatHistoryStore.getState().sessions.length).toBe(1);
-      expect(s2.id).toBe(s1.id);
+      // Empty sessions remain draft only and are not added to sessions list
+      expect(useChatHistoryStore.getState().sessions.length).toBe(0);
+      expect(useChatHistoryStore.getState().activeSessionId).toBe(s2.id);
     });
 
-    it('creates a new chat session when previous session contains messages', () => {
+    it('adds chat session to history once messages are sent', () => {
       const store = useChatHistoryStore.getState();
       const s1 = store.createSession();
+
+      expect(useChatHistoryStore.getState().sessions.length).toBe(0);
 
       // Add a message to s1
       store.saveOrUpdateSession({
@@ -145,10 +153,12 @@ describe('Workspace and Chat History System', () => {
         messages: [{ role: 'user', content: 'Hello agent', timestamp: '12:00 PM' }],
       });
 
-      // Now creating a session should generate a second session
+      expect(useChatHistoryStore.getState().sessions.length).toBe(1);
+
+      // Now creating another session prepares a new draft without polluting sessions
       const s2 = store.createSession();
-      expect(useChatHistoryStore.getState().sessions.length).toBe(2);
-      expect(s2.id).not.toBe(s1.id);
+      expect(useChatHistoryStore.getState().sessions.length).toBe(1);
+      expect(useChatHistoryStore.getState().activeSessionId).toBe(s2.id);
     });
 
     it('deletes a chat session', () => {

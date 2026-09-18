@@ -140,17 +140,22 @@ export function TopBar() {
   // Start a fresh conversation
   const handleNewChat = React.useCallback(() => {
     const currentMessages = usePlaygroundStore.getState().messages;
-    if (currentMessages && currentMessages.length > 0) {
-      const currentChatId = useChatHistoryStore.getState().activeSessionId || `chat_${Date.now()}`;
-      saveOrUpdateSession({
-        id: currentChatId,
-        messages: currentMessages,
-        projectId: selectedProjectId,
-        projectName: selectedProjectName,
-        workspaceId: activeWorkspace.id,
-        workspaceName: activeWorkspace.name,
-      });
+
+    // If current conversation is already empty (0 messages), no need to archive or create duplicate
+    if (!currentMessages || currentMessages.length === 0) {
+      addTerminalLog("system", "[New Chat] Current conversation is already fresh and empty. Ready for instructions.");
+      return;
     }
+
+    const currentChatId = useChatHistoryStore.getState().activeSessionId || `chat_${Date.now()}`;
+    saveOrUpdateSession({
+      id: currentChatId,
+      messages: currentMessages,
+      projectId: selectedProjectId,
+      projectName: selectedProjectName,
+      workspaceId: activeWorkspace.id,
+      workspaceName: activeWorkspace.name,
+    });
 
     const newSession = createSession({
       projectId: selectedProjectId,
