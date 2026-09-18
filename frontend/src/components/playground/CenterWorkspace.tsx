@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { MessageSquare, Code, Terminal, Send, Loader2, Bot, User as UserIcon, Plus, GitCompare, Paperclip, Wrench, Cpu, Workflow, Play, FileText, FolderGit2, ShieldAlert, Gauge, Zap, BarChart2, AlertTriangle, Square, GitBranch, ExternalLink, Check, RefreshCw, GitPullRequest, CheckCircle2, Sparkles } from "lucide-react";
+import { MessageSquare, Code, Terminal, Send, Loader2, Bot, User as UserIcon, Plus, GitCompare, Paperclip, Wrench, Cpu, Workflow, Play, FileText, FolderGit2, ShieldAlert, Gauge, Zap, BarChart2, AlertTriangle, Square, GitBranch, ExternalLink, Check, RefreshCw, GitPullRequest, CheckCircle2, Sparkles, PanelLeftOpen, PanelRightOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePlaygroundStore } from "@/lib/stores/playgroundStore";
 import { useWorkspaceStore } from "@/lib/stores/workspaceStore";
 import { useChatHistoryStore } from "@/lib/stores/chatHistoryStore";
+import { useSidebarStore } from "@/lib/stores/sidebarStore";
 const Editor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 import ReactMarkdown from 'react-markdown';
 import { ExplorationCard } from "./ExplorationCard";
@@ -129,6 +130,7 @@ export function CenterWorkspace() {
     addExplorationEvent,
     setPhaseExploration,
   } = usePlaygroundStore();
+  const { isLeftPanelOpen, toggleLeftPanel, isRightPanelOpen, toggleRightPanel } = useSidebarStore();
   const [input, setInput] = React.useState("");
   const [cmdMenu, setCmdMenu] = React.useState<'tool' | 'model' | null>(null);
   const [artifactCode, setArtifactCode] = React.useState<string>("");
@@ -1010,49 +1012,81 @@ export function CenterWorkspace() {
       )}
       <Tabs value={activeCenterTab} onValueChange={setActiveCenterTab} className="flex-1 flex flex-col min-h-0">
         <div className="px-3 sm:px-4 py-2 border-b border-border/40 bg-background/50 backdrop-blur flex items-center justify-between gap-2 overflow-x-auto no-scrollbar scroll-smooth min-w-0">
-          <TabsList className="bg-muted/50 h-9 p-1 shrink-0 flex-nowrap">
-            <TabsTrigger value="chat" className="text-xs gap-1.5 sm:gap-2 px-2.5 sm:px-3">
-              <MessageSquare className="h-3.5 w-3.5 shrink-0" />
-              <span>Chat</span>
-            </TabsTrigger>
-            <TabsTrigger value="workflow" className="text-xs gap-1.5 sm:gap-2 px-2.5 sm:px-3">
-              <Workflow className="h-3.5 w-3.5 shrink-0" />
-              <span><span className="hidden sm:inline">Visual </span>Workflow</span>
-            </TabsTrigger>
-            <TabsTrigger value="artifacts" className="text-xs gap-1.5 sm:gap-2 px-2.5 sm:px-3">
-              <Code className="h-3.5 w-3.5 shrink-0" />
-              <span>Artifacts</span>
-            </TabsTrigger>
-            <TabsTrigger value="diff" className="text-xs gap-1.5 sm:gap-2 px-2.5 sm:px-3">
-              <GitCompare className="h-3.5 w-3.5 shrink-0" />
-              <span>Diff<span className="hidden sm:inline"> Viewer</span></span>
-            </TabsTrigger>
-            <TabsTrigger value="terminal" className="text-xs gap-1.5 sm:gap-2 px-2.5 sm:px-3">
-              <Terminal className="h-3.5 w-3.5 shrink-0" />
-              <span>Terminal</span>
-            </TabsTrigger>
-            <TabsTrigger value="metrics" className="text-xs gap-1.5 sm:gap-2 px-2.5 sm:px-3">
-              <Gauge className="h-3.5 w-3.5 shrink-0" />
-              <span><span className="hidden sm:inline">Token </span>Metrics</span>
-            </TabsTrigger>
-            {securityFindings.length > 0 && (
-              <TabsTrigger value="security" className="text-xs gap-1.5 sm:gap-2 px-2.5 sm:px-3 text-destructive">
-                <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
-                <span>Security<span className="hidden sm:inline"> Audit</span></span>
-              </TabsTrigger>
+          <div className="flex items-center gap-2 shrink-0">
+            {!isLeftPanelOpen && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={toggleLeftPanel}
+                className="h-9 px-2.5 gap-1.5 text-xs font-mono text-muted-foreground hover:text-primary border-border/60 hover:bg-accent shrink-0 shadow-xs hidden md:inline-flex"
+                title="Expand Configuration Panel (Ctrl+[)"
+                aria-label="Expand Configuration Panel"
+              >
+                <PanelLeftOpen className="h-3.5 w-3.5 text-primary" />
+                <span className="font-sans font-medium text-xs">Config</span>
+              </Button>
             )}
-          </TabsList>
-          {activeSkills && activeSkills.length > 0 && (
-            <div className="hidden md:flex items-center gap-1.5 shrink-0">
-              <span className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider hidden lg:inline">Active Skills:</span>
-              {activeSkills.map((s) => (
-                <Badge key={s} variant="outline" className="bg-purple-500/10 text-purple-400 border-purple-500/30 text-[11px] font-mono py-0.5 px-2 flex items-center gap-1 shrink-0">
-                  <Sparkles className="w-2.5 h-2.5" />
-                  [SKILL: {s}]
-                </Badge>
-              ))}
-            </div>
-          )}
+
+            <TabsList className="bg-muted/50 h-9 p-1 shrink-0 flex-nowrap">
+              <TabsTrigger value="chat" className="text-xs gap-1.5 sm:gap-2 px-2.5 sm:px-3">
+                <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+                <span>Chat</span>
+              </TabsTrigger>
+              <TabsTrigger value="workflow" className="text-xs gap-1.5 sm:gap-2 px-2.5 sm:px-3">
+                <Workflow className="h-3.5 w-3.5 shrink-0" />
+                <span><span className="hidden sm:inline">Visual </span>Workflow</span>
+              </TabsTrigger>
+              <TabsTrigger value="artifacts" className="text-xs gap-1.5 sm:gap-2 px-2.5 sm:px-3">
+                <Code className="h-3.5 w-3.5 shrink-0" />
+                <span>Artifacts</span>
+              </TabsTrigger>
+              <TabsTrigger value="diff" className="text-xs gap-1.5 sm:gap-2 px-2.5 sm:px-3">
+                <GitCompare className="h-3.5 w-3.5 shrink-0" />
+                <span>Diff<span className="hidden sm:inline"> Viewer</span></span>
+              </TabsTrigger>
+              <TabsTrigger value="terminal" className="text-xs gap-1.5 sm:gap-2 px-2.5 sm:px-3">
+                <Terminal className="h-3.5 w-3.5 shrink-0" />
+                <span>Terminal</span>
+              </TabsTrigger>
+              <TabsTrigger value="metrics" className="text-xs gap-1.5 sm:gap-2 px-2.5 sm:px-3">
+                <Gauge className="h-3.5 w-3.5 shrink-0" />
+                <span><span className="hidden sm:inline">Token </span>Metrics</span>
+              </TabsTrigger>
+              {securityFindings.length > 0 && (
+                <TabsTrigger value="security" className="text-xs gap-1.5 sm:gap-2 px-2.5 sm:px-3 text-destructive">
+                  <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+                  <span>Security<span className="hidden sm:inline"> Audit</span></span>
+                </TabsTrigger>
+              )}
+            </TabsList>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {activeSkills && activeSkills.length > 0 && (
+              <div className="hidden md:flex items-center gap-1.5 shrink-0">
+                <span className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider hidden lg:inline">Active Skills:</span>
+                {activeSkills.map((s) => (
+                  <Badge key={s} variant="outline" className="bg-purple-500/10 text-purple-400 border-purple-500/30 text-[11px] font-mono py-0.5 px-2 flex items-center gap-1 shrink-0">
+                    <Sparkles className="w-2.5 h-2.5" />
+                    [SKILL: {s}]
+                  </Badge>
+                ))}
+              </div>
+            )}
+            {!isRightPanelOpen && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={toggleRightPanel}
+                className="h-9 px-2.5 gap-1.5 text-xs font-mono text-muted-foreground hover:text-[#22D3EE] border-border/60 hover:bg-accent shrink-0 shadow-xs hidden xl:inline-flex"
+                title="Expand Execution Trace (Ctrl+])"
+                aria-label="Expand Execution Trace"
+              >
+                <span className="font-sans font-medium text-xs">Trace</span>
+                <PanelRightOpen className="h-3.5 w-3.5 text-[#22D3EE]" />
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="flex-1 min-h-0 relative flex flex-col">

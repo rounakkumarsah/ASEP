@@ -7,7 +7,6 @@ import { LeftPanel } from "@/components/playground/LeftPanel";
 import { CenterWorkspace } from "@/components/playground/CenterWorkspace";
 import { RightPanel } from "@/components/playground/RightPanel";
 import { useSidebarStore } from "@/lib/stores/sidebarStore";
-import { PanelLeftOpen, PanelRightOpen } from "lucide-react";
 
 // Inline error boundary to surface the REAL error message instead of generic "Something went wrong!"
 class PlaygroundErrorBoundary extends React.Component<
@@ -76,9 +75,7 @@ export default function PlaygroundClient() {
   const {
     isMainSidebarOpen,
     isLeftPanelOpen,
-    toggleLeftPanel,
     isRightPanelOpen,
-    toggleRightPanel,
   } = useSidebarStore();
   const [mounted, setMounted] = React.useState(false);
   const [apiErrorToast, setApiErrorToast] = React.useState<{ message: string; retry?: () => void } | null>(null);
@@ -130,39 +127,7 @@ export default function PlaygroundClient() {
 
           {/* Panel B: Center Workspace */}
           <main className="flex-1 h-full flex flex-col min-w-0 bg-background relative overflow-hidden">
-            {/* Quick-expand left edge tab when configuration is collapsed */}
-            {!leftOpen && (
-              <button
-                type="button"
-                onClick={toggleLeftPanel}
-                className="absolute left-0 top-1/2 -translate-y-1/2 z-30 hidden md:flex items-center gap-1 py-3 px-1.5 rounded-r-md bg-background/90 hover:bg-accent border border-l-0 border-border/60 text-muted-foreground hover:text-primary shadow-lg transition-all group backdrop-blur"
-                title="Expand Configuration Panel (Ctrl+[)"
-                aria-label="Expand Configuration Panel"
-              >
-                <PanelLeftOpen className="h-4 w-4 group-hover:scale-110 transition-transform text-primary" />
-                <span className="text-[9px] font-mono [writing-mode:vertical-lr] tracking-widest uppercase font-semibold text-muted-foreground group-hover:text-primary">
-                  Config
-                </span>
-              </button>
-            )}
-
             <CenterWorkspace />
-
-            {/* Quick-expand right edge tab when execution trace is collapsed */}
-            {!rightOpen && (
-              <button
-                type="button"
-                onClick={toggleRightPanel}
-                className="absolute right-0 top-1/2 -translate-y-1/2 z-30 hidden xl:flex items-center gap-1 py-3 px-1.5 rounded-l-md bg-background/90 hover:bg-accent border border-r-0 border-border/60 text-muted-foreground hover:text-[#22D3EE] shadow-lg transition-all group backdrop-blur"
-                title="Expand Execution Trace Panel (Ctrl+])"
-                aria-label="Expand Execution Trace Panel"
-              >
-                <span className="text-[9px] font-mono [writing-mode:vertical-lr] tracking-widest uppercase font-semibold text-muted-foreground group-hover:text-[#22D3EE]">
-                  Trace
-                </span>
-                <PanelRightOpen className="h-4 w-4 group-hover:scale-110 transition-transform text-[#22D3EE]" />
-              </button>
-            )}
           </main>
 
           {/* Panel C: Right Sidebar (Execution Trace) */}
