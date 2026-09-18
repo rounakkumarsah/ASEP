@@ -23,7 +23,7 @@ class ResearchAgent(BaseAgent):
             supported_outputs=["research_notes", "sources", "citation_mapping"]
         )
         super().__init__(role=AgentRole.RESEARCH, manifest=manifest)
-        self.mcp = mcp_client or MCPClient(server_url="http://localhost:8000")
+        self.mcp = mcp_client or MCPClient(server_name="local_mcp", server_url="http://localhost:8000")
         self.graphrag = graphrag_engine or LocalGraphRAGEngine()
 
     async def _execute_internal(self, request: AgentRequest) -> dict[str, Any]:

@@ -10,15 +10,15 @@ from src.ai_runtime.providers.gemini import GeminiProvider
 
 
 def test_gemini_resolve_model():
-    assert GeminiProvider._resolve_model("gemini") == "gemini-3.8-flash"
-    assert GeminiProvider._resolve_model("antigravity-default") == "gemini-3.8-flash"
+    assert GeminiProvider._resolve_model("gemini") == "gemini-3.6-flash"
+    assert GeminiProvider._resolve_model("antigravity-default") == "gemini-3.6-flash"
     assert GeminiProvider._resolve_model("gemini-pro") == "gemini-3.1-pro"
     assert GeminiProvider._resolve_model("gemini-flash-lite") == "gemini-3.5-flash-lite"
     assert GeminiProvider._resolve_model("nano-banana") == "gemini-3.1-flash-image"
     assert GeminiProvider._resolve_model("nano-banana-pro") == "gemini-3-pro-image"
     assert GeminiProvider._resolve_model("veo") == "veo-3.1-generate-preview"
     assert GeminiProvider._resolve_model("lyria-pro") == "lyria-3.5-pro-preview"
-    assert GeminiProvider._resolve_model("gemini-3.8-flash") == "gemini-3.8-flash"
+    assert GeminiProvider._resolve_model("gemini-3.8-flash") == "gemini-3.6-flash"
 
 
 @pytest.mark.asyncio

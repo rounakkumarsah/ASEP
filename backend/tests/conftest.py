@@ -39,3 +39,38 @@ async def async_client(app):
     """Async HTTPX client for async endpoint tests."""
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
+
+import socket
+
+def is_db_running():
+    try:
+        # Check if we can connect to the postgres port
+        with socket.create_connection(("localhost", 5440), timeout=1):
+            return True
+    except OSError:
+        return False
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "integration: mark test as requiring live database"
+    )
+
+def pytest_collection_modifyitems(config, items):
+    db_running = is_db_running()
+    skipped_count = 0
+    skip_db = pytest.mark.skip(reason="integration tests skipped (no DB)")
+    
+    for item in items:
+        # If the test is in the integration directory or marked as integration
+        if "integration" in str(item.fspath) or item.get_closest_marker("integration"):
+            if not db_running:
+                item.add_marker(skip_db)
+                skipped_count += 1
+                
+    if skipped_count > 0:
+        config.stash["skipped_integration_count"] = skipped_count
+
+def pytest_terminal_summary(terminalreporter, exitstatus, config):
+    skipped_count = config.stash.get("skipped_integration_count", 0)
+    if skipped_count > 0:
+        terminalreporter.write_line(f"\\n{skipped_count} integration tests skipped (no DB)", yellow=True)

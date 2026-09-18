@@ -25,7 +25,7 @@ async def tool_infrastructure_health_check() -> bool:
             return False
 
         # 2. Remote Client Lifecycle Validation
-        client = MCPClient(server_url="http://mock-mcp-server:8000")
+        client = MCPClient(server_name="mock_mcp", server_url="http://mock-mcp-server:8000")
         connected = await client.connect()
         if not connected:
             return False

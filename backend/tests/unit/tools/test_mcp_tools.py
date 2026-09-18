@@ -61,6 +61,7 @@ async def test_dispatcher_permission_enforcement(tmp_path):
 
     # Write sample file
     test_file = tmp_path / "hello.txt"
+    os.environ["WORKSPACE_ROOT"] = str(tmp_path)
 
     # Execute without required permission
     resp = await dispatcher.execute(
