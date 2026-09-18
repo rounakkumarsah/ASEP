@@ -17,7 +17,11 @@ class AuditTrail:
 
     def __init__(self, log_dir: str = "logs") -> None:
         self.log_dir = Path(log_dir)
-        self.log_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            self.log_dir.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            self.log_dir = Path("/tmp/logs")
+            self.log_dir.mkdir(parents=True, exist_ok=True)
         self.audit_file = self.log_dir / "audit.log"
 
     def record(self, intent: ActionIntent, decision: GovernanceDecision) -> None:

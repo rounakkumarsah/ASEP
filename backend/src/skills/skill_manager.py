@@ -166,6 +166,8 @@ class SkillManager:
     def __init__(self, base_dir: Path | str | None = None) -> None:
         if base_dir:
             self.base_dir = Path(base_dir)
+        elif os.environ.get("ASEP_SKILLS_DIR"):
+            self.base_dir = Path(os.environ["ASEP_SKILLS_DIR"])
         else:
             # Look for project root skills/ or backend/skills/
             candidate_1 = Path("skills").resolve()
@@ -176,9 +178,22 @@ class SkillManager:
         self.user_dir = self.base_dir / "user"
         self.attachments_dir = self.base_dir / "attachments"
 
-        self.builtin_dir.mkdir(parents=True, exist_ok=True)
-        self.user_dir.mkdir(parents=True, exist_ok=True)
-        self.attachments_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            self.builtin_dir.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            pass  # Pre-bundled built-in skills directory is read-only on serverless
+
+        try:
+            self.user_dir.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            self.user_dir = Path("/tmp/skills/user")
+            self.user_dir.mkdir(parents=True, exist_ok=True)
+
+        try:
+            self.attachments_dir.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            self.attachments_dir = Path("/tmp/skills/attachments")
+            self.attachments_dir.mkdir(parents=True, exist_ok=True)
 
         # In-memory index of parsed skills
         self._skills_cache: dict[str, Skill] = {}
