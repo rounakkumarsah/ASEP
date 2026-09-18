@@ -43,7 +43,7 @@ This document catalogs every page, interactive dashboard view, visualization can
 - `/playground`: Interactive prompt execution sandbox.
 - `/research`: Multi-agent research swarm inspector.
 - `/evaluation`: Automated test and benchmark evaluation scoring center.
-- `/copilot`: Interactive sidebar AI pairing interface.
+
 
 ---
 

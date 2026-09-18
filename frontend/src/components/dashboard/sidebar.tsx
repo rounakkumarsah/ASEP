@@ -33,7 +33,6 @@ const navigationGroups = [
       { name: "Overview", href: "/overview", icon: LayoutDashboard },
       { name: "Projects", href: "/projects", icon: FolderKanban },
       { name: "Playground", href: "/playground", icon: Bot },
-      { name: "Copilot", href: "/copilot", icon: Terminal },
     ],
   },
   {

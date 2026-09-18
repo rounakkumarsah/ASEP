@@ -59,8 +59,8 @@ export function UpgradeModal({ isOpen: externalOpen, onClose: externalClose }: U
           key: key_id || "rzp_test_mock_key",
           amount: amount || 299900,
           currency: "INR",
-          name: "ASEP Copilot Pro",
-          description: "Unlimited Deep Research & Multimodal Copilot",
+          name: "ASEP Pro",
+          description: "Unlimited Deep Research & Advanced Agent Playground",
           order_id: razorpay_order_id,
           handler: function (res: { razorpay_payment_id: string }) {
             alert(`Payment successful! Payment ID: ${res.razorpay_payment_id}`);
@@ -94,7 +94,7 @@ export function UpgradeModal({ isOpen: externalOpen, onClose: externalClose }: U
             <span className="inline-block px-3 py-1 text-xs font-semibold text-amber-400 bg-amber-950/40 border border-amber-800 rounded-full mb-2">
               Free Quota Limit Exceeded
             </span>
-            <h2 className="text-2xl font-bold text-zinc-100">Upgrade to Copilot Pro</h2>
+            <h2 className="text-2xl font-bold text-zinc-100">Upgrade to ASEP Pro</h2>
           </div>
           <button
             onClick={handleClose}
@@ -114,7 +114,7 @@ export function UpgradeModal({ isOpen: externalOpen, onClose: externalClose }: U
             <p className="text-2xl font-extrabold text-blue-400 my-1">₹2,999<span className="text-xs text-zinc-400 font-normal">/mo</span></p>
             <ul className="text-xs text-zinc-400 space-y-1 mb-4">
               <li>✓ Unlimited Deep Research</li>
-              <li>✓ Multimodal Screenshot Copilot</li>
+              <li>✓ Advanced Agent Playground</li>
               <li>✓ Local GraphRAG Engine</li>
             </ul>
             <button

@@ -21,5 +21,5 @@ This document assesses the implementation status and production readiness of eve
 | **API Keys** | Programmatic CLI & SDK access | Key generation, prefix display, revocation, scopes | IP whitelist restrictions | **Production Ready (92%)** |
 | **Billing & Plans** | SaaS subscription monetization | Tier selection, Stripe checkout sessions, invoice history | Usage-based token metering | **Beta (85%)** |
 | **Settings & Org** | Account & organization settings | Profile management, organization creation, theme toggle | Enterprise domain verification | **Beta (82%)** |
-| **Playground / Copilot** | Interactive prompt & agent tester | Interactive task submission, log stream feedback | Multi-model side-by-side comparison | **Prototype (72%)** |
+| **Agent Playground** | Interactive prompt & agent tester | Interactive task submission, log stream feedback | Multi-model side-by-side comparison | **Prototype (72%)** |
 | **Documentation & API Docs**| Developer onboarding & OpenAPI specs | Full markdown guides, OpenAPI interactive specs | SDK code generator (Python/TS) | **Production Ready (90%)** |

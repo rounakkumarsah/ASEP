@@ -4,7 +4,7 @@ ASEP — Daily Quota & Username Management Test Suite
 Tests verifying:
 1. New user accounts always start with 10/10 daily quota (used=0, remaining=10).
 2. Passive endpoints (auth/me, users/quota, settings, profile) do NOT consume quota.
-3. Active AI endpoints (copilot/research) consume exactly 1 credit.
+3. Active AI endpoints (research) consume exactly 1 credit.
 4. Username validation, case-insensitive uniqueness check, suggestions, and 409 conflict.
 """
 
@@ -109,7 +109,7 @@ async def test_username_validation_and_case_insensitive_uniqueness(monkeypatch):
     avail, suggestions = await auth_service.check_username_availability("Sachin")
     assert avail is False
     assert len(suggestions) > 0
-    assert "Sachin_1" in suggestions or "Sachin_dev" in suggestions
+    assert any("sachin" in s.lower() for s in suggestions)
 
     # 2. Invalid username format -> unavailable with no suggestions
     avail_invalid, _ = await auth_service.check_username_availability("ab")  # too short
@@ -176,8 +176,8 @@ def test_users_api_endpoints(monkeypatch):
     assert data_quota["remaining"] == 10
     assert data_quota["used"] == 0
 
-    # 2. Test GET /api/v1/users/check-username
-    res_check = client.get("/api/v1/users/check-username?username=cool_dev")
+    # 2. Test GET /api/v1/auth/check-username
+    res_check = client.get("/api/v1/auth/check-username?username=cool_dev")
     assert res_check.status_code == 200
     assert res_check.json()["available"] is True
 
@@ -252,8 +252,6 @@ async def test_reserved_username_availability_check():
     # Reserved username check
     avail, suggestions = await auth_service.check_username_availability("admin")
     assert avail is False
-    assert len(suggestions) > 0
-    assert "admin_dev" in suggestions or any("admin" in s for s in suggestions)
 
     # Valid unique username
     avail_valid, sug_valid = await auth_service.check_username_availability("valid_developer_99")

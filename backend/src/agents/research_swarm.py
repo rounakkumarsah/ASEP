@@ -1,8 +1,7 @@
 """
-ASEP — Multimodal Research & Developer Copilot Swarms
+ASEP — Research Swarms
 ======================================================
 General Research Swarm (DuckDuckGo search + web scrape + Gemini synthesis)
-and Developer Copilot Swarm (Image/Text error parsing -> DDG issue search -> Gemini fix)
 wrapped with Redis rate limiting for Gemini 15 RPM free tier compliance.
 """
 
@@ -53,7 +52,7 @@ class RateLimitQueueWrapper:
 
 
 class ResearchSwarm:
-    """General Research and Multimodal Developer Copilot Swarm."""
+    """General Research Swarm."""
 
     def __init__(self) -> None:
         self.settings = get_settings()
@@ -105,43 +104,3 @@ class ResearchSwarm:
             latency_ms=round(elapsed_ms, 2),
         )
 
-    async def run_developer_copilot(
-        self,
-        error_or_code: str,
-        image_text_extracted: str | None = None,
-    ) -> ResearchReport:
-        """Multimodal Developer Copilot Swarm: error/screenshot -> DDG issue search -> Gemini fix."""
-        start_time = time.perf_counter()
-        await self.rate_limiter.acquire_slot()
-
-        combined_input = f"{error_or_code}\n{image_text_extracted or ''}".strip()
-        search_query = f"{combined_input[:100]} github issue stackoverflow"
-
-        search_results = await self._duckduckgo_search(search_query, max_results=4)
-        sources = [r["href"] for r in search_results if r.get("href")]
-
-        summary = (
-            f"### Developer Copilot Diagnostic Report\n\n"
-            f"#### Root Cause Analysis\nDetected traceback exception or code issue in context:\n"
-            f"```text\n{combined_input[:300]}\n```\n\n"
-            f"#### Fix Recommendations\n- Guard against null arguments before dereferencing.\n"
-            f"- Ensure type checks or fallback defaults are initialized."
-        )
-
-        code_solution = (
-            "# Corrected Code Solution:\n"
-            "def resolved_function(input_data):\n"
-            "    if not input_data:\n"
-            "        return None\n"
-            "    return input_data.get('valid_key')\n"
-        )
-
-        elapsed_ms = (time.perf_counter() - start_time) * 1000.0
-        return ResearchReport(
-            topic_or_issue=combined_input[:100],
-            summary=summary,
-            code_solution=code_solution,
-            sources=sources,
-            search_queries_used=[search_query],
-            latency_ms=round(elapsed_ms, 2),
-        )

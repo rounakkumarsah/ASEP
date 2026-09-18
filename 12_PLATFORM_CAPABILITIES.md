@@ -19,7 +19,7 @@ This document structures every implemented capability into standard Enterprise P
 │ 4. Developer Experience │ 5. Enterprise SaaS Layer │ 6. Observability & Telemetry      │
 │ • 3D Neural Matrix UI   │ • Organization Scopes    │ • Real-time Node Telemetry Stream │
 │ • Interactive DAG Graph │ • Razorpay Subscriptions │ • Sentry Error Ingestion          │
-│ • Copilot & Playground  │ • Scoped API Key Engine  │ • Cluster Health Diagnostic Probe │
+│ • Advanced Playground  │ • Scoped API Key Engine  │ • Cluster Health Diagnostic Probe │
 │ • OpenAPI Specs (/docs) │ • Billing Portal Webhook │ • Microsecond Latency Counters    │
 └─────────────────────────┴──────────────────────────┴───────────────────────────────────┘
 ```

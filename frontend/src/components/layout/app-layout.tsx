@@ -46,7 +46,6 @@ export function AppLayout({ children }: LayoutProps) {
 
   const navItems = [
     { name: "Research", href: "/research", icon: "🔍" },
-    { name: "Developer Copilot", href: "/copilot", icon: "🤖" },
     { name: "Knowledge Base", href: "/knowledge", icon: "📚" },
     { name: "Skills", href: "/skills", icon: "✨" },
     { name: "Dashboard", href: "/dashboard", icon: "📊" },

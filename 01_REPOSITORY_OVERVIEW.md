@@ -39,7 +39,7 @@
 - **Styling & UI**: TailwindCSS v3.4, Radix UI primitives, Lucide React icons, Framer Motion v11, `next-themes` (Class-based dark/light mode system).
 - **Core Route Groups**:
   - `app/(auth)/`: Auth flows (`/login`, `/signup`, `/forgot-password`, `/reset-password`, `/verify-email`, `/callback`).
-  - `app/(dashboard)/`: Multi-agent operational control plane (`/overview`, `/sessions`, `/projects`, `/knowledge`, `/memory`, `/governance`, `/approvals`, `/metrics`, `/audit`, `/billing`, `/api-keys`, `/settings`, `/playground`, `/research`, `/evaluation`, `/copilot`).
+  - `app/(dashboard)/`: Multi-agent operational control plane (`/overview`, `/sessions`, `/projects`, `/knowledge`, `/memory`, `/governance`, `/approvals`, `/metrics`, `/audit`, `/billing`, `/api-keys`, `/settings`, `/playground`, `/research`, `/evaluation`, ``).
   - Public Marketing & Information: `/`, `/pricing`, `/documentation`, `/api-docs`, `/architecture`, `/roadmap`, `/changelog`, `/about`, `/contact`, `/privacy`, `/terms`.
 
 ### 2.2 Backend (`/backend`)

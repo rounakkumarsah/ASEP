@@ -110,7 +110,7 @@ class UniversalIngestionService:
             }
 
             prompt = (
-                "You are an expert OCR & Developer Copilot. Read this code/error screenshot cleanly. "
+                "You are an expert OCR & Developer Assistant. Read this code/error screenshot cleanly. "
                 "Extract and output: 1) The exact code snippet, 2) The full error traceback, and "
                 "3) A concise summary of the issue shown."
             )

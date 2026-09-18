@@ -449,7 +449,7 @@ def test_gemini_live_api_helpers():
         model="gemini-3.1-flash-live-preview",
         voice_name="Puck",
         thinking_level="high",
-        system_instruction="Be a voice copilot.",
+        system_instruction="Be a voice assistant.",
         tools=[{"googleSearch": {}}],
         context_compression_trigger=75000,
         session_resumption_handle="handle_abc"
@@ -459,7 +459,7 @@ def test_gemini_live_api_helpers():
     assert setup["model"] == "models/gemini-3.1-flash-live-preview"
     assert setup["generationConfig"]["speechConfig"]["voiceConfig"]["prebuiltVoiceConfig"]["voiceName"] == "Puck"
     assert setup["generationConfig"]["thinkingConfig"]["thinkingLevel"] == "high"
-    assert setup["systemInstruction"]["parts"][0]["text"] == "Be a voice copilot."
+    assert setup["systemInstruction"]["parts"][0]["text"] == "Be a voice assistant."
     assert setup["contextWindowCompression"]["triggerTokens"] == 75000
     assert setup["sessionResumption"]["handle"] == "handle_abc"
 

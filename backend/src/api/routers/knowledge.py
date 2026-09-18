@@ -1,9 +1,8 @@
 """
-ASEP — Knowledge, Deep Research & Developer Copilot Router
+ASEP — Knowledge & Deep Research Router
 ============================================================
 Endpoints:
   - POST /api/v1/research/topic -> Triggers General Research Swarm.
-  - POST /api/v1/research/code_issue -> Accepts text OR image (multipart/form-data) -> Triggers Developer Copilot Swarm.
   - POST /api/v1/upload/document -> Triggers Universal Doc Ingestion Pipeline.
   - POST /api/v1/chat/teacher -> Answers query via GraphRAG + Semantic Cache.
 """
@@ -13,7 +12,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
 
 from src.agents.research_swarm import ResearchReport, ResearchSwarm
@@ -27,7 +26,7 @@ from src.production.opentelemetry_tracing import OpenTelemetryProvider
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="", tags=["Deep Research & Developer Copilot"])
+router = APIRouter(prefix="", tags=["Deep Research"])
 
 # Initialize services
 research_swarm = ResearchSwarm()
@@ -77,71 +76,7 @@ async def research_topic(payload: TopicRequest, current_user: CurrentUser) -> di
     }
 
 
-@router.post("/research/code_issue")
-async def research_code_issue(
-    current_user: CurrentUser,
-    error_text: str | None = Form(default=None),
-    image_file: UploadFile | None = File(default=None),
-) -> dict[str, Any]:
-    """Trigger Multimodal Developer Copilot Swarm (Text error OR Code screenshot image)."""
-    rl = await rate_limiter.check_rate_limit(str(current_user.id))
-    if not rl.allowed:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Free tier daily query limit (10 queries/day) reached. Upgrade to Pro for unlimited Copilot.",
-        )
 
-    cid = otel.create_correlation_id()
-    tracer.start_span("span_copilot_1", cid, "developer_copilot", "code_issue_diagnostic")
-
-    image_ocr_text = None
-    cloud_url = None
-    if image_file:
-        img_bytes = await image_file.read()
-        cloud_url = upload_to_cloudinary(img_bytes, resource_type="image", filename=image_file.filename)
-        if not cloud_url:
-            cloud_meta = await cloudinary_storage.upload_file(img_bytes, image_file.filename or "screenshot.png", folder="copilot_screenshots")
-            cloud_url = cloud_meta.get("secure_url")
-        image_ocr_text = await ingestion_service.parse_image_screenshot(img_bytes, image_file.filename or "screenshot.png")
-
-    input_query = error_text or image_ocr_text or "Code issue"
-
-    # Check Semantic Cache first
-    cache_hit = await graphrag_engine.get_semantic_cache(input_query)
-    if cache_hit.is_hit:
-        tracer.end_span("span_copilot_1", status="ok_cache_hit", tokens_used=0, cost_usd=0.0)
-        return {
-            "trace_id": cid,
-            "cached": True,
-            "cloud_url": cloud_url,
-            "diagnostic_summary": "Semantic Cache Hit — previously solved issue.",
-            "code_solution": cache_hit.cached_solution,
-            "sources": ["Local Error Knowledge Base"],
-            "latency_ms": 5.0,
-            "rate_limit": {"remaining": rl.remaining_queries, "tier": rl.current_tier},
-        }
-
-    report: ResearchReport = await research_swarm.run_developer_copilot(
-        error_or_code=error_text or "",
-        image_text_extracted=image_ocr_text,
-    )
-
-    # Store in Semantic Cache
-    if report.code_solution:
-        await graphrag_engine.store_semantic_cache(input_query, report.code_solution)
-
-    tracer.end_span("span_copilot_1", status="ok", tokens_used=600, cost_usd=0.0)
-
-    return {
-        "trace_id": cid,
-        "cached": False,
-        "cloud_url": cloud_url,
-        "diagnostic_summary": report.summary,
-        "code_solution": report.code_solution,
-        "sources": report.sources,
-        "latency_ms": report.latency_ms,
-        "rate_limit": {"remaining": rl.remaining_queries, "tier": rl.current_tier},
-    }
 
 
 @router.post("/upload/document")

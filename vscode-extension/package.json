@@ -1,6 +1,6 @@
-﻿{
+{
   "name": "asep-vscode",
-  "displayName": "ASEP AI Engineering Copilot",
+  "displayName": "ASEP AI Engineering Assistant",
   "description": "Embedded AI Playground control plane & multi-agent workflow runtime inside VS Code.",
   "version": "0.1.0",
   "publisher": "asep-ai",

@@ -84,7 +84,6 @@ export default function DocumentationPage() {
       title: "AI Tools",
       items: [
         { name: "Deep Research Swarm", id: "research", icon: <Search className="h-4 w-4" /> },
-        { name: "Developer Copilot", id: "copilot", icon: <Code className="h-4 w-4" /> },
       ],
     },
     {
@@ -276,7 +275,7 @@ export default function DocumentationPage() {
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {[
-                    { role: "Solo Developers", desc: "Automate repetitive coding tasks, debug errors with the AI Copilot, and run deep research swarms on technical topics." },
+                    { role: "Solo Developers", desc: "Automate repetitive coding tasks, test code in the AI Playground, and run deep research swarms on technical topics." },
                     { role: "Engineering Teams", desc: "Share governance workspace, collaborative knowledge base, audit logs, and multi-agent code reviews across the team." },
                     { role: "Tech Leads / Architects", desc: "Define high-level goals, let agents handle implementation, and review diffs via the HITL approval queue before merging." },
                     { role: "DevOps Engineers", desc: "Monitor agent session telemetry, track CPU/memory, manage API keys with scope controls, and integrate with CI/CD." },
@@ -607,26 +606,6 @@ export default function DocumentationPage() {
                 </div>
               </section>
 
-              {/* ─── COPILOT ─── */}
-              <section id="copilot" className="scroll-mt-28">
-                <h2 className="text-3xl font-bold font-mono text-[#F5F7FA] mb-4 flex items-center gap-3">
-                  <Code className="h-7 w-7 text-[#22D3EE]" /> Developer Copilot
-                </h2>
-                <p className="text-[#9CA6B5] leading-relaxed mb-4">
-                  A multimodal AI debugging assistant at <code className="bg-[#111720] text-[#22D3EE] px-1.5 py-0.5 rounded text-xs">/copilot</code>. Paste error text <strong className="text-[#F5F7FA]">or upload a screenshot</strong> — the Copilot diagnoses the root cause and provides a working code fix.
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="p-4 bg-[#0D1117] border border-[#202833] rounded-xl">
-                    <h4 className="text-xs font-bold font-mono text-[#22D3EE] mb-2">Method 1: Paste Error Text</h4>
-                    <p className="text-xs text-[#9CA6B5]">Use quick templates (TypeError, NullPointer, Async Timeout) or paste your own stack trace. Click <strong className="text-[#F5F7FA]">Solve Error</strong>.</p>
-                  </div>
-                  <div className="p-4 bg-[#0D1117] border border-[#202833] rounded-xl">
-                    <h4 className="text-xs font-bold font-mono text-[#22D3EE] mb-2">Method 2: Upload Screenshot</h4>
-                    <p className="text-xs text-[#9CA6B5]">Upload a screenshot of your terminal or IDE. Gemini Vision API extracts and analyzes the error — no typing required.</p>
-                  </div>
-                </div>
-              </section>
-
               {/* ─── SETTINGS ─── */}
               <section id="settings" className="scroll-mt-28">
                 <h2 className="text-3xl font-bold font-mono text-[#F5F7FA] mb-4 flex items-center gap-3">
@@ -722,7 +701,6 @@ export default function DocumentationPage() {
                         ["GET", "/api/v1/knowledge/documents", "Search indexed knowledge"],
                         ["POST", "/api/v1/knowledge", "Upload and index a document"],
                         ["POST", "/research/topic", "Run Research Swarm"],
-                        ["POST", "/research/code_issue", "Run Developer Copilot"],
                         ["GET", "/api/v1/governance/hitl/queue", "Get HITL approval queue"],
                         ["GET", "/api/v1/audit", "Retrieve audit log entries"],
                         ["GET", "/api/v1/api-keys", "List API keys"],
@@ -784,16 +762,6 @@ export default function DocumentationPage() {
                         "Agent reviews using your uploaded docs as context.",
                         "If it wants to apply fixes, a HITL request appears in Approvals.",
                         "Review the Monaco Diff, then Approve or Reject.",
-                      ],
-                    },
-                    {
-                      title: "Workflow 2: Debug a Production Error",
-                      steps: [
-                        "Open Developer Copilot at /copilot.",
-                        "Take a screenshot of the error in your terminal.",
-                        "Upload the screenshot — no typing required.",
-                        "Gemini Vision reads the error and diagnoses the root cause.",
-                        "Copy the fix code from the output panel.",
                       ],
                     },
                     {
