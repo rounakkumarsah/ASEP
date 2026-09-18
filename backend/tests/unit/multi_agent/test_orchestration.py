@@ -66,7 +66,7 @@ async def test_supervisor_workflow_orchestration():
     service_mock = MagicMock()
     async def mock_complete(*args, **kwargs):
         from src.ai_runtime.contracts import CompletionResponse, UsageInfo
-        return CompletionResponse(text="Mocked AI Response", usage=UsageInfo(total_tokens=10), provider="mock")
+        return CompletionResponse(text="Mocked AI Response result", usage=UsageInfo(total_tokens=10), provider="mock", model="mock")
     service_mock.complete = mock_complete
     
     executor = ExecutionAgent(service=service_mock)
@@ -108,7 +108,7 @@ async def test_governance_rejection_gate():
     service_mock = MagicMock()
     async def mock_complete(*args, **kwargs):
         from src.ai_runtime.contracts import CompletionResponse, UsageInfo
-        return CompletionResponse(text="Mocked AI Response", usage=UsageInfo(total_tokens=10), provider="mock")
+        return CompletionResponse(text="Mocked AI Response with an exploit", usage=UsageInfo(total_tokens=10), provider="mock", model="mock")
     service_mock.complete = mock_complete
     
     executor = ExecutionAgent(service=service_mock)
