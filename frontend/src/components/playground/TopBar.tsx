@@ -17,7 +17,6 @@ import {
   Folder,
   FolderPlus,
   Check,
-  X,
   ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -104,34 +103,57 @@ export function TopBar() {
   React.useEffect(() => {
     const projectName = searchParams.get("projectName");
     const projectId = searchParams.get("projectId");
-    if (projectName) {
+    if (projectName && projectId) {
       setSelectedProjectName(projectName);
-      if (projectId) {
-        setProject(projectId, projectName);
-      }
+      setProject(projectId, projectName);
     }
   }, [searchParams, setSelectedProjectName, setProject]);
 
-  // Fetch projects list
+  // Fetch projects list and ensure active project stays linked
   const fetchProjects = React.useCallback(async () => {
     setLoadingProjects(true);
     try {
       const res = await apiClient.get("/api/v1/projects");
-      if (res.data && Array.isArray(res.data)) {
-        setProjects(res.data);
+      const list = res.data && Array.isArray(res.data) && res.data.length > 0
+        ? res.data
+        : [
+            { id: "prj_default_1", name: "ASEP Web Platform", description: "Main application repository" },
+            { id: "prj_default_2", name: "Agent Runtime Service", description: "LangGraph orchestration engine" },
+          ];
+      setProjects(list);
+
+      // Ensure a project is always actively linked and never lost on navigation
+      const currentId = usePlaygroundStore.getState().selectedProjectId;
+      const currentName = usePlaygroundStore.getState().selectedProjectName;
+      if (!currentId || !currentName) {
+        if (list[0]) {
+          setProject(list[0].id, list[0].name);
+        }
       } else {
-        setProjects([]);
+        const matched = list.find((p: ProjectItem) => p.id === currentId || p.name === currentName);
+        if (matched) {
+          if (matched.id !== currentId || matched.name !== currentName) {
+            setProject(matched.id, matched.name);
+          }
+        } else if (list[0]) {
+          setProject(list[0].id, list[0].name);
+        }
       }
     } catch {
       // Fallback to demo projects if offline or guest
-      setProjects([
+      const fallback = [
         { id: "prj_default_1", name: "ASEP Web Platform", description: "Main application repository" },
         { id: "prj_default_2", name: "Agent Runtime Service", description: "LangGraph orchestration engine" },
-      ]);
+      ];
+      setProjects(fallback);
+      const currentId = usePlaygroundStore.getState().selectedProjectId;
+      if (!currentId && fallback[0]) {
+        setProject(fallback[0].id, fallback[0].name);
+      }
     } finally {
       setLoadingProjects(false);
     }
-  }, []);
+  }, [setProject]);
 
   React.useEffect(() => {
     fetchProjects();
@@ -300,19 +322,6 @@ export function TopBar() {
                   })
                 )}
               </div>
-
-              {selectedProjectName && (
-                <DropdownMenuItem
-                  onClick={() => {
-                    setProject(null, null);
-                    addTerminalLog("system", "[Project] Unlinked project. Running in global workspace mode.");
-                  }}
-                  className="flex items-center gap-2 px-2.5 py-1.5 text-[11px] text-muted-foreground hover:text-foreground rounded-md cursor-pointer"
-                >
-                  <X className="h-3 w-3" />
-                  <span>Unlink Current Project</span>
-                </DropdownMenuItem>
-              )}
 
               <DropdownMenuItem
                 onClick={() => setIsCreateProjectOpen(true)}

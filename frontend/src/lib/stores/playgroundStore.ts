@@ -508,6 +508,10 @@ export const usePlaygroundStore = create<PlaygroundState>()(
         explorationEvents: state.explorationEvents,
         phaseExplorations: state.phaseExplorations,
         activeRightTab: state.activeRightTab,
+        selectedProjectId: state.selectedProjectId,
+        selectedProjectName: state.selectedProjectName,
+        terminalSessions: state.terminalSessions,
+        activeTerminalSessionId: state.activeTerminalSessionId,
       }),
     }
   )
