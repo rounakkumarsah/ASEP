@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePlaygroundStore } from "@/lib/stores/playgroundStore";
+import { useWorkspaceStore } from "@/lib/stores/workspaceStore";
+import { useChatHistoryStore } from "@/lib/stores/chatHistoryStore";
 const Editor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 import ReactMarkdown from 'react-markdown';
 import { ExplorationCard } from "./ExplorationCard";
@@ -120,6 +122,7 @@ export function CenterWorkspace() {
     setGithubActiveRepo,
     githubActiveBranch,
     setGithubActiveBranch,
+    selectedProjectId,
     selectedProjectName,
     activeSkills,
     skillCitations,
@@ -218,6 +221,22 @@ export function CenterWorkspace() {
     }
     fetchGhStatus();
   }, [setGithubConnected, setGithubUser]);
+
+  // Auto-sync active conversation to chatHistoryStore
+  React.useEffect(() => {
+    if (messages.length > 0) {
+      const activeWs = useWorkspaceStore.getState().getActiveWorkspace();
+      const currentChatId = useChatHistoryStore.getState().activeSessionId || `chat_${Date.now()}`;
+      useChatHistoryStore.getState().saveOrUpdateSession({
+        id: currentChatId,
+        messages,
+        projectId: selectedProjectId,
+        projectName: selectedProjectName,
+        workspaceId: activeWs.id,
+        workspaceName: activeWs.name,
+      });
+    }
+  }, [messages, selectedProjectId, selectedProjectName]);
 
   const fetchUserRepos = async () => {
     setFetchingRepos(true);
