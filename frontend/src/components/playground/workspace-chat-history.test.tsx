@@ -125,10 +125,44 @@ describe('Workspace and Chat History System', () => {
       expect(found?.title).toBe('Payment System Architecture Refactor');
     });
 
-    it('deletes a chat session', () => {
+    it('reuses existing empty chat session when createSession is called without messages', () => {
       const store = useChatHistoryStore.getState();
       const s1 = store.createSession();
       const s2 = store.createSession();
+
+      // Since s1 was empty, s2 should be s1 and total sessions should remain 1
+      expect(useChatHistoryStore.getState().sessions.length).toBe(1);
+      expect(s2.id).toBe(s1.id);
+    });
+
+    it('creates a new chat session when previous session contains messages', () => {
+      const store = useChatHistoryStore.getState();
+      const s1 = store.createSession();
+
+      // Add a message to s1
+      store.saveOrUpdateSession({
+        id: s1.id,
+        messages: [{ role: 'user', content: 'Hello agent', timestamp: '12:00 PM' }],
+      });
+
+      // Now creating a session should generate a second session
+      const s2 = store.createSession();
+      expect(useChatHistoryStore.getState().sessions.length).toBe(2);
+      expect(s2.id).not.toBe(s1.id);
+    });
+
+    it('deletes a chat session', () => {
+      const store = useChatHistoryStore.getState();
+      const s1 = store.createSession();
+      store.saveOrUpdateSession({
+        id: s1.id,
+        messages: [{ role: 'user', content: 'Task 1', timestamp: '12:00 PM' }],
+      });
+      const s2 = store.createSession();
+      store.saveOrUpdateSession({
+        id: s2.id,
+        messages: [{ role: 'user', content: 'Task 2', timestamp: '12:01 PM' }],
+      });
 
       expect(useChatHistoryStore.getState().sessions.length).toBe(2);
 
@@ -138,10 +172,45 @@ describe('Workspace and Chat History System', () => {
       expect(useChatHistoryStore.getState().getSession(s2.id)).toBeDefined();
     });
 
+    it('deletes multiple selected chat sessions using deleteSessions', () => {
+      const store = useChatHistoryStore.getState();
+      const s1 = store.createSession();
+      store.saveOrUpdateSession({
+        id: s1.id,
+        messages: [{ role: 'user', content: 'Message 1', timestamp: '12:00 PM' }],
+      });
+      const s2 = store.createSession();
+      store.saveOrUpdateSession({
+        id: s2.id,
+        messages: [{ role: 'user', content: 'Message 2', timestamp: '12:01 PM' }],
+      });
+      const s3 = store.createSession();
+      store.saveOrUpdateSession({
+        id: s3.id,
+        messages: [{ role: 'user', content: 'Message 3', timestamp: '12:02 PM' }],
+      });
+
+      expect(useChatHistoryStore.getState().sessions.length).toBe(3);
+
+      // Bulk delete s1 and s3
+      store.deleteSessions([s1.id, s3.id]);
+      const remaining = useChatHistoryStore.getState().sessions;
+      expect(remaining.length).toBe(1);
+      expect(remaining[0].id).toBe(s2.id);
+    });
+
     it('clears all chat sessions', () => {
       const store = useChatHistoryStore.getState();
-      store.createSession();
-      store.createSession();
+      const s1 = store.createSession();
+      store.saveOrUpdateSession({
+        id: s1.id,
+        messages: [{ role: 'user', content: 'Hello 1', timestamp: '12:00 PM' }],
+      });
+      const s2 = store.createSession();
+      store.saveOrUpdateSession({
+        id: s2.id,
+        messages: [{ role: 'user', content: 'Hello 2', timestamp: '12:01 PM' }],
+      });
 
       expect(useChatHistoryStore.getState().sessions.length).toBe(2);
 
