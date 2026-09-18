@@ -129,7 +129,13 @@ apiClient.interceptors.response.use(
       }
     }
 
-    if (typeof window !== "undefined" && status !== 401) {
+    const isSilent = Boolean(
+      (originalRequest as unknown as { silent?: boolean; skipGlobalError?: boolean })?.silent ||
+      (originalRequest as unknown as { silent?: boolean; skipGlobalError?: boolean })?.skipGlobalError ||
+      originalRequest.headers?.["x-silent-error"] === "true"
+    );
+
+    if (typeof window !== "undefined" && status !== 401 && !isSilent) {
       window.dispatchEvent(
         new CustomEvent("api:error", {
           detail: {

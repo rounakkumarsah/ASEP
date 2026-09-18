@@ -81,7 +81,9 @@ export function SidebarNav({ onClick, onCollapse }: { onClick?: () => void; onCo
   useEffect(() => {
     let isMounted = true;
     apiClient
-      .get("/api/v1/users/quota")
+      .get("/api/v1/users/quota", {
+        headers: { "x-silent-error": "true" },
+      })
       .then((res) => {
         if (isMounted && res.data) {
           setQuota({

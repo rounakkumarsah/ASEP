@@ -27,7 +27,49 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-import yaml
+try:
+    import yaml
+except ImportError:
+    yaml = None
+
+
+def _parse_yaml_fallback(text: str) -> dict[str, Any]:
+    """Pure-Python YAML frontmatter parser fallback when PyYAML is not installed."""
+    res: dict[str, Any] = {}
+    for line in text.strip().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if ":" in line:
+            k, v = line.split(":", 1)
+            k = k.strip()
+            v = v.strip()
+            if v.startswith("[") and v.endswith("]"):
+                items = [x.strip().strip("'\"") for x in v[1:-1].split(",") if x.strip()]
+                res[k] = items
+            elif v.lower() == "true":
+                res[k] = True
+            elif v.lower() == "false":
+                res[k] = False
+            elif v.isdigit():
+                res[k] = int(v)
+            else:
+                res[k] = v.strip("'\"")
+    return res
+
+
+def _dump_yaml_fallback(data: dict[str, Any]) -> str:
+    """Pure-Python YAML frontmatter serializer fallback."""
+    lines = []
+    for k, v in data.items():
+        if isinstance(v, list):
+            lines.append(f"{k}: [{', '.join(str(x) for x in v)}]")
+        elif isinstance(v, bool):
+            lines.append(f"{k}: {'true' if v else 'false'}")
+        else:
+            lines.append(f"{k}: {v}")
+    return "\n".join(lines)
+
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +153,10 @@ class Skill:
         if self.project_id:
             frontmatter["project_id"] = self.project_id
 
-        fm_yaml = yaml.safe_dump(frontmatter, sort_keys=False, default_flow_style=False).strip()
+        if yaml is not None:
+            fm_yaml = yaml.safe_dump(frontmatter, sort_keys=False, default_flow_style=False).strip()
+        else:
+            fm_yaml = _dump_yaml_fallback(frontmatter)
         return f"---\n{fm_yaml}\n---\n\n{self.instructions.strip()}\n"
 
 
@@ -152,7 +197,10 @@ class SkillManager:
         match = re.search(pattern, content, re.DOTALL)
         if match:
             frontmatter_str, body = match.group(1), match.group(2)
-            meta = yaml.safe_load(frontmatter_str) or {}
+            if yaml is not None:
+                meta = yaml.safe_load(frontmatter_str) or {}
+            else:
+                meta = _parse_yaml_fallback(frontmatter_str)
         else:
             meta = {}
             body = content

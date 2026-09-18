@@ -13,7 +13,9 @@
         "runtime": "python3.12",
         "includeFiles": [
           "backend/**",
-          "api/**"
+          "api/**",
+          "skills/**",
+          "main.py"
         ]
       }
     }

@@ -25,7 +25,9 @@ export function AppLayout({ children }: LayoutProps) {
   useEffect(() => {
     let isMounted = true;
     apiClient
-      .get("/api/v1/users/quota")
+      .get("/api/v1/users/quota", {
+        headers: { "x-silent-error": "true" },
+      })
       .then((res) => {
         if (isMounted && res.data) {
           setQuota({
