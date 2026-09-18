@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Menu, Search, Bell, User, LogOut, Settings as SettingsIcon, PanelLeft, PanelLeftClose } from "lucide-react";
+import { usePathname, useSearchParams, useRouter } from "next/navigation";
+import { Menu, Search, Bell, User, LogOut, Settings as SettingsIcon, PanelLeft, PanelLeftClose, ChevronLeft, ChevronRight } from "lucide-react";
 import { useSidebarStore } from "@/lib/stores/sidebarStore";
 import { usePlaygroundStore } from "@/lib/stores/playgroundStore";
 
@@ -18,18 +18,82 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { SidebarNav } from "@/components/dashboard/sidebar";
 import { useAuth } from "@/lib/providers/auth-provider";
 
+/** Map of known URL paths to display names */
+const PATH_LABELS: Record<string, string> = {
+  overview: "Overview",
+  projects: "Projects",
+  playground: "Playground",
+  copilot: "Copilot",
+  sessions: "Sessions",
+  memory: "Memory",
+  knowledge: "Knowledge",
+  skills: "Skills",
+  governance: "Governance",
+  approvals: "Approvals",
+  evaluation: "Evaluation",
+  metrics: "Metrics",
+  audit: "Audit Logs",
+  settings: "Settings",
+  documentation: "Documentation",
+  billing: "Billing",
+  "api-keys": "API Keys",
+  research: "Research",
+};
+
+/** Map of known tab query param values to display names (for pages like Settings) */
+const TAB_LABELS: Record<string, string> = {
+  profile: "Profile",
+  account: "Account",
+  security: "Security",
+  password: "Password",
+  mfa: "Two-Factor Auth",
+  sessions: "Sessions",
+  org: "Organization",
+  team: "Team",
+  api_keys: "API Keys",
+  billing: "Billing",
+  llm: "LLM Config",
+  mcp: "MCP Servers",
+  integrations: "Integrations",
+  environment: "Environment",
+  preferences: "Preferences",
+  notifications: "Notifications",
+  appearance: "Appearance",
+  delete_account: "Delete Account",
+};
+
 export function DashboardHeader() {
   const [isOpen, setIsOpen] = React.useState(false);
   const [isProfileOpen, setIsProfileOpen] = React.useState(false);
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const { user, logout } = useAuth();
 
-  // Clean breadcrumb generator
+  // Build breadcrumb segments: parent + optional sub-item
   const pathSegments = pathname.split("/").filter(Boolean);
-  const breadcrumb =
-    pathSegments.length > 0
-      ? pathSegments[0].charAt(0).toUpperCase() + pathSegments[0].slice(1)
-      : "Overview";
+  const topSegment = pathSegments[0] ?? "overview";
+  const parentLabel = PATH_LABELS[topSegment] ?? (topSegment.charAt(0).toUpperCase() + topSegment.slice(1));
+  const parentHref = `/${topSegment}`;
+
+  // Sub-item: check if there are deeper path segments or a ?tab= param
+  const tabParam = searchParams.get("tab");
+  const subPathSegment = pathSegments[1]; // e.g. /sessions/[id]
+  const subLabel = tabParam
+    ? TAB_LABELS[tabParam] ?? (tabParam.charAt(0).toUpperCase() + tabParam.slice(1))
+    : subPathSegment
+    ? PATH_LABELS[subPathSegment] ?? (subPathSegment.charAt(0).toUpperCase() + subPathSegment.slice(1))
+    : null;
+
+  // Back/forward navigation (browser history)
+  const [canGoBack, setCanGoBack] = React.useState(false);
+  const [canGoForward, setCanGoForward] = React.useState(false);
+
+  React.useEffect(() => {
+    // history.length > 1 means there IS history we can go back to
+    setCanGoBack(window.history.length > 1);
+    setCanGoForward(false); // no reliable cross-browser way to detect; forward availability is reset on each nav
+  }, [pathname, searchParams]);
 
   const { isMainSidebarOpen, toggleMainSidebar } = useSidebarStore();
   const { environmentMode, setEnvironmentMode, credentialsStatus } = usePlaygroundStore();
@@ -69,17 +133,60 @@ export function DashboardHeader() {
         {isMainSidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
       </Button>
 
+      {/* Back / Forward Navigation Arrows */}
+      <div className="hidden sm:flex items-center gap-0.5">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => router.back()}
+          disabled={!canGoBack}
+          className="h-7 w-7 text-[#9CA6B5] hover:text-[#F5F7FA] hover:bg-[#111720] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          title="Go back"
+          aria-label="Navigate back"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => router.forward()}
+          disabled={!canGoForward}
+          className="h-7 w-7 text-[#9CA6B5] hover:text-[#F5F7FA] hover:bg-[#111720] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          title="Go forward"
+          aria-label="Navigate forward"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+
       {/* Separator for Mobile */}
       <div className="h-5 w-px bg-[#202833] lg:hidden" aria-hidden="true" />
 
       {/* Breadcrumb Area */}
       <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
-        <div className="flex flex-1 items-center space-x-2 text-xs font-mono">
-          <Link href="/" className="text-[#667085] hover:text-[#F5F7FA] transition-colors">ASEP</Link>
-          <span className="text-[#667085]">/</span>
-          <span className="text-[#F5F7FA] font-semibold tracking-wide mr-2">{breadcrumb}</span>
-          
-          <div className="relative group">
+        <div className="flex flex-1 items-center space-x-2 text-xs font-mono min-w-0">
+          {/* ASEP root — always points to /overview for logged-in users */}
+          <Link href="/overview" className="text-[#667085] hover:text-[#F5F7FA] transition-colors shrink-0">ASEP</Link>
+          <span className="text-[#667085] shrink-0">/</span>
+
+          {/* Parent page label */}
+          {subLabel ? (
+            <Link href={parentHref} className="text-[#9CA6B5] hover:text-[#F5F7FA] transition-colors shrink-0">
+              {parentLabel}
+            </Link>
+          ) : (
+            <span className="text-[#F5F7FA] font-semibold tracking-wide">{parentLabel}</span>
+          )}
+
+          {/* Sub-item label (tab or nested route) */}
+          {subLabel && (
+            <>
+              <span className="text-[#667085] shrink-0">/</span>
+              <span className="text-[#F5F7FA] font-semibold tracking-wide truncate">{subLabel}</span>
+            </>
+          )}
+
+          <div className="relative group shrink-0 ml-2">
             <button 
               onClick={() => {
                 if (environmentMode === 'local') {
