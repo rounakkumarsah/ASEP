@@ -38,10 +38,23 @@ interface ChatHistoryState {
     workspaceName?: string | null;
   }) => ChatSession;
   deleteSession: (id: string) => void;
+  deleteSessions: (ids: string[]) => void;
   renameSession: (id: string, newTitle: string) => void;
   clearAllSessions: () => void;
   getSession: (id: string) => ChatSession | undefined;
 }
+
+const deduplicateEmptySessions = (sessions: ChatSession[]): ChatSession[] => {
+  let seenEmpty = false;
+  return sessions.filter((s) => {
+    const isEmpty = !s.messages || s.messages.length === 0;
+    if (isEmpty) {
+      if (seenEmpty) return false;
+      seenEmpty = true;
+    }
+    return true;
+  });
+};
 
 export const useChatHistoryStore = create<ChatHistoryState>()(
   persist(
@@ -100,7 +113,7 @@ export const useChatHistoryStore = create<ChatHistoryState>()(
           // Sort by updatedAt descending
           newSessions.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
-          set({ sessions: newSessions });
+          set({ sessions: deduplicateEmptySessions(newSessions) });
           return updated;
         } else {
           const newSession: ChatSession = {
@@ -119,7 +132,7 @@ export const useChatHistoryStore = create<ChatHistoryState>()(
 
           const newSessions = [newSession, ...state.sessions];
           set({
-            sessions: newSessions,
+            sessions: deduplicateEmptySessions(newSessions),
             activeSessionId: id,
           });
           return newSession;
@@ -127,6 +140,24 @@ export const useChatHistoryStore = create<ChatHistoryState>()(
       },
 
       createSession: (params) => {
+        const state = get();
+        // If an empty session already exists (0 messages), do NOT create a new duplicate empty one!
+        const existingEmpty = state.sessions.find(
+          (s) => !s.messages || s.messages.length === 0
+        );
+        if (existingEmpty) {
+          if (params?.projectId !== undefined) {
+            existingEmpty.projectId = params.projectId;
+            existingEmpty.projectName = params.projectName || null;
+          }
+          if (params?.workspaceId !== undefined) {
+            existingEmpty.workspaceId = params.workspaceId;
+            existingEmpty.workspaceName = params.workspaceName || null;
+          }
+          set({ activeSessionId: existingEmpty.id });
+          return existingEmpty;
+        }
+
         const id = `chat_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
         const now = new Date().toISOString();
         const newSession: ChatSession = {
@@ -144,7 +175,7 @@ export const useChatHistoryStore = create<ChatHistoryState>()(
         };
 
         set((state) => ({
-          sessions: [newSession, ...state.sessions],
+          sessions: [newSession, ...deduplicateEmptySessions(state.sessions)],
           activeSessionId: id,
         }));
 
@@ -152,9 +183,16 @@ export const useChatHistoryStore = create<ChatHistoryState>()(
       },
 
       deleteSession: (id) => {
+        get().deleteSessions([id]);
+      },
+
+      deleteSessions: (ids) => {
+        const idSet = new Set(ids);
         set((state) => {
-          const filtered = state.sessions.filter((s) => s.id !== id);
-          const nextActive = state.activeSessionId === id ? (filtered[0]?.id || null) : state.activeSessionId;
+          const filtered = state.sessions.filter((s) => !idSet.has(s.id));
+          const nextActive = idSet.has(state.activeSessionId || "")
+            ? (filtered[0]?.id || null)
+            : state.activeSessionId;
           return {
             sessions: filtered,
             activeSessionId: nextActive,
@@ -182,6 +220,13 @@ export const useChatHistoryStore = create<ChatHistoryState>()(
     }),
     {
       name: "asep_chat_history_storage_v1",
+      migrate: (persistedState: unknown) => {
+        const state = persistedState as { sessions?: ChatSession[] } | null;
+        if (state && Array.isArray(state.sessions)) {
+          state.sessions = deduplicateEmptySessions(state.sessions);
+        }
+        return state as ChatHistoryState;
+      },
     }
   )
 );

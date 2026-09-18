@@ -17,6 +17,7 @@ import {
   Edit2, 
   X
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useChatHistoryStore, ChatSession } from "@/lib/stores/chatHistoryStore";
 import { usePlaygroundStore } from "@/lib/stores/playgroundStore";
 
@@ -49,8 +50,9 @@ export function ChatHistorySheet({ open, onOpenChange, onNewChat }: ChatHistoryS
   const [selectedProjectFilter, setSelectedProjectFilter] = React.useState<string>("all");
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [editTitle, setEditTitle] = React.useState("");
+  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
 
-  const { sessions, activeSessionId, setActiveSessionId, deleteSession, renameSession, clearAllSessions } = useChatHistoryStore();
+  const { sessions, activeSessionId, setActiveSessionId, deleteSession, deleteSessions, renameSession, clearAllSessions } = useChatHistoryStore();
   const { setMessages, setProject, addTerminalLog } = usePlaygroundStore();
 
   // Extract unique projects from sessions for filtering
@@ -81,6 +83,50 @@ export function ChatHistorySheet({ open, onOpenChange, onNewChat }: ChatHistoryS
     });
   }, [sessions, search, selectedProjectFilter]);
 
+  const isAllSelected = filteredSessions.length > 0 && filteredSessions.every((s) => selectedIds.has(s.id));
+  const isSomeSelected = filteredSessions.length > 0 && !isAllSelected && filteredSessions.some((s) => selectedIds.has(s.id));
+
+  const handleToggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        filteredSessions.forEach((s) => next.delete(s.id));
+        return next;
+      });
+    } else {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        filteredSessions.forEach((s) => next.add(s.id));
+        return next;
+      });
+    }
+  };
+
+  const handleToggleSelectOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedIds.size === 0) return;
+    const count = selectedIds.size;
+    if (confirm(`Delete ${count} selected conversation${count === 1 ? "" : "s"} from history?`)) {
+      const isDeletingActive = activeSessionId ? selectedIds.has(activeSessionId) : false;
+      deleteSessions(Array.from(selectedIds));
+      setSelectedIds(new Set());
+      if (isDeletingActive) {
+        setMessages([]);
+      }
+    }
+  };
+
   const handleSelectSession = (session: ChatSession) => {
     setActiveSessionId(session.id);
     setMessages(session.messages || []);
@@ -109,13 +155,24 @@ export function ChatHistorySheet({ open, onOpenChange, onNewChat }: ChatHistoryS
   const handleDelete = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (confirm("Delete this conversation from history?")) {
+      const isDeletingActive = activeSessionId === id;
       deleteSession(id);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      if (isDeletingActive) {
+        setMessages([]);
+      }
     }
   };
 
   const handleClearAll = () => {
     if (confirm("Are you sure you want to delete all chat history? This cannot be undone.")) {
       clearAllSessions();
+      setSelectedIds(new Set());
+      setMessages([]);
     }
   };
 
@@ -200,6 +257,34 @@ export function ChatHistorySheet({ open, onOpenChange, onNewChat }: ChatHistoryS
           )}
         </div>
 
+        {/* Select All & Bulk Actions Bar */}
+        {filteredSessions.length > 0 && (
+          <div className="px-3 py-2 border-b border-[#202833] flex items-center justify-between bg-[#0B0F14] shrink-0">
+            <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-muted-foreground hover:text-foreground">
+              <Checkbox
+                checked={isAllSelected ? true : isSomeSelected ? "indeterminate" : false}
+                onCheckedChange={handleToggleSelectAll}
+                aria-label="Select all chats"
+              />
+              <span className="font-medium text-[11px]">
+                Select All {filteredSessions.length > 0 ? `(${filteredSessions.length})` : ""}
+              </span>
+            </label>
+
+            {selectedIds.size > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleDeleteSelected}
+                className="h-6 text-[11px] font-semibold px-2 bg-destructive/15 hover:bg-destructive/25 text-destructive border border-destructive/20 gap-1 shadow-sm"
+              >
+                <Trash2 className="h-3 w-3" />
+                Delete Selected ({selectedIds.size})
+              </Button>
+            )}
+          </div>
+        )}
+
         {/* Sessions List */}
         <div className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
           {filteredSessions.length === 0 ? (
@@ -220,6 +305,7 @@ export function ChatHistorySheet({ open, onOpenChange, onNewChat }: ChatHistoryS
             filteredSessions.map((session) => {
               const isActive = session.id === activeSessionId;
               const isEditing = session.id === editingId;
+              const isSelected = selectedIds.has(session.id);
 
               return (
                 <div
@@ -229,9 +315,22 @@ export function ChatHistorySheet({ open, onOpenChange, onNewChat }: ChatHistoryS
                     isActive
                       ? "bg-primary/5 border-primary/40 shadow-sm"
                       : "bg-[#111720]/60 hover:bg-[#111720] border-[#202833] hover:border-[#2A3441]"
-                  }`}
+                  } ${isSelected ? "border-primary/50 bg-primary/[0.04]" : ""}`}
                 >
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2.5">
+                    <div
+                      className="pt-0.5"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => handleToggleSelectOne(session.id)}
+                        aria-label={`Select ${session.title}`}
+                      />
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
                     {isEditing ? (
                       <form
                         onSubmit={(e) => handleSaveRename(e, session.id)}
@@ -316,7 +415,9 @@ export function ChatHistorySheet({ open, onOpenChange, onNewChat }: ChatHistoryS
                     )}
                   </div>
                 </div>
-              );
+              </div>
+            </div>
+          );
             })
           )}
         </div>
