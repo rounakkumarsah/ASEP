@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams, useRouter } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Menu, Search, Bell, User, LogOut, Settings as SettingsIcon, PanelLeft, PanelLeftClose, ChevronLeft, ChevronRight } from "lucide-react";
 import { useSidebarStore } from "@/lib/stores/sidebarStore";
 import { usePlaygroundStore } from "@/lib/stores/playgroundStore";
@@ -42,24 +42,30 @@ const PATH_LABELS: Record<string, string> = {
 
 /** Map of known tab query param values to display names (for pages like Settings) */
 const TAB_LABELS: Record<string, string> = {
-  profile: "Profile",
-  account: "Account",
+  profile: "User Profile",
+  account: "Account Details",
   security: "Security",
   password: "Password",
-  mfa: "Two-Factor Auth",
-  sessions: "Sessions",
+  mfa: "Multi-Factor Auth",
+  sessions: "Active Sessions",
   org: "Organization",
-  team: "Team",
+  team: "Team Members",
   api_keys: "API Keys",
-  billing: "Billing",
-  llm: "LLM Config",
+  billing: "Billing & Plans",
+  llm: "LLM Providers",
   mcp: "MCP Servers",
   integrations: "Integrations",
-  environment: "Environment",
+  environment: "Environment Rules",
   preferences: "Preferences",
   notifications: "Notifications",
   appearance: "Appearance",
   delete_account: "Delete Account",
+};
+
+/** Known standalone routes that logically belong under a parent section */
+const ROUTE_HIERARCHY: Record<string, { parentLabel: string; parentHref: string; subLabel: string }> = {
+  "api-keys": { parentLabel: "Settings", parentHref: "/settings?tab=api_keys", subLabel: "API Keys" },
+  billing: { parentLabel: "Settings", parentHref: "/settings?tab=billing", subLabel: "Billing & Plans" },
 };
 
 export function DashboardHeader() {
@@ -67,33 +73,81 @@ export function DashboardHeader() {
   const [isProfileOpen, setIsProfileOpen] = React.useState(false);
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const router = useRouter();
   const { user, logout } = useAuth();
 
   // Build breadcrumb segments: parent + optional sub-item
   const pathSegments = pathname.split("/").filter(Boolean);
   const topSegment = pathSegments[0] ?? "overview";
-  const parentLabel = PATH_LABELS[topSegment] ?? (topSegment.charAt(0).toUpperCase() + topSegment.slice(1));
-  const parentHref = `/${topSegment}`;
 
-  // Sub-item: check if there are deeper path segments or a ?tab= param
-  const tabParam = searchParams.get("tab");
-  const subPathSegment = pathSegments[1]; // e.g. /sessions/[id]
-  const subLabel = tabParam
-    ? TAB_LABELS[tabParam] ?? (tabParam.charAt(0).toUpperCase() + tabParam.slice(1))
-    : subPathSegment
-    ? PATH_LABELS[subPathSegment] ?? (subPathSegment.charAt(0).toUpperCase() + subPathSegment.slice(1))
-    : null;
+  // Check if this route has an explicit parent hierarchy override
+  let parentLabel = PATH_LABELS[topSegment] ?? (topSegment.charAt(0).toUpperCase() + topSegment.slice(1));
+  let parentHref = `/${topSegment}`;
+  let subLabel: string | null = null;
 
-  // Back/forward navigation (browser history)
+  if (ROUTE_HIERARCHY[topSegment]) {
+    parentLabel = ROUTE_HIERARCHY[topSegment].parentLabel;
+    parentHref = ROUTE_HIERARCHY[topSegment].parentHref;
+    subLabel = ROUTE_HIERARCHY[topSegment].subLabel;
+  } else if (topSegment === "settings") {
+    // Inside Settings, always show active section/tab context
+    const tabParam = searchParams.get("tab") || "profile";
+    subLabel = TAB_LABELS[tabParam] ?? (tabParam.charAt(0).toUpperCase() + tabParam.slice(1));
+  } else {
+    // Check if there are deeper path segments or a ?tab= param
+    const tabParam = searchParams.get("tab");
+    const subPathSegment = pathSegments[1]; // e.g. /sessions/[id]
+    if (tabParam) {
+      subLabel = TAB_LABELS[tabParam] ?? (tabParam.charAt(0).toUpperCase() + tabParam.slice(1));
+    } else if (subPathSegment) {
+      subLabel = PATH_LABELS[subPathSegment] ?? (subPathSegment.charAt(0).toUpperCase() + subPathSegment.slice(1));
+    }
+  }
+
+  // Back/forward navigation (browser history tracking)
   const [canGoBack, setCanGoBack] = React.useState(false);
   const [canGoForward, setCanGoForward] = React.useState(false);
+  const historyStackRef = React.useRef<string[]>([]);
+  const currentIndexRef = React.useRef<number>(-1);
 
   React.useEffect(() => {
-    // history.length > 1 means there IS history we can go back to
-    setCanGoBack(window.history.length > 1);
-    setCanGoForward(false); // no reliable cross-browser way to detect; forward availability is reset on each nav
+    if (typeof window === "undefined") return;
+
+    const queryString = searchParams.toString();
+    const fullUrl = queryString ? `${pathname}?${queryString}` : pathname;
+    const stack = historyStackRef.current;
+    const currIdx = currentIndexRef.current;
+
+    if (currIdx >= 0 && currIdx < stack.length && stack[currIdx] === fullUrl) {
+      return;
+    }
+
+    if (currIdx > 0 && stack[currIdx - 1] === fullUrl) {
+      currentIndexRef.current = currIdx - 1;
+    } else if (currIdx < stack.length - 1 && stack[currIdx + 1] === fullUrl) {
+      currentIndexRef.current = currIdx + 1;
+    } else {
+      const newStack = stack.slice(0, currIdx + 1);
+      newStack.push(fullUrl);
+      historyStackRef.current = newStack;
+      currentIndexRef.current = newStack.length - 1;
+    }
+
+    const idx = currentIndexRef.current;
+    setCanGoBack(idx > 0 || window.history.length > 1);
+    setCanGoForward(idx < historyStackRef.current.length - 1);
   }, [pathname, searchParams]);
+
+  const handleBack = () => {
+    if (typeof window !== "undefined") {
+      window.history.back();
+    }
+  };
+
+  const handleForward = () => {
+    if (typeof window !== "undefined") {
+      window.history.forward();
+    }
+  };
 
   const { isMainSidebarOpen, toggleMainSidebar } = useSidebarStore();
   const { environmentMode, setEnvironmentMode, credentialsStatus } = usePlaygroundStore();
@@ -138,10 +192,13 @@ export function DashboardHeader() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => router.back()}
-          disabled={!canGoBack}
-          className="h-7 w-7 text-[#9CA6B5] hover:text-[#F5F7FA] hover:bg-[#111720] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          title="Go back"
+          onClick={handleBack}
+          className={`h-7 w-7 transition-all duration-150 ${
+            canGoBack
+              ? "text-[#F5F7FA] hover:bg-[#111720] hover:text-[#22D3EE]"
+              : "text-[#667085] opacity-40 hover:opacity-80 hover:bg-[#111720]"
+          }`}
+          title="Go back (Alt+Left)"
           aria-label="Navigate back"
         >
           <ChevronLeft className="h-4 w-4" />
@@ -149,10 +206,13 @@ export function DashboardHeader() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => router.forward()}
-          disabled={!canGoForward}
-          className="h-7 w-7 text-[#9CA6B5] hover:text-[#F5F7FA] hover:bg-[#111720] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          title="Go forward"
+          onClick={handleForward}
+          className={`h-7 w-7 transition-all duration-150 ${
+            canGoForward
+              ? "text-[#F5F7FA] hover:bg-[#111720] hover:text-[#22D3EE]"
+              : "text-[#667085] opacity-40 hover:opacity-80 hover:bg-[#111720]"
+          }`}
+          title="Go forward (Alt+Right)"
           aria-label="Navigate forward"
         >
           <ChevronRight className="h-4 w-4" />

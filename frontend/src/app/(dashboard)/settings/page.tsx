@@ -2373,7 +2373,31 @@ export default function SettingsPage() {
         </div>
 
         {/* Single Right Content Panel Container */}
-        <section className="w-full min-w-0 self-start">
+        <section className="w-full min-w-0 self-start space-y-4">
+          {/* In-Page Hierarchy / Breadcrumb Indicator */}
+          {(() => {
+            const currentCategory = categories.find((cat) => cat.tabs.some((t) => t.id === activeTab));
+            const currentTab = currentCategory?.tabs.find((t) => t.id === activeTab);
+            return (
+              <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground px-3 py-2 rounded-lg bg-card/40 border border-border/40 w-fit shadow-xs">
+                <button
+                  type="button"
+                  onClick={() => handleTabChange("profile")}
+                  className="text-muted-foreground hover:text-foreground transition-colors font-medium cursor-pointer"
+                >
+                  Settings
+                </button>
+                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
+                <span className="text-muted-foreground/80">{currentCategory?.title || "Account & Access"}</span>
+                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
+                <span className="text-primary font-semibold flex items-center gap-1.5">
+                  {currentTab?.icon}
+                  {currentTab?.label || "User Profile"}
+                </span>
+              </div>
+            );
+          })()}
+
           {renderActiveTab()}
         </section>
       </div>
