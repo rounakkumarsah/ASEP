@@ -72,6 +72,10 @@ export function ExplorePanel() {
     return list;
   }, [explorationEvents, activeFilter]);
 
+  const searchCount = React.useMemo(() => explorationEvents.filter((e) => e.type === "search").length, [explorationEvents]);
+  const readCount = React.useMemo(() => explorationEvents.filter((e) => e.type === "read").length, [explorationEvents]);
+  const thinkCount = React.useMemo(() => explorationEvents.filter((e) => e.type === "think" || e.type === "analyze").length, [explorationEvents]);
+
   // Latest summary
   const latestSummary: ExplorationSummary | null = React.useMemo(() => {
     const keys = Object.keys(phaseExplorations);
@@ -92,23 +96,32 @@ export function ExplorePanel() {
   return (
     <div className="flex h-full flex-col bg-[#090B0F] font-mono text-xs text-zinc-300">
       {/* Header & Filter Controls */}
-      <div className="p-3 border-b border-border/40 bg-zinc-950/60 backdrop-blur flex flex-col gap-2.5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
-            <span className="font-semibold text-zinc-100 uppercase tracking-wider text-[11px]">
+      <div className="p-3 border-b border-border/40 bg-zinc-950/80 backdrop-blur flex flex-col gap-2.5">
+        {/* Row 1: Title & Controls */}
+        <div className="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="relative flex h-2 w-2 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500" />
+            </span>
+            <span className="font-semibold text-zinc-100 uppercase tracking-wider text-[11px] whitespace-nowrap">
               Live Exploration Feed
             </span>
-            <Badge variant="outline" className="bg-cyan-500/10 text-cyan-400 border-cyan-500/30 text-[10px] px-1.5 py-0 h-4">
+            <Badge variant="outline" className="bg-cyan-500/10 text-cyan-400 border-cyan-500/30 text-[10px] px-1.5 py-0 h-4 font-mono shrink-0">
               {explorationEvents.length} events
             </Badge>
           </div>
-          <div className="flex items-center gap-1.5">
+
+          <div className="flex items-center gap-1.5 shrink-0 ml-auto">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setShowRawJson((prev) => !prev)}
-              className={`h-6 text-[10px] px-2 border ${showRawJson ? "border-cyan-500/50 bg-cyan-500/10 text-cyan-300" : "border-zinc-800 text-zinc-400 hover:text-zinc-200"}`}
+              className={`h-6 text-[10px] px-2 font-mono border rounded transition-colors ${
+                showRawJson
+                  ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-300 shadow-[0_0_8px_rgba(34,211,238,0.2)]"
+                  : "border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
+              }`}
               title="Toggle raw event JSON view"
             >
               <Code className="h-3 w-3 mr-1" />
@@ -118,42 +131,67 @@ export function ExplorePanel() {
               variant="ghost"
               size="sm"
               onClick={() => setAutoScroll((prev) => !prev)}
-              className={`h-6 text-[10px] px-2 border ${autoScroll ? "border-emerald-500/50 text-emerald-400" : "border-zinc-800 text-zinc-400"}`}
+              className={`h-6 text-[10px] px-2 font-mono border rounded transition-colors ${
+                autoScroll
+                  ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400"
+                  : "border-zinc-800 bg-zinc-900/50 text-zinc-500 hover:bg-zinc-800"
+              }`}
               title="Toggle terminal auto-scroll"
             >
+              <span className={`h-1.5 w-1.5 rounded-full mr-1 ${autoScroll ? "bg-emerald-400 animate-pulse" : "bg-zinc-600"}`} />
               Auto-Scroll: {autoScroll ? "ON" : "OFF"}
             </Button>
           </div>
         </div>
 
-        {/* Filter Pills */}
-        <div className="flex items-center gap-1.5 flex-wrap">
+        {/* Row 2: Segmented Filter Controls */}
+        <div className="grid grid-cols-4 gap-1 p-0.5 bg-zinc-900/80 rounded-lg border border-zinc-800/60 font-mono text-[10px]">
           <button
             onClick={() => setActiveFilter("all")}
-            className={`px-2 py-0.5 rounded text-[10px] transition-colors ${activeFilter === "all" ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800"}`}
+            className={`py-1 px-1 rounded-md text-[10px] transition-all flex items-center justify-center gap-1 ${
+              activeFilter === "all"
+                ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-medium shadow-xs"
+                : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 border border-transparent"
+            }`}
           >
-            All ({explorationEvents.length})
+            <span>All</span>
+            <span className="text-[9px] opacity-75 font-mono">({explorationEvents.length})</span>
           </button>
           <button
             onClick={() => setActiveFilter("search")}
-            className={`px-2 py-0.5 rounded text-[10px] flex items-center gap-1 transition-colors ${activeFilter === "search" ? "bg-blue-500/20 text-blue-300 border border-blue-500/40" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800"}`}
+            className={`py-1 px-1 rounded-md text-[10px] transition-all flex items-center justify-center gap-1 ${
+              activeFilter === "search"
+                ? "bg-blue-500/20 text-blue-300 border border-blue-500/40 font-medium shadow-xs"
+                : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 border border-transparent"
+            }`}
           >
-            <Search className="h-2.5 w-2.5" />
-            Searches ({explorationEvents.filter((e) => e.type === "search").length})
+            <Search className="h-2.5 w-2.5 shrink-0" />
+            <span>Searches</span>
+            <span className="text-[9px] opacity-75 font-mono">({searchCount})</span>
           </button>
           <button
             onClick={() => setActiveFilter("read")}
-            className={`px-2 py-0.5 rounded text-[10px] flex items-center gap-1 transition-colors ${activeFilter === "read" ? "bg-amber-500/20 text-amber-300 border border-amber-500/40" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800"}`}
+            className={`py-1 px-1 rounded-md text-[10px] transition-all flex items-center justify-center gap-1 ${
+              activeFilter === "read"
+                ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 font-medium shadow-xs"
+                : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 border border-transparent"
+            }`}
           >
-            <FileText className="h-2.5 w-2.5" />
-            Files ({explorationEvents.filter((e) => e.type === "read").length})
+            <FileText className="h-2.5 w-2.5 shrink-0" />
+            <span>Files</span>
+            <span className="text-[9px] opacity-75 font-mono">({readCount})</span>
           </button>
           <button
             onClick={() => setActiveFilter("think")}
-            className={`px-2 py-0.5 rounded text-[10px] flex items-center gap-1 transition-colors ${activeFilter === "think" ? "bg-purple-500/20 text-purple-300 border border-purple-500/40" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800"}`}
+            className={`py-1 px-1 rounded-md text-[10px] transition-all flex items-center justify-center gap-1 ${
+              activeFilter === "think"
+                ? "bg-purple-500/20 text-purple-300 border border-purple-500/40 font-medium shadow-xs"
+                : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 border border-transparent"
+            }`}
           >
-            <Brain className="h-2.5 w-2.5" />
-            Thoughts ({explorationEvents.filter((e) => e.type === "think" || e.type === "analyze").length})
+            <Brain className="h-2.5 w-2.5 shrink-0" />
+            <span>Thoughts</span>
+            <span className="text-[9px] opacity-75 font-mono">({thinkCount})</span>
           </button>
         </div>
       </div>
@@ -162,12 +200,32 @@ export function ExplorePanel() {
       <ScrollArea className="flex-1 p-3">
         <div className="space-y-2 pb-6">
           {filteredEvents.length === 0 ? (
-            <div className="h-44 flex flex-col items-center justify-center text-zinc-500 text-center space-y-2 italic">
-              <Brain className="h-6 w-6 opacity-30 animate-pulse" />
-              <p>Awaiting exploration actions...</p>
-              <p className="text-[10px] opacity-70">
-                Live search, file reads, timed thoughts, and summaries will stream here.
-              </p>
+            <div className="h-72 flex flex-col items-center justify-center text-center p-6 space-y-3">
+              <div className="h-12 w-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shadow-[0_0_24px_rgba(34,211,238,0.12)]">
+                <Brain className="h-6 w-6 opacity-80 animate-pulse" />
+              </div>
+              <div className="space-y-1 max-w-[260px]">
+                <p className="font-semibold text-zinc-200 text-xs">
+                  Awaiting exploration actions...
+                </p>
+                <p className="text-[10px] opacity-70 text-zinc-400 leading-relaxed">
+                  Live search, file reads, timed thoughts, and summaries will stream here.
+                </p>
+              </div>
+              <div className="pt-2 w-full max-w-[270px] space-y-1.5 text-left">
+                <div className="p-2 rounded-lg bg-zinc-900/60 border border-zinc-800/80 flex items-center gap-2 text-[10px] text-zinc-400">
+                  <Search className="h-3 w-3 text-blue-400 shrink-0" />
+                  <span>Codebase search & symbols</span>
+                </div>
+                <div className="p-2 rounded-lg bg-zinc-900/60 border border-zinc-800/80 flex items-center gap-2 text-[10px] text-zinc-400">
+                  <FileText className="h-3 w-3 text-amber-400 shrink-0" />
+                  <span>Targeted 20-line file previews</span>
+                </div>
+                <div className="p-2 rounded-lg bg-zinc-900/60 border border-zinc-800/80 flex items-center gap-2 text-[10px] text-zinc-400">
+                  <Brain className="h-3 w-3 text-purple-400 shrink-0" />
+                  <span>Real-time multi-agent reasoning</span>
+                </div>
+              </div>
             </div>
           ) : (
             filteredEvents.map((ev, idx) => {

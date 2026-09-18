@@ -138,14 +138,18 @@ export function RightPanel() {
             
             {/* Execution Timeline */}
             <div className="space-y-3">
-              <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Plan Timeline</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Plan Timeline</h3>
+                {!hasActivity && (
+                  <Badge variant="outline" className="text-[9px] font-mono px-1.5 py-0 text-muted-foreground border-border/60 bg-muted/20">
+                    Example Trace
+                  </Badge>
+                )}
+              </div>
               
               {!hasActivity ? (
                 <div className="relative border-l border-border/60 ml-2 space-y-4 py-2 opacity-60">
                   <div className="absolute -inset-2 bg-gradient-to-b from-transparent via-background/20 to-background z-10 pointer-events-none" />
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 text-center w-full">
-                    <Badge variant="outline" className="bg-background shadow-lg mb-2 text-[10px]">Example Trace</Badge>
-                  </div>
                   {PIPELINE_STEPS.map((step) => (
                     <div key={step.id} className="relative pl-4 transition-all">
                       <CheckCircle2 className="absolute -left-2 top-0 h-4 w-4 text-emerald-500/50 bg-background" />
