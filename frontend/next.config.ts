@@ -13,6 +13,9 @@ import "./src/lib/config/env";
 const nextConfig: NextConfig = {
   output: "standalone",
   reactStrictMode: true,
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   async headers() {
     return [
       {

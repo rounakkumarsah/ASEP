@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { MessageSquare, Code, Terminal, Send, Loader2, Bot, User as UserIcon, Plus, GitCompare, Paperclip, Wrench, Cpu, Workflow, Play, FileText, FolderGit2, ShieldAlert, Gauge, Zap, BarChart2, AlertTriangle, Square, GitBranch, ExternalLink, Check, RefreshCw, GitPullRequest, CheckCircle2, Sparkles, PanelLeftOpen, PanelRightOpen, Mic, MicOff, Volume2 } from "lucide-react";
+import { MessageSquare, Code, Terminal, Send, Loader2, Bot, User as UserIcon, Plus, GitCompare, Paperclip, Wrench, Cpu, Workflow, Play, FileText, FolderGit2, ShieldAlert, Gauge, Zap, BarChart2, AlertTriangle, Square, GitBranch, ExternalLink, Check, RefreshCw, GitPullRequest, CheckCircle2, Sparkles, PanelLeftOpen, PanelRightOpen, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -140,7 +140,10 @@ export function CenterWorkspace() {
 
   // Universal Voice Typing
   const initialVoiceInputRef = React.useRef<string>("");
-  const { isListening, isTranscribing, toggleListening, layer } = useVoiceTyping({
+  const currentInputRef = React.useRef(input);
+  currentInputRef.current = input;
+
+  const { isListening, isTranscribing, toggleListening } = useVoiceTyping({
     onTranscript: (transcript, isFinal) => {
       setInput(() => {
         const base = initialVoiceInputRef.current;
@@ -159,7 +162,7 @@ export function CenterWorkspace() {
 
   React.useEffect(() => {
     if (isListening) {
-      initialVoiceInputRef.current = input;
+      initialVoiceInputRef.current = currentInputRef.current;
     }
   }, [isListening]);
   const [clarificationPrompt, setClarificationPrompt] = React.useState<string | null>(null);

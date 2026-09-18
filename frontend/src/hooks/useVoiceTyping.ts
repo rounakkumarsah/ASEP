@@ -9,6 +9,52 @@ interface UseVoiceTypingOptions {
   language?: string;
 }
 
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+  message?: string;
+}
+
+interface SpeechRecognitionEvent extends Event {
+  resultIndex: number;
+  results: {
+    length: number;
+    [index: number]: {
+      isFinal: boolean;
+      [index: number]: {
+        transcript: string;
+        confidence: number;
+      };
+    };
+  };
+}
+
+interface ISpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onstart: (() => void) | null;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+}
+
+interface FallbackItem {
+  from: string;
+  to: string;
+  reason: string;
+  toast?: string;
+}
+
+interface TranscribeSuccessData {
+  transcript: string;
+  provider: string;
+  latency_ms?: number;
+  fallbacks?: FallbackItem[];
+}
+
 export function useVoiceTyping({
   onTranscript,
   onToast,
@@ -18,11 +64,11 @@ export function useVoiceTyping({
   const [isTranscribing, setIsTranscribing] = React.useState(false);
   const [layer, setLayer] = React.useState<"layer1_webspeech" | "layer2_backend" | null>(null);
 
-  const recognitionRef = React.useRef<any>(null);
+  const recognitionRef = React.useRef<ISpeechRecognition | null>(null);
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
   const audioChunksRef = React.useRef<Blob[]>([]);
   const streamRef = React.useRef<MediaStream | null>(null);
-  const maxDurationTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const maxDurationTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const startTimeRef = React.useRef<number>(0);
 
   const recordVoiceTranscription = usePlaygroundStore((s) => s.recordVoiceTranscription);
@@ -73,12 +119,12 @@ export function useVoiceTyping({
         });
 
         if (res.ok) {
-          const data = await res.json();
+          const data: TranscribeSuccessData = await res.json();
           const latency = data.latency_ms || Math.round(performance.now() - startMs);
 
           // If fallback occurred, show tiny non-blocking toast(s)
           if (Array.isArray(data.fallbacks) && data.fallbacks.length > 0) {
-            data.fallbacks.forEach((fb: any) => {
+            data.fallbacks.forEach((fb: FallbackItem) => {
               const toastMsg =
                 fb.toast ||
                 (fb.from === "groq" && fb.to === "gemini"
@@ -94,16 +140,25 @@ export function useVoiceTyping({
             onTranscript(data.transcript, true);
           }
 
-          recordVoiceTranscription(data.provider, latency, data.fallbacks);
+          recordVoiceTranscription(
+            data.provider,
+            latency,
+            (data.fallbacks || []).map((fb) => ({
+              from: fb.from,
+              to: fb.to,
+              reason: fb.reason || "Switching provider",
+              toast: fb.toast,
+            }))
+          );
         } else {
           // All providers failed or server error
-          const errData = await res.json().catch(() => null);
+          const errData = (await res.json().catch(() => null)) as { detail?: { message?: string } } | null;
           const allFailMsg =
             errData?.detail?.message ||
             "Voice transcription unavailable right now. Please type or try again in a minute.";
           onToast?.(allFailMsg);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Voice transcription network error:", err);
         onToast?.("Voice transcription unavailable right now. Please type or try again in a minute.");
       } finally {
@@ -164,7 +219,7 @@ export function useVoiceTyping({
           mediaRecorderRef.current.stop();
         }
       }, 15000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Microphone access error:", err);
       setIsListening(false);
       onToast?.("Microphone permission denied or unavailable.");
@@ -176,17 +231,20 @@ export function useVoiceTyping({
   const startWebSpeech = React.useCallback(() => {
     if (typeof window === "undefined") return;
 
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const win = window as unknown as {
+      SpeechRecognition?: new () => ISpeechRecognition;
+      webkitSpeechRecognition?: new () => ISpeechRecognition;
+    };
+    const SpeechRecognitionClass = win.SpeechRecognition || win.webkitSpeechRecognition;
 
-    if (!SpeechRecognition) {
+    if (!SpeechRecognitionClass) {
       // Fallback directly to Layer 2 MediaRecorder
       startMediaRecorder();
       return;
     }
 
     try {
-      const recognition = new SpeechRecognition();
+      const recognition = new SpeechRecognitionClass();
       recognitionRef.current = recognition;
       recognition.continuous = true;
       recognition.interimResults = true;
@@ -200,7 +258,7 @@ export function useVoiceTyping({
         setLayer("layer1_webspeech");
       };
 
-      recognition.onresult = (event: any) => {
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
         let interimTranscript = "";
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           const part = event.results[i][0].transcript;
@@ -216,7 +274,7 @@ export function useVoiceTyping({
         }
       };
 
-      recognition.onerror = (event: any) => {
+      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
         console.warn("Web Speech API event error:", event.error);
         recognition.stop();
         setIsListening(false);
@@ -244,7 +302,7 @@ export function useVoiceTyping({
           recognitionRef.current.stop();
         }
       }, 15000);
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn("Could not start Web Speech API, falling back to Layer 2:", err);
       startMediaRecorder();
     }
