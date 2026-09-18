@@ -228,7 +228,7 @@ export function DashboardSidebar() {
   return (
     <aside
       className={cn(
-        "hidden lg:flex h-screen flex-col border-r border-[#202833] bg-[#0D1117] fixed inset-y-0 z-30 transition-all duration-300 ease-in-out",
+        "hidden lg:flex h-screen flex-col border-r border-[#202833] bg-[#0D1117] fixed inset-y-0 z-30 transition-all duration-300 ease-in-out overflow-hidden",
         isMainSidebarOpen ? "w-64 translate-x-0" : "w-0 -translate-x-full opacity-0 pointer-events-none border-r-0"
       )}
     >

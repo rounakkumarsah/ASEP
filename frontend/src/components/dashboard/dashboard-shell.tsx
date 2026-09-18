@@ -38,8 +38,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [toggleMainSidebar, toggleLeftPanel, toggleRightPanel]);
 
-  // Default to open for SSR
-  const isOpen = mounted ? isMainSidebarOpen : true;
+  // Default to closed by default
+  const isOpen = mounted ? isMainSidebarOpen : false;
 
   return (
     <div className="min-h-screen bg-background flex w-full">
@@ -49,7 +49,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       {/* Main Content Column */}
       <div
         className={cn(
-          "flex flex-col flex-1 min-h-screen transition-all duration-300 ease-in-out",
+          "flex flex-col flex-1 min-h-screen transition-all duration-300 ease-in-out min-w-0 overflow-x-hidden",
           isOpen ? "lg:pl-64" : "lg:pl-0"
         )}
       >

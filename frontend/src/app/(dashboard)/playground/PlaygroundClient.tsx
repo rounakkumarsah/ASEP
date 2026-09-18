@@ -100,7 +100,7 @@ export default function PlaygroundClient() {
     return () => window.removeEventListener("api:error", handleApiError);
   }, []);
 
-  const mainOpen = mounted ? isMainSidebarOpen : true;
+  const mainOpen = mounted ? isMainSidebarOpen : false;
   const leftOpen = mounted ? isLeftPanelOpen : true;
   const rightOpen = mounted ? isRightPanelOpen : true;
 
@@ -135,7 +135,7 @@ export default function PlaygroundClient() {
               <button
                 type="button"
                 onClick={toggleLeftPanel}
-                className="absolute left-0 top-1/2 -translate-y-1/2 z-30 flex items-center gap-1 py-3 px-1.5 rounded-r-md bg-background/90 hover:bg-accent border border-l-0 border-border/60 text-muted-foreground hover:text-primary shadow-lg transition-all group backdrop-blur"
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-30 hidden md:flex items-center gap-1 py-3 px-1.5 rounded-r-md bg-background/90 hover:bg-accent border border-l-0 border-border/60 text-muted-foreground hover:text-primary shadow-lg transition-all group backdrop-blur"
                 title="Expand Configuration Panel (Ctrl+[)"
                 aria-label="Expand Configuration Panel"
               >
@@ -153,7 +153,7 @@ export default function PlaygroundClient() {
               <button
                 type="button"
                 onClick={toggleRightPanel}
-                className="absolute right-0 top-1/2 -translate-y-1/2 z-30 flex items-center gap-1 py-3 px-1.5 rounded-l-md bg-background/90 hover:bg-accent border border-r-0 border-border/60 text-muted-foreground hover:text-[#22D3EE] shadow-lg transition-all group backdrop-blur"
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-30 hidden xl:flex items-center gap-1 py-3 px-1.5 rounded-l-md bg-background/90 hover:bg-accent border border-r-0 border-border/60 text-muted-foreground hover:text-[#22D3EE] shadow-lg transition-all group backdrop-blur"
                 title="Expand Execution Trace Panel (Ctrl+])"
                 aria-label="Expand Execution Trace Panel"
               >

@@ -990,21 +990,44 @@ export function CenterWorkspace() {
         </div>
       )}
       <Tabs value={activeCenterTab} onValueChange={setActiveCenterTab} className="flex-1 flex flex-col min-h-0">
-        <div className="px-4 py-2 border-b border-border/40 bg-background/50 backdrop-blur flex items-center justify-between gap-2 overflow-x-auto">
-          <TabsList className="bg-muted/50 h-9 p-1 shrink-0">
-            <TabsTrigger value="chat" className="text-xs gap-2"><MessageSquare className="h-3.5 w-3.5" /> Chat</TabsTrigger>
-            <TabsTrigger value="workflow" className="text-xs gap-2"><Workflow className="h-3.5 w-3.5" /> Visual Workflow</TabsTrigger>
-            <TabsTrigger value="artifacts" className="text-xs gap-2"><Code className="h-3.5 w-3.5" /> Artifacts</TabsTrigger>
-            <TabsTrigger value="diff" className="text-xs gap-2"><GitCompare className="h-3.5 w-3.5" /> Diff Viewer</TabsTrigger>
-            <TabsTrigger value="terminal" className="text-xs gap-2"><Terminal className="h-3.5 w-3.5" /> Terminal</TabsTrigger>
-            <TabsTrigger value="metrics" className="text-xs gap-2"><Gauge className="h-3.5 w-3.5" /> Token Metrics</TabsTrigger>
-            {securityFindings.length > 0 && <TabsTrigger value="security" className="text-xs gap-2 text-destructive"><ShieldAlert className="h-3.5 w-3.5" /> Security Audit</TabsTrigger>}
+        <div className="px-3 sm:px-4 py-2 border-b border-border/40 bg-background/50 backdrop-blur flex items-center justify-between gap-2 overflow-x-auto no-scrollbar scroll-smooth min-w-0">
+          <TabsList className="bg-muted/50 h-9 p-1 shrink-0 flex-nowrap">
+            <TabsTrigger value="chat" className="text-xs gap-1.5 sm:gap-2 px-2.5 sm:px-3">
+              <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+              <span>Chat</span>
+            </TabsTrigger>
+            <TabsTrigger value="workflow" className="text-xs gap-1.5 sm:gap-2 px-2.5 sm:px-3">
+              <Workflow className="h-3.5 w-3.5 shrink-0" />
+              <span><span className="hidden sm:inline">Visual </span>Workflow</span>
+            </TabsTrigger>
+            <TabsTrigger value="artifacts" className="text-xs gap-1.5 sm:gap-2 px-2.5 sm:px-3">
+              <Code className="h-3.5 w-3.5 shrink-0" />
+              <span>Artifacts</span>
+            </TabsTrigger>
+            <TabsTrigger value="diff" className="text-xs gap-1.5 sm:gap-2 px-2.5 sm:px-3">
+              <GitCompare className="h-3.5 w-3.5 shrink-0" />
+              <span>Diff<span className="hidden sm:inline"> Viewer</span></span>
+            </TabsTrigger>
+            <TabsTrigger value="terminal" className="text-xs gap-1.5 sm:gap-2 px-2.5 sm:px-3">
+              <Terminal className="h-3.5 w-3.5 shrink-0" />
+              <span>Terminal</span>
+            </TabsTrigger>
+            <TabsTrigger value="metrics" className="text-xs gap-1.5 sm:gap-2 px-2.5 sm:px-3">
+              <Gauge className="h-3.5 w-3.5 shrink-0" />
+              <span><span className="hidden sm:inline">Token </span>Metrics</span>
+            </TabsTrigger>
+            {securityFindings.length > 0 && (
+              <TabsTrigger value="security" className="text-xs gap-1.5 sm:gap-2 px-2.5 sm:px-3 text-destructive">
+                <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+                <span>Security<span className="hidden sm:inline"> Audit</span></span>
+              </TabsTrigger>
+            )}
           </TabsList>
           {activeSkills && activeSkills.length > 0 && (
-            <div className="flex items-center gap-1.5 shrink-0">
-              <span className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider hidden sm:inline">Active Skills:</span>
+            <div className="hidden md:flex items-center gap-1.5 shrink-0">
+              <span className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider hidden lg:inline">Active Skills:</span>
               {activeSkills.map((s) => (
-                <Badge key={s} variant="outline" className="bg-purple-500/10 text-purple-400 border-purple-500/30 text-[11px] font-mono py-0.5 px-2 flex items-center gap-1">
+                <Badge key={s} variant="outline" className="bg-purple-500/10 text-purple-400 border-purple-500/30 text-[11px] font-mono py-0.5 px-2 flex items-center gap-1 shrink-0">
                   <Sparkles className="w-2.5 h-2.5" />
                   [SKILL: {s}]
                 </Badge>

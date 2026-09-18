@@ -22,9 +22,35 @@ interface SidebarState {
   resetPanels: () => void;
 }
 
+const getInitialMainSidebar = (): boolean => {
+  if (typeof window !== "undefined") {
+    try {
+      const initialized = localStorage.getItem("asep_sidebar_v2_initialized");
+      if (!initialized) {
+        localStorage.setItem("asep_sidebar_v2_initialized", "true");
+        localStorage.setItem("asep_main_sidebar_open", "false");
+        return false;
+      }
+      const stored = localStorage.getItem("asep_main_sidebar_open");
+      if (stored !== null) return JSON.parse(stored);
+    } catch {}
+  }
+  return false;
+};
+
+const getStoredBoolean = (key: string, fallback: boolean): boolean => {
+  if (typeof window !== "undefined") {
+    try {
+      const item = localStorage.getItem(key);
+      if (item !== null) return JSON.parse(item);
+    } catch {}
+  }
+  return fallback;
+};
+
 export const useSidebarStore = create<SidebarState>((set) => ({
-  // Defaults: all open on desktop for complete workspace experience
-  isMainSidebarOpen: true,
+  // Main sidebar closed by default: user can open only when needed
+  isMainSidebarOpen: getInitialMainSidebar(),
   toggleMainSidebar: () =>
     set((state) => {
       const next = !state.isMainSidebarOpen;
@@ -44,7 +70,7 @@ export const useSidebarStore = create<SidebarState>((set) => ({
     set({ isMainSidebarOpen: open });
   },
 
-  isLeftPanelOpen: true,
+  isLeftPanelOpen: getStoredBoolean("asep_left_panel_open", true),
   toggleLeftPanel: () =>
     set((state) => {
       const next = !state.isLeftPanelOpen;
@@ -64,7 +90,7 @@ export const useSidebarStore = create<SidebarState>((set) => ({
     set({ isLeftPanelOpen: open });
   },
 
-  isRightPanelOpen: true,
+  isRightPanelOpen: getStoredBoolean("asep_right_panel_open", true),
   toggleRightPanel: () =>
     set((state) => {
       const next = !state.isRightPanelOpen;
@@ -86,7 +112,7 @@ export const useSidebarStore = create<SidebarState>((set) => ({
 
   resetPanels: () =>
     set({
-      isMainSidebarOpen: true,
+      isMainSidebarOpen: false,
       isLeftPanelOpen: true,
       isRightPanelOpen: true,
     }),

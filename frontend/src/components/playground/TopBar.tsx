@@ -41,17 +41,17 @@ export function TopBar() {
   const orgName = user?.first_name ? `${user.first_name}'s Workspace` : "Personal Workspace";
 
   return (
-    <header className="flex h-14 items-center justify-between border-b border-border/40 bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex items-center gap-4">
+    <header className="flex h-14 items-center justify-between border-b border-border/40 bg-background/95 px-3 sm:px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 min-w-0 overflow-hidden shrink-0">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 mr-2">
         {/* Org Switcher */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="gap-2 px-2 hover:bg-accent/50 font-medium">
-              <div className="flex h-6 w-6 items-center justify-center rounded bg-primary/10 text-primary">
+            <Button variant="ghost" size="sm" className="gap-1.5 px-2 hover:bg-accent/50 font-medium shrink-0 max-w-[140px] sm:max-w-[200px]">
+              <div className="flex h-6 w-6 items-center justify-center rounded bg-primary/10 text-primary shrink-0">
                 <Box className="h-4 w-4" />
               </div>
-              {orgName}
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              <span className="truncate text-xs sm:text-sm">{orgName}</span>
+              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-48">
@@ -59,20 +59,20 @@ export function TopBar() {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <div className="h-4 w-px bg-border/50" />
+        <div className="h-4 w-px bg-border/50 shrink-0 hidden sm:block" />
 
-        <span className="text-sm font-semibold tracking-tight text-foreground/90">
+        <span className="text-xs sm:text-sm font-semibold tracking-tight text-foreground/90 shrink-0 hidden lg:inline-block">
           Engineering Workspace
         </span>
 
-        <Badge variant="outline" className="hidden sm:inline-flex bg-primary/5 text-primary border-primary/20 hover:bg-primary/10 transition-colors">
+        <Badge variant="outline" className="hidden md:inline-flex bg-primary/5 text-primary border-primary/20 hover:bg-primary/10 transition-colors whitespace-nowrap shrink-0 text-xs">
           {selectedProjectName || "No Project Linked"}
         </Badge>
 
-        <div className="h-4 w-px bg-border/50 hidden md:block" />
+        <div className="h-4 w-px bg-border/50 hidden md:block shrink-0" />
 
         {/* 3-Column Layout Toggle Controls */}
-        <div className="hidden md:flex items-center rounded-lg border border-border/40 bg-muted/30 p-0.5 shadow-xs">
+        <div className="flex items-center rounded-lg border border-border/40 bg-muted/30 p-0.5 shadow-xs shrink-0">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -103,7 +103,7 @@ export function TopBar() {
                 size="icon"
                 onClick={toggleLeftPanel}
                 className={cn(
-                  "h-7 w-7 rounded-md transition-all",
+                  "h-7 w-7 rounded-md transition-all hidden md:inline-flex",
                   isLeftPanelOpen
                     ? "bg-background text-primary shadow-xs"
                     : "text-muted-foreground hover:text-foreground opacity-60"
@@ -126,7 +126,7 @@ export function TopBar() {
                 size="icon"
                 onClick={toggleRightPanel}
                 className={cn(
-                  "h-7 w-7 rounded-md transition-all",
+                  "h-7 w-7 rounded-md transition-all hidden xl:inline-flex",
                   isRightPanelOpen
                     ? "bg-background text-primary shadow-xs"
                     : "text-muted-foreground hover:text-foreground opacity-60"
@@ -144,21 +144,21 @@ export function TopBar() {
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
-        <div className="hidden items-center gap-1.5 md:flex">
-          <Badge variant="secondary" className="gap-1 font-mono text-[10px] bg-accent/30 text-muted-foreground">
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="hidden items-center gap-1.5 xl:flex shrink-0">
+          <Badge variant="secondary" className="gap-1 font-mono text-[10px] bg-accent/30 text-muted-foreground whitespace-nowrap">
             <Zap className="h-3 w-3 text-amber-500" />
             1.2s Latency
           </Badge>
-          <Badge variant="secondary" className="gap-1 font-mono text-[10px] bg-accent/30 text-muted-foreground">
+          <Badge variant="secondary" className="gap-1 font-mono text-[10px] bg-accent/30 text-muted-foreground whitespace-nowrap">
             <CreditCard className="h-3 w-3 text-emerald-500" />
             $0.02 Cost
           </Badge>
         </div>
 
-        <div className="h-4 w-px bg-border/50 hidden md:block" />
+        <div className="h-4 w-px bg-border/50 hidden xl:block shrink-0" />
 
-        <div className="flex -space-x-2">
+        <div className="flex -space-x-2 shrink-0">
           <Avatar className="h-7 w-7 border-2 border-background">
             <AvatarFallback className="bg-primary/10 text-primary text-xs">
               {user?.first_name ? user.first_name.charAt(0).toUpperCase() : <User className="h-3 w-3" />}
@@ -166,7 +166,7 @@ export function TopBar() {
           </Avatar>
         </div>
 
-        <Button size="sm" variant="outline" className="h-8 gap-1 border-dashed">
+        <Button size="sm" variant="outline" className="h-8 gap-1 border-dashed hidden sm:inline-flex shrink-0 text-xs">
           <Plus className="h-3.5 w-3.5" />
           Invite
         </Button>
