@@ -77,3 +77,4 @@ __all__: list[str] = [
     "HITLAction",
 ]
 
+from .document import Document, DocumentChunk

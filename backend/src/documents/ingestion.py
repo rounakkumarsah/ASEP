@@ -117,62 +117,96 @@ class IngestionService:
                 texts_indices.append(idx)
 
         if texts_to_embed:
-            new_embeddings = await self.embedder.embed_documents(texts_to_embed)
-            for relative_idx, real_idx in enumerate(texts_indices):
-                vec = new_embeddings[relative_idx]
-                embeddings[real_idx] = vec
-                # Cache embedding
-                self._embedding_cache[chunk_records[real_idx].content_hash] = vec
+            try:
+                new_embeddings = await self.embedder.embed_documents(texts_to_embed)
+                for relative_idx, real_idx in enumerate(texts_indices):
+                    vec = new_embeddings[relative_idx]
+                    embeddings[real_idx] = vec
+                    self._embedding_cache[chunk_records[real_idx].content_hash] = vec
+            except Exception as e:
+                logger.error(f"Embedding API failed: {e}")
+                from fastapi import HTTPException
+                raise HTTPException(status_code=503, detail="Embedding API unavailable.")
 
         # 6. Insert Document Node into Neo4j
-        await self.graph.execute_write(
-            CREATE_DOCUMENT_QUERY,
-            {"doc_id": doc_id, "properties": doc_metadata}
-        )
+        try:
+            await self.graph.execute_write(
+                CREATE_DOCUMENT_QUERY,
+                {"doc_id": doc_id, "properties": doc_metadata}
+            )
+        except Exception as e:
+            logger.error(f"Neo4j failed during document insert: {e}")
+            from fastapi import HTTPException
+            raise HTTPException(status_code=503, detail="Graph Database unavailable.")
 
         vector_records: list[VectorRecord] = []
 
-        # 7. Symmetrically write Chunks and Relationships to Neo4j & prepare Qdrant records
-        for i, (chunk, vector) in enumerate(zip(chunk_records, embeddings, strict=False)):
-            chunk_metadata_dict = chunk.metadata.dict()
-            chunk_metadata_dict["id"] = chunk.chunk_id
-            chunk_metadata_dict["parent_id"] = chunk.parent_id
-            chunk_metadata_dict["text"] = chunk.content
-            chunk_metadata_dict["content_hash"] = chunk.content_hash
+        try:
+            # 7. Symmetrically write Chunks and Relationships to Neo4j & prepare Qdrant records
+            for i, (chunk, vector) in enumerate(zip(chunk_records, embeddings, strict=False)):
+                chunk_metadata_dict = chunk.metadata.dict()
+                chunk_metadata_dict["id"] = chunk.chunk_id
+                chunk_metadata_dict["parent_id"] = chunk.parent_id
+                chunk_metadata_dict["text"] = chunk.content
+                chunk_metadata_dict["content_hash"] = chunk.content_hash
 
-            # Neo4j: Write chunk node
-            await self.graph.execute_write(
-                CREATE_CHUNK_QUERY,
-                {"chunk_id": chunk.chunk_id, "properties": chunk_metadata_dict}
-            )
-
-            # Neo4j: Link chunk to parent document
-            await self.graph.execute_write(
-                LINK_CHUNK_TO_DOCUMENT_QUERY,
-                {"doc_id": doc_id, "chunk_id": chunk.chunk_id, "index": i}
-            )
-
-            # Qdrant payload preserving full metadata fields
-            vector_records.append(
-                VectorRecord(
-                    id=chunk.chunk_id,
-                    vector=vector,
-                    payload={
-                        "text": chunk.content,
-                        "document_id": doc_id,
-                        "parent_id": chunk.parent_id,
-                        "chunk_index": i,
-                        "filename": chunk.metadata.filename,
-                        "file_path": chunk.metadata.file_path,
-                        "collection": chunk.metadata.collection,
-                        "source": chunk.metadata.source,
-                        "version": chunk.metadata.version,
-                    }
+                # Neo4j: Write chunk node
+                await self.graph.execute_write(
+                    CREATE_CHUNK_QUERY,
+                    {"chunk_id": chunk.chunk_id, "properties": chunk_metadata_dict}
                 )
-            )
 
-        # 8. Upsert all embeddings in batch to Qdrant
-        await self.vector.batch_upsert(collection_name, vector_records)
+                # Neo4j: Link chunk to parent document
+                await self.graph.execute_write(
+                    LINK_CHUNK_TO_DOCUMENT_QUERY,
+                    {"doc_id": doc_id, "chunk_id": chunk.chunk_id, "index": i}
+                )
+
+                # Qdrant payload preserving full metadata fields
+                import uuid
+                try:
+                    point_id = str(uuid.UUID(chunk.chunk_id))
+                except (ValueError, AttributeError):
+                    point_id = str(uuid.uuid5(uuid.NAMESPACE_OID, str(chunk.chunk_id)))
+
+                vector_records.append(
+                    VectorRecord(
+                        id=point_id,
+                        vector=vector,
+                        payload={
+                            "chunk_id": chunk.chunk_id,
+                            "text": chunk.content,
+                            "document_id": doc_id,
+                            "parent_id": chunk.parent_id,
+                            "chunk_index": i,
+                            "filename": chunk.metadata.filename,
+                            "file_path": chunk.metadata.file_path,
+                            "collection": chunk.metadata.collection,
+                            "source": chunk.metadata.source,
+                            "version": chunk.metadata.version,
+                        }
+                    )
+                )
+
+            # 8. Upsert all embeddings in batch to Qdrant
+            if hasattr(self.vector, 'batch_upsert'):
+                await self.vector.batch_upsert(collection_name, vector_records)
+            else:
+                await self.vector.upsert(collection_name, vector_records)
+                
+        except Exception as e:
+            logger.error(f"Failed to ingest chunks/vectors. Cleaning up doc {doc_id}: {e}")
+            try:
+                await self.graph.execute_write(
+                    "MATCH (d:Document {id: $doc_id}) DETACH DELETE d", {"doc_id": doc_id}
+                )
+                await self.graph.execute_write(
+                    "MATCH (c:Chunk) WHERE c.document_id = $doc_id DETACH DELETE c", {"doc_id": doc_id}
+                )
+            except Exception as cleanup_e:
+                logger.error(f"Cleanup failed: {cleanup_e}")
+            from fastapi import HTTPException
+            raise HTTPException(status_code=503, detail="Storage services unavailable during chunk ingestion.")
 
         logger.info(f"Ingestion completed successfully for '{file_path}'. Chunks: {len(chunk_records)}")
         return {

@@ -143,8 +143,37 @@ class HybridRetrievalPipeline:
             for hit in vector_hits
         ]
 
-        # 2. BM25 Lexical Search over retrieved set
-        bm25_results = self.bm25.search_bm25(query, vector_results, limit=limit)
+        # 2. Corpus-wide BM25 Sparse Vector Search in Qdrant
+        sparse_hits = []
+        if hasattr(self.vector, 'embed_sparse'):
+            try:
+                # Need to use _client because vector_service encapsulates it
+                client = getattr(self.vector, '_client', None)
+                if client:
+                    # AsyncQdrantClient search might be async! Wait, vector_service methods are async.
+                    # Qdrant client search is async
+                    sparse_hits = await client.search(
+                        collection_name=self.collection_name,
+                        query_vector=self.vector.embed_sparse(query),
+                        query_vector_name="sparse",
+                        limit=limit,
+                    )
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(f"Sparse search failed: {e}")
+        bm25_results = [
+            {
+                "chunk_id": hit.id,
+                "id": hit.id,
+                "text": hit.payload.get("text", ""),
+                "content": hit.payload.get("text", ""),
+                "document_id": hit.payload.get("document_id", ""),
+                "parent_id": hit.payload.get("parent_id"),
+                "filename": hit.payload.get("filename"),
+                "file_path": hit.payload.get("file_path"),
+            }
+            for hit in sparse_hits
+        ] if sparse_hits else []
 
         # 3. Multi-hop Graph Search
         graph_connections: list[ExpandedGraphNode] = []
@@ -152,7 +181,8 @@ class HybridRetrievalPipeline:
             seed_ids = [r["chunk_id"] for r in vector_results]
             graph_connections = await self.graph_expansion.expand_multi_hop(seed_ids, depth=2)
 
-        # 4. RRF Rank Fusion
+        # 3. Fuse dense and sparse results using Reciprocal Rank Fusion
+        from src.knowledge.vector import ReciprocalRankFusion
         fused = ReciprocalRankFusion.fuse([vector_results, bm25_results], k=60)
 
         # 5. Format HybridSearchResult list

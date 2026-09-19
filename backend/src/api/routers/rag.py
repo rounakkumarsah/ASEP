@@ -1,5 +1,6 @@
 import time
 from typing import Any
+from src.auth.dependencies import CurrentUser
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -61,6 +62,7 @@ def get_retriever() -> Retriever:
 @router.post("/rag/search", response_model=RAGSearchResponse)
 async def semantic_rag_search(
     request: RAGQueryRequest,
+    current_user: CurrentUser,
     retriever: Retriever = Depends(get_retriever),
 ) -> RAGSearchResponse:
     """Execute a hybrid vector + graph RAG query with strict rate-limiting."""

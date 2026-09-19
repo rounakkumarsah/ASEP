@@ -464,3 +464,16 @@ class SecurityScanner:
 
 # Global singleton scanner instance
 scanner = SecurityScanner()
+
+
+def secure_filename(filename: str) -> str:
+    """Sanitize a filename by removing unsafe characters and path traversal segments."""
+    import os
+    import unicodedata
+    filename = unicodedata.normalize("NFKD", filename)
+    filename = filename.encode("ascii", "ignore").decode("ascii")
+    for sep in [os.path.sep, os.path.altsep]:
+        if sep:
+            filename = filename.replace(sep, " ")
+    filename = "_".join(re.findall(r"[\w.-]+", filename)).strip("._")
+    return filename or "document"

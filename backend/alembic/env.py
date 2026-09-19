@@ -42,11 +42,9 @@ def get_database_url() -> str:
     settings = get_settings()
     url = settings.DATABASE_URL
     if "postgresql+asyncpg://" in url:
-        url = url.replace("postgresql+asyncpg://", "postgresql+pg8000://")
-    # Strip sslmode query parameter since pg8000 expects ssl_context parameter instead
-    if "sslmode=" in url:
-        import re
-        url = re.sub(r'[&?]sslmode=[^&]+', '', url)
+        url = url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
+    import re
+    url = re.sub(r'\?.*', '', url)
     return url
 
 
@@ -134,7 +132,6 @@ def run_migrations_online() -> None:
         configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
-        connect_args={"ssl_context": ssl_ctx} if ("pg8000" in url and ssl_ctx is not None) else {}
     )
 
     with connectable.connect() as connection:

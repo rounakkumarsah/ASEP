@@ -85,6 +85,9 @@ async def upload_document(
     file: UploadFile = File(...),
 ) -> dict[str, Any]:
     """Universal Document Ingestion Pipeline (PDF, DOCX, TXT, CSV) with strict 25 MB limit."""
+    import magic
+    from src.utils.security_scanner import secure_filename
+    
     file_bytes = await file.read()
     file_size = len(file_bytes)
 
@@ -98,55 +101,96 @@ async def upload_document(
             detail=f"File '{file.filename}' ({mb_size} MB) exceeds maximum allowed size limit of {max_mb} MB.",
         )
 
+    # P2(f): Magic-byte validation
+    mime_type = magic.from_buffer(file_bytes, mime=True)
+    allowed_mimes = ["application/pdf", "text/plain", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/csv"]
+    if mime_type not in allowed_mimes:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=f"Unsupported file type: {mime_type}"
+        )
+        
+    # P2(g): Secure filename sanitization
+    safe_filename = secure_filename(file.filename or "doc.txt")
+
     cid = otel.create_correlation_id()
     tracer.start_span("span_ingest_1", cid, "ingestion_pipeline", "parse_document")
 
-    cloud_url = upload_to_cloudinary(file_bytes, resource_type="raw", filename=file.filename)
+    # Upload to cloud storage (optional)
+    cloud_url = upload_to_cloudinary(file_bytes, resource_type="raw", filename=safe_filename)
     if not cloud_url:
-        cloud_meta = await cloudinary_storage.upload_file(file_bytes, file.filename or "doc.txt", folder="knowledge_docs")
+        cloud_meta = await cloudinary_storage.upload_file(file_bytes, safe_filename, folder="knowledge_docs")
         cloud_url = cloud_meta.get("secure_url")
 
-    extracted_text = await ingestion_service.parse_document(file_bytes, file.filename or "doc.txt")
+    import tempfile
+    import os
+    with tempfile.NamedTemporaryFile(delete=False, suffix=safe_filename) as tmp:
+        tmp.write(file_bytes)
+        tmp_path = tmp.name
 
-    tracer.end_span("span_ingest_1", status="ok", tokens_used=len(extracted_text.split()), cost_usd=0.0)
+    try:
+        from src.documents.ingestion import IngestionService
+        from src.graph import GraphService, init_neo4j, get_neo4j_driver
+        from src.vector.vector_service import VectorService
+        from src.documents.embedding_service import RuntimeEmbeddingProvider
+        from src.config.settings import get_settings
+        
+        settings = get_settings()
+        
+        # Need to ensure driver is inited if not already. If in a FastAPI request, it's usually inited.
+        # But we can just use get_neo4j_driver since lifespan handles init.
+        try:
+            driver = get_neo4j_driver()
+        except RuntimeError:
+            await init_neo4j()
+            driver = get_neo4j_driver()
+            
+        graph = GraphService(driver)
+        from src.vector.qdrant import get_qdrant_client
+        qclient = get_qdrant_client()
+        vector = VectorService(qclient)
+        embedder = RuntimeEmbeddingProvider()
+        ingest_svc = IngestionService(graph, vector, embedder)
+        
+        ingest_result = await ingest_svc.ingest_document(tmp_path)
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
-    # Register document in Knowledge Sync engine so it is queryable in Knowledge Base
-    from src.knowledge.sync import SyncedDocument, get_sync_engine
+    tracer.end_span("span_ingest_1", status="ok", tokens_used=0, cost_usd=0.0)
+
+    # P0(b): Persist document metadata to Postgres
+    from src.db.postgres import get_db_session
+    from src.db.models.document import Document
     import hashlib
     import time
     import uuid
 
     doc_id = f"doc_{uuid.uuid4().hex[:8]}"
     content_hash = hashlib.sha256(file_bytes).hexdigest()[:12]
-    engine = get_sync_engine()
-    engine.documents[doc_id] = SyncedDocument(
-        document_id=doc_id,
-        source_id="upload",
-        source_name=file.filename or "Uploaded Document",
-        source_type="file_upload",
-        source_url=cloud_url,
-        version="1.0",
-        checksum=content_hash,
-        created_at=time.time(),
-        updated_at=time.time(),
-        indexed_at=time.time(),
-        trust_level=1.0,
-        language="en",
-        license="User Provided",
-        provenance=f"User Upload ({getattr(current_user, 'email', 'authenticated')})",
-        content=extracted_text,
-    )
+    
+    async for db in get_db_session():
+        doc = Document(
+            id=doc_id,
+            source_name=safe_filename,
+            source_type="file_upload",
+            source_url=cloud_url,
+            content_hash=content_hash,
+            created_at=time.time(),
+            updated_at=time.time(),
+            tags=["upload", mime_type]
+        )
+        db.add(doc)
+        await db.commit()
+        break
 
     return {
         "trace_id": cid,
         "document_id": doc_id,
-        "filename": file.filename,
+        "filename": safe_filename,
         "cloud_url": cloud_url,
-        "bytes_received": len(file_bytes),
-        "character_count": len(extracted_text),
+        "bytes_received": file_size,
         "status": "ingested",
-        "sample_text": extracted_text[:200],
-        "extracted_text": extracted_text,
     }
 
 

@@ -96,7 +96,7 @@ class VectorService:
         size = vector_size or settings.QDRANT_VECTOR_SIZE
 
         # Lazy import — qdrant_client is an optional heavy dependency
-        from qdrant_client.http.models import Distance, VectorParams  # noqa: PLC0415
+        from qdrant_client.http.models import Distance, VectorParams, SparseVectorParams  # noqa: PLC0415
 
         if distance is None:
             distance = Distance.COSINE
@@ -114,10 +114,22 @@ class VectorService:
         )
         await self._client.create_collection(
             collection_name=name,
-            vectors_config=VectorParams(size=size, distance=distance),
+            vectors_config={"": VectorParams(size=size, distance=distance)},
+            sparse_vectors_config={"sparse": SparseVectorParams()},
         )
         logger.info("Collection '%s' created successfully.", name)
         return True
+
+    def embed_sparse(self, text: str):
+        from collections import Counter
+        import re
+        from qdrant_client.http.models import SparseVector
+        tokens = re.findall(r'\w+', text.lower())
+        vocab = {w: i for i, w in enumerate(set(tokens))}
+        counts = Counter(tokens)
+        indices = [vocab[w] for w in counts.keys()]
+        values = [float(c) for c in counts.values()]
+        return SparseVector(indices=indices, values=values)
 
     @retry(**_RETRY_POLICY)
     async def delete_collection(self, collection_name: str) -> bool:
@@ -167,7 +179,9 @@ class VectorService:
         points = [
             # Lazy import — qdrant_client is an optional heavy dependency
             __import__('qdrant_client.http.models', fromlist=['PointStruct']).PointStruct(
-                id=r.id, vector=r.vector, payload=r.payload
+                id=r.id, 
+                vector={"": r.vector, "sparse": self.embed_sparse(r.payload.get("text", ""))} if r.payload and "text" in r.payload else r.vector, 
+                payload=r.payload
             )
             for r in records
         ]

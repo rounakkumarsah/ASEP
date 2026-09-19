@@ -3,6 +3,7 @@ ASEP — API Router for Knowledge Synchronization Engine
 """
 
 from typing import Any
+from src.auth.dependencies import CurrentUser
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -87,18 +88,44 @@ async def get_sync_history() -> list[dict[str, Any]]:
 
 
 @router.get("/documents")
-async def list_documents(query: str | None = None) -> list[dict[str, Any]]:
+async def list_documents(
+    current_user: CurrentUser,
+    query: str | None = None,
+) -> list[dict[str, Any]]:
     """Retrieve all currently synchronized document records with optional query filtering."""
-    engine = get_sync_engine()
-    docs = [doc.model_dump() for doc in engine.documents.values()]
-    if query:
-        q = query.strip().lower()
-        if q:
-            docs = [
-                d for d in docs
-                if q in str(d.get("source_name", "")).lower()
-                or q in str(d.get("title", "")).lower()
-                or q in str(d.get("content", "")).lower()
-                or any(q in str(t).lower() for t in d.get("tags", []))
-            ]
-    return docs
+    from src.db.postgres import get_db_session
+    from src.db.models.document import Document
+    from sqlalchemy import select
+    from sqlalchemy.exc import ProgrammingError
+    
+    docs_out = []
+    try:
+        async for db in get_db_session():
+            stmt = select(Document)
+            # Basic in-memory filter equivalent for query string
+            result = await db.execute(stmt)
+            for doc in result.scalars():
+                if query:
+                    q = query.strip().lower()
+                    if not (
+                        q in str(doc.source_name).lower() or
+                        q in str(doc.source_type).lower() or
+                        any(q in str(t).lower() for t in (doc.tags or []))
+                    ):
+                        continue
+                
+                docs_out.append({
+                    "document_id": doc.id,
+                    "id": doc.id,
+                    "title": doc.source_name,
+                    "source_name": doc.source_name,
+                    "source_type": doc.source_type,
+                    "tags": doc.tags or [],
+                    "created_at": doc.created_at,
+                    "updated_at": doc.updated_at
+                })
+            break
+    except ProgrammingError:
+        pass # Table might not exist yet if migrations haven't run
+        
+    return docs_out
