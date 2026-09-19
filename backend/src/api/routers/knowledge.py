@@ -98,8 +98,36 @@ async def upload_document(
 
     tracer.end_span("span_ingest_1", status="ok", tokens_used=len(extracted_text.split()), cost_usd=0.0)
 
+    # Register document in Knowledge Sync engine so it is queryable in Knowledge Base
+    from src.knowledge.sync import SyncedDocument, get_sync_engine
+    import hashlib
+    import time
+    import uuid
+
+    doc_id = f"doc_{uuid.uuid4().hex[:8]}"
+    content_hash = hashlib.sha256(file_bytes).hexdigest()[:12]
+    engine = get_sync_engine()
+    engine.documents[doc_id] = SyncedDocument(
+        document_id=doc_id,
+        source_id="upload",
+        source_name=file.filename or "Uploaded Document",
+        source_type="file_upload",
+        source_url=cloud_url,
+        version="1.0",
+        checksum=content_hash,
+        created_at=time.time(),
+        updated_at=time.time(),
+        indexed_at=time.time(),
+        trust_level=1.0,
+        language="en",
+        license="User Provided",
+        provenance=f"User Upload ({getattr(current_user, 'email', 'authenticated')})",
+        content=extracted_text,
+    )
+
     return {
         "trace_id": cid,
+        "document_id": doc_id,
         "filename": file.filename,
         "cloud_url": cloud_url,
         "bytes_received": len(file_bytes),
@@ -110,6 +138,52 @@ async def upload_document(
     }
 
 
+class DirectIndexRequest(BaseModel):
+    title: str
+    content: str
+    tags: list[str] | None = None
+
+
+@router.post("/knowledge")
+@router.post("/knowledge/documents")
+async def index_knowledge_document(
+    payload: DirectIndexRequest,
+    current_user: CurrentUser,
+) -> dict[str, Any]:
+    """Index a direct text/markdown document into Knowledge Base."""
+    from src.knowledge.sync import SyncedDocument, get_sync_engine
+    import hashlib
+    import time
+    import uuid
+
+    doc_id = f"doc_{uuid.uuid4().hex[:8]}"
+    content_hash = hashlib.sha256(payload.content.encode("utf-8")).hexdigest()[:12]
+    engine = get_sync_engine()
+    doc = SyncedDocument(
+        document_id=doc_id,
+        source_id="manual",
+        source_name=payload.title,
+        source_type="text_markdown",
+        source_url=None,
+        version="1.0",
+        checksum=content_hash,
+        created_at=time.time(),
+        updated_at=time.time(),
+        indexed_at=time.time(),
+        trust_level=1.0,
+        language="en",
+        license="Proprietary",
+        provenance="Manual Entry",
+        content=payload.content,
+    )
+    engine.documents[doc_id] = doc
+
+    return {
+        "status": "indexed",
+        "document_id": doc_id,
+        "title": payload.title,
+        "character_count": len(payload.content),
+    }
 
 
 @router.post("/chat/teacher")
