@@ -134,10 +134,10 @@ export default function PlaygroundClient() {
           <aside
             className={cn(
               "flex-shrink-0 flex flex-col overflow-hidden bg-background border-l border-border/40 transition-all duration-300 ease-in-out hidden xl:flex",
-              rightOpen ? "w-[350px] opacity-100" : "w-0 border-l-0 opacity-0 pointer-events-none"
+              rightOpen ? "w-[420px] opacity-100" : "w-0 border-l-0 opacity-0 pointer-events-none"
             )}
           >
-            <div className="w-[350px] h-full flex flex-col">
+            <div className="w-[420px] h-full flex flex-col">
               <RightPanel />
             </div>
           </aside>

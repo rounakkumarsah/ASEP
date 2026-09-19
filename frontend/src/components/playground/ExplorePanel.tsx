@@ -98,8 +98,8 @@ export function ExplorePanel() {
       {/* Header & Filter Controls */}
       <div className="p-3 border-b border-border/40 bg-zinc-950/80 backdrop-blur flex flex-col gap-2.5">
         {/* Row 1: Title & Controls */}
-        <div className="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
-          <div className="flex items-center gap-2 min-w-0">
+        <div className="flex flex-wrap items-center justify-between gap-y-2 gap-x-3">
+          <div className="flex items-center gap-2 shrink-0">
             <span className="relative flex h-2 w-2 shrink-0">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500" />
@@ -112,7 +112,7 @@ export function ExplorePanel() {
             </Badge>
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+          <div className="flex items-center gap-1.5 shrink-0">
             <Button
               variant="ghost"
               size="sm"
