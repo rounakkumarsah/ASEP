@@ -135,7 +135,13 @@ export default function KnowledgeExplorerPage() {
       setShowUpload(false);
       refetch();
     } catch (err: unknown) {
-      setUploadError((err as Error).message || "Failed to index document.");
+      const anyErr = err as any;
+      const errorDetail =
+        anyErr?.response?.data?.detail ||
+        anyErr?.response?.data?.message ||
+        (err as Error).message ||
+        "Failed to index document.";
+      setUploadError(errorDetail);
     } finally {
       setUploading(false);
     }
