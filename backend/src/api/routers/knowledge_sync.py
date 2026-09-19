@@ -87,7 +87,18 @@ async def get_sync_history() -> list[dict[str, Any]]:
 
 
 @router.get("/documents")
-async def list_documents() -> list[dict[str, Any]]:
-    """Retrieve all currently synchronized document records."""
+async def list_documents(query: str | None = None) -> list[dict[str, Any]]:
+    """Retrieve all currently synchronized document records with optional query filtering."""
     engine = get_sync_engine()
-    return [doc.model_dump() for doc in engine.documents.values()]
+    docs = [doc.model_dump() for doc in engine.documents.values()]
+    if query:
+        q = query.strip().lower()
+        if q:
+            docs = [
+                d for d in docs
+                if q in str(d.get("source_name", "")).lower()
+                or q in str(d.get("title", "")).lower()
+                or q in str(d.get("content", "")).lower()
+                or any(q in str(t).lower() for t in d.get("tags", []))
+            ]
+    return docs

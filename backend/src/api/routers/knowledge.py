@@ -84,11 +84,23 @@ async def upload_document(
     current_user: CurrentUser,
     file: UploadFile = File(...),
 ) -> dict[str, Any]:
-    """Universal Document Ingestion Pipeline (PDF, DOCX, TXT, CSV)."""
+    """Universal Document Ingestion Pipeline (PDF, DOCX, TXT, CSV) with strict 25 MB limit."""
+    file_bytes = await file.read()
+    file_size = len(file_bytes)
+
+    # Server-side validation: 25 MB max limit
+    from src.production.ingestion_service import MAX_DOCUMENT_SIZE_BYTES
+    if file_size > MAX_DOCUMENT_SIZE_BYTES:
+        mb_size = round(file_size / (1024 * 1024), 2)
+        max_mb = round(MAX_DOCUMENT_SIZE_BYTES / (1024 * 1024), 2)
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File '{file.filename}' ({mb_size} MB) exceeds maximum allowed size limit of {max_mb} MB.",
+        )
+
     cid = otel.create_correlation_id()
     tracer.start_span("span_ingest_1", cid, "ingestion_pipeline", "parse_document")
 
-    file_bytes = await file.read()
     cloud_url = upload_to_cloudinary(file_bytes, resource_type="raw", filename=file.filename)
     if not cloud_url:
         cloud_meta = await cloudinary_storage.upload_file(file_bytes, file.filename or "doc.txt", folder="knowledge_docs")

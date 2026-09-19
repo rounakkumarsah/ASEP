@@ -45,12 +45,23 @@ class IngestionService:
         collection_name: str = DEFAULT_COLLECTION,
         chunk_size: int = 800,
         chunk_overlap: int = 150,
+        max_size_bytes: int = 25 * 1024 * 1024,
     ) -> dict[str, Any]:
-        """Ingests a document from disk into Neo4j and Qdrant with change detection.
+        """Ingests a document from disk into Neo4j and Qdrant with change detection and 25 MB limit.
 
         Returns:
             Ingestion summary with document metadata and processing details.
         """
+        import os
+        if os.path.exists(file_path):
+            file_size = os.path.getsize(file_path)
+            if file_size > max_size_bytes:
+                mb_size = round(file_size / (1024 * 1024), 2)
+                max_mb = round(max_size_bytes / (1024 * 1024), 2)
+                raise ValueError(
+                    f"File '{file_path}' ({mb_size} MB) exceeds maximum allowed size limit of {max_mb} MB."
+                )
+
         logger.info(f"Starting ingestion for: {file_path}")
 
         # 1. Parse document content

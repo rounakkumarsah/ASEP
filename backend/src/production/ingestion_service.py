@@ -16,6 +16,10 @@ from src.config.settings import get_settings
 logger = logging.getLogger(__name__)
 
 
+# Maximum supported document upload size: 25 MB (26,214,400 bytes)
+MAX_DOCUMENT_SIZE_BYTES = 25 * 1024 * 1024
+
+
 class UniversalIngestionService:
     """Ingestion pipeline for multi-format documents and code screenshot images."""
 
@@ -23,10 +27,23 @@ class UniversalIngestionService:
         self.settings = get_settings()
         self.api_key = gemini_api_key or self.settings.GEMINI_API_KEY
 
-    async def parse_document(self, file_bytes: bytes, filename: str) -> str:
-        """Parse text content from PDF, DOCX, TXT, or CSV files."""
+    async def parse_document(
+        self,
+        file_bytes: bytes,
+        filename: str,
+        max_size_bytes: int = MAX_DOCUMENT_SIZE_BYTES,
+    ) -> str:
+        """Parse text content from PDF, DOCX, TXT, or CSV files with strict size validation."""
+        size = len(file_bytes)
+        if size > max_size_bytes:
+            mb_size = round(size / (1024 * 1024), 2)
+            max_mb = round(max_size_bytes / (1024 * 1024), 2)
+            raise ValueError(
+                f"File '{filename}' ({mb_size} MB) exceeds maximum allowed size limit of {max_mb} MB."
+            )
+
         fname_lower = filename.lower()
-        logger.info("Ingesting document: %s (size: %d bytes)", filename, len(file_bytes))
+        logger.info("Ingesting document: %s (size: %d bytes)", filename, size)
 
         if fname_lower.endswith(".pdf"):
             try:

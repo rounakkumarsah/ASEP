@@ -63,7 +63,15 @@ export default function KnowledgeExplorerPage() {
   const { data, isLoading, isError, refetch } = useKnowledge(debouncedQuery);
   const documents = data?.items || [];
 
+  const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024; // 25 MB
+
   const handleFileSelect = (file: File) => {
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      setUploadError(`File '${file.name}' (${sizeMB} MB) exceeds the maximum allowed limit of 25 MB. Please select a file under 25 MB.`);
+      setSelectedFile(null);
+      return;
+    }
     setSelectedFile(file);
     setUploadError("");
     if (!docTitle) {
@@ -100,6 +108,11 @@ export default function KnowledgeExplorerPage() {
       if (uploadMode === "file") {
         if (!selectedFile) {
           setUploadError("Please select a file to upload.");
+          setUploading(false);
+          return;
+        }
+        if (selectedFile.size > MAX_FILE_SIZE_BYTES) {
+          setUploadError(`File size (${(selectedFile.size / (1024 * 1024)).toFixed(1)} MB) exceeds 25 MB limit.`);
           setUploading(false);
           return;
         }
