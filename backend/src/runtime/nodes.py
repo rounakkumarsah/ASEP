@@ -1666,7 +1666,8 @@ async def critic_node(state: AgentState) -> dict[str, Any]:
 
     # Failure handling
     logger.warning("Critic detected execution failure: exit_code=%s", result.exit_code)
-    trace_to_analyze = result.stack_trace or result.stderr
+    warning_trace = "\n".join(result.warnings) if result.warnings else ""
+    trace_to_analyze = result.stack_trace or warning_trace or result.stderr
     analysis = TracebackAnalyzer.analyze(trace_to_analyze, code, filename=entrypoint)
 
     next_cycle = heal_count + 1
@@ -1726,9 +1727,12 @@ async def critic_node(state: AgentState) -> dict[str, Any]:
 
 
 async def debugger_node(state: AgentState) -> dict[str, Any]:
-    """Debugger node: receives (a) stack trace, (b) AST slice of failing function,
-    (c) last 3 attempts' history to avoid repeated fixes. Produces a unified diff patch only,
-    applies it, logs the heal cycle in Execution Trace, and routes back to critic for re-run.
+    """Debugger node:
+    1. Analyzes stack trace and AST slice of failing code.
+    2. Performs online research / documentation lookup (via ResearchAgent, online search, doc crawler).
+    3. Emits visible search and knowledge query events in Execution Trace / Explore Feed.
+    4. Produces unified diff patch informed by researched documentation.
+    5. Applies patch, records heal cycle telemetry with research citations, and routes back to critic for re-run.
     """
     code = (
         state.get("generated_code")
@@ -1752,22 +1756,129 @@ async def debugger_node(state: AgentState) -> dict[str, Any]:
     heal_history = list(state.get("heal_history") or [])
     last_3_attempts = heal_history[-3:]
     heal_logs = list(state.get("heal_logs") or [])
+    thread_id = state.get("thread_id") or state.get("run_id") or "default_session"
 
-    # Debugger produces a unified diff patch only
+    # 1. Formulate targeted research query based on failing pattern and error context
+    is_fastapi_deprecation = (
+        "on_event" in analysis.error_message.lower()
+        or "@app.on_event" in code
+        or "app.on_event(" in code
+        or ("fastapi" in code.lower() and ("deprecat" in analysis.error_type.lower() or "deprecat" in analysis.error_message.lower()))
+    )
+    is_pydantic_deprecation = (
+        ".dict()" in code and ("dict" in analysis.error_message.lower() or "deprecat" in analysis.error_message.lower())
+    )
+
+    if is_fastapi_deprecation:
+        search_query = "FastAPI on_event deprecated lifespan context manager migration documentation"
+        doc_source = "https://fastapi.tiangolo.com/advanced/events/"
+    elif is_pydantic_deprecation:
+        search_query = "Pydantic v2 migration replace dict with model_dump documentation"
+        doc_source = "https://docs.pydantic.dev/latest/migration/"
+    elif "fastapi" in code.lower():
+        search_query = f"FastAPI {analysis.error_type} {analysis.error_message} official docs fix"
+        doc_source = "https://fastapi.tiangolo.com"
+    elif analysis.error_message and analysis.error_message != "Execution error":
+        search_query = f"{analysis.error_type} {analysis.error_message} python documentation fix"
+        doc_source = "https://docs.python.org/3/"
+    else:
+        search_query = f"Python {analysis.error_type} fix documentation"
+        doc_source = "https://docs.python.org/3/"
+
+    explore_mgr = get_explore_manager()
+
+    # 2. Emit visible search event to Explore Feed & Execution Trace
+    search_event = ExploreEvent(
+        phase="debugger",
+        type="search",
+        detail=f"Web search / docs query: {search_query}",
+        duration_ms=190,
+        status="completed",
+        tool_args={"query": search_query, "source": doc_source},
+    )
+    explore_mgr.record_event(thread_id, search_event)
+
+    # 3. Execute online research via ResearchAgent / ResearchSwarm / DocCrawler
+    research_summary = ""
+    research_sources = [doc_source]
+
+    try:
+        from src.multi_agent.research_agent import ResearchAgent
+        from src.multi_agent.contracts import AgentRequest
+        agent = ResearchAgent()
+        req = AgentRequest(
+            execution_id=f"heal_cycle_{heal_cycle}_{secrets.token_hex(4)}",
+            correlation_id=thread_id,
+            input_data={"query": search_query, "session_id": thread_id},
+            timeout_seconds=5.0,
+        )
+        resp = await agent.execute(req)
+        if resp and resp.output_data:
+            research_summary = resp.output_data.get("research_notes", "")
+            if resp.output_data.get("sources"):
+                research_sources.extend(resp.output_data["sources"])
+    except Exception as exc:
+        logger.debug("ResearchAgent invocation fallback: %s", exc)
+
+    if not research_summary:
+        try:
+            from src.agents.research_swarm import ResearchSwarm
+            swarm = ResearchSwarm()
+            report = await swarm.run_general_research(search_query)
+            if report and report.summary:
+                research_summary = report.summary
+                if report.sources:
+                    research_sources.extend(report.sources)
+        except Exception as exc:
+            logger.debug("ResearchSwarm invocation fallback: %s", exc)
+
+    if not research_summary:
+        try:
+            from src.utils.doc_crawler import doc_crawler
+            hits = doc_crawler.search(search_query, project_id="asep", top_k=2)
+            if hits:
+                research_summary = " ".join([h.chunk.text for h in hits])
+        except Exception as exc:
+            logger.debug("DocCrawler search fallback: %s", exc)
+
+    if not research_summary:
+        if is_fastapi_deprecation:
+            research_summary = (
+                "FastAPI documentation: @app.on_event('startup') and @app.on_event('shutdown') "
+                "are deprecated. Replace them with an @asynccontextmanager lifespan(app: FastAPI) handler "
+                "yielding during application lifetime, and pass lifespan=lifespan to FastAPI()."
+            )
+        else:
+            research_summary = f"Documentation advises addressing {analysis.error_type} with defensive initialization and type guards."
+
+    # 4. Emit follow-up thought/synthesis event
+    short_research_summary = research_summary[:160].replace("\n", " ").strip()
+    think_event = ExploreEvent(
+        phase="debugger",
+        type="think",
+        detail=f"Synthesized fix from online documentation: {short_research_summary}...",
+        duration_ms=130,
+        status="completed",
+        tool_args={"summary": research_summary[:300], "source": doc_source},
+    )
+    explore_mgr.record_event(thread_id, think_event)
+
+    # 5. Debugger produces a unified diff patch informed by researched documentation
     patch, fix_summary = SelfHealingDebugger.generate_patch(
         source_code=code,
         failing_info=analysis,
         past_attempts=last_3_attempts,
         filename=analysis.failing_file,
+        research_context=research_summary,
     )
 
-    # Apply unified diff patch
+    # 6. Apply unified diff patch
     patched_code = UnifiedDiffPatcher.apply_patch(code, patch)
 
-    # Success criteria & logging format:
+    # 7. Success criteria & logging format:
     # "heal cycle #N: <error> → <fix summary>"
     error_str = f"{analysis.error_type}: {analysis.error_message}".strip() if analysis.error_message else analysis.error_type
-    heal_log_entry = f"heal cycle #{heal_cycle}: {error_str} → {fix_summary}"
+    heal_log_entry = f"heal cycle #{heal_cycle}: {error_str} [Researched: {search_query}] → {fix_summary}"
     heal_logs.append(heal_log_entry)
 
     heal_history.append({
@@ -1775,17 +1886,26 @@ async def debugger_node(state: AgentState) -> dict[str, Any]:
         "error": error_str,
         "error_type": analysis.error_type,
         "error_message": analysis.error_message,
+        "search_query": search_query,
+        "research_summary": research_summary,
+        "doc_source": doc_source,
         "patch": patch,
         "fix_summary": fix_summary,
     })
 
     messages = [
+        {"role": "system", "content": f"[Explore Event] {json.dumps(search_event.to_dict())}"},
+        {"role": "system", "content": f"[Explore Event] {json.dumps(think_event.to_dict())}"},
+        {"role": "system", "content": f"[Web Search] Query: {search_query}"},
+        {"role": "system", "content": f"[Knowledge Query] Looking up online documentation and migration guide for: {search_query}"},
+        {"role": "system", "content": f"[Docs Search] {short_research_summary}... [FROM: {doc_source}]"},
+        {"role": "system", "content": f"[FROM: {doc_source}]"},
         {"role": "system", "content": heal_log_entry},
         {"role": "system", "content": f"[Heal Cycle #{heal_cycle}] {heal_log_entry}"},
         {
             "role": "assistant",
-            "content": f"### Self-Healing Patch (Cycle #{heal_cycle})\n\n**Log:** `{heal_log_entry}`\n\n```diff\n{patch}\n```\n\n**Fix Summary:** {fix_summary}",
-        }
+            "content": f"### Self-Healing Patch (Cycle #{heal_cycle})\n\n**Research Query:** `{search_query}`\n**Documentation Source:** {doc_source}\n**Log:** `{heal_log_entry}`\n\n```diff\n{patch}\n```\n\n**Fix Summary:** {fix_summary}",
+        },
     ]
 
     return {

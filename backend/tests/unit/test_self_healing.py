@@ -260,3 +260,99 @@ class TestSelfHealingLoop:
         assert "escalation_info" in critic_res
         assert critic_res["escalation_info"]["error_type"] == "RuntimeError"
         assert any("Escalation Required" in m["content"] for m in critic_res["messages"])
+
+    @pytest.mark.asyncio
+    async def test_deprecated_fastapi_syntax_online_research_and_heal(self):
+        """Test verification: requested code uses deprecated FastAPI syntax (@app.on_event).
+        Critic detects deprecation warning / error.
+        Debugger performs online research / docs lookup BEFORE patch.
+        Execution trace records web search / knowledge query events and citations.
+        Debugger applies unified diff patch converting to modern lifespan handler.
+        Critic re-tests and passes cleanly (exit code 0).
+        """
+        deprecated_fastapi_code = (
+            "import warnings\n"
+            "warnings.simplefilter('error', DeprecationWarning)\n"
+            "from fastapi import FastAPI\n"
+            "\n"
+            "app = FastAPI()\n"
+            "\n"
+            "@app.on_event('startup')\n"
+            "async def startup():\n"
+            "    print('FastAPI application started')\n"
+            "\n"
+            "@app.on_event('shutdown')\n"
+            "async def shutdown():\n"
+            "    print('FastAPI application stopped')\n"
+            "\n"
+            "print('App setup completed')\n"
+        )
+
+        state_1: AgentState = {
+            "generated_code": deprecated_fastapi_code,
+            "filepath": "main.py",
+            "heal_cycle_count": 0,
+            "heal_history": [],
+            "heal_logs": [],
+            "variables": {},
+        }
+
+        # 1. Critic node runs code in sandbox and detects the DeprecationWarning
+        critic_res_1 = await critic_node(state_1)
+        assert critic_res_1["status"] == "healing"
+        assert "critic_analysis" in critic_res_1["variables"]
+        analysis = critic_res_1["variables"]["critic_analysis"]
+        assert analysis["error_type"] == "DeprecationWarning"
+        assert "on_event is deprecated" in analysis["error_message"]
+
+        # 2. Merge state into debugger node
+        state_2: AgentState = {
+            **state_1,
+            **critic_res_1,
+        }
+
+        # 3. Debugger node runs: performs online research lookup BEFORE patch
+        debug_res = await debugger_node(state_2)
+        assert debug_res["status"] == "retest"
+        assert debug_res["heal_cycle_count"] == 1
+
+        # Check online research / knowledge query events in messages & execution trace
+        messages = debug_res["messages"]
+        msg_contents = [m.get("content", "") for m in messages]
+
+        # Must show web search or knowledge query event
+        has_web_search = any("[Web Search]" in c for c in msg_contents)
+        has_knowledge_query = any("[Knowledge Query]" in c for c in msg_contents)
+        has_citation = any("[FROM: https://fastapi.tiangolo.com" in c for c in msg_contents)
+        has_explore_search_event = any("[Explore Event]" in c and "search" in c for c in msg_contents)
+
+        assert has_web_search, "Execution Trace must include [Web Search] event"
+        assert has_knowledge_query, "Execution Trace must include [Knowledge Query] event"
+        assert has_citation, "Execution Trace must include documentation citation [FROM: ...]"
+        assert has_explore_search_event, "Explore Feed must receive search ExploreEvent"
+
+        # Check heal log entry formatting with research lookup
+        heal_log = debug_res["heal_logs"][0]
+        assert "heal cycle #1:" in heal_log
+        assert "DeprecationWarning" in heal_log
+        assert "[Researched: FastAPI on_event deprecated lifespan" in heal_log
+        assert "lifespan" in heal_log.lower()
+
+        # Check the patched code: must be upgraded to modern lifespan handler
+        healed_code = debug_res["generated_code"]
+        assert "@asynccontextmanager" in healed_code
+        assert "async def lifespan(app: FastAPI):" in healed_code
+        assert "lifespan=lifespan" in healed_code
+        assert "@app.on_event" not in healed_code
+
+        # 4. Merge state and route back to Critic for re-test
+        state_3: AgentState = {
+            **state_2,
+            **debug_res,
+        }
+        critic_res_2 = await critic_node(state_3)
+        assert critic_res_2["status"] == "verified"
+        assert critic_res_2["critic_result"]["exit_code"] == 0
+        assert critic_res_2["critic_result"]["tests_passed"] is True
+        assert len(critic_res_2["critic_result"]["warnings"]) == 0
+        assert "App setup completed" in critic_res_2["critic_result"]["stdout"]

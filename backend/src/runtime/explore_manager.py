@@ -112,6 +112,13 @@ class ExploreManager:
         self._thread_events: Dict[str, List[Dict[str, Any]]] = {}
         self._thread_summaries: Dict[str, Dict[str, Any]] = {}
 
+    def record_event(self, thread_id: str, event: ExploreEvent) -> None:
+        """Record a single exploration event for a thread."""
+        if thread_id not in self._thread_events:
+            self._thread_events[thread_id] = []
+        self._thread_events[thread_id].append(event.to_dict())
+        self._thread_events[thread_id] = self._thread_events[thread_id][-500:]
+
     def get_events(self, thread_id: str) -> List[Dict[str, Any]]:
         """Retrieve stored exploration events for a thread (capped at last 500)."""
         return self._thread_events.get(thread_id, [])[-500:]

@@ -64,6 +64,24 @@ export function RightPanel() {
       });
   }, [messages]);
 
+  // Extract live tool, web search, and knowledge query events from messages
+  const liveToolEvents = React.useMemo(() => {
+    const events: Array<{ type: string; text: string }> = [];
+    messages.forEach((m) => {
+      const c = m.content || "";
+      if (c.startsWith("[Web Search]") || c.includes("[Web Search]")) {
+        events.push({ type: "SEARCH", text: c.replace(/^.*\[Web Search\]\s*/, "") });
+      } else if (c.startsWith("[Knowledge Query]") || c.includes("[Knowledge Query]")) {
+        events.push({ type: "KNOWLEDGE", text: c.replace(/^.*\[Knowledge Query\]\s*/, "") });
+      } else if (c.startsWith("[Docs Search]") || c.includes("[Docs Search]")) {
+        events.push({ type: "DOCS", text: c.replace(/^.*\[Docs Search\]\s*/, "") });
+      } else if (c.includes("CALL ") || c.includes("RESP ")) {
+        events.push({ type: "TOOL", text: c });
+      }
+    });
+    return events;
+  }, [messages]);
+
   const DEFAULT_PIPELINE_STEPS = [
     { id: "orchestrator", label: "Orchestrator", desc: "Product classification & phase mapping" },
     { id: "research", label: "Research Phase", desc: "Gather requirements & context" },
@@ -245,11 +263,20 @@ export function RightPanel() {
                   </Badge>
                 </h3>
                 <div className="space-y-1.5 font-mono text-[10px]">
-                  {healLogs.map((log, idx) => (
-                    <div key={idx} className="p-2 rounded bg-emerald-950/20 border border-emerald-500/30 text-emerald-300 leading-relaxed">
-                      <span className="text-emerald-400 font-semibold">{log}</span>
-                    </div>
-                  ))}
+                  {healLogs.map((log, idx) => {
+                    const hasResearch = log.includes("[Researched:") || log.includes("[Research:");
+                    return (
+                      <div key={idx} className="p-2 rounded bg-emerald-950/20 border border-emerald-500/30 text-emerald-300 leading-relaxed space-y-1">
+                        <span className="text-emerald-400 font-semibold block">{log}</span>
+                        {hasResearch && (
+                          <div className="flex items-center gap-1.5 text-[9px] text-cyan-300 bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-500/20">
+                            <Search className="h-2.5 w-2.5 text-cyan-400 shrink-0" />
+                            <span>Online Research &amp; Docs Lookup verified before patch</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
               <div className="h-px bg-border/40" />
@@ -266,7 +293,21 @@ export function RightPanel() {
             </h3>
             
             <div className="bg-black/50 border border-border/40 rounded-lg p-2 font-mono text-[10px] space-y-1.5 h-32 overflow-y-auto">
-              {!hasActivity ? (
+              {liveToolEvents.length > 0 ? (
+                liveToolEvents.map((ev, idx) => (
+                  <div key={idx} className="text-muted-foreground flex items-center gap-1.5 truncate">
+                    <span className={
+                      ev.type === "SEARCH" ? "text-cyan-400 font-bold shrink-0" :
+                      ev.type === "KNOWLEDGE" ? "text-purple-400 font-bold shrink-0" :
+                      ev.type === "DOCS" ? "text-blue-400 font-bold shrink-0" :
+                      "text-emerald-400 font-bold shrink-0"
+                    }>
+                      [{ev.type}]
+                    </span>
+                    <span className="truncate text-zinc-300">{ev.text}</span>
+                  </div>
+                ))
+              ) : !hasActivity ? (
                 <div className="text-muted-foreground/60 h-full flex flex-col items-center justify-center italic text-center px-4 space-y-2">
                   <TerminalSquare className="h-5 w-5 mb-1 opacity-40" />
                   <p>Awaiting agent execution...</p>

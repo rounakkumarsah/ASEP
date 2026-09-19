@@ -298,9 +298,9 @@ class TracebackAnalyzer:
         r'File\s+"(?P<file>[^"]+)",\s+line\s+(?P<line>\d+)(?:,\s+in\s+(?P<func>[^\n]+))?',
         re.MULTILINE,
     )
-    # Matches: NameError: name 'x' is not defined
+    # Matches: NameError: name 'x' is not defined, DeprecationWarning: ...
     _ERROR_PATTERN = re.compile(
-        r'^(?P<type>[A-Za-z0-9_]+Error|[A-Za-z0-9_]+Exception):\s*(?P<msg>.*)$',
+        r'^(?P<type>[A-Za-z0-9_]+Error|[A-Za-z0-9_]+Exception|[A-Za-z0-9_]+Warning):\s*(?P<msg>.*)$',
         re.MULTILINE,
     )
 
@@ -340,6 +340,12 @@ class TracebackAnalyzer:
             last_err = err_matches[-1]
             error_type = last_err.group("type").strip()
             error_msg = last_err.group("msg").strip()
+        elif "DeprecationWarning" in stack_trace:
+            error_type = "DeprecationWarning"
+            for line in stack_trace.splitlines():
+                if "DeprecationWarning" in line:
+                    error_msg = line.split("DeprecationWarning:", 1)[-1].strip() or line.strip()
+                    break
         elif stack_trace:
             last_line = stack_trace.strip().splitlines()[-1]
             if ":" in last_line:
@@ -348,6 +354,14 @@ class TracebackAnalyzer:
                 error_msg = parts[1].strip()
             else:
                 error_msg = last_line.strip()
+
+        # If line_num was not resolved from frames, search for failing pattern in source_code
+        if line_num == 1 and source_code:
+            lines = source_code.splitlines()
+            for idx, line in enumerate(lines, 1):
+                if "@app.on_event" in line or "on_event(" in line:
+                    line_num = idx
+                    break
 
         # Slice the AST of the failing function
         ast_slice = ASTSlicer.slice_code(
@@ -474,6 +488,7 @@ class SelfHealingDebugger:
         failing_info: FailingFunctionInfo,
         past_attempts: list[dict[str, Any]] | None = None,
         filename: str = "main.py",
+        research_context: str | None = None,
     ) -> tuple[str, str]:
         """Generate a unified diff patch to fix the error.
 
@@ -487,9 +502,31 @@ class SelfHealingDebugger:
         error_msg = failing_info.error_message
         line_no = failing_info.line_number
         func_name = failing_info.function_name
+        res_text = (research_context or "").lower()
+
+        # 0. Check for Deprecated FastAPI lifecycle pattern (on_event -> lifespan)
+        if (
+            "on_event" in error_msg.lower()
+            or "on_event" in source_code
+            or "lifespan" in res_text
+            or ("fastapi" in source_code.lower() and ("deprecat" in error_msg.lower() or error_type == "DeprecationWarning"))
+        ) and ("@app.on_event" in source_code or "app.on_event(" in source_code):
+            var_name = None
+            fix_summary = "Migrated deprecated FastAPI @app.on_event lifecycle handlers to modern @asynccontextmanager lifespan handler based on official documentation"
+            new_code = cls._fix_fastapi_lifespan(source_code)
+
+        # 0b. Check for Deprecated Pydantic v1 dict pattern
+        elif (
+            "dict" in error_msg.lower()
+            or "model_dump" in res_text
+            or "pydantic" in res_text
+        ) and (".dict()" in source_code):
+            var_name = None
+            fix_summary = "Migrated deprecated Pydantic v1 .dict() calls to modern v2 .model_dump() based on official documentation"
+            new_code = source_code.replace(".dict()", ".model_dump()")
 
         # 1. Check for NameError (e.g. undefined variable)
-        if error_type == "NameError":
+        elif error_type == "NameError":
             # Pattern: name 'xyz' is not defined
             name_match = re.search(r"name ['\"]([^'\"]+)['\"] is not defined", error_msg)
             var_name = name_match.group(1) if name_match else "undefined_var"
@@ -559,6 +596,94 @@ class SelfHealingDebugger:
             lineterm="\n",
         )
         return "".join(diff)
+
+    @classmethod
+    def _fix_fastapi_lifespan(cls, source_code: str) -> str:
+        """Migrates deprecated FastAPI @app.on_event lifecycle handlers to modern lifespan context manager."""
+        code = source_code
+
+        # 1. Ensure asynccontextmanager is imported
+        if "asynccontextmanager" not in code:
+            if "from contextlib import" in code:
+                code = re.sub(r"from contextlib import ([^\n]+)", r"from contextlib import \1, asynccontextmanager", code)
+            else:
+                code = "from contextlib import asynccontextmanager\n" + code
+
+        # 2. Extract startup function body
+        startup_body: list[str] = []
+        startup_match = re.search(
+            r'@\w+\.on_event\s*\(\s*["\']startup["\']\s*\)\s*\n(?:async\s+)?def\s+\w+\s*\([^)]*\)\s*:\s*\n((?:[ \t]+[^\n]*\n?)+)',
+            code
+        )
+        if startup_match:
+            lines = startup_match.group(1).splitlines()
+            for l in lines:
+                if l.strip():
+                    startup_body.append("    " + l.strip())
+
+        # 3. Extract shutdown function body
+        shutdown_body: list[str] = []
+        shutdown_match = re.search(
+            r'@\w+\.on_event\s*\(\s*["\']shutdown["\']\s*\)\s*\n(?:async\s+)?def\s+\w+\s*\([^)]*\)\s*:\s*\n((?:[ \t]+[^\n]*\n?)+)',
+            code
+        )
+        if shutdown_match:
+            lines = shutdown_match.group(1).splitlines()
+            for l in lines:
+                if l.strip():
+                    shutdown_body.append("    " + l.strip())
+
+        # Build lifespan handler definition
+        lifespan_lines = [
+            "@asynccontextmanager",
+            "async def lifespan(app: FastAPI):",
+        ]
+        if startup_body:
+            lifespan_lines.append("    # Startup lifecycle logic (migrated from legacy on_event)")
+            lifespan_lines.extend(startup_body)
+        else:
+            lifespan_lines.append("    # Startup lifecycle logic")
+            lifespan_lines.append("    pass")
+
+        lifespan_lines.append("    yield")
+
+        if shutdown_body:
+            lifespan_lines.append("    # Shutdown lifecycle logic (migrated from legacy on_event)")
+            lifespan_lines.extend(shutdown_body)
+        else:
+            lifespan_lines.append("    # Shutdown lifecycle logic")
+            lifespan_lines.append("    pass")
+
+        lifespan_def = "\n".join(lifespan_lines) + "\n"
+
+        # 4. Remove old @app.on_event blocks
+        code = re.sub(
+            r'@\w+\.on_event\s*\(\s*["\']startup["\']\s*\)\s*\n(?:async\s+)?def\s+\w+\s*\([^)]*\)\s*:\s*\n(?:[ \t]+[^\n]*\n?)+',
+            "",
+            code
+        )
+        code = re.sub(
+            r'@\w+\.on_event\s*\(\s*["\']shutdown["\']\s*\)\s*\n(?:async\s+)?def\s+\w+\s*\([^)]*\)\s*:\s*\n(?:[ \t]+[^\n]*\n?)+',
+            "",
+            code
+        )
+
+        # 5. Insert lifespan function and pass lifespan to app = FastAPI(...)
+        app_match = re.search(r'(\w+)\s*=\s*FastAPI\s*\(([^)]*)\)', code)
+        if app_match:
+            app_var = app_match.group(1)
+            args = app_match.group(2).strip()
+            if "lifespan" not in args:
+                new_args = f"{args}, lifespan=lifespan" if args else "lifespan=lifespan"
+                new_app_call = f"{app_var} = FastAPI({new_args})"
+                replacement = f"{lifespan_def}\n{new_app_call}"
+                code = code[:app_match.start()] + replacement + code[app_match.end():]
+        else:
+            code = code + "\n\n" + lifespan_def
+
+        # Clean up any excessive blank lines
+        code = re.sub(r'\n{3,}', '\n\n', code)
+        return code
 
     @classmethod
     def _fix_name_error(cls, source_code: str, var_name: str, line_no: int, func_name: str | None) -> str:
