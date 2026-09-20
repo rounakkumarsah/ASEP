@@ -516,7 +516,7 @@ class SkillManager:
         if not skill:
             raise KeyError(f"Skill '{name}' not found")
 
-        if format_type == "zip" and skill.attachments:
+        if format_type == "zip":
             buf = io.BytesIO()
             with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
                 zf.writestr(f"{skill.name}.md", skill.to_markdown())
@@ -531,38 +531,167 @@ class SkillManager:
             md_bytes = skill.to_markdown().encode("utf-8")
             return f"{skill.name}.md", md_bytes
 
-    def import_skill(self, content_bytes: bytes, filename: str) -> Skill:
-        """Import skill from .md file or ZIP archive."""
-        if filename.endswith(".zip"):
-            with zipfile.ZipFile(io.BytesIO(content_bytes)) as zf:
-                md_files = [f for f in zf.namelist() if f.endswith(".md") and not f.startswith("__MACOSX")]
-                if not md_files:
-                    raise ValueError("ZIP archive contains no .md skill definition file")
-                md_content = zf.read(md_files[0]).decode("utf-8", errors="ignore")
-                skill = self.parse_markdown(md_content, is_builtin=False)
-                # Create user skill
-                if skill.name in self._skills_cache:
-                    skill.name = f"{skill.name}-imported"
-                file_path = self.user_dir / f"{skill.name}.md"
-                file_path.write_text(skill.to_markdown(), encoding="utf-8")
-                self._skills_cache[skill.name] = skill
+    def import_skills(self, content_bytes: bytes, filename: str) -> list[Skill]:
+        """Import one or more skills from a .md file or ZIP archive."""
+        fname_lower = filename.lower()
+        imported_skills: list[Skill] = []
 
-                # Extract any attachments in zip
-                for f in zf.namelist():
-                    if f.startswith("attachments/") and not f.endswith("/"):
-                        att_name = Path(f).name
-                        file_data = zf.read(f)
-                        self.add_attachment(skill.name, att_name, file_data)
-                return self._skills_cache[skill.name]
+        if fname_lower.endswith(".zip"):
+            try:
+                with zipfile.ZipFile(io.BytesIO(content_bytes)) as zf:
+                    all_names = [f for f in zf.namelist() if not f.startswith("__MACOSX") and not f.endswith("/")]
+
+                    # 1. Identify all candidate markdown skill files
+                    doc_ignore = {"readme.md", "license.md", "contributing.md", "changelog.md", "code_of_conduct.md"}
+                    candidate_mds = [
+                        f for f in all_names
+                        if f.lower().endswith((".md", ".markdown"))
+                    ]
+
+                    # Filter out purely informational documentation files unless they have explicit skill frontmatter
+                    skill_files_to_process: list[str] = []
+                    for mf in candidate_mds:
+                        base = Path(mf).name.lower()
+                        if base in doc_ignore:
+                            content_peek = zf.read(mf)[:500].decode("utf-8", errors="ignore")
+                            if re.search(r"^---\s*\n.*?\n---\s*", content_peek, re.DOTALL):
+                                skill_files_to_process.append(mf)
+                        else:
+                            skill_files_to_process.append(mf)
+
+                    if not skill_files_to_process and candidate_mds:
+                        skill_files_to_process = candidate_mds
+
+                    # Also check for YAML skill manifests if no markdown files found
+                    if not skill_files_to_process:
+                        candidate_yamls = [f for f in all_names if f.lower().endswith((".yaml", ".yml"))]
+                        for yf in candidate_yamls:
+                            try:
+                                ycontent = zf.read(yf).decode("utf-8", errors="ignore")
+                                if yaml is not None:
+                                    ymeta = yaml.safe_load(ycontent) or {}
+                                else:
+                                    ymeta = _parse_yaml_fallback(ycontent)
+                                if isinstance(ymeta, dict) and ("instructions" in ymeta or "trigger" in ymeta or "name" in ymeta):
+                                    s_name = ymeta.get("name") or Path(yf).stem
+                                    clean_name = re.sub(r"[^a-zA-Z0-9_-]", "-", s_name.lower()).strip("-") or "imported-skill"
+                                    
+                                    # Ensure unique name
+                                    base_name = clean_name
+                                    if base_name in self._skills_cache:
+                                        imported_base = f"{base_name}-imported"
+                                        unique_name = imported_base
+                                        counter = 1
+                                        while unique_name in self._skills_cache:
+                                            counter += 1
+                                            unique_name = f"{imported_base}-{counter}"
+                                        clean_name = unique_name
+
+                                    s = Skill(
+                                        name=clean_name,
+                                        description=ymeta.get("description", ""),
+                                        trigger=str(ymeta.get("trigger", "")),
+                                        instructions=str(ymeta.get("instructions", "")),
+                                        dependencies=ymeta.get("dependencies") or [],
+                                        scope=ymeta.get("scope", "workspace"),
+                                        enabled=bool(ymeta.get("enabled", True)),
+                                        is_builtin=False,
+                                    )
+                                    file_path = self.user_dir / f"{s.name}.md"
+                                    file_path.write_text(s.to_markdown(), encoding="utf-8")
+                                    self._skills_cache[s.name] = s
+                                    imported_skills.append(s)
+                            except Exception as y_err:
+                                logger.warning("Could not parse yaml skill %s: %s", yf, y_err)
+
+                    if not skill_files_to_process and not imported_skills:
+                        raise ValueError("ZIP archive contains no valid .md or .yaml skill definition files")
+
+                    for mf in skill_files_to_process:
+                        try:
+                            md_content = zf.read(mf).decode("utf-8", errors="ignore")
+                            skill = self.parse_markdown(md_content, is_builtin=False)
+
+                            # Derive name if default or empty
+                            if skill.name in ("unnamed-skill", "", "skill"):
+                                path_parts = Path(mf).parts
+                                if len(path_parts) > 1 and path_parts[-1].lower() in ("skill.md", "skill.markdown", "instructions.md"):
+                                    derived_name = path_parts[-2]
+                                else:
+                                    derived_name = Path(mf).stem
+                                skill.name = re.sub(r"[^a-zA-Z0-9_-]", "-", derived_name.lower()).strip("-") or "imported-skill"
+
+                            # Ensure unique name in cache and disk
+                            base_name = skill.name
+                            if base_name in self._skills_cache:
+                                imported_base = f"{base_name}-imported"
+                                unique_name = imported_base
+                                counter = 1
+                                while unique_name in self._skills_cache:
+                                    counter += 1
+                                    unique_name = f"{imported_base}-{counter}"
+                                skill.name = unique_name
+
+                            # Save to disk
+                            file_path = self.user_dir / f"{skill.name}.md"
+                            file_path.write_text(skill.to_markdown(), encoding="utf-8")
+                            self._skills_cache[skill.name] = skill
+
+                            # Extract any attachments associated with this skill
+                            skill_dir = str(Path(mf).parent).replace("\\", "/")
+                            for af in all_names:
+                                if af == mf or af.lower().endswith((".md", ".markdown", ".yaml", ".yml")):
+                                    continue
+                                is_attachment = False
+                                if af.startswith("attachments/"):
+                                    is_attachment = True
+                                elif skill_dir != "." and (af.startswith(f"{skill_dir}/attachments/") or af.startswith(f"{skill_dir}/references/")):
+                                    is_attachment = True
+
+                                if is_attachment:
+                                    att_name = Path(af).name
+                                    att_data = zf.read(af)
+                                    try:
+                                        self.add_attachment(skill.name, att_name, att_data)
+                                    except Exception as att_err:
+                                        logger.warning("Could not add attachment %s to %s: %s", att_name, skill.name, att_err)
+
+                            imported_skills.append(self._skills_cache[skill.name])
+                        except Exception as parse_err:
+                            logger.warning("Failed parsing skill %s in zip: %s", mf, parse_err)
+
+                    if not imported_skills:
+                        raise ValueError("Failed to parse any valid skills from ZIP archive")
+
+                    return imported_skills
+            except zipfile.BadZipFile:
+                raise ValueError("Uploaded file is not a valid ZIP archive")
         else:
             md_content = content_bytes.decode("utf-8", errors="ignore")
             skill = self.parse_markdown(md_content, is_builtin=False)
-            if skill.name in self._skills_cache:
-                skill.name = f"{skill.name}-imported"
+            if skill.name in ("unnamed-skill", "", "skill"):
+                derived = Path(filename).stem
+                skill.name = re.sub(r"[^a-zA-Z0-9_-]", "-", derived.lower()).strip("-") or "imported-skill"
+
+            base_name = skill.name
+            if base_name in self._skills_cache:
+                imported_base = f"{base_name}-imported"
+                unique_name = imported_base
+                counter = 1
+                while unique_name in self._skills_cache:
+                    counter += 1
+                    unique_name = f"{imported_base}-{counter}"
+                skill.name = unique_name
+
             file_path = self.user_dir / f"{skill.name}.md"
             file_path.write_text(skill.to_markdown(), encoding="utf-8")
             self._skills_cache[skill.name] = skill
-            return skill
+            return [skill]
+
+    def import_skill(self, content_bytes: bytes, filename: str) -> Skill:
+        """Import skill from .md file or ZIP archive (returns the primary imported skill)."""
+        skills = self.import_skills(content_bytes, filename)
+        return skills[0]
 
     # -------------------------------------------------------------------------
     # Attachment Pipeline (PDF, DOCX, TXT, MD, Code)

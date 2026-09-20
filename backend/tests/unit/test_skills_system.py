@@ -236,6 +236,23 @@ class TestAttachmentProcessingAndRetrieval:
         imported = tmp_skill_manager.import_skill(data, "custom-skill.md")
         assert imported.name in ("exportable-skill-imported", "exportable-skill")
 
+    def test_zip_multi_skill_import(self, tmp_skill_manager: SkillManager):
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            zf.writestr("README.md", "# Some Repo\nNot a skill")
+            zf.writestr("skills/web-perf/SKILL.md", "---\nname: web-perf\ndescription: Web Performance\ntrigger: web vitals lighthouse\n---\nOptimize LCP and FID.")
+            zf.writestr("skills/accessibility/SKILL.md", "---\nname: a11y-check\ndescription: A11y auditor\ntrigger: aria wcag a11y\n---\nEnforce WCAG 2.1 AA.")
+            zf.writestr("skills/web-perf/attachments/guide.txt", "Rule: Keep LCP under 2.5s.")
+
+        imported = tmp_skill_manager.import_skills(buf.getvalue(), "agent-skills-main.zip")
+        assert len(imported) == 2
+        names = [s.name for s in imported]
+        assert "web-perf" in names
+        assert "a11y-check" in names
+        perf_skill = [s for s in imported if s.name == "web-perf"][0]
+        assert len(perf_skill.attachments) == 1
+        assert perf_skill.attachments[0].filename == "guide.txt"
+
 
 class TestRuntimeSkillActivationAndVerification:
     @pytest.mark.asyncio
@@ -420,3 +437,23 @@ class TestSkillsFastAPIEndpoints:
         del_res = self.client.delete("/api/v1/skills/fastapi-crud-expert")
         assert del_res.status_code == 200
         self.client.delete(f"/api/v1/skills/{dup_name}")
+
+    def test_api_import_zip(self):
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            zf.writestr("README.md", "# Repo Info")
+            zf.writestr("bundle-skill/SKILL.md", "---\nname: test-api-zip\ntrigger: api zip test\n---\nInstructions here.")
+
+        res = self.client.post(
+            "/api/v1/skills/import",
+            files={"file": ("bundle.zip", buf.getvalue(), "application/zip")},
+        )
+        assert res.status_code == 200
+        data = res.json()
+        assert "name" in data
+        assert "imported_skills" in data
+        assert data["imported_count"] >= 1
+        # clean up
+        for s in data["imported_skills"]:
+            self.client.delete(f"/api/v1/skills/{s['name']}")
+

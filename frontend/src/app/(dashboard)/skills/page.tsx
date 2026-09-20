@@ -19,6 +19,7 @@ import {
   Lock,
   Boxes,
   RefreshCw,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -74,6 +75,7 @@ export default function SkillsPage() {
 
   // Attachment upload state
   const [uploadingFile, setUploadingFile] = React.useState(false);
+  const [isImporting, setIsImporting] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const importInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -167,6 +169,7 @@ export default function SkillsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setIsImporting(true);
     const formData = new FormData();
     formData.append("file", file);
 
@@ -176,16 +179,32 @@ export default function SkillsPage() {
         body: formData,
       });
       if (res.ok) {
-        const imported = await res.json();
-        setSkills((prev) => [imported, ...prev]);
-        showToast(`Imported skill '${imported.name}' successfully!`);
+        const data = await res.json();
+        const newSkills: Skill[] = Array.isArray(data.imported_skills)
+          ? data.imported_skills
+          : [data];
+
+        setSkills((prev) => {
+          const newNames = new Set(newSkills.map((s) => s.name));
+          return [...newSkills, ...prev.filter((s) => !newNames.has(s.name))];
+        });
+
+        const count = data.imported_count || newSkills.length;
+        if (count === 1) {
+          showToast(`Imported skill '${newSkills[0]?.name || data.name}' successfully!`);
+        } else {
+          showToast(`Imported ${count} skills from archive successfully!`);
+        }
+        await fetchSkills();
       } else {
-        const err = await res.json();
-        showToast(`Import failed: ${err.detail || "Invalid format"}`);
+        const err = await res.json().catch(() => ({}));
+        showToast(`Import failed: ${err.detail || "Invalid format or empty archive"}`);
       }
     } catch (err) {
       console.error("Import failed:", err);
+      showToast("Import failed: Network or server error");
     } finally {
+      setIsImporting(false);
       if (importInputRef.current) importInputRef.current.value = "";
     }
   };
@@ -442,9 +461,18 @@ export default function SkillsPage() {
             variant="outline"
             size="sm"
             onClick={() => importInputRef.current?.click()}
+            disabled={isImporting}
             className="text-xs border-border/60 gap-1.5 h-9"
           >
-            <Upload className="h-3.5 w-3.5" /> Import (.md / .zip)
+            {isImporting ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Importing...
+              </>
+            ) : (
+              <>
+                <Upload className="h-3.5 w-3.5" /> Import (.md / .zip)
+              </>
+            )}
           </Button>
           <Button
             size="sm"

@@ -155,11 +155,17 @@ async def export_skill(
 
 @router.post("/import", response_model=dict[str, Any])
 async def import_skill(file: UploadFile = File(...)) -> dict[str, Any]:
-    """Import a skill from an uploaded .md or .zip file."""
+    """Import a skill or multiple skills from an uploaded .md or .zip file."""
     try:
         content = await file.read()
-        imported = skill_manager.import_skill(content, file.filename or "skill.md")
-        return imported.to_dict()
+        imported_list = skill_manager.import_skills(content, file.filename or "skill.md")
+        if not imported_list:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No valid skills found in file")
+        primary = imported_list[0]
+        res = primary.to_dict()
+        res["imported_skills"] = [s.to_dict() for s in imported_list]
+        res["imported_count"] = len(imported_list)
+        return res
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
