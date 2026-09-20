@@ -1,13 +1,22 @@
 $ErrorActionPreference = "Stop"
 $ErrorView = "NormalView"
 
+$EMAIL = $env:E2E_EMAIL
+if ([string]::IsNullOrEmpty($EMAIL)) { $EMAIL = "demo_e2e@asep.ai" }
+$PASSWORD = $env:E2E_PASSWORD
+if ([string]::IsNullOrEmpty($PASSWORD)) { $PASSWORD = "password123" }
+
 $BASE_URL = "http://localhost:8011/api/v1"
 
 Write-Host "Registering seed user..."
-Invoke-RestMethod -Uri "$BASE_URL/auth/e2e/seed-user" -Method Post -ContentType "application/json" -Body '{"email":"demo@asep.ai", "password":"demo123"}' | Out-Null
+$body = @{
+    email = $EMAIL
+    password = $PASSWORD
+} | ConvertTo-Json
+Invoke-RestMethod -Uri "$BASE_URL/auth/e2e/seed-user" -Method Post -ContentType "application/json" -Body $body | Out-Null
 
 Write-Host "Logging in..."
-$loginResponse = Invoke-RestMethod -Uri "$BASE_URL/auth/login" -Method Post -ContentType "application/json" -Body '{"email":"demo@asep.ai", "password":"demo123"}'
+$loginResponse = Invoke-RestMethod -Uri "$BASE_URL/auth/login" -Method Post -ContentType "application/json" -Body $body
 $TOKEN = $loginResponse.access_token
 
 $Headers = @{

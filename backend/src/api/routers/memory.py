@@ -22,7 +22,7 @@ from src.db.models.user import User
 router = APIRouter(prefix="/memory", tags=["Memory"])
 
 
-@router.post("/", response_model=MemoryEntryResponse, status_code=status.HTTP_201_CREATED, dependencies=[RequirePermission(Permission.MEMORY_WRITE)])
+@router.post("", response_model=MemoryEntryResponse, status_code=status.HTTP_201_CREATED, dependencies=[RequirePermission(Permission.MEMORY_WRITE)])
 async def create_memory(
     payload: MemoryEntryCreate,
     service: MemoryServiceDep,
@@ -42,7 +42,7 @@ async def create_memory(
     )
 
 
-@router.get("/", response_model=PaginatedResponse[MemoryEntryResponse], dependencies=[RequirePermission(Permission.MEMORY_READ)])
+@router.get("", response_model=PaginatedResponse[MemoryEntryResponse], dependencies=[RequirePermission(Permission.MEMORY_READ)])
 async def list_memory(
     service: MemoryServiceDep,
     agent_run_id: uuid.UUID | None = None,

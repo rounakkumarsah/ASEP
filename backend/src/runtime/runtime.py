@@ -48,7 +48,22 @@ from src.runtime.nodes import (
     end_node_default,
 )
 
+import asyncio
 logger = logging.getLogger(__name__)
+
+_background_tasks: set[asyncio.Task] = set()
+
+def safe_fire_and_forget(coro) -> None:
+    """Safely executes a background task, holding a strong reference to prevent garbage collection."""
+    task = asyncio.create_task(coro)
+    _background_tasks.add(task)
+    
+    def cleanup(t: asyncio.Task) -> None:
+        _background_tasks.discard(t)
+        if not t.cancelled() and t.exception():
+            logger.error(f"Background task failed: {t.exception()}", exc_info=t.exception())
+            
+    task.add_done_callback(cleanup)
 
 
 class LangGraphRuntime:
@@ -153,7 +168,7 @@ class LangGraphRuntime:
                     
                 # Hook: Store Working Memory (Start)
                 import asyncio
-                asyncio.create_task(store_working_memory(run_id, org_uuid, f"Goal: {goal}"))
+                safe_fire_and_forget(store_working_memory(run_id, org_uuid, f"Goal: {goal}"))
             except Exception as e:
                 logger.error(f"Failed to retrieve or store initial memories: {e}")
 
@@ -180,48 +195,54 @@ class LangGraphRuntime:
         final_response = ""
         success = False
 
-        async for event in self.graph.astream(initial_state, config, stream_mode="updates"):
-            # Inspect event to gather transcript and tool usages
-            for node_name, node_data in event.items():
-                if "messages" in node_data and node_data["messages"]:
-                    last_msg = node_data["messages"][-1]
-                    if isinstance(last_msg, dict):
-                        content = last_msg.get("content", "")
-                        role = last_msg.get("role", "")
-                        name = last_msg.get("name", "")
-                    else:
-                        content = getattr(last_msg, "content", "")
-                        role = getattr(last_msg, "type", "")
-                        name = getattr(last_msg, "name", "")
-                        
-                    if role == "tool" or name:
-                        tools_used.add(name or role)
-                        transcript_builder.append(f"Tool {name or role} Output: {str(content)[:200]}...")
-                        # Hook: Intermediate working memory
-                        if org_id and is_memory_enabled():
-                            asyncio.create_task(store_working_memory(run_id, org_uuid, f"Tool {name or role} output: {content}", source=f"tool_{name or role}"))
-                    elif role == "ai" or role == "assistant":
-                        transcript_builder.append(f"AI: {str(content)[:200]}...")
-                        final_response = str(content)
-                        if org_id and is_memory_enabled():
-                            asyncio.create_task(store_working_memory(run_id, org_uuid, f"AI Thought: {content}", source="ai_step"))
+        try:
+            async for event in self.graph.astream(initial_state, config, stream_mode="updates"):
+                # Inspect event to gather transcript and tool usages
+                for node_name, node_data in event.items():
+                    if "messages" in node_data and node_data["messages"]:
+                        last_msg = node_data["messages"][-1]
+                        if isinstance(last_msg, dict):
+                            content = last_msg.get("content", "")
+                            role = last_msg.get("role", "")
+                            name = last_msg.get("name", "")
+                        else:
+                            content = getattr(last_msg, "content", "")
+                            role = getattr(last_msg, "type", "")
+                            name = getattr(last_msg, "name", "")
                             
-                if node_data.get("status") == "completed":
-                    success = True
-                elif node_data.get("status") == "failed":
-                    success = False
+                        if role == "tool" or name:
+                            tools_used.add(name or role)
+                            transcript_builder.append(f"Tool {name or role} Output: {str(content)[:200]}...")
+                            # Hook: Intermediate working memory
+                            if org_id and is_memory_enabled():
+                                safe_fire_and_forget(store_working_memory(run_id, org_uuid, f"Tool {name or role} output: {content}", source=f"tool_{name or role}"))
+                        elif role == "ai" or role == "assistant":
+                            transcript_builder.append(f"AI: {str(content)[:200]}...")
+                            final_response = str(content)
+                            if org_id and is_memory_enabled():
+                                safe_fire_and_forget(store_working_memory(run_id, org_uuid, f"AI Thought: {content}", source="ai_step"))
+                                
+                    if node_data.get("status") == "completed":
+                        success = True
+                    elif node_data.get("status") == "failed":
+                        success = False
 
-            # Stream the updates dictionary back to the caller
-            yield event
-            
-        # Hook: Episodic & Semantic/Procedural Extraction on End
-        if org_id and is_memory_enabled():
-            try:
-                transcript_str = "\n".join(transcript_builder)
-                asyncio.create_task(store_episodic_memory(run_id, org_uuid, goal, final_response, list(tools_used), success))
-                asyncio.create_task(extract_and_store_durable_memories(run_id, org_uuid, transcript_str))
-            except Exception as e:
-                logger.error(f"Failed to trigger end-of-run memory hooks: {e}")
+                # Stream the updates dictionary back to the caller
+                yield event
+        except Exception as e:
+            success = False
+            final_response = f"Run failed with exception: {str(e)}"
+            logger.error(f"Execution stream error: {e}", exc_info=True)
+            raise
+        finally:
+            # Hook: Episodic & Semantic/Procedural Extraction on End
+            if org_id and is_memory_enabled():
+                try:
+                    transcript_str = "\n".join(transcript_builder)
+                    safe_fire_and_forget(store_episodic_memory(run_id, org_uuid, goal, final_response, list(tools_used), success))
+                    safe_fire_and_forget(extract_and_store_durable_memories(run_id, org_uuid, transcript_str))
+                except Exception as e:
+                    logger.error(f"Failed to trigger end-of-run memory hooks: {e}")
 
     async def resume_run(
         self, thread_id: str, human_input: str
