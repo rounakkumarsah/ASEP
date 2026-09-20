@@ -16,6 +16,9 @@ from src.api.schemas import (
 from src.auth.decorators import RequirePermission
 from src.auth.permissions import Permission
 
+from src.auth.dependencies import get_current_user
+from src.db.models.user import User
+
 router = APIRouter(prefix="/memory", tags=["Memory"])
 
 
@@ -23,11 +26,14 @@ router = APIRouter(prefix="/memory", tags=["Memory"])
 async def create_memory(
     payload: MemoryEntryCreate,
     service: MemoryServiceDep,
+    current_user: User = Depends(get_current_user),
 ) -> MemoryEntryResponse:
     """Create a new memory entry."""
+    org_id = current_user.org_id or current_user.id
     return await service.store_memory(
         content=payload.content,
         namespace="default",
+        org_id=org_id,
         memory_type=payload.memory_type,
         importance_score=payload.importance_score,
         embedding_id=payload.embedding_id,
@@ -44,13 +50,17 @@ async def list_memory(
     query: str | None = None,
     namespace: str = "default",
     pagination: PaginationParams = Depends(),
+    current_user: User = Depends(get_current_user),
 ) -> PaginatedResponse[MemoryEntryResponse]:
     """List memory entries."""
     from src.db.models.memory_entry import MemoryType
 
+    org_id = current_user.org_id or current_user.id
+
     if agent_run_id:
         memories = await service.get_run_memories(
             agent_run_id=agent_run_id,
+            org_id=org_id,
             limit=pagination.limit,
         )
     elif type:
@@ -59,6 +69,7 @@ async def list_memory(
             memories = await service.get_top_memories(
                 namespace=namespace,
                 memory_type=mem_type,
+                org_id=org_id,
                 limit=pagination.limit,
             )
         except ValueError:
@@ -66,6 +77,7 @@ async def list_memory(
     else:
         memories = await service.get_by_namespace(
             namespace=namespace,
+            org_id=org_id,
             limit=pagination.limit,
             offset=pagination.offset,
         )

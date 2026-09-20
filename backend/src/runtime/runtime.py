@@ -109,7 +109,7 @@ class LangGraphRuntime:
         self.graph = self.wrapper.compile()
 
     async def execute_run(
-        self, run_id: str, thread_id: str, goal: str = "", research_mode: str = "balanced", environment_mode: str = "local"
+        self, run_id: str, thread_id: str, goal: str = "", research_mode: str = "balanced", environment_mode: str = "local", org_id: str | None = None
     ) -> AsyncGenerator[dict[str, Any], None]:
         """Initiates a new run and streams step-by-step workflow updates."""
         logger.info(f"Initiating run '{run_id}' under thread: '{thread_id}' with goal: '{goal}'")
@@ -125,9 +125,43 @@ class LangGraphRuntime:
 
         from langchain_core.runnables.config import RunnableConfig
         config = RunnableConfig(configurable={"thread_id": thread_id})
+        
+        # Retrieval Injection: Top K memories
+        injected_memories_text = ""
+        import uuid
+        from src.runtime.memory_hooks import is_memory_enabled, store_working_memory, store_episodic_memory, extract_and_store_durable_memories
+        if org_id and is_memory_enabled():
+            try:
+                from src.services.memory_service import MemoryService
+                from src.api.dependencies import get_uow_factory
+                from src.db.models.memory_entry import MemoryType
+                memory_service = MemoryService(get_uow_factory())
+                org_uuid = uuid.UUID(str(org_id))
+                
+                # Retrieve Semantic, Procedural, Episodic
+                top_memories = []
+                for mtype in [MemoryType.SEMANTIC, MemoryType.PROCEDURAL, MemoryType.EPISODIC]:
+                    mems = await memory_service.get_top_memories(namespace="default", memory_type=mtype, org_id=org_uuid, limit=2)
+                    top_memories.extend(mems)
+                    
+                # Sort by importance and take top 5
+                top_memories.sort(key=lambda x: x.importance_score, reverse=True)
+                top_memories = top_memories[:5]
+                
+                if top_memories:
+                    injected_memories_text = "Relevant Past Memories:\n" + "\n".join(f"- [{m.memory_type}] {m.content}" for m in top_memories) + "\n\n"
+                    
+                # Hook: Store Working Memory (Start)
+                import asyncio
+                asyncio.create_task(store_working_memory(run_id, org_uuid, f"Goal: {goal}"))
+            except Exception as e:
+                logger.error(f"Failed to retrieve or store initial memories: {e}")
+
+        augmented_goal = injected_memories_text + goal
+        
         initial_state: dict[str, Any] = {
-            "goal": goal,
-            "messages": [{"role": "user", "content": goal}] if goal else [],
+            "goal": augmented_goal,
+            "messages": [{"role": "user", "content": augmented_goal}] if goal else [],
             "environment_mode": environment_mode,
             "credentials_status": {},
             "local_secrets": [],
@@ -140,9 +174,54 @@ class LangGraphRuntime:
             "human_input": None,
         }
 
+        # Track data for Episodic memory
+        transcript_builder = [f"Goal: {goal}"]
+        tools_used = set()
+        final_response = ""
+        success = False
+
         async for event in self.graph.astream(initial_state, config, stream_mode="updates"):
+            # Inspect event to gather transcript and tool usages
+            for node_name, node_data in event.items():
+                if "messages" in node_data and node_data["messages"]:
+                    last_msg = node_data["messages"][-1]
+                    if isinstance(last_msg, dict):
+                        content = last_msg.get("content", "")
+                        role = last_msg.get("role", "")
+                        name = last_msg.get("name", "")
+                    else:
+                        content = getattr(last_msg, "content", "")
+                        role = getattr(last_msg, "type", "")
+                        name = getattr(last_msg, "name", "")
+                        
+                    if role == "tool" or name:
+                        tools_used.add(name or role)
+                        transcript_builder.append(f"Tool {name or role} Output: {str(content)[:200]}...")
+                        # Hook: Intermediate working memory
+                        if org_id and is_memory_enabled():
+                            asyncio.create_task(store_working_memory(run_id, org_uuid, f"Tool {name or role} output: {content}", source=f"tool_{name or role}"))
+                    elif role == "ai" or role == "assistant":
+                        transcript_builder.append(f"AI: {str(content)[:200]}...")
+                        final_response = str(content)
+                        if org_id and is_memory_enabled():
+                            asyncio.create_task(store_working_memory(run_id, org_uuid, f"AI Thought: {content}", source="ai_step"))
+                            
+                if node_data.get("status") == "completed":
+                    success = True
+                elif node_data.get("status") == "failed":
+                    success = False
+
             # Stream the updates dictionary back to the caller
             yield event
+            
+        # Hook: Episodic & Semantic/Procedural Extraction on End
+        if org_id and is_memory_enabled():
+            try:
+                transcript_str = "\n".join(transcript_builder)
+                asyncio.create_task(store_episodic_memory(run_id, org_uuid, goal, final_response, list(tools_used), success))
+                asyncio.create_task(extract_and_store_durable_memories(run_id, org_uuid, transcript_str))
+            except Exception as e:
+                logger.error(f"Failed to trigger end-of-run memory hooks: {e}")
 
     async def resume_run(
         self, thread_id: str, human_input: str

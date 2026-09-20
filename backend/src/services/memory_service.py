@@ -106,6 +106,7 @@ class MemoryService:
         self,
         content: str,
         namespace: str,
+        org_id: uuid.UUID,
         memory_type: MemoryType = MemoryType.EPISODIC,
         agent_run_id: uuid.UUID | None = None,
         importance_score: float = 0.5,
@@ -114,6 +115,7 @@ class MemoryService:
         embedding_id: uuid.UUID | None = None,
         embedding_model: str | None = None,
         entry_metadata: dict[str, Any] | None = None,
+        expires_at: datetime | None = None,
     ) -> MemoryEntry:
         """Create and persist a new ``MemoryEntry``.
 
@@ -123,6 +125,7 @@ class MemoryService:
             namespace:      Logical partition identifier.  Must be non-empty.
                             All retrieval queries must supply a namespace to
                             prevent cross-project contamination.
+            org_id:         Tenant organization ID for strict isolation.
             memory_type:    Cognitive classification.  Defaults to ``EPISODIC``.
             agent_run_id:   Optional UUID of the source ``AgentRun``.  Pass
                             ``None`` for globally scoped memories.
@@ -136,6 +139,7 @@ class MemoryService:
             embedding_model: Model used to produce the embedding.  If set,
                             ``embedding_id`` must also be provided.
             entry_metadata: Arbitrary JSONB context.
+            expires_at:     Optional expiration timestamp for TTL.
 
         Returns:
             The persisted ``MemoryEntry`` instance.
@@ -162,6 +166,7 @@ class MemoryService:
             id=uuid.uuid4(),
             content=content,
             namespace=namespace,
+            org_id=org_id,
             memory_type=memory_type,
             agent_run_id=agent_run_id,
             importance_score=score,
@@ -170,6 +175,7 @@ class MemoryService:
             embedding_id=embedding_id,
             embedding_model=embedding_model,
             entry_metadata=entry_metadata,
+            expires_at=expires_at,
         )
         async with self._uow_factory() as uow:
             entry = await uow.memory_entries.create(entry)
@@ -207,20 +213,11 @@ class MemoryService:
     async def get_by_embedding(
         self,
         embedding_id: uuid.UUID,
+        org_id: uuid.UUID,
     ) -> MemoryEntry | None:
-        """Return the entry associated with a Qdrant point ID, or ``None``.
-
-        Used by the embedding pipeline to reconcile Qdrant search results
-        with PostgreSQL rows.
-
-        Args:
-            embedding_id: UUID of the Qdrant point.
-
-        Returns:
-            The ``MemoryEntry`` instance, or ``None`` if not yet linked.
-        """
+        """Return the entry associated with a Qdrant point ID, or ``None``."""
         async with self._uow_factory() as uow:
-            return await uow.memory_entries.get_by_embedding_id(embedding_id)
+            return await uow.memory_entries.get_by_embedding_id(embedding_id, org_id)
 
     # ------------------------------------------------------------------
     # Update — access tracking
@@ -290,62 +287,36 @@ class MemoryService:
         self,
         namespace: str,
         memory_type: MemoryType,
+        org_id: uuid.UUID,
         limit: int = 50,
     ) -> list[MemoryEntry]:
-        """Return the top-N entries ranked by importance score.
-
-        Args:
-            namespace:   Logical partition identifier.
-            memory_type: Cognitive classification to narrow results.
-            limit:       Maximum entries to return.
-
-        Returns:
-            A list of ``MemoryEntry`` instances ordered by
-            ``importance_score DESC, accessed_at DESC NULLS LAST``.
-        """
+        """Return the top-N entries ranked by importance score."""
         async with self._uow_factory() as uow:
             return await uow.memory_entries.get_top_by_importance(
-                namespace, memory_type, limit=limit
+                namespace, memory_type, org_id, limit=limit
             )
 
     async def get_by_namespace(
         self,
         namespace: str,
+        org_id: uuid.UUID,
         limit: int = 50,
         offset: int = 0,
     ) -> list[MemoryEntry]:
-        """Return all entries within a namespace.
-
-        Args:
-            namespace: Logical partition identifier.
-            limit:     Maximum entries to return.
-            offset:    Entries to skip.
-
-        Returns:
-            A list of ``MemoryEntry`` instances ordered by
-            ``importance_score DESC``.
-        """
+        """Return all entries within a namespace."""
         async with self._uow_factory() as uow:
             return await uow.memory_entries.get_by_namespace(
-                namespace, limit=limit, offset=offset
+                namespace, org_id, limit=limit, offset=offset
             )
 
     async def get_run_memories(
         self,
         agent_run_id: uuid.UUID,
+        org_id: uuid.UUID,
         limit: int = 50,
     ) -> list[MemoryEntry]:
-        """Return all memory entries associated with a run.
-
-        Args:
-            agent_run_id: UUID of the parent ``AgentRun``.
-            limit:        Maximum entries to return.
-
-        Returns:
-            A list of ``MemoryEntry`` instances ordered by
-            ``created_at DESC``.
-        """
+        """Return all memory entries associated with a run."""
         async with self._uow_factory() as uow:
             return await uow.memory_entries.get_by_agent_run(
-                agent_run_id, limit=limit
+                agent_run_id, org_id, limit=limit
             )

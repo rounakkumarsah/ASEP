@@ -164,9 +164,10 @@ async def start_run(
     from collections.abc import AsyncGenerator
 
     async def _event_generator() -> AsyncGenerator[str, None]:
+        org_id = current_user.org_id or current_user.id
         try:
             async for event in runtime.execute_run(
-                run_id=run_id, thread_id=thread_id, goal=payload.goal, research_mode=payload.research_mode, environment_mode=payload.environment_mode
+                run_id=run_id, thread_id=thread_id, goal=payload.goal, research_mode=payload.research_mode, environment_mode=payload.environment_mode, org_id=org_id
             ):
                 yield _sse_line(
                     {

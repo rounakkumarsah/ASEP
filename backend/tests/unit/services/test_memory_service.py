@@ -19,10 +19,12 @@ def memory_service(uow_factory):
 @pytest.mark.asyncio
 async def test_add_memory(memory_service, mock_uow):
     run_id = uuid.uuid4()
+    org_id = uuid.uuid4()
     mock_uow.memory_entries.create.side_effect = lambda m: m
 
     result = await memory_service.store_memory(
         namespace="test-namespace",
+        org_id=org_id,
         agent_run_id=run_id,
         memory_type=MemoryType.EPISODIC,
         content="Test observation",
@@ -41,9 +43,11 @@ async def test_add_memory(memory_service, mock_uow):
 
 @pytest.mark.asyncio
 async def test_add_memory_validation(memory_service):
+    org_id = uuid.uuid4()
     with pytest.raises(ValueError, match="MemoryEntry.content must be a non-empty string."):
         await memory_service.store_memory(
             namespace="test-namespace",
+            org_id=org_id,
             agent_run_id=uuid.uuid4(),
             memory_type=MemoryType.EPISODIC,
             content="",
@@ -53,6 +57,7 @@ async def test_add_memory_validation(memory_service):
     with pytest.raises(ValueError, match="importance_score must be in"):
         await memory_service.store_memory(
             namespace="test-namespace",
+            org_id=org_id,
             agent_run_id=uuid.uuid4(),
             memory_type=MemoryType.EPISODIC,
             content="test",
@@ -62,6 +67,7 @@ async def test_add_memory_validation(memory_service):
     with pytest.raises(ValueError, match="embedding_model may not be set without embedding_id"):
         await memory_service.store_memory(
             namespace="test-namespace",
+            org_id=org_id,
             agent_run_id=uuid.uuid4(),
             memory_type=MemoryType.EPISODIC,
             content="test",

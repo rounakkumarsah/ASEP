@@ -64,27 +64,18 @@ class MemoryEntryRepository(BaseRepository[MemoryEntry, uuid.UUID]):
     async def get_by_agent_run(
         self,
         agent_run_id: uuid.UUID,
+        org_id: uuid.UUID,
         *options: ExecutableOption,
         limit: int = DEFAULT_LIMIT,
         offset: int = DEFAULT_OFFSET,
     ) -> list[MemoryEntry]:
-        """Return all memory entries associated with a given ``AgentRun``.
-
-        Uses ``ix_memory_entry_agent_run_id``.
-
-        Args:
-            agent_run_id: UUID of the parent ``AgentRun``.
-            *options:     SQLAlchemy loader strategy options.
-            limit:        Maximum rows to return (clamped to ``MAX_LIMIT``).
-            offset:       Rows to skip.
-
-        Returns:
-            A list of ``MemoryEntry`` instances ordered by
-            ``created_at DESC``.
-        """
+        """Return all memory entries associated with a given ``AgentRun``."""
+        from sqlalchemy import or_, func
         stmt = (
             select(MemoryEntry)
             .where(MemoryEntry.agent_run_id == agent_run_id)
+            .where(MemoryEntry.org_id == org_id)
+            .where(or_(MemoryEntry.expires_at.is_(None), MemoryEntry.expires_at > func.now()))
             .order_by(MemoryEntry.created_at.desc())
             .limit(_clamp_limit(limit))
             .offset(offset)
@@ -101,29 +92,18 @@ class MemoryEntryRepository(BaseRepository[MemoryEntry, uuid.UUID]):
     async def get_by_namespace(
         self,
         namespace: str,
+        org_id: uuid.UUID,
         *options: ExecutableOption,
         limit: int = DEFAULT_LIMIT,
         offset: int = DEFAULT_OFFSET,
     ) -> list[MemoryEntry]:
-        """Return all memory entries within a namespace.
-
-        Uses ``ix_memory_entry_namespace``.  All retrieval queries should
-        supply a ``namespace`` to prevent cross-project contamination.
-
-        Args:
-            namespace: Logical partition identifier (project slug, tenant ID,
-                       agent scope).
-            *options:  SQLAlchemy loader strategy options.
-            limit:     Maximum rows to return (clamped to ``MAX_LIMIT``).
-            offset:    Rows to skip.
-
-        Returns:
-            A list of ``MemoryEntry`` instances in the namespace, ordered
-            by ``importance_score DESC``.
-        """
+        """Return all memory entries within a namespace."""
+        from sqlalchemy import or_, func
         stmt = (
             select(MemoryEntry)
             .where(MemoryEntry.namespace == namespace)
+            .where(MemoryEntry.org_id == org_id)
+            .where(or_(MemoryEntry.expires_at.is_(None), MemoryEntry.expires_at > func.now()))
             .order_by(MemoryEntry.importance_score.desc())
             .limit(_clamp_limit(limit))
             .offset(offset)
@@ -137,33 +117,21 @@ class MemoryEntryRepository(BaseRepository[MemoryEntry, uuid.UUID]):
         self,
         namespace: str,
         memory_type: MemoryType,
+        org_id: uuid.UUID,
         *options: ExecutableOption,
         limit: int = DEFAULT_LIMIT,
         offset: int = DEFAULT_OFFSET,
     ) -> list[MemoryEntry]:
-        """Return memory entries filtered by namespace and cognitive type.
-
-        Uses the composite index ``ix_memory_entry_namespace_type`` — the
-        hot retrieval path for the ``MemoryService``.
-
-        Args:
-            namespace:   Logical partition identifier.
-            memory_type: Cognitive classification (``EPISODIC``,
-                         ``SEMANTIC``, ``PROCEDURAL``, ``WORKING``).
-            *options:    SQLAlchemy loader strategy options.
-            limit:       Maximum rows to return (clamped to ``MAX_LIMIT``).
-            offset:      Rows to skip.
-
-        Returns:
-            A list of ``MemoryEntry`` instances ordered by
-            ``importance_score DESC``.
-        """
+        """Return memory entries filtered by namespace and cognitive type."""
+        from sqlalchemy import or_, func
         stmt = (
             select(MemoryEntry)
             .where(
                 MemoryEntry.namespace == namespace,
                 MemoryEntry.memory_type == memory_type,
+                MemoryEntry.org_id == org_id,
             )
+            .where(or_(MemoryEntry.expires_at.is_(None), MemoryEntry.expires_at > func.now()))
             .order_by(MemoryEntry.importance_score.desc())
             .limit(_clamp_limit(limit))
             .offset(offset)
@@ -180,22 +148,17 @@ class MemoryEntryRepository(BaseRepository[MemoryEntry, uuid.UUID]):
     async def get_by_embedding_id(
         self,
         embedding_id: uuid.UUID,
+        org_id: uuid.UUID,
         *options: ExecutableOption,
     ) -> MemoryEntry | None:
-        """Return the memory entry that corresponds to a Qdrant point ID.
-
-        Uses ``ix_memory_entry_embedding_id``.  Called by the embedding
-        pipeline to reconcile vector-store results back to PostgreSQL rows.
-
-        Args:
-            embedding_id: UUID of the Qdrant point.
-            *options:     SQLAlchemy loader strategy options.
-
-        Returns:
-            The ``MemoryEntry`` instance, or ``None`` if no entry has been
-            linked to this embedding ID yet.
-        """
-        stmt = select(MemoryEntry).where(MemoryEntry.embedding_id == embedding_id)
+        """Return the memory entry that corresponds to a Qdrant point ID."""
+        from sqlalchemy import or_, func
+        stmt = (
+            select(MemoryEntry)
+            .where(MemoryEntry.embedding_id == embedding_id)
+            .where(MemoryEntry.org_id == org_id)
+            .where(or_(MemoryEntry.expires_at.is_(None), MemoryEntry.expires_at > func.now()))
+        )
         if options:
             stmt = stmt.options(*options)
         return await self._session.scalar(stmt)
@@ -209,33 +172,21 @@ class MemoryEntryRepository(BaseRepository[MemoryEntry, uuid.UUID]):
         namespace: str,
         min_score: Decimal,
         max_score: Decimal,
+        org_id: uuid.UUID,
         *options: ExecutableOption,
         limit: int = DEFAULT_LIMIT,
     ) -> list[MemoryEntry]:
-        """Return entries within a namespace filtered by importance score.
-
-        Useful for the ``MemoryService`` to exclude low-quality entries
-        below a dynamic threshold before embedding-similarity re-ranking.
-
-        Args:
-            namespace:  Logical partition identifier.
-            min_score:  Minimum ``importance_score`` (inclusive), in
-                        ``[0.000, 1.000]``.
-            max_score:  Maximum ``importance_score`` (inclusive).
-            *options:   SQLAlchemy loader strategy options.
-            limit:      Maximum rows to return (clamped to ``MAX_LIMIT``).
-
-        Returns:
-            A list of ``MemoryEntry`` instances ordered by
-            ``importance_score DESC``.
-        """
+        """Return entries within a namespace filtered by importance score."""
+        from sqlalchemy import or_, func
         stmt = (
             select(MemoryEntry)
             .where(
                 MemoryEntry.namespace == namespace,
                 MemoryEntry.importance_score >= min_score,
                 MemoryEntry.importance_score <= max_score,
+                MemoryEntry.org_id == org_id,
             )
+            .where(or_(MemoryEntry.expires_at.is_(None), MemoryEntry.expires_at > func.now()))
             .order_by(MemoryEntry.importance_score.desc())
             .limit(_clamp_limit(limit))
         )
@@ -252,30 +203,20 @@ class MemoryEntryRepository(BaseRepository[MemoryEntry, uuid.UUID]):
         self,
         namespace: str,
         memory_type: MemoryType,
+        org_id: uuid.UUID,
         *options: ExecutableOption,
         limit: int = DEFAULT_LIMIT,
     ) -> list[MemoryEntry]:
-        """Return the top-N entries by ``importance_score`` in a namespace.
-
-        Primary retrieval path for injecting memories into LLM context
-        windows.  Uses ``ix_memory_entry_namespace_type``.
-
-        Args:
-            namespace:   Logical partition identifier.
-            memory_type: Cognitive classification to narrow the result set.
-            *options:    SQLAlchemy loader strategy options.
-            limit:       Maximum rows to return (clamped to ``MAX_LIMIT``).
-
-        Returns:
-            A list of ``MemoryEntry`` instances ordered by
-            ``importance_score DESC, accessed_at DESC NULLS LAST``.
-        """
+        """Return the top-N entries by ``importance_score`` in a namespace."""
+        from sqlalchemy import or_, func
         stmt = (
             select(MemoryEntry)
             .where(
                 MemoryEntry.namespace == namespace,
                 MemoryEntry.memory_type == memory_type,
+                MemoryEntry.org_id == org_id,
             )
+            .where(or_(MemoryEntry.expires_at.is_(None), MemoryEntry.expires_at > func.now()))
             .order_by(
                 MemoryEntry.importance_score.desc(),
                 MemoryEntry.accessed_at.desc().nulls_last(),
