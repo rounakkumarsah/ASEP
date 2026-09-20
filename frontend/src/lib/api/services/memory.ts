@@ -18,7 +18,8 @@ export const memoryService = {
         status: "success",
         data: response.data || { items: [], total: 0, page: 1, size: 50, pages: 1 }
       };
-    } catch {
+    } catch (error) {
+      console.error("Failed to fetch memories:", error);
       return {
         status: "success",
         data: { items: [], total: 0, page: 1, size: 50, pages: 1 }

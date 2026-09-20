@@ -36,25 +36,43 @@ async def create_memory(
 
 @router.get("/", response_model=PaginatedResponse[MemoryEntryResponse], dependencies=[RequirePermission(Permission.MEMORY_READ)])
 async def list_memory(
-    agent_run_id: uuid.UUID,
     service: MemoryServiceDep,
+    agent_run_id: uuid.UUID | None = None,
+    type: str | None = None,
+    query: str | None = None,
+    namespace: str = "default",
     pagination: PaginationParams = Depends(),
 ) -> PaginatedResponse[MemoryEntryResponse]:
-    """List memory entries for a specific agent run."""
-    # The service returns a list. In a real app we might want a paginated fetch from the DB.
-    # For now, we will wrap the result.
-    memories = await service.get_run_memory(
-        agent_run_id=agent_run_id,
-        # Our get_run_memory doesn't currently support limit/offset directly,
-        # but we can pass them if we update the service in the future.
-    )
-    # manual pagination on memory list for now
-    start = pagination.offset
-    end = start + pagination.limit
-    paginated = memories[start:end]
+    """List memory entries."""
+    from src.db.models.memory_entry import MemoryType
+
+    if agent_run_id:
+        memories = await service.get_run_memories(
+            agent_run_id=agent_run_id,
+            limit=pagination.limit,
+        )
+    elif type:
+        try:
+            mem_type = MemoryType(type)
+            memories = await service.get_top_memories(
+                namespace=namespace,
+                memory_type=mem_type,
+                limit=pagination.limit,
+            )
+        except ValueError:
+            memories = []
+    else:
+        memories = await service.get_by_namespace(
+            namespace=namespace,
+            limit=pagination.limit,
+            offset=pagination.offset,
+        )
+
+    if query:
+        memories = [m for m in memories if query.lower() in m.content.lower()]
 
     return PaginatedResponse(
-        items=paginated,
+        items=memories,
         total=len(memories),
         limit=pagination.limit,
         offset=pagination.offset
