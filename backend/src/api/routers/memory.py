@@ -25,12 +25,14 @@ async def create_memory(
     service: MemoryServiceDep,
 ) -> MemoryEntryResponse:
     """Create a new memory entry."""
-    return await service.add_memory(
-        agent_run_id=payload.agent_run_id,
-        key=payload.key,
-        value=payload.value,
-        category=payload.category,
-        task_id=payload.task_id
+    return await service.store_memory(
+        content=payload.content,
+        namespace="default",
+        memory_type=payload.memory_type,
+        importance_score=payload.importance_score,
+        embedding_id=payload.embedding_id,
+        embedding_model=payload.embedding_model,
+        entry_metadata=payload.context_data,
     )
 
 
