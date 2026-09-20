@@ -54,6 +54,8 @@ interface Skill {
   updated_at: string;
 }
 
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
+
 export default function SkillsPage() {
   const [skills, setSkills] = React.useState<Skill[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -98,7 +100,7 @@ export default function SkillsPage() {
   const fetchSkills = React.useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/v1/skills");
+      const res = await fetch(`${API_BASE}/api/v1/skills`);
       if (res.ok) {
         const data = await res.json();
         setSkills(data);
@@ -116,7 +118,7 @@ export default function SkillsPage() {
 
   const handleToggle = async (skill: Skill, newEnabled: boolean) => {
     try {
-      const res = await fetch(`/api/v1/skills/${skill.name}/toggle`, {
+      const res = await fetch(`${API_BASE}/api/v1/skills/${skill.name}/toggle`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled: newEnabled }),
@@ -135,7 +137,7 @@ export default function SkillsPage() {
   const handleDelete = async (skillName: string) => {
     if (!confirm(`Are you sure you want to delete user skill '${skillName}'?`)) return;
     try {
-      const res = await fetch(`/api/v1/skills/${skillName}`, { method: "DELETE" });
+      const res = await fetch(`${API_BASE}/api/v1/skills/${skillName}`, { method: "DELETE" });
       if (res.ok) {
         setSkills((prev) => prev.filter((s) => s.name !== skillName));
         showToast(`Skill '${skillName}' deleted`);
@@ -150,7 +152,7 @@ export default function SkillsPage() {
 
   const handleDuplicate = async (skillName: string) => {
     try {
-      const res = await fetch(`/api/v1/skills/${skillName}/duplicate`, { method: "POST" });
+      const res = await fetch(`${API_BASE}/api/v1/skills/${skillName}/duplicate`, { method: "POST" });
       if (res.ok) {
         const dup = await res.json();
         setSkills((prev) => [dup, ...prev]);
@@ -162,7 +164,7 @@ export default function SkillsPage() {
   };
 
   const handleExport = (skillName: string, format: "md" | "zip" = "md") => {
-    window.open(`/api/v1/skills/${skillName}/export?format=${format}`, "_blank");
+    window.open(`${API_BASE}/api/v1/skills/${skillName}/export?format=${format}`, "_blank");
   };
 
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -174,7 +176,7 @@ export default function SkillsPage() {
     formData.append("file", file);
 
     try {
-      const res = await fetch("/api/v1/skills/import", {
+      const res = await fetch(`${API_BASE}/api/v1/skills/import`, {
         method: "POST",
         body: formData,
       });
@@ -268,7 +270,7 @@ export default function SkillsPage() {
         }
       } else {
         // Create
-        const res = await fetch("/api/v1/skills", {
+        const res = await fetch(`${API_BASE}/api/v1/skills`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -307,7 +309,7 @@ export default function SkillsPage() {
     formData.append("file", file);
 
     try {
-      const res = await fetch(`/api/v1/skills/${editingSkill.name}/attachments`, {
+      const res = await fetch(`${API_BASE}/api/v1/skills/${editingSkill.name}/attachments`, {
         method: "POST",
         body: formData,
       });
@@ -335,7 +337,7 @@ export default function SkillsPage() {
   const handleDeleteAttachment = async (filename: string) => {
     if (!editingSkill) return;
     try {
-      const res = await fetch(`/api/v1/skills/${editingSkill.name}/attachments/${filename}`, {
+      const res = await fetch(`${API_BASE}/api/v1/skills/${editingSkill.name}/attachments/${filename}`, {
         method: "DELETE",
       });
       if (res.ok) {
@@ -346,6 +348,9 @@ export default function SkillsPage() {
         setEditingSkill(updated);
         setSkills((prev) => prev.map((s) => (s.name === updated.name ? updated : s)));
         showToast(`Deleted attachment '${filename}'`);
+      } else {
+        const err = await res.json();
+        showToast(`Delete attachment failed: ${err.detail || "Error"}`);
       }
     } catch (err) {
       console.error("Delete attachment failed:", err);
@@ -355,7 +360,7 @@ export default function SkillsPage() {
   const handleRestoreVersion = async (versionIdx: number) => {
     if (!editingSkill) return;
     try {
-      const res = await fetch(`/api/v1/skills/${editingSkill.name}/restore-version`, {
+      const res = await fetch(`${API_BASE}/api/v1/skills/${editingSkill.name}/restore-version`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ version_idx: versionIdx }),
@@ -382,7 +387,7 @@ export default function SkillsPage() {
     if (!testSkillName) return;
     setTestLoading(true);
     try {
-      const res = await fetch(`/api/v1/skills/${testSkillName}/test`, {
+      const res = await fetch(`${API_BASE}/api/v1/skills/${testSkillName}/test`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sample_goal: testGoal }),

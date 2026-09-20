@@ -253,6 +253,42 @@ class TestAttachmentProcessingAndRetrieval:
         assert len(perf_skill.attachments) == 1
         assert perf_skill.attachments[0].filename == "guide.txt"
 
+    def test_zip_repo_readme_synthesis(self, tmp_skill_manager: SkillManager):
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            zf.writestr("graphify-main/README.md", "# Graphify\n\nFast codebase knowledge graphs.\n\nRun graphify analyze.")
+            zf.writestr("graphify-main/graphify/__init__.py", "# python code")
+
+        imported = tmp_skill_manager.import_skills(buf.getvalue(), "graphify-main.zip")
+        assert len(imported) == 1
+        assert imported[0].name == "graphify-expert"
+        assert "graphify" in imported[0].trigger
+        assert "Fast codebase knowledge graphs." in imported[0].description
+        assert "graphify analyze" in imported[0].instructions
+
+    def test_cursor_mdc_and_plugin_json_import(self, tmp_skill_manager: SkillManager):
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            zf.writestr(".cursor/rules/ponytail.mdc", "---\ndescription: Lazy dev rules\nglobs: *.ts\n---\nWrite short minimal code.")
+            zf.writestr("plugin.json", '{"name": "ponytail-plugin", "description": "Claude plugin", "rules": "YAGNI first"}')
+
+        imported = tmp_skill_manager.import_skills(buf.getvalue(), "ponytail.zip")
+        assert len(imported) == 2
+        names = [s.name for s in imported]
+        assert "ponytail" in names or "ponytail-mdc" in names or any("ponytail" in n for n in names)
+        assert any("ponytail-plugin" in n for n in names)
+
+    def test_unsupported_archive_error_message(self, tmp_skill_manager: SkillManager):
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            zf.writestr("app.exe", b"MZ\x90\x00")
+            zf.writestr("icon.png", b"\x89PNG")
+
+        with pytest.raises(ValueError) as exc:
+            tmp_skill_manager.import_skills(buf.getvalue(), "installer.zip")
+        assert "No valid skill definitions" in str(exc.value)
+        assert "app.exe" in str(exc.value)
+
 
 class TestRuntimeSkillActivationAndVerification:
     @pytest.mark.asyncio

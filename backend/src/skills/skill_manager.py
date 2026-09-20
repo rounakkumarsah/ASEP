@@ -207,22 +207,24 @@ class SkillManager:
     # -------------------------------------------------------------------------
 
     def parse_markdown(self, content: str, is_builtin: bool = False) -> Skill:
-        """Parse a markdown file with YAML frontmatter."""
-        pattern = r"^---\s*\n(.*?)\n---\s*\n(.*)$"
+        """Parse a markdown file with YAML frontmatter or Cursor .mdc format."""
+        pattern = r"^---\s*\r?\n(.*?)\r?\n---\s*\r?\n?(.*)$"
         match = re.search(pattern, content, re.DOTALL)
         if match:
             frontmatter_str, body = match.group(1), match.group(2)
             if yaml is not None:
-                meta = yaml.safe_load(frontmatter_str) or {}
+                try:
+                    meta = yaml.safe_load(frontmatter_str) or {}
+                except Exception:
+                    meta = _parse_yaml_fallback(frontmatter_str)
             else:
                 meta = _parse_yaml_fallback(frontmatter_str)
         else:
             meta = {}
             body = content
 
-        name = meta.get("name", "unnamed-skill")
-        # Sanitize name
-        name = re.sub(r"[^a-zA-Z0-9_-]", "-", name.lower()).strip("-")
+        raw_name = meta.get("name") or meta.get("title") or meta.get("id") or "unnamed-skill"
+        name = re.sub(r"[^a-zA-Z0-9_-]", "-", str(raw_name).lower()).strip("-")
 
         # Parse dependencies from frontmatter or check "also apply:" in body
         dependencies = meta.get("dependencies") or []
@@ -235,11 +237,22 @@ class SkillManager:
             if bd not in dependencies and bd != name:
                 dependencies.append(bd)
 
+        # Extract or derive trigger
+        trigger = str(meta.get("trigger") or meta.get("globs") or meta.get("triggers") or meta.get("when") or "").strip()
+        if not trigger and name not in ("unnamed-skill", "", "skill"):
+            trigger = re.sub(r"[-_]+", " ", name).strip()
+
+        desc = str(meta.get("description") or meta.get("summary") or meta.get("about") or "").strip()
+
+        instructions = body.strip()
+        if not instructions:
+            instructions = str(meta.get("instructions") or meta.get("rules") or meta.get("prompt") or "").strip()
+
         return Skill(
             name=name,
-            description=meta.get("description", ""),
-            trigger=str(meta.get("trigger", "")),
-            instructions=body.strip(),
+            description=desc,
+            trigger=trigger,
+            instructions=instructions,
             dependencies=dependencies,
             scope=meta.get("scope", "workspace"),
             project_id=meta.get("project_id"),
@@ -531,8 +544,76 @@ class SkillManager:
             md_bytes = skill.to_markdown().encode("utf-8")
             return f"{skill.name}.md", md_bytes
 
+    def _get_unique_skill_name(self, base_name: str) -> str:
+        """Return a unique skill name that does not collide with existing cached skills."""
+        clean = re.sub(r"[^a-zA-Z0-9_-]", "-", str(base_name).lower()).strip("-") or "imported-skill"
+        if clean not in self._skills_cache:
+            return clean
+        candidate = f"{clean}-imported"
+        counter = 1
+        while candidate in self._skills_cache:
+            counter += 1
+            candidate = f"{clean}-imported-{counter}"
+        return candidate
+
+    def _extract_repo_skill_from_readme(self, readme_content: str, zip_filename: str, file_path_in_zip: str) -> Skill:
+        """Extract a synthesized tool skill from a repository's README documentation."""
+        parts = Path(file_path_in_zip).parts
+        if len(parts) > 1 and parts[0] not in (".", ""):
+            raw = parts[0]
+        else:
+            raw = Path(zip_filename).stem
+
+        # Strip common repo suffixes like -main, -master, -v1.2.3, etc.
+        s = re.sub(r"[-._](?:main|master|dev|release|v?\d+.*)$", "", raw, flags=re.IGNORECASE)
+        clean_base = re.sub(r"[^a-zA-Z0-9_-]", "-", s.lower()).strip("-")
+        if not clean_base or clean_base in ("readme", "doc", "docs", "skill", "instructions"):
+            clean_base = re.sub(r"[^a-zA-Z0-9_-]", "-", Path(zip_filename).stem.lower()).strip("-")
+        if not clean_base or clean_base in ("readme", "doc", "docs", "skill", "instructions"):
+            clean_base = "custom-tool"
+
+        skill_name = f"{clean_base}-expert"
+
+        lines = [line.strip() for line in readme_content.splitlines() if line.strip()]
+        desc = ""
+        for line in lines:
+            if line.startswith("#"):
+                continue
+            if len(line) > 15:
+                desc = line[:250].strip()
+                break
+        if not desc and lines:
+            desc = re.sub(r"^[#\s]+", "", lines[0])[:250]
+
+        trigger_words = {clean_base.replace("-", " ")}
+        if lines:
+            words = re.findall(r"[a-zA-Z]{3,}", lines[0].lower())
+            for w in words[:6]:
+                if w not in ("the", "and", "for", "with", "this", "tool", "library"):
+                    trigger_words.add(w)
+        trigger = " ".join(sorted(trigger_words))
+
+        instructions = (
+            f"# {clean_base.capitalize()} Integration & Tool Guide\n\n"
+            f"Activate this skill when the user asks about, inspects, or wants to build with `{clean_base}`.\n\n"
+            f"## Documentation & Usage Instructions\n\n"
+            f"{readme_content.strip()}"
+        )
+
+        return Skill(
+            name=skill_name,
+            description=desc or f"Integration guide and skill directives for {clean_base}",
+            trigger=trigger,
+            instructions=instructions,
+            dependencies=[],
+            scope="workspace",
+            enabled=True,
+            is_builtin=False,
+            version=1,
+        )
+
     def import_skills(self, content_bytes: bytes, filename: str) -> list[Skill]:
-        """Import one or more skills from a .md file or ZIP archive."""
+        """Import one or more skills from a .md/.json file or ZIP archive."""
         fname_lower = filename.lower()
         imported_skills: list[Skill] = []
 
@@ -541,78 +622,94 @@ class SkillManager:
                 with zipfile.ZipFile(io.BytesIO(content_bytes)) as zf:
                     all_names = [f for f in zf.namelist() if not f.startswith("__MACOSX") and not f.endswith("/")]
 
-                    # 1. Identify all candidate markdown skill files
-                    doc_ignore = {"readme.md", "license.md", "contributing.md", "changelog.md", "code_of_conduct.md"}
-                    candidate_mds = [
+                    rule_extensions = (".md", ".markdown", ".mdc", ".rules", ".prompt")
+                    rule_filenames = {".cursorrules", ".windsurfrules", ".clinerules"}
+                    candidate_rules = [
                         f for f in all_names
-                        if f.lower().endswith((".md", ".markdown"))
+                        if f.lower().endswith(rule_extensions) or Path(f).name.lower() in rule_filenames
                     ]
 
-                    # Filter out purely informational documentation files unless they have explicit skill frontmatter
-                    skill_files_to_process: list[str] = []
-                    for mf in candidate_mds:
-                        base = Path(mf).name.lower()
+                    doc_ignore = {"readme.md", "license.md", "contributing.md", "changelog.md", "code_of_conduct.md"}
+                    explicit_skill_files: list[str] = []
+                    readme_candidates: list[str] = []
+
+                    for rf in candidate_rules:
+                        base = Path(rf).name.lower()
                         if base in doc_ignore:
-                            content_peek = zf.read(mf)[:500].decode("utf-8", errors="ignore")
-                            if re.search(r"^---\s*\n.*?\n---\s*", content_peek, re.DOTALL):
-                                skill_files_to_process.append(mf)
+                            content_peek = zf.read(rf)[:500].decode("utf-8", errors="ignore")
+                            if re.search(r"^---\s*\r?\n.*?\r?\n---\s*", content_peek, re.DOTALL):
+                                explicit_skill_files.append(rf)
+                            elif base == "readme.md":
+                                readme_candidates.append(rf)
                         else:
-                            skill_files_to_process.append(mf)
+                            explicit_skill_files.append(rf)
 
-                    if not skill_files_to_process and candidate_mds:
-                        skill_files_to_process = candidate_mds
-
-                    # Also check for YAML skill manifests if no markdown files found
-                    if not skill_files_to_process:
-                        candidate_yamls = [f for f in all_names if f.lower().endswith((".yaml", ".yml"))]
-                        for yf in candidate_yamls:
-                            try:
-                                ycontent = zf.read(yf).decode("utf-8", errors="ignore")
-                                if yaml is not None:
-                                    ymeta = yaml.safe_load(ycontent) or {}
-                                else:
-                                    ymeta = _parse_yaml_fallback(ycontent)
-                                if isinstance(ymeta, dict) and ("instructions" in ymeta or "trigger" in ymeta or "name" in ymeta):
-                                    s_name = ymeta.get("name") or Path(yf).stem
-                                    clean_name = re.sub(r"[^a-zA-Z0-9_-]", "-", s_name.lower()).strip("-") or "imported-skill"
-                                    
-                                    # Ensure unique name
-                                    base_name = clean_name
-                                    if base_name in self._skills_cache:
-                                        imported_base = f"{base_name}-imported"
-                                        unique_name = imported_base
-                                        counter = 1
-                                        while unique_name in self._skills_cache:
-                                            counter += 1
-                                            unique_name = f"{imported_base}-{counter}"
-                                        clean_name = unique_name
-
-                                    s = Skill(
-                                        name=clean_name,
-                                        description=ymeta.get("description", ""),
-                                        trigger=str(ymeta.get("trigger", "")),
-                                        instructions=str(ymeta.get("instructions", "")),
-                                        dependencies=ymeta.get("dependencies") or [],
-                                        scope=ymeta.get("scope", "workspace"),
-                                        enabled=bool(ymeta.get("enabled", True)),
-                                        is_builtin=False,
-                                    )
+                    # 1. Parse JSON plugin manifests (plugin.json, tool.json, claude.json, agent.json)
+                    json_candidates = [
+                        f for f in all_names
+                        if Path(f).name.lower() in ("plugin.json", "tool.json", "manifest.json", "claude.json", "agent.json")
+                        or f.lower().endswith((".plugin.json", ".tool.json"))
+                    ]
+                    for jf in json_candidates:
+                        try:
+                            jtext = zf.read(jf).decode("utf-8", errors="ignore")
+                            jdata = json.loads(jtext)
+                            if isinstance(jdata, dict) and any(k in jdata for k in ("name", "instructions", "rules", "description", "systemPrompt")):
+                                jname = jdata.get("name") or Path(jf).parent.name or "plugin-tool"
+                                clean_name = self._get_unique_skill_name(jname)
+                                s = Skill(
+                                    name=clean_name,
+                                    description=str(jdata.get("description", "")),
+                                    trigger=str(jdata.get("trigger") or jdata.get("globs") or clean_name.replace("-", " ")),
+                                    instructions=str(jdata.get("instructions") or jdata.get("rules") or jdata.get("systemPrompt") or jdata.get("prompt") or ""),
+                                    dependencies=jdata.get("dependencies") or [],
+                                    scope=jdata.get("scope", "workspace"),
+                                    enabled=bool(jdata.get("enabled", True)),
+                                    is_builtin=False,
+                                )
+                                if s.instructions or s.description:
                                     file_path = self.user_dir / f"{s.name}.md"
                                     file_path.write_text(s.to_markdown(), encoding="utf-8")
                                     self._skills_cache[s.name] = s
                                     imported_skills.append(s)
-                            except Exception as y_err:
-                                logger.warning("Could not parse yaml skill %s: %s", yf, y_err)
+                        except Exception as j_err:
+                            logger.warning("Could not parse json manifest %s: %s", jf, j_err)
 
-                    if not skill_files_to_process and not imported_skills:
-                        raise ValueError("ZIP archive contains no valid .md or .yaml skill definition files")
+                    # 2. Parse YAML skill manifests
+                    candidate_yamls = [f for f in all_names if f.lower().endswith((".yaml", ".yml"))]
+                    for yf in candidate_yamls:
+                        try:
+                            ycontent = zf.read(yf).decode("utf-8", errors="ignore")
+                            if yaml is not None:
+                                ymeta = yaml.safe_load(ycontent) or {}
+                            else:
+                                ymeta = _parse_yaml_fallback(ycontent)
+                            if isinstance(ymeta, dict) and ("instructions" in ymeta or "trigger" in ymeta or "name" in ymeta):
+                                s_name = ymeta.get("name") or Path(yf).stem
+                                clean_name = self._get_unique_skill_name(s_name)
+                                s = Skill(
+                                    name=clean_name,
+                                    description=ymeta.get("description", ""),
+                                    trigger=str(ymeta.get("trigger") or clean_name.replace("-", " ")),
+                                    instructions=str(ymeta.get("instructions", "")),
+                                    dependencies=ymeta.get("dependencies") or [],
+                                    scope=ymeta.get("scope", "workspace"),
+                                    enabled=bool(ymeta.get("enabled", True)),
+                                    is_builtin=False,
+                                )
+                                file_path = self.user_dir / f"{s.name}.md"
+                                file_path.write_text(s.to_markdown(), encoding="utf-8")
+                                self._skills_cache[s.name] = s
+                                imported_skills.append(s)
+                        except Exception as y_err:
+                            logger.warning("Could not parse yaml skill %s: %s", yf, y_err)
 
-                    for mf in skill_files_to_process:
+                    # 3. Parse explicit skill markdown / rule files
+                    for mf in explicit_skill_files:
                         try:
                             md_content = zf.read(mf).decode("utf-8", errors="ignore")
                             skill = self.parse_markdown(md_content, is_builtin=False)
 
-                            # Derive name if default or empty
                             if skill.name in ("unnamed-skill", "", "skill"):
                                 path_parts = Path(mf).parts
                                 if len(path_parts) > 1 and path_parts[-1].lower() in ("skill.md", "skill.markdown", "instructions.md"):
@@ -621,18 +718,8 @@ class SkillManager:
                                     derived_name = Path(mf).stem
                                 skill.name = re.sub(r"[^a-zA-Z0-9_-]", "-", derived_name.lower()).strip("-") or "imported-skill"
 
-                            # Ensure unique name in cache and disk
-                            base_name = skill.name
-                            if base_name in self._skills_cache:
-                                imported_base = f"{base_name}-imported"
-                                unique_name = imported_base
-                                counter = 1
-                                while unique_name in self._skills_cache:
-                                    counter += 1
-                                    unique_name = f"{imported_base}-{counter}"
-                                skill.name = unique_name
+                            skill.name = self._get_unique_skill_name(skill.name)
 
-                            # Save to disk
                             file_path = self.user_dir / f"{skill.name}.md"
                             file_path.write_text(skill.to_markdown(), encoding="utf-8")
                             self._skills_cache[skill.name] = skill
@@ -640,7 +727,7 @@ class SkillManager:
                             # Extract any attachments associated with this skill
                             skill_dir = str(Path(mf).parent).replace("\\", "/")
                             for af in all_names:
-                                if af == mf or af.lower().endswith((".md", ".markdown", ".yaml", ".yml")):
+                                if af == mf or af.lower().endswith(rule_extensions + (".yaml", ".yml", ".json")):
                                     continue
                                 is_attachment = False
                                 if af.startswith("attachments/"):
@@ -660,28 +747,53 @@ class SkillManager:
                         except Exception as parse_err:
                             logger.warning("Failed parsing skill %s in zip: %s", mf, parse_err)
 
+                    # 4. Tier 2: Synthesize skill from repository README if no explicit skills found
+                    if not imported_skills and readme_candidates:
+                        chosen_readme = readme_candidates[0]
+                        try:
+                            r_content = zf.read(chosen_readme).decode("utf-8", errors="ignore")
+                            synth_skill = self._extract_repo_skill_from_readme(r_content, filename, chosen_readme)
+                            synth_skill.name = self._get_unique_skill_name(synth_skill.name)
+                            file_path = self.user_dir / f"{synth_skill.name}.md"
+                            file_path.write_text(synth_skill.to_markdown(), encoding="utf-8")
+                            self._skills_cache[synth_skill.name] = synth_skill
+                            imported_skills.append(synth_skill)
+                        except Exception as r_err:
+                            logger.warning("Could not synthesize skill from readme %s: %s", chosen_readme, r_err)
+
                     if not imported_skills:
-                        raise ValueError("Failed to parse any valid skills from ZIP archive")
+                        found_sample = ", ".join(Path(f).name for f in all_names[:5]) if all_names else "empty archive"
+                        raise ValueError(
+                            f"No valid skill definitions, documentation (README.md), or plugin manifests (.json/.mdc) found in archive. "
+                            f"(Found files: {found_sample}). Supported formats include Claude Skills (SKILL.md), Cursor/Cline rules (.mdc), "
+                            f"Plugin manifests (plugin.json), or repositories containing README documentation."
+                        )
 
                     return imported_skills
             except zipfile.BadZipFile:
                 raise ValueError("Uploaded file is not a valid ZIP archive")
         else:
-            md_content = content_bytes.decode("utf-8", errors="ignore")
-            skill = self.parse_markdown(md_content, is_builtin=False)
-            if skill.name in ("unnamed-skill", "", "skill"):
-                derived = Path(filename).stem
-                skill.name = re.sub(r"[^a-zA-Z0-9_-]", "-", derived.lower()).strip("-") or "imported-skill"
-
-            base_name = skill.name
-            if base_name in self._skills_cache:
-                imported_base = f"{base_name}-imported"
-                unique_name = imported_base
-                counter = 1
-                while unique_name in self._skills_cache:
-                    counter += 1
-                    unique_name = f"{imported_base}-{counter}"
-                skill.name = unique_name
+            if fname_lower.endswith(".json"):
+                jdata = json.loads(content_bytes.decode("utf-8", errors="ignore"))
+                jname = jdata.get("name") or Path(filename).stem
+                clean_name = self._get_unique_skill_name(jname)
+                skill = Skill(
+                    name=clean_name,
+                    description=str(jdata.get("description", "")),
+                    trigger=str(jdata.get("trigger") or clean_name.replace("-", " ")),
+                    instructions=str(jdata.get("instructions") or jdata.get("rules") or jdata.get("systemPrompt") or jdata.get("prompt") or ""),
+                    dependencies=jdata.get("dependencies") or [],
+                    scope=jdata.get("scope", "workspace"),
+                    enabled=bool(jdata.get("enabled", True)),
+                    is_builtin=False,
+                )
+            else:
+                md_content = content_bytes.decode("utf-8", errors="ignore")
+                skill = self.parse_markdown(md_content, is_builtin=False)
+                if skill.name in ("unnamed-skill", "", "skill"):
+                    derived = Path(filename).stem
+                    skill.name = re.sub(r"[^a-zA-Z0-9_-]", "-", derived.lower()).strip("-") or "imported-skill"
+                skill.name = self._get_unique_skill_name(skill.name)
 
             file_path = self.user_dir / f"{skill.name}.md"
             file_path.write_text(skill.to_markdown(), encoding="utf-8")
