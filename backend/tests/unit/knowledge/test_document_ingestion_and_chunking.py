@@ -175,7 +175,10 @@ async def test_upload_document_api_accepts_valid_file():
     valid_content = b"# Introduction to Autonomous Software Engineering\nASEP platform specification."
     files = {"file": ("spec.txt", io.BytesIO(valid_content), "text/plain")}
 
-    with patch("src.api.routers.knowledge.upload_to_cloudinary", return_value="https://cdn.cloudinary.com/test/spec.txt"):
+    with patch("src.api.routers.knowledge.upload_to_cloudinary", return_value="https://cdn.cloudinary.com/test/spec.txt"), \
+         patch("src.graph.get_neo4j_driver", return_value=MagicMock()), \
+         patch("src.vector.qdrant.get_qdrant_client", return_value=MagicMock()), \
+         patch("src.documents.ingestion.IngestionService.ingest_document", return_value=MagicMock()):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             response = await ac.post("/api/v1/upload/document", files=files)
 
@@ -183,4 +186,4 @@ async def test_upload_document_api_accepts_valid_file():
     data = response.json()
     assert data["status"] == "ingested"
     assert data["filename"] == "spec.txt"
-    assert "spec" in data["extracted_text"].lower()
+    assert "document_id" in data

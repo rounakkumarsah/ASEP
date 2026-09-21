@@ -18,6 +18,37 @@ MEMORY_ENABLED = True
 def is_memory_enabled() -> bool:
     return MEMORY_ENABLED
 
+async def _ensure_agent_run(
+    uow_factory,
+    run_id_str: str,
+    org_id: uuid.UUID,
+    goal: str = "Agent Run"
+) -> uuid.UUID | None:
+    """Ensure that the parent AgentRun exists in the DB so FK constraints succeed."""
+    try:
+        run_uuid = uuid.UUID(run_id_str)
+    except (ValueError, TypeError):
+        return None
+
+    try:
+        async with uow_factory() as uow:
+            existing = await uow.agent_runs.get(run_uuid)
+            if not existing:
+                from src.db.models.agent_run import AgentRun, RunStatus
+                new_run = AgentRun(
+                    id=run_uuid,
+                    org_id=org_id,
+                    goal=goal or "Agent Run",
+                    status=RunStatus.RUNNING,
+                )
+                await uow.agent_runs.create(new_run)
+                await uow.commit()
+        return run_uuid
+    except Exception as e:
+        logger.warning(f"Could not ensure AgentRun {run_uuid} for memory linking: {e}")
+        return None
+
+
 async def store_working_memory(
     run_id: str,
     org_id: uuid.UUID,
@@ -29,14 +60,16 @@ async def store_working_memory(
     if not is_memory_enabled():
         return
     try:
-        memory_service = MemoryService(get_uow_factory())
+        uow_factory = get_uow_factory()
+        agent_run_uuid = await _ensure_agent_run(uow_factory, run_id, org_id, goal=content)
+        memory_service = MemoryService(uow_factory)
         expires_at = datetime.now(UTC) + timedelta(hours=24)
         await memory_service.store_memory(
             content=content,
             namespace=namespace,
             org_id=org_id,
             memory_type=MemoryType.WORKING,
-            agent_run_id=uuid.UUID(run_id),
+            agent_run_id=agent_run_uuid,
             importance_score=0.5,
             source=source,
             expires_at=expires_at
@@ -57,14 +90,16 @@ async def store_episodic_memory(
     if not is_memory_enabled():
         return
     try:
-        memory_service = MemoryService(get_uow_factory())
+        uow_factory = get_uow_factory()
+        agent_run_uuid = await _ensure_agent_run(uow_factory, run_id, org_id, goal=goal)
+        memory_service = MemoryService(uow_factory)
         content = f"Goal: {goal}\nResponse: {final_response}\nTools: {', '.join(tools_used)}\nStatus: {'Success' if success else 'Failed'}"
         await memory_service.store_memory(
             content=content,
             namespace=namespace,
             org_id=org_id,
             memory_type=MemoryType.EPISODIC,
-            agent_run_id=uuid.UUID(run_id),
+            agent_run_id=agent_run_uuid,
             importance_score=0.8,
             source="run_end",
         )
@@ -111,7 +146,9 @@ async def extract_and_store_durable_memories(
             return
             
         items = json.loads(match.group(0))
-        memory_service = MemoryService(get_uow_factory())
+        uow_factory = get_uow_factory()
+        agent_run_uuid = await _ensure_agent_run(uow_factory, run_id, org_id)
+        memory_service = MemoryService(uow_factory)
         
         for item in items:
             mem_type = MemoryType.SEMANTIC if item.get('type') == 'SEMANTIC' else MemoryType.PROCEDURAL
@@ -120,7 +157,7 @@ async def extract_and_store_durable_memories(
                 namespace=namespace,
                 org_id=org_id,
                 memory_type=mem_type,
-                agent_run_id=uuid.UUID(run_id),
+                agent_run_id=agent_run_uuid,
                 importance_score=float(item.get('importance', 0.5)),
                 source="llm_extraction",
             )

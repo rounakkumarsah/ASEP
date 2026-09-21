@@ -477,3 +477,13 @@ class MemoryEntry(TimestampMixin, Base):
             f"importance_score={self.importance_score!r}"
             f")"
         )
+
+    @property
+    def context_data(self) -> dict[str, Any] | None:
+        """Alias for entry_metadata for API schema compatibility."""
+        return self.entry_metadata
+
+    @property
+    def last_accessed_at(self) -> datetime | None:
+        """Alias for accessed_at for API schema compatibility."""
+        return self.accessed_at

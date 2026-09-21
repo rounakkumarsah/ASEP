@@ -172,10 +172,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     logger.info("ASEP backend shutting down")
     # Close database connection pool gracefully
-    await close_db()
+    try:
+        await close_db()
+    except Exception:
+        pass
 
     # Close redis pool
-    await close_redis()
+    try:
+        await close_redis()
+    except Exception:
+        pass
 
     # Close neo4j driver
     try:

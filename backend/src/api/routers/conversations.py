@@ -159,12 +159,27 @@ async def start_run(
         current_user.id,
     )
 
+    org_id = current_user.org_id or current_user.id
+    try:
+        from src.api.dependencies import get_uow_factory
+        from src.db.models.agent_run import AgentRun, RunStatus
+        async with get_uow_factory()() as uow:
+            run_record = AgentRun(
+                id=uuid.UUID(run_id),
+                org_id=org_id,
+                goal=payload.goal,
+                status=RunStatus.RUNNING,
+            )
+            await uow.agent_runs.create(run_record)
+            await uow.commit()
+    except Exception as e:
+        logger.warning("Could not persist initial AgentRun %s: %s", run_id, e)
+
     runtime = get_langgraph_runtime()
 
     from collections.abc import AsyncGenerator
 
     async def _event_generator() -> AsyncGenerator[str, None]:
-        org_id = current_user.org_id or current_user.id
         try:
             async for event in runtime.execute_run(
                 run_id=run_id, thread_id=thread_id, goal=payload.goal, research_mode=payload.research_mode, environment_mode=payload.environment_mode, org_id=org_id

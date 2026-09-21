@@ -20,6 +20,7 @@ def repo(db_session):
 async def test_base_create(repo, db_session):
     run = AgentRun(
         id=uuid.uuid4(),
+        org_id=uuid.uuid4(),
         goal="Base create",
         plan={},
         status=RunStatus.PENDING,
@@ -34,6 +35,7 @@ async def test_base_create(repo, db_session):
 async def test_base_update(repo, db_session):
     run = AgentRun(
         id=uuid.uuid4(),
+        org_id=uuid.uuid4(),
         goal="Base update",
         plan={},
         status=RunStatus.PENDING,
@@ -52,6 +54,7 @@ async def test_base_update(repo, db_session):
 async def test_base_delete(repo, db_session):
     run = AgentRun(
         id=uuid.uuid4(),
+        org_id=uuid.uuid4(),
         goal="Base delete",
         plan={},
         status=RunStatus.PENDING,

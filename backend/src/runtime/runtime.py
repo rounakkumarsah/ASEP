@@ -167,8 +167,7 @@ class LangGraphRuntime:
                     injected_memories_text = "Relevant Past Memories:\n" + "\n".join(f"- [{m.memory_type}] {m.content}" for m in top_memories) + "\n\n"
                     
                 # Hook: Store Working Memory (Start)
-                import asyncio
-                safe_fire_and_forget(store_working_memory(run_id, org_uuid, f"Goal: {goal}"))
+                await store_working_memory(run_id, org_uuid, f"Goal: {goal}")
             except Exception as e:
                 logger.error(f"Failed to retrieve or store initial memories: {e}")
 
@@ -213,14 +212,13 @@ class LangGraphRuntime:
                         if role == "tool" or name:
                             tools_used.add(name or role)
                             transcript_builder.append(f"Tool {name or role} Output: {str(content)[:200]}...")
-                            # Hook: Intermediate working memory
                             if org_id and is_memory_enabled():
-                                safe_fire_and_forget(store_working_memory(run_id, org_uuid, f"Tool {name or role} output: {content}", source=f"tool_{name or role}"))
+                                await store_working_memory(run_id, org_uuid, f"Tool {name or role} output: {content}", source=f"tool_{name or role}")
                         elif role == "ai" or role == "assistant":
                             transcript_builder.append(f"AI: {str(content)[:200]}...")
                             final_response = str(content)
                             if org_id and is_memory_enabled():
-                                safe_fire_and_forget(store_working_memory(run_id, org_uuid, f"AI Thought: {content}", source="ai_step"))
+                                await store_working_memory(run_id, org_uuid, f"AI Thought: {content}", source="ai_step")
                                 
                     if node_data.get("status") == "completed":
                         success = True
@@ -239,8 +237,13 @@ class LangGraphRuntime:
             if org_id and is_memory_enabled():
                 try:
                     transcript_str = "\n".join(transcript_builder)
-                    safe_fire_and_forget(store_episodic_memory(run_id, org_uuid, goal, final_response, list(tools_used), success))
-                    safe_fire_and_forget(extract_and_store_durable_memories(run_id, org_uuid, transcript_str))
+                    await store_episodic_memory(run_id, org_uuid, goal, final_response, list(tools_used), success)
+                    
+                    import os
+                    if os.environ.get("VERCEL") == "1" or os.environ.get("SERVERLESS") == "1":
+                        await extract_and_store_durable_memories(run_id, org_uuid, transcript_str)
+                    else:
+                        safe_fire_and_forget(extract_and_store_durable_memories(run_id, org_uuid, transcript_str))
                 except Exception as e:
                     logger.error(f"Failed to trigger end-of-run memory hooks: {e}")
 

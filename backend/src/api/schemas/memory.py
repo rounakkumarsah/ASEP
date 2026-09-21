@@ -28,14 +28,14 @@ class MemoryEntryCreate(ORMBaseModel):
 class MemoryEntryResponse(ORMBaseModel):
     """Presentation model for a Memory Entry."""
     id: uuid.UUID
-    agent_run_id: uuid.UUID | None
+    agent_run_id: uuid.UUID | None = None
     memory_type: MemoryType
     content: str
     importance_score: Decimal
-    embedding_id: uuid.UUID | None
-    embedding_model: str | None
-    context_data: dict[str, Any] | None
-    access_count: int
-    last_accessed_at: datetime | None
+    embedding_id: uuid.UUID | None = None
+    embedding_model: str | None = None
+    context_data: dict[str, Any] | None = Field(default=None, validation_alias="entry_metadata")
+    access_count: int = 0
+    last_accessed_at: datetime | None = Field(default=None, validation_alias="accessed_at")
     created_at: datetime
     updated_at: datetime

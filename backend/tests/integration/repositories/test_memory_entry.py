@@ -22,8 +22,10 @@ from src.db.models.agent_run import AgentRun, RunStatus
 @pytest.mark.asyncio
 async def test_get_by_run(repo, db_session):
     run_id = uuid.uuid4()
+    org_id = uuid.uuid4()
     run = AgentRun(
         id=run_id,
+        org_id=org_id,
         goal="Test Goal",
         plan=[],
         status=RunStatus.PENDING,
@@ -35,6 +37,7 @@ async def test_get_by_run(repo, db_session):
     m1 = MemoryEntry(
         id=uuid.uuid4(),
         agent_run_id=run_id,
+        org_id=org_id,
         memory_type=MemoryType.EPISODIC,
         content="test 1",
         importance_score=Decimal("0.500")
@@ -42,6 +45,7 @@ async def test_get_by_run(repo, db_session):
     m2 = MemoryEntry(
         id=uuid.uuid4(),
         agent_run_id=run_id,
+        org_id=org_id,
         memory_type=MemoryType.SEMANTIC,
         content="test 2",
         importance_score=Decimal("0.900")
@@ -51,10 +55,10 @@ async def test_get_by_run(repo, db_session):
     await repo.create(m2)
     await db_session.flush()
 
-    memories = await repo.get_by_agent_run(run_id)
+    memories = await repo.get_by_agent_run(run_id, org_id)
     assert len(memories) == 2
 
     # Test get_top_by_importance
-    top_memories = await repo.get_top_by_importance(namespace="default", memory_type=MemoryType.SEMANTIC, limit=1)
+    top_memories = await repo.get_top_by_importance(namespace="default", memory_type=MemoryType.SEMANTIC, org_id=org_id, limit=1)
     assert len(top_memories) == 1
     assert top_memories[0].id == m2.id

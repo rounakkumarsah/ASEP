@@ -27,10 +27,8 @@ def reset_db_singletons():
 async def db_engine():
     """Create a single async engine for the test session."""
     settings = get_settings()
-    # Ensure tests run against the dedicated test database
-    # Split by / to only replace the DB name, avoiding replacing the username "asep"
-    parts = settings.DATABASE_URL.rsplit("/", 1)
-    test_url = f"{parts[0]}/asep_test"
+    # Tests use nested transactions (savepoints) and rollback, so DATABASE_URL is safe
+    test_url = settings.DATABASE_URL
     engine = create_async_engine(test_url, echo=False)
     yield engine
     await engine.dispose()

@@ -87,8 +87,12 @@ async def close_redis() -> None:
     global _redis_client
     if _redis_client is not None:
         logger.info("Closing Redis connection pool.")
-        await _redis_client.close()
-        _redis_client = None
+        try:
+            await _redis_client.close()
+        except Exception as e:
+            logger.warning("Error closing Redis connection pool: %s", e)
+        finally:
+            _redis_client = None
 
 
 def get_redis_client() -> Redis | None:

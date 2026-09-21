@@ -182,7 +182,6 @@ class HybridRetrievalPipeline:
             graph_connections = await self.graph_expansion.expand_multi_hop(seed_ids, depth=2)
 
         # 3. Fuse dense and sparse results using Reciprocal Rank Fusion
-        from src.knowledge.vector import ReciprocalRankFusion
         fused = ReciprocalRankFusion.fuse([vector_results, bm25_results], k=60)
 
         # 5. Format HybridSearchResult list

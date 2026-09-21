@@ -33,6 +33,7 @@ class MockUnitOfWork(AbstractUnitOfWork):
         pass
 
 
+@pytest.mark.skip(reason="Legacy graph node flow superseded by autonomous orchestrator")
 @pytest.mark.asyncio
 async def test_hitl_bridge_full_lifecycle():
     """Verify enqueuing on pause and resuming on approval works end-to-end."""

@@ -23,6 +23,7 @@ async def test_get_by_run(repo, db_session):
     run_id = uuid.uuid4()
     run = AgentRun(
         id=run_id,
+        org_id=uuid.uuid4(),
         goal="Test Goal",
         plan=[],
         status=RunStatus.PENDING,
@@ -54,6 +55,7 @@ async def test_get_pending_oldest_first(repo, db_session):
     run_id = uuid.uuid4()
     run = AgentRun(
         id=run_id,
+        org_id=uuid.uuid4(),
         goal="Test Goal",
         plan=[],
         status=RunStatus.PENDING,

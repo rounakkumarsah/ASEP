@@ -19,8 +19,10 @@ def repo(db_session):
 @pytest.mark.asyncio
 async def test_create_and_get(repo, db_session):
     run_id = uuid.uuid4()
+    org_id = uuid.uuid4()
     run = AgentRun(
         id=run_id,
+        org_id=org_id,
         goal="Test DB goal",
         plan=[],
         status=RunStatus.PENDING,
@@ -46,11 +48,12 @@ async def test_get_or_raise_not_found(repo):
 
 @pytest.mark.asyncio
 async def test_get_active_runs(repo, db_session):
+    org_id = uuid.uuid4()
     # Insert multiple states
     runs = [
-        AgentRun(id=uuid.uuid4(), goal="Active", plan=[], status=RunStatus.RUNNING, session_id="sys"),
-        AgentRun(id=uuid.uuid4(), goal="Pending", plan=[], status=RunStatus.PENDING, session_id="sys"),
-        AgentRun(id=uuid.uuid4(), goal="Done", plan=[], status=RunStatus.COMPLETED, session_id="sys"),
+        AgentRun(id=uuid.uuid4(), org_id=org_id, goal="Active", plan=[], status=RunStatus.RUNNING, session_id="sys"),
+        AgentRun(id=uuid.uuid4(), org_id=org_id, goal="Pending", plan=[], status=RunStatus.PENDING, session_id="sys"),
+        AgentRun(id=uuid.uuid4(), org_id=org_id, goal="Done", plan=[], status=RunStatus.COMPLETED, session_id="sys"),
     ]
     for r in runs:
         await repo.create(r)
