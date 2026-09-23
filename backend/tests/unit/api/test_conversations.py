@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch, AsyncMock
 
 
 from src.db.models.user import User
-from src.api.dependencies import get_current_user
+from src.auth.dependencies import get_current_user
 
 @pytest.fixture()
 def mock_user() -> User:
