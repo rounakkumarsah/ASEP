@@ -496,6 +496,7 @@ export function CenterWorkspace() {
   };
 
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const [cmdFilter, setCmdFilter] = React.useState('');
 
   const filteredCmdItems = React.useMemo(() => {
@@ -507,6 +508,11 @@ export function CenterWorkspace() {
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setInput(val);
+    
+    // Auto-resize
+    e.target.style.height = 'auto';
+    e.target.style.height = `${Math.min(e.target.scrollHeight, 200)}px`;
+
     const matchModel = val.match(/(?:^|\s)#(\w*)$/);
     const matchTool = val.match(/(?:^|\s)\/(\w*)$/);
     if (matchModel) { setCmdMenu('model'); setCmdFilter(matchModel[1]); setCmdIndex(0); }
@@ -531,6 +537,14 @@ export function CenterWorkspace() {
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   };
+
+  
+  React.useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+    }
+  }, [input]);
 
   React.useEffect(() => {
     scrollToBottom();
@@ -2393,17 +2407,33 @@ export function CenterWorkspace() {
                     </div>
                   </div>
                 )}
-                  <textarea
-                  value={input}
                   
+                  <textarea
+                    ref={textareaRef}
+                    value={input}
                     onChange={handleInputChange}
                     onPaste={(e) => {
-                      const text = e.clipboardData.getData('text');
-                      if (text) {
+                      if (e.clipboardData.files && e.clipboardData.files.length > 0) {
                         e.preventDefault();
-                        const cleanedText = text.replace(/\r\n/g, '\n').replace(/ +\n/g, '\n').replace(/\n +/g, '\n');
-                        
-                        // Insert the cleaned text at the current cursor position
+                        const dt = new DataTransfer();
+                        for (let i = 0; i < e.clipboardData.files.length; i++) {
+                          dt.items.add(e.clipboardData.files[i]);
+                        }
+                        const fileInput = document.getElementById('media-upload') as HTMLInputElement;
+                        if (fileInput) {
+                          fileInput.files = dt.files;
+                          const event = new Event('change', { bubbles: true });
+                          fileInput.dispatchEvent(event);
+                        }
+                        return;
+                      }
+
+                      const text = e.clipboardData.getData('text');
+                        if (text) {
+                          e.preventDefault();
+                          const cleanedText = text.replace(/\r\n/g, '\n').replace(/ +\n/g, '\n').replace(/\n +/g, '\n');
+                          
+                          // Insert the cleaned text at the current cursor position
                         const target = e.target as HTMLTextAreaElement;
                         const start = target.selectionStart;
                         const end = target.selectionEnd;
@@ -2413,11 +2443,17 @@ export function CenterWorkspace() {
                         // Wait a tick for React to update the DOM value before setting cursor
                         setTimeout(() => {
                           target.selectionStart = target.selectionEnd = start + cleanedText.length;
+                          target.style.height = 'auto';
+                          target.style.height = `${Math.min(target.scrollHeight, 200)}px`;
+                          // Always scroll to cursor if we max out height
+                          if (target.scrollHeight > 200) {
+                            target.scrollTop = target.scrollHeight;
+                          }
                         }, 0);
                       }
                     }}
+                    onKeyDown={(e) => {
 
-                  onKeyDown={(e) => {
                     if (cmdMenu && filteredCmdItems.length > 0) {
                       if (e.key === 'ArrowDown') {
                         e.preventDefault();
