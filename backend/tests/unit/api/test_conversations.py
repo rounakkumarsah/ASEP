@@ -80,13 +80,13 @@ async def _noop_stream() -> AsyncGenerator[dict[str, Any], None]:
 
 
 # ---------------------------------------------------------------------------
-# Tests — POST /conversations/run
+# Tests — POST /conversations/run  (now returns 202 + run_id for polling)
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_start_run_streams_sse(test_client: TestClient):
-    """POST /run should return a 200 text/event-stream with [DONE] terminator."""
+async def test_start_run_returns_run_id(test_client: TestClient):
+    """POST /run should return 202 with run_id and thread_id for polling."""
     thread_id = str(uuid.uuid4())
 
     with patch("src.api.routers.conversations.get_langgraph_runtime") as mock_rt:
@@ -99,17 +99,18 @@ async def test_start_run_streams_sse(test_client: TestClient):
             json={"goal": "Summarise Q4 financials", "thread_id": thread_id},
         )
 
-    assert resp.status_code == 200
-    assert "text/event-stream" in resp.headers["content-type"]
-    body = resp.text
-    assert "data:" in body
-    assert "[DONE]" in body
-    assert thread_id in body
+    assert resp.status_code == 202
+    data = resp.json()
+    assert "run_id" in data
+    assert data["thread_id"] == thread_id
+    assert data["status"] == "queued"
+    # run_id must be a valid UUID
+    uuid.UUID(data["run_id"])
 
 
 @pytest.mark.asyncio
 async def test_start_run_generates_thread_id_when_omitted(test_client: TestClient):
-    """POST /run without thread_id should auto-assign one (visible in X-Thread-Id header)."""
+    """POST /run without thread_id should auto-assign one (visible in response body)."""
     with patch("src.api.routers.conversations.get_langgraph_runtime") as mock_rt:
         runtime = MagicMock()
         runtime.execute_run = MagicMock(return_value=_noop_stream())
@@ -120,10 +121,11 @@ async def test_start_run_generates_thread_id_when_omitted(test_client: TestClien
             json={"goal": "Deploy staging environment"},
         )
 
-    assert resp.status_code == 200
-    assert "X-Thread-Id" in resp.headers
-    # Validate it is a UUID
-    uuid.UUID(resp.headers["X-Thread-Id"])
+    assert resp.status_code == 202
+    data = resp.json()
+    # thread_id is returned in the JSON body
+    assert "thread_id" in data
+    uuid.UUID(data["thread_id"])
 
 
 @pytest.mark.asyncio
@@ -136,6 +138,49 @@ async def test_start_run_requires_auth():
         json={"goal": "Do something"},
     )
     assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Tests — GET /conversations/run/{run_id}/status
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_run_status_returns_events(test_client: TestClient):
+    """GET /run/{run_id}/status should return status and new events since cursor."""
+    from src.runtime.run_store import RunState, RunStatus
+
+    run_id = str(uuid.uuid4())
+    thread_id = str(uuid.uuid4())
+
+    fake_state = RunState(
+        run_id=run_id,
+        thread_id=thread_id,
+        status=RunStatus.DONE,
+        events=[{"event": {"test": {}}}],
+    )
+
+    with patch("src.runtime.run_store.get_run", new=AsyncMock(return_value=fake_state)):
+        resp = test_client.get(f"/api/v1/conversations/run/{run_id}/status?cursor=0")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "done"
+    assert data["run_id"] == run_id
+    assert len(data["events"]) == 1
+    assert data["cursor"] == 1
+
+
+
+
+
+
+
+@pytest.mark.asyncio
+async def test_get_run_status_404_for_unknown_run_id(test_client: TestClient):
+    """GET /run/{run_id}/status for an unknown run_id should return 404."""
+    resp = test_client.get("/api/v1/conversations/run/nonexistent-run-id/status")
+    assert resp.status_code == 404
 
 
 # ---------------------------------------------------------------------------
