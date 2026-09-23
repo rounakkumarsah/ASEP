@@ -529,7 +529,7 @@ export function CenterWorkspace() {
   };
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   };
 
   React.useEffect(() => {
@@ -1189,7 +1189,7 @@ export function CenterWorkspace() {
         <div className="flex-1 min-h-0 relative flex flex-col">
           <TabsContent value="chat" className="flex-1 mt-0 border-0 flex-col data-[state=active]:flex data-[state=inactive]:hidden min-h-0">
             <div className="flex-1 h-full overflow-y-auto pb-8">
-              <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto space-y-6 pb-32">
+              <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto space-y-6">
                 {messages.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-[40vh] text-center space-y-4">
                     <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
@@ -1407,7 +1407,7 @@ export function CenterWorkspace() {
                     </div>
                   </div>
                 )}
-                <div ref={messagesEndRef} />
+                <div ref={messagesEndRef} className="h-40 w-full shrink-0" />
               </div>
             </div>
           </TabsContent>
