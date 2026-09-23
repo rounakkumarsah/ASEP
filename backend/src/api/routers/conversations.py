@@ -2,14 +2,16 @@
 ASEP — Conversations Router
 ============================
 Thin stateless proxy gateway exposing LangGraph execution threads as REST
-and Server-Sent Event (SSE) endpoints.
+endpoints.
 
 Design principles:
   - Stateless: no conversation data is stored here; all persistence is owned
     by the ``AsyncPostgresSaver`` checkpointer bound to the StateGraph.
   - Auth-first: every endpoint requires a valid ``CurrentUser`` session.
-  - Streaming: long-running runs are exposed as SSE (``text/event-stream``)
-    so the client receives node-level updates progressively.
+  - Polling: long-running runs are started immediately and polled via
+    ``GET /conversations/run/{run_id}/status`` — SSE streaming is NOT used
+    because Vercel serverless buffers the entire response body, causing the
+    30-second function timeout to kill the connection before agents finish.
   - HITL-aware: a paused thread (``next == ("validate",)``) surfaces its
     interrupt payload in the response so the caller knows to POST a resume.
 """
@@ -31,6 +33,9 @@ from src.runtime import get_langgraph_runtime
 logger = logging.getLogger("opensep.conversations")
 
 router = APIRouter(prefix="/conversations", tags=["Conversations"])
+
+# Strong references to background run tasks (prevents GC before completion)
+_background_run_tasks: set = set()
 
 
 # ---------------------------------------------------------------------------
@@ -90,7 +95,7 @@ class ThreadStateResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# SSE helpers
+# SSE helpers (kept for /resume and /explore/stream endpoints)
 # ---------------------------------------------------------------------------
 
 
@@ -121,93 +126,135 @@ async def get_visual_graph() -> dict[str, Any]:
 
 @router.post(
     "/run",
-    summary="Start a new agent run",
-    response_class=StreamingResponse,
-    status_code=status.HTTP_200_OK,
-    responses={
-        200: {
-            "description": (
-                "Server-Sent Event stream of node-level state updates. "
-                "Each ``data:`` frame is a JSON object.  "
-                "A final ``data: [DONE]`` frame signals stream end."
-            ),
-            "content": {"text/event-stream": {}},
-        }
-    },
+    summary="Start a new agent run — returns immediately; poll /run/{run_id}/status for updates",
+    status_code=status.HTTP_202_ACCEPTED,
 )
 async def start_run(
     payload: RunRequest,
     current_user: CurrentUser,
-) -> StreamingResponse:
-    """Start a new LangGraph execution thread and stream node updates as SSE.
+) -> dict[str, Any]:
+    """Start a new LangGraph execution thread.
 
-    The thread is identified by ``thread_id``.  If the caller omits it a
-    fresh UUID is generated.  The checkpointer persists the full snapshot
-    after every node so the thread is durable across gateway restarts.
+    Returns **immediately** with ``run_id`` and ``status: queued`` so the
+    caller never blocks on the full agent execution.
 
-    If the graph pauses at the ``validate`` node (HITL interrupt) the stream
-    ends normally; the caller should inspect the final ``[DONE]`` frame and
-    then use ``POST /conversations/{thread_id}/resume`` to continue.
+    The agent runs in a background ``asyncio.Task``.  The frontend should
+    poll ``GET /conversations/run/{run_id}/status`` every 1.5 seconds
+    to receive batched events and the final status.
+
+    This pattern is necessary on Vercel serverless where SSE streaming is
+    fully buffered by the CDN layer, causing ``fetch()`` to throw a network
+    error before the stream completes.
     """
+    import asyncio
+
     thread_id = payload.thread_id or str(uuid.uuid4())
     run_id = str(uuid.uuid4())
 
     logger.info(
-        "Starting run run_id=%s thread_id=%s user=%s",
+        "Queuing run run_id=%s thread_id=%s user=%s",
         run_id,
         thread_id,
         current_user.id,
     )
 
     org_id = current_user.org_id or current_user.id
+
+    # Persist initial AgentRun record (best-effort)
     try:
         from src.api.dependencies import get_uow_factory
-        from src.db.models.agent_run import AgentRun, RunStatus
+        from src.db.models.agent_run import AgentRun, RunStatus as DbRunStatus
         async with get_uow_factory()() as uow:
             run_record = AgentRun(
                 id=uuid.UUID(run_id),
                 org_id=org_id,
                 goal=payload.goal,
-                status=RunStatus.RUNNING,
+                status=DbRunStatus.RUNNING,
             )
             await uow.agent_runs.create(run_record)
             await uow.commit()
     except Exception as e:
         logger.warning("Could not persist initial AgentRun %s: %s", run_id, e)
 
+    # Register in the in-memory run store (so polling endpoint can find it)
+    from src.runtime.run_store import RunStatus as StoreStatus, append_event, create_run, set_status
+    await create_run(run_id, thread_id)
+
     runtime = get_langgraph_runtime()
 
-    from collections.abc import AsyncGenerator
-
-    async def _event_generator() -> AsyncGenerator[str, None]:
+    # Background coroutine that executes the LangGraph agent
+    async def _run_agent() -> None:
         try:
+            await set_status(run_id, StoreStatus.RUNNING)
             async for event in runtime.execute_run(
-                run_id=run_id, thread_id=thread_id, goal=payload.goal, research_mode=payload.research_mode, environment_mode=payload.environment_mode, org_id=org_id
+                run_id=run_id,
+                thread_id=thread_id,
+                goal=payload.goal,
+                research_mode=payload.research_mode,
+                environment_mode=payload.environment_mode,
+                org_id=org_id,
             ):
-                yield _sse_line(
-                    {
-                        "thread_id": thread_id,
-                        "run_id": run_id,
-                        "event": event,
-                    }
-                )
+                await append_event(run_id, {
+                    "thread_id": thread_id,
+                    "run_id": run_id,
+                    "event": event,
+                })
+            await set_status(run_id, StoreStatus.DONE)
+            logger.info("Run completed run_id=%s", run_id)
         except Exception as exc:
-            logger.error("Stream error run_id=%s: %s", run_id, exc, exc_info=True)
-            yield _sse_line({"error": str(exc), "thread_id": thread_id})
-        finally:
-            # Emit the thread_id in the terminal frame so clients can stash it
-            yield _sse_done()
+            logger.error(
+                "Background run error run_id=%s: %s", run_id, exc, exc_info=True
+            )
+            await set_status(run_id, StoreStatus.ERROR, error=str(exc))
 
-    return StreamingResponse(
-        _event_generator(),
-        media_type="text/event-stream",
-        headers={
-            # Prevent intermediary proxies from buffering the stream
-            "Cache-Control": "no-cache",
-            "X-Thread-Id": thread_id,
-            "X-Run-Id": run_id,
-        },
-    )
+    task = asyncio.create_task(_run_agent())
+    _background_run_tasks.add(task)
+    task.add_done_callback(_background_run_tasks.discard)
+
+    return {
+        "run_id": run_id,
+        "thread_id": thread_id,
+        "status": "queued",
+    }
+
+
+@router.get(
+    "/run/{run_id}/status",
+    summary="Poll status and events for a background run",
+)
+async def get_run_status(
+    run_id: str,
+    cursor: int = 0,
+    current_user: CurrentUser = None,  # type: ignore[assignment]
+) -> dict[str, Any]:
+    """Poll the status and accumulated events for an in-progress or completed run.
+
+    Pass ``cursor`` equal to the number of events already consumed.  The
+    response returns only *new* events since that cursor position, the current
+    ``status`` (queued / running / done / error), and the new ``cursor`` for
+    the next request.
+
+    Stop polling when ``status`` is ``"done"`` or ``"error"``.
+    """
+    from src.runtime.run_store import get_run
+    state = await get_run(run_id)
+    if state is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Run '{run_id}' not found. It may have expired.",
+        )
+
+    new_events = state.events[cursor:]
+    new_cursor = cursor + len(new_events)
+
+    return {
+        "run_id": run_id,
+        "thread_id": state.thread_id,
+        "status": state.status.value,
+        "events": new_events,
+        "cursor": new_cursor,
+        "error": state.error,
+    }
 
 
 def _sanitize_credential_log(val: str | None) -> str:
@@ -574,4 +621,3 @@ async def stream_exploration_events(
             "X-Thread-Id": thread_id,
         },
     )
-
