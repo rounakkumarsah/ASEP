@@ -4,6 +4,31 @@ from fastapi.testclient import TestClient
 from src.api.app import create_app
 from unittest.mock import MagicMock, patch, AsyncMock
 
+
+from src.db.models.user import User
+from src.api.dependencies import get_current_user
+
+@pytest.fixture()
+def mock_user() -> User:
+    return User(
+        id=uuid.uuid4(),
+        username="dev",
+        email="dev@test.com",
+        role="admin",
+        status="active",
+        is_active=True,
+    )
+
+@pytest.fixture()
+def test_client(mock_user: User) -> TestClient:
+    app = create_app()
+    async def _mock_current_user() -> User:
+        return mock_user
+    app.dependency_overrides[get_current_user] = _mock_current_user
+    client = TestClient(app, raise_server_exceptions=False)
+    yield client
+    app.dependency_overrides.clear()
+
 async def _noop_stream():
     yield {}
 
