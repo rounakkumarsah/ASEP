@@ -2,7 +2,7 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 from src.api.app import create_app
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, AsyncMock
 
 async def _noop_stream():
     yield {}
@@ -14,7 +14,7 @@ async def test_start_run_returns_run_id(test_client: TestClient):
 
     with patch("src.api.routers.conversations.get_langgraph_runtime") as mock_rt:
         runtime = MagicMock()
-        runtime.execute_step = MagicMock(return_value={"status": "running", "events": [{"some": "event"}]})
+        runtime.execute_step = AsyncMock(return_value={"status": "running", "events": [{"some": "event"}]})
         mock_rt.return_value = runtime
 
         resp = test_client.post(
@@ -36,7 +36,7 @@ async def test_start_run_generates_thread_id_when_omitted(test_client: TestClien
     """POST /run without thread_id should auto-assign one (visible in response body)."""
     with patch("src.api.routers.conversations.get_langgraph_runtime") as mock_rt:
         runtime = MagicMock()
-        runtime.execute_step = MagicMock(return_value={"status": "running", "events": []})
+        runtime.execute_step = AsyncMock(return_value={"status": "running", "events": []})
         mock_rt.return_value = runtime
 
         resp = test_client.post(
@@ -70,7 +70,7 @@ async def test_run_step_returns_events(test_client: TestClient):
 
     with patch("src.api.routers.conversations.get_langgraph_runtime") as mock_rt:
         runtime = MagicMock()
-        runtime.execute_step = MagicMock(return_value={"status": "done", "events": [{"final": "result"}]})
+        runtime.execute_step = AsyncMock(return_value={"status": "done", "events": [{"final": "result"}]})
         mock_rt.return_value = runtime
 
         resp = test_client.post(
