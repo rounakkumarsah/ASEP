@@ -16,6 +16,7 @@ import { useVoiceTyping } from "@/hooks/useVoiceTyping";
 const Editor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 import ReactMarkdown from 'react-markdown';
 import { ExplorationCard } from "./ExplorationCard";
+import { apiClient } from "@/lib/api/client";
 
 // Dynamic imports for components that use browser-only APIs (DOM/canvas/WebGL)
 // ssr:false prevents hydration mismatches and React Error Boundary crashes
@@ -805,34 +806,18 @@ export function CenterWorkspace() {
     // ------------------------------------------------------------------
 
     try {
-      const token =
-        typeof window !== "undefined"
-          ? localStorage.getItem("asep_auth_token") ||
-            sessionStorage.getItem("asep_auth_token")
-          : null;
-
-      const apiBase = "";
-
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-
       // 1. Submit the run — returns immediately with run_id
-      const startRes = await fetch(`${apiBase}/api/v1/conversations/run`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
+      const startRes = await apiClient.post<{ run_id: string; thread_id: string; status: string }>(
+        "/api/v1/conversations/run",
+        {
           goal: currentInput,
           thread_id: newThreadId,
           research_mode: researchMode,
           environment_mode: environmentMode,
-        }),
-      });
+        }
+      );
 
-      if (!startRes.ok) {
-        throw new Error(`API returned HTTP ${startRes.status}: ${startRes.statusText}`);
-      }
-
-      const startData = await startRes.json() as { run_id: string; thread_id: string; status: string };
+      const startData = startRes.data;
       const runId = startData.run_id;
 
       // 2. Poll for events and status
@@ -1048,20 +1033,12 @@ export function CenterWorkspace() {
       while (currentStatus === "running" && pollCount < MAX_POLLS) {
         pollCount++;
         
-        const stepRes = await fetch(
-          `${apiBase}/api/v1/conversations/run/${runId}/step`,
-          { 
-            method: "POST", 
-            headers,
-            body: JSON.stringify({ thread_id: newThreadId })
-          }
+        const stepRes = await apiClient.post<{ status: string; events?: any[] }>(
+          `/api/v1/conversations/run/${runId}/step`,
+          { thread_id: newThreadId }
         );
         
-        if (!stepRes.ok) {
-           throw new Error(`API returned HTTP ${stepRes.status}: ${stepRes.statusText}`);
-        }
-        
-        const stepData = await stepRes.json();
+        const stepData = stepRes.data;
         if (stepData.events) {
           for (const ev of stepData.events) {
             try {
@@ -1091,9 +1068,15 @@ export function CenterWorkspace() {
       });
     } catch (error) {
       console.error("LangGraph run execution error:", error);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const errObj = error as any;
+      const errMsg =
+        errObj?.response?.data?.detail ||
+        errObj?.response?.data?.message ||
+        (error instanceof Error ? error.message : "Backend unavailable");
       addMessage({
         role: "assistant",
-        content: `Error executing LangGraph run: ${error instanceof Error ? error.message : "Backend unavailable"}`,
+        content: `Error executing LangGraph run: ${errMsg}`,
         timestamp: new Date().toLocaleTimeString([], {
           hour: "2-digit",
           minute: "2-digit",
