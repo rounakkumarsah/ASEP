@@ -69,6 +69,10 @@ class RunRequest(BaseModel):
     )
 
 
+
+class StepRequest(BaseModel):
+    thread_id: str = Field(..., description="The LangGraph thread ID associated with the run")
+
 class ResumeRequest(BaseModel):
     """Payload for resuming a paused (interrupted) run."""
 
@@ -130,6 +134,7 @@ async def get_visual_graph() -> dict[str, Any]:
     status_code=status.HTTP_202_ACCEPTED,
 )
 async def start_run(
+    payload: RunRequest,
     current_user: CurrentUser,
 ) -> dict[str, Any]:
     """Start a new LangGraph execution thread.
@@ -201,6 +206,7 @@ async def start_run(
 )
 async def run_step(
     run_id: str,
+    payload: StepRequest,
     current_user: CurrentUser,
 ) -> dict[str, Any]:
     """Execute the next node in the LangGraph workflow."""
