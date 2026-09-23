@@ -208,7 +208,7 @@ export function CenterWorkspace() {
   const [cmdIndex, setCmdIndex] = React.useState(0);
 
   const handleCopyMessage = (content: string) => {
-    navigator.clipboard.writeText(content);
+    navigator.clipboard.writeText(content.trim());
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -776,15 +776,16 @@ export function CenterWorkspace() {
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isThinking) return;
+    const trimmedInput = input.trim();
+    if (!trimmedInput || isThinking) return;
 
     addMessage({
       role: "user",
-      content: input,
+      content: trimmedInput,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     });
 
-    const currentInput = input;
+    const currentInput = trimmedInput;
     setInput("");
     const newThreadId = "playground-session-" + Date.now();
     setClarificationThreadId(newThreadId);
@@ -1270,7 +1271,7 @@ export function CenterWorkspace() {
                                 <Copy className="h-3.5 w-3.5" />
                               </button>
                               {msg.role === 'user' && (
-                                <button onClick={() => setInput(msg.content)} className="p-1.5 rounded bg-muted hover:bg-muted-foreground/20 text-muted-foreground hover:text-foreground" title="Edit text">
+                                <button onClick={() => setInput(msg.content.trim())} className="p-1.5 rounded bg-muted hover:bg-muted-foreground/20 text-muted-foreground hover:text-foreground" title="Edit text">
                                   <Edit2 className="h-3.5 w-3.5" />
                                 </button>
                               )}
