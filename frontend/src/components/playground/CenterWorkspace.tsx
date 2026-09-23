@@ -1395,7 +1395,7 @@ export function CenterWorkspace() {
                   {isThinking && (
                   <div className="flex gap-4 justify-start">
                     <div className="h-8 w-8 rounded bg-[#22D3EE]/10 flex items-center justify-center shrink-0 border border-[#22D3EE]/20">
-                      <Loader2 className="h-4 w-4 text-[#22D3EE] animate-spin" />
+                      <Bot className="h-4 w-4 text-[#22D3EE]" />
                     </div>
                     <div className="bg-card border border-border/50 rounded-xl px-4 py-3 text-sm flex items-center gap-3 text-muted-foreground shadow-sm">
                       <div className="flex gap-1">
