@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { MessageSquare, Code, Terminal, Send, Loader2, Bot, User as UserIcon, Plus, GitCompare, Paperclip, Wrench, Cpu, Workflow, Play, FileText, FolderGit2, ShieldAlert, Gauge, Zap, BarChart2, AlertTriangle, Square, GitBranch, ExternalLink, Check, RefreshCw, GitPullRequest, CheckCircle2, Sparkles, PanelLeftOpen, PanelRightOpen, Mic } from "lucide-react";
+import { MessageSquare, Code, Terminal, Send, Loader2, Bot, User as UserIcon, Plus, Copy, Edit2, GitCompare, Paperclip, Wrench, Cpu, Workflow, Play, FileText, FolderGit2, ShieldAlert, Gauge, Zap, BarChart2, AlertTriangle, Square, GitBranch, ExternalLink, Check, RefreshCw, GitPullRequest, CheckCircle2, Sparkles, PanelLeftOpen, PanelRightOpen, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -180,7 +180,7 @@ export function CenterWorkspace() {
     }
     setIsApprovingMcp(true);
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL.replace(/\/+$/, "") : "";
+      const apiBase = "";
       await fetch(`${apiBase}/api/v1/mcp/tools/approve`, {
         method: "POST",
         headers: {
@@ -206,6 +206,11 @@ export function CenterWorkspace() {
     handleResume(undefined, "approve");
   };
   const [cmdIndex, setCmdIndex] = React.useState(0);
+
+  const handleCopyMessage = (content: string) => {
+    navigator.clipboard.writeText(content);
+  };
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [securityFindings, setSecurityFindings] = React.useState<any[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -426,7 +431,7 @@ export function CenterWorkspace() {
     addTerminalLog("input", "Running main.py in isolated sandbox...");
     
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL.replace(/\/+$/, "") : "";
+      const apiBase = "";
       const endpoint = `${apiBase}/api/v1/sandbox/python/stream`;
       
       const res = await fetch(endpoint, {
@@ -475,7 +480,7 @@ export function CenterWorkspace() {
     setAppUrl(null);
 
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL.replace(/\/+$/, "") : "";
+      const apiBase = "";
       await fetch(`${apiBase}/api/v1/host/stop`, {
         method: "POST",
         headers: {
@@ -553,9 +558,7 @@ export function CenterWorkspace() {
         ? localStorage.getItem("asep_auth_token") || sessionStorage.getItem("asep_auth_token")
         : null;
 
-      const apiBase = process.env.NEXT_PUBLIC_API_URL
-        ? process.env.NEXT_PUBLIC_API_URL.replace(/\/+$/, "")
-        : "";
+      const apiBase = "";
       const endpoint = `${apiBase}/api/v1/conversations/${clarificationThreadId}/resume`;
 
       const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -793,9 +796,7 @@ export function CenterWorkspace() {
             sessionStorage.getItem("asep_auth_token")
           : null;
 
-      const apiBase = process.env.NEXT_PUBLIC_API_URL
-        ? process.env.NEXT_PUBLIC_API_URL.replace(/\/+$/, "")
-        : "";
+      const apiBase = "";
 
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (token) headers["Authorization"] = `Bearer ${token}`;
@@ -1187,7 +1188,7 @@ export function CenterWorkspace() {
 
         <div className="flex-1 min-h-0 relative flex flex-col">
           <TabsContent value="chat" className="flex-1 mt-0 border-0 flex-col data-[state=active]:flex data-[state=inactive]:hidden min-h-0">
-            <ScrollArea className="flex-1 h-full">
+            <div className="flex-1 h-full overflow-y-auto pb-8">
               <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto space-y-6 pb-32">
                 {messages.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-[40vh] text-center space-y-4">
@@ -1237,16 +1238,30 @@ export function CenterWorkspace() {
                           </div>
                         )}
                         
-                        <div className={`group relative max-w-[85%] rounded-xl px-4 py-3 text-sm shadow-sm ${
-                          msg.role === 'user' 
-                            ? 'bg-[#22D3EE]/10 text-foreground border border-[#22D3EE]/20' 
-                            : 'bg-card border border-border/50 text-card-foreground'
-                        }`}>
-                          <div className="prose prose-sm dark:prose-invert max-w-none">
-                            <ReactMarkdown>
-                              {msg.content}
-                            </ReactMarkdown>
-                          </div>
+                        
+                          <div className={`group relative max-w-[85%] rounded-xl px-4 py-3 text-sm shadow-sm ${
+                            msg.role === 'user' 
+                              ? 'bg-[#22D3EE]/10 text-foreground border border-[#22D3EE]/20' 
+                              : 'bg-card border border-border/50 text-card-foreground'
+                          }`}>
+                            <div className="prose prose-sm dark:prose-invert max-w-none">
+                              <ReactMarkdown>
+                                {msg.content}
+                              </ReactMarkdown>
+                            </div>
+                            
+                            {/* Hover Actions */}
+                            <div className={`absolute top-2 ${msg.role === 'user' ? '-left-12' : '-right-10'} opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1`}>
+                              <button onClick={() => handleCopyMessage(msg.content)} className="p-1.5 rounded bg-muted hover:bg-muted-foreground/20 text-muted-foreground hover:text-foreground" title="Copy text">
+                                <Copy className="h-3.5 w-3.5" />
+                              </button>
+                              {msg.role === 'user' && (
+                                <button onClick={() => setInput(msg.content)} className="p-1.5 rounded bg-muted hover:bg-muted-foreground/20 text-muted-foreground hover:text-foreground" title="Edit text">
+                                  <Edit2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
+
                           {skillCitations && skillCitations.length > 0 && msg.role === 'assistant' && idx === messages.length - 1 && (
                             <div className="mt-2 pt-2 border-t border-border/30 flex flex-wrap gap-1">
                               {skillCitations.map((cit, cIdx) => (
@@ -1394,7 +1409,7 @@ export function CenterWorkspace() {
                 )}
                 <div ref={messagesEndRef} />
               </div>
-            </ScrollArea>
+            </div>
           </TabsContent>
 
           <TabsContent value="workflow" className="flex-1 mt-0 border-0 flex flex-col data-[state=active]:flex data-[state=inactive]:hidden min-h-0 h-full">
@@ -2380,7 +2395,28 @@ export function CenterWorkspace() {
                 )}
                   <textarea
                   value={input}
-                  onChange={handleInputChange}
+                  
+                    onChange={handleInputChange}
+                    onPaste={(e) => {
+                      const text = e.clipboardData.getData('text');
+                      if (text) {
+                        e.preventDefault();
+                        const cleanedText = text.replace(/\r\n/g, '\n').replace(/ +\n/g, '\n').replace(/\n +/g, '\n');
+                        
+                        // Insert the cleaned text at the current cursor position
+                        const target = e.target as HTMLTextAreaElement;
+                        const start = target.selectionStart;
+                        const end = target.selectionEnd;
+                        const newValue = input.substring(0, start) + cleanedText + input.substring(end);
+                        setInput(newValue);
+                        
+                        // Wait a tick for React to update the DOM value before setting cursor
+                        setTimeout(() => {
+                          target.selectionStart = target.selectionEnd = start + cleanedText.length;
+                        }, 0);
+                      }
+                    }}
+
                   onKeyDown={(e) => {
                     if (cmdMenu && filteredCmdItems.length > 0) {
                       if (e.key === 'ArrowDown') {

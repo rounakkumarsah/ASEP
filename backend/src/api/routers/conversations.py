@@ -181,22 +181,10 @@ async def start_run(
     except Exception as e:
         logger.warning("Could not persist initial AgentRun %s: %s", run_id, e)
 
-    runtime = get_langgraph_runtime()
-    step_result = await runtime.execute_step(
-        run_id=run_id,
-        thread_id=thread_id,
-        goal=payload.goal,
-        research_mode=payload.research_mode,
-        environment_mode=payload.environment_mode,
-        org_id=org_id,
-        is_first=True
-    )
-    
     return {
         "run_id": run_id,
         "thread_id": thread_id,
-        "status": step_result["status"],
-        "events": step_result["events"]
+        "status": "running"
     }
 
 

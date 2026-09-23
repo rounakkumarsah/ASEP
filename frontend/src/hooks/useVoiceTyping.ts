@@ -112,7 +112,7 @@ export function useVoiceTyping({
           formData.append("language", language);
         }
 
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
+        const apiUrl = "";
         const res = await fetch(`${apiUrl}/api/v1/voice/transcribe`, {
           method: "POST",
           body: formData,

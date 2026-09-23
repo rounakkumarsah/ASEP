@@ -37,9 +37,7 @@ export function LeftPanel() {
     setPromptError(false);
     const controller = new AbortController();
     try {
-      const apiBase = typeof window !== 'undefined'
-        ? (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/+$/, '')
-        : '';
+      const apiBase = "";
       const timeoutId = setTimeout(() => controller.abort(), 8000);
       const res = await fetch(`${apiBase}/api/v1/prompts/system`, {
         signal: controller.signal,
@@ -79,9 +77,7 @@ export function LeftPanel() {
   const fetchMcpTools = React.useCallback(async () => {
     setIsMcpLoading(true);
     try {
-      const apiBase = typeof window !== 'undefined'
-        ? (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/+$/, '')
-        : '';
+      const apiBase = "";
       const res = await fetch(`${apiBase}/api/v1/mcp/tools`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('asep_auth_token') || sessionStorage.getItem('asep_auth_token') || ''}`
