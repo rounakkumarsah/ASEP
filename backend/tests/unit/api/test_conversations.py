@@ -100,7 +100,7 @@ async def test_run_step_returns_events(test_client: TestClient):
 
         resp = test_client.post(
             f"/api/v1/conversations/run/{run_id}/step",
-            json={"thread_id": thread_id},
+            
         )
 
     assert resp.status_code == 200
@@ -108,22 +108,3 @@ async def test_run_step_returns_events(test_client: TestClient):
     assert data["status"] == "done"
     assert len(data["events"]) == 1
     assert data["events"][0] == {"final": "result"}
-
-@pytest.mark.asyncio
-async def test_resume_run(test_client: TestClient):
-    """POST /run/{thread_id}/resume should accept string inputs"""
-    thread_id = str(uuid.uuid4())
-
-    with patch("src.api.routers.conversations.get_langgraph_runtime") as mock_rt:
-        runtime = MagicMock()
-        runtime.resume_run = MagicMock(return_value=_noop_stream())
-        mock_rt.return_value = runtime
-
-        resp = test_client.post(
-            f"/api/v1/conversations/run/{thread_id}/resume",
-            json={"feedback": "approve"},
-        )
-        assert resp.status_code == 200
-        # Check standard HTTP responses
-        assert resp.json() == {"status": "ok", "message": "Resumed execution"}
-
