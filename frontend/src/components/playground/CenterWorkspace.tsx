@@ -1065,7 +1065,7 @@ export function CenterWorkspace() {
         if (stepData.events) {
           for (const ev of stepData.events) {
             try {
-              processEventData(ev);
+              processEventData(ev && typeof ev === "object" && "event" in ev ? ev : { event: ev });
             } catch {}
           }
         }
