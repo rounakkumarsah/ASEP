@@ -147,12 +147,13 @@ async def start_run(
     error before the stream completes.
     """
     import asyncio
+    import uuid
 
     thread_id = payload.thread_id or str(uuid.uuid4())
     run_id = str(uuid.uuid4())
 
     logger.info(
-        "Queuing run run_id=%s thread_id=%s user=%s",
+        "Initiating run run_id=%s thread_id=%s user=%s",
         run_id,
         thread_id,
         current_user.id,
@@ -160,7 +161,7 @@ async def start_run(
 
     org_id = current_user.org_id or current_user.id
 
-    # Persist initial AgentRun record (best-effort)
+    # Persist initial AgentRun record
     try:
         from src.api.dependencies import get_uow_factory
         from src.db.models.agent_run import AgentRun, RunStatus as DbRunStatus
@@ -176,448 +177,57 @@ async def start_run(
     except Exception as e:
         logger.warning("Could not persist initial AgentRun %s: %s", run_id, e)
 
-    # Register in the in-memory run store (so polling endpoint can find it)
-    from src.runtime.run_store import RunStatus as StoreStatus, append_event, create_run, set_status
-    await create_run(run_id, thread_id)
-
     runtime = get_langgraph_runtime()
-
-    # Background coroutine that executes the LangGraph agent
-    async def _run_agent() -> None:
-        try:
-            await set_status(run_id, StoreStatus.RUNNING)
-            async for event in runtime.execute_run(
-                run_id=run_id,
-                thread_id=thread_id,
-                goal=payload.goal,
-                research_mode=payload.research_mode,
-                environment_mode=payload.environment_mode,
-                org_id=org_id,
-            ):
-                await append_event(run_id, {
-                    "thread_id": thread_id,
-                    "run_id": run_id,
-                    "event": event,
-                })
-            await set_status(run_id, StoreStatus.DONE)
-            logger.info("Run completed run_id=%s", run_id)
-        except Exception as exc:
-            logger.error(
-                "Background run error run_id=%s: %s", run_id, exc, exc_info=True
-            )
-            await set_status(run_id, StoreStatus.ERROR, error=str(exc))
-
-    task = asyncio.create_task(_run_agent())
-    _background_run_tasks.add(task)
-    task.add_done_callback(_background_run_tasks.discard)
-
-    return {
-        "run_id": run_id,
-        "thread_id": thread_id,
-        "status": "queued",
-    }
-
-
-@router.get(
-    "/run/{run_id}/status",
-    summary="Poll status and events for a background run",
-)
-async def get_run_status(
-    run_id: str,
-    cursor: int = 0,
-    current_user: CurrentUser = None,  # type: ignore[assignment]
-) -> dict[str, Any]:
-    """Poll the status and accumulated events for an in-progress or completed run.
-
-    Pass ``cursor`` equal to the number of events already consumed.  The
-    response returns only *new* events since that cursor position, the current
-    ``status`` (queued / running / done / error), and the new ``cursor`` for
-    the next request.
-
-    Stop polling when ``status`` is ``"done"`` or ``"error"``.
-    """
-    from src.runtime.run_store import get_run
-    state = await get_run(run_id)
-    if state is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Run '{run_id}' not found. It may have expired.",
-        )
-
-    new_events = state.events[cursor:]
-    new_cursor = cursor + len(new_events)
-
-    return {
-        "run_id": run_id,
-        "thread_id": state.thread_id,
-        "status": state.status.value,
-        "events": new_events,
-        "cursor": new_cursor,
-        "error": state.error,
-    }
-
-
-def _sanitize_credential_log(val: str | None) -> str:
-    """Redact raw secrets or credentials from logs and SSE frames."""
-    if not val:
-        return ""
-    if val in ("approve", "reject", "mock", "deny", "revise"):
-        return val
-    return f"{val[:3]}...[REDACTED]" if len(val) > 6 else "[REDACTED]"
-
-
-@router.post(
-    "/{thread_id}/resume",
-    summary="Resume a paused (HITL-interrupted) run",
-    response_class=StreamingResponse,
-    status_code=status.HTTP_200_OK,
-    responses={
-        200: {
-            "description": (
-                "SSE stream of post-interrupt node updates until the graph "
-                "completes or pauses again."
-            ),
-            "content": {"text/event-stream": {}},
-        },
-        404: {"description": "Thread not found or has no active interrupt."},
-    },
-)
-async def resume_run(
-    thread_id: str,
-    payload: ResumeRequest,
-    current_user: CurrentUser,
-) -> StreamingResponse:
-    """Resume a thread that is paused at a ``validate`` interrupt node.
-
-    The ``decision`` value is passed as ``Command(resume=decision)`` to
-    LangGraph.  The checkpointer rehydrates the ancestor snapshot, the
-    interrupt node receives the value as the return of ``interrupt()``, and
-    execution continues from that point.
-
-    Access is implicitly restricted by ``CurrentUser``; the HITL router
-    additionally enforces role-based access (admin / operator) when the
-    decision is submitted through the governance endpoints.
-    """
-    logger.info(
-        "Resuming thread_id=%s decision=%r user=%s",
-        thread_id,
-        _sanitize_credential_log(payload.decision),
-        current_user.id,
-    )
-
-    runtime = get_langgraph_runtime()
-
-    # Sanity-check: thread must exist and be paused
-    state = await runtime.get_state(thread_id)
-    if not state:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Thread '{thread_id}' not found in checkpointer.",
-        )
-
-    from collections.abc import AsyncGenerator
-
-    async def _event_generator() -> AsyncGenerator[str, None]:
-        try:
-            async for event in runtime.resume_run(
-                thread_id=thread_id, human_input=payload.decision
-            ):
-                yield _sse_line(
-                    {
-                        "thread_id": thread_id,
-                        "decision": _sanitize_credential_log(payload.decision),
-                        "event": event,
-                    }
-                )
-        except Exception as exc:
-            logger.error("Resume stream error thread_id=%s: %s", thread_id, exc, exc_info=True)
-            yield _sse_line({"error": str(exc), "thread_id": thread_id})
-        finally:
-            yield _sse_done()
-
-    return StreamingResponse(
-        _event_generator(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Thread-Id": thread_id,
-        },
-    )
-
-
-@router.get(
-    "/{thread_id}/state",
-    response_model=ThreadStateResponse,
-    summary="Read current checkpoint state for a thread",
-)
-async def get_thread_state(
-    thread_id: str,
-    current_user: CurrentUser,
-) -> ThreadStateResponse:
-    """Return the latest checkpointed state for a LangGraph thread.
-
-    ``is_paused`` is ``True`` when the graph is suspended at the ``validate``
-    node waiting for a human decision.  The caller can use this to poll
-    thread status without maintaining their own state store.
-    """
-    runtime = get_langgraph_runtime()
-
-    from langchain_core.runnables.config import RunnableConfig
-    config = RunnableConfig(configurable={"thread_id": thread_id})
-    snapshot = await runtime.graph.aget_state(config)
-
-    if not snapshot:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Thread '{thread_id}' not found.",
-        )
-
-    values = snapshot.values or {}
-    next_nodes = list(snapshot.next) if snapshot.next else []
-    is_paused = "validate" in next_nodes
-
-    return ThreadStateResponse(
+    step_result = await runtime.execute_step(
+        run_id=run_id,
         thread_id=thread_id,
-        status=values.get("status"),
-        next=next_nodes,
-        run_id=values.get("run_id"),
-        human_input=_sanitize_credential_log(values.get("human_input")),
-        messages=values.get("messages", []),
-        variables=values.get("variables", {}),
-        is_paused=is_paused,
+        goal=payload.goal,
+        research_mode=payload.research_mode,
+        environment_mode=payload.environment_mode,
+        org_id=org_id,
+        is_first=True
     )
-
-
-@router.get(
-    "/{thread_id}/history",
-    summary="List checkpoint history for a thread",
-    response_model=list[dict[str, Any]],
-)
-async def get_thread_history(
-    thread_id: str,
-    current_user: CurrentUser,
-    limit: int = 20,
-) -> list[dict[str, Any]]:
-    """Return the chronological checkpoint history for a thread.
-
-    Uses the native ``aget_state_history()`` checkpointer API — no custom
-    history tables are maintained.  Each entry represents one node transition
-    snapshot with its associated state values.
-    """
-    runtime = get_langgraph_runtime()
-    from langchain_core.runnables.config import RunnableConfig
-    config = RunnableConfig(configurable={"thread_id": thread_id})
-
-    history: list[dict[str, Any]] = []
-    async for snapshot in runtime.graph.aget_state_history(config, limit=limit):
-        metadata = snapshot.metadata or {}
-        history.append(
-            {
-                "checkpoint_id": snapshot.config.get("configurable", {}).get("checkpoint_id"),
-                "next": list(snapshot.next),
-                "status": snapshot.values.get("status"),
-                "run_id": snapshot.values.get("run_id"),
-                "created_at": metadata.get("created_at"),
-                "step": metadata.get("step"),
-            }
-        )
-
-    if not history:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Thread '{thread_id}' not found or has no history.",
-        )
-
-    return history
-
-
-# ---------------------------------------------------------------------------
-# Approvals Gating API Sub-Router Endpoints
-# ---------------------------------------------------------------------------
-
-class ApprovalFileSchema(BaseModel):
-    path: str
-    original: str
-    modified: str
-    language: str | None = None
-
-
-class PendingApprovalResponse(BaseModel):
-    approval_id: str
-    files: list[ApprovalFileSchema]
-    risk_level: str
-    justification: str
-
-
-class ResolveApprovalRequest(BaseModel):
-    path: str
-    decision: str
-
-
-@router.get(
-    "/{thread_id}/approvals/pending",
-    response_model=PendingApprovalResponse | None,
-    summary="Fetch pending approval details for a running session",
-)
-async def get_session_pending_approval(
-    thread_id: str,
-    current_user: CurrentUser,
-) -> PendingApprovalResponse | None:
-    """Fetch pending file modification details for dynamic Monaco Diff review.
-
-    Resolves active HITL session state from local database if thread is paused.
-    """
-    from src.governance.hitl import get_hitl_engine
-
-    engine = get_hitl_engine()
-    sessions = await engine.get_all_sessions()
-
-    # Filter pending review sessions bound to this thread
-    active = [
-        s for s in sessions
-        if s.execution_id == thread_id and s.decision is None
-    ]
-
-    if not active:
-        return None
-
-    hitl_sess = active[0]
-
-    # Mock data lookup if target files list is empty to support frontend display
-    files_list = []
-    if hitl_sess.modified_arguments:
-        files_list = [
-            ApprovalFileSchema(
-                path=hitl_sess.modified_arguments.get("path", "main.py"),
-                original=hitl_sess.modified_arguments.get("original", ""),
-                modified=hitl_sess.modified_arguments.get("modified", ""),
-            )
-        ]
-    else:
-        files_list = [
-            ApprovalFileSchema(
-                path="main.py",
-                original="def main():\n    pass",
-                modified="def main():\n    print('Authorized Execution')",
-            )
-        ]
-
-    return PendingApprovalResponse(
-        approval_id=hitl_sess.session_id,
-        files=files_list,
-        risk_level=hitl_sess.risk_level.value if hitl_sess.risk_level else "low",
-        justification=hitl_sess.justification or "Security review before container execution",
-    )
-
-
-@router.post(
-    "/{thread_id}/approvals/{approval_id}/resolve",
-    summary="Resolve a pending file approval diff",
-)
-async def resolve_session_approval(
-    thread_id: str,
-    approval_id: str,
-    payload: ResolveApprovalRequest,
-    current_user: CurrentUser,
-) -> dict[str, Any]:
-    """Resolve pending code execution modifications.
-
-    Access is strictly restricted to administrator and operator roles.
-    """
-    if current_user.role not in ("admin", "operator"):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User role lacks authorization to resolve reviews.",
-        )
-
-    # Standard resolution pipeline uses the HITL Governance Engine
-    from src.governance.hitl import ApprovalAction, ReviewerRole, get_hitl_engine
-
-    engine = get_hitl_engine()
-    action = ApprovalAction.APPROVE if payload.decision == "approve" else ApprovalAction.REJECT
-
-    try:
-        await engine.submit_decision(
-            session_id=approval_id,
-            action=action,
-            reviewer=current_user.username,
-            role=ReviewerRole.OPERATOR,
-            notes=f"Resolved file path: {payload.path}",
-        )
-        return {"status": "success", "approval_id": approval_id}
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Resolution error: {e}",
-        )
-
-
-@router.get(
-    "/{thread_id}/explore",
-    summary="Get exploration events and summary for a conversation thread",
-)
-async def get_exploration_data(
-    thread_id: str,
-    current_user: CurrentUser,
-) -> dict[str, Any]:
-    """Retrieve all structured exploration events and latest summary for a thread."""
-    from src.runtime.explore_manager import get_explore_manager
-
-    explore_mgr = get_explore_manager()
-    events = explore_mgr.get_events(thread_id)
-    summary = explore_mgr.get_summary(thread_id)
-
+    
     return {
+        "run_id": run_id,
         "thread_id": thread_id,
-        "events": events,
-        "summary": summary,
-        "count": len(events),
+        "status": step_result["status"],
+        "events": step_result["events"]
     }
 
 
-@router.get(
-    "/{thread_id}/explore/stream",
-    summary="Stream live exploration events via SSE",
-    response_class=StreamingResponse,
+@router.post(
+    "/run/{run_id}/step",
+    summary="Execute next step of a LangGraph run",
 )
-async def stream_exploration_events(
-    thread_id: str,
+async def run_step(
+    run_id: str,
+    payload: RunRequest,
     current_user: CurrentUser,
-) -> StreamingResponse:
-    """Stream real-time exploration events via SSE."""
-    from collections.abc import AsyncGenerator
-    import asyncio
-    from src.runtime.explore_manager import get_explore_manager
-
-    explore_mgr = get_explore_manager()
-
-    async def _sse_generator() -> AsyncGenerator[str, None]:
-        sent_ids = set()
-        # Stream existing events first
-        for ev in explore_mgr.get_events(thread_id):
-            ev_id = ev.get("id")
-            if ev_id not in sent_ids:
-                sent_ids.add(ev_id)
-                yield _sse_line({"event": ev})
-
-        # Poll for new events
-        for _ in range(60):
-            await asyncio.sleep(0.5)
-            new_events = [ev for ev in explore_mgr.get_events(thread_id) if ev.get("id") not in sent_ids]
-            for ev in new_events:
-                sent_ids.add(ev["id"])
-                yield _sse_line({"event": ev})
-            summary = explore_mgr.get_summary(thread_id)
-            if summary:
-                yield _sse_line({"summary": summary})
-                break
-        yield _sse_done()
-
-    return StreamingResponse(
-        _sse_generator(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Thread-Id": thread_id,
-        },
+) -> dict[str, Any]:
+    """Execute the next node in the LangGraph workflow."""
+    org_id = current_user.org_id or current_user.id
+    thread_id = payload.thread_id
+    
+    runtime = get_langgraph_runtime()
+    step_result = await runtime.execute_step(
+        run_id=run_id,
+        thread_id=thread_id,
+        org_id=org_id,
+        is_first=False
     )
+    
+    if step_result["status"] == "done":
+        try:
+            from src.api.dependencies import get_uow_factory
+            from src.db.models.agent_run import RunStatus as DbRunStatus
+            async with get_uow_factory()() as uow:
+                await uow.agent_runs.update_status(uuid.UUID(run_id), DbRunStatus.COMPLETED)
+                await uow.commit()
+        except Exception:
+            pass
+            
+    return step_result
+
+
+

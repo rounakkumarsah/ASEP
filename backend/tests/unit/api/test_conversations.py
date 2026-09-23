@@ -1,97 +1,20 @@
-"""
-Unit tests for POST /conversations/run, POST /conversations/{thread_id}/resume,
-GET /conversations/{thread_id}/state, and GET /conversations/{thread_id}/history.
-
-All LangGraph runtime calls are mocked so no real checkpointer or DB is needed.
-"""
-
-from __future__ import annotations
-
 import uuid
-from collections.abc import AsyncGenerator
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
-
 import pytest
 from fastapi.testclient import TestClient
-
 from src.api.app import create_app
-from src.auth.dependencies import get_current_user
-from src.db.models.user import User
+from unittest.mock import MagicMock, patch
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture()
-def mock_user() -> User:
-    return User(
-        id=uuid.uuid4(),
-        username="dev",
-        email="dev@test.com",
-        role="admin",
-        status="active",
-        is_active=True,
-    )
-
-
-@pytest.fixture()
-def test_client(mock_user: User) -> TestClient:
-    """Return a TestClient with the current_user dependency overridden."""
-    app = create_app()
-
-    async def _mock_current_user() -> User:
-        return mock_user
-
-    app.dependency_overrides[get_current_user] = _mock_current_user
-    client = TestClient(app, raise_server_exceptions=False)
-    yield client
-    app.dependency_overrides.clear()
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _make_snapshot(
-    values: dict[str, Any] | None = None,
-    next_nodes: tuple[str, ...] = (),
-) -> MagicMock:
-    """Build a minimal fake LangGraph StateSnapshot."""
-    snap = MagicMock()
-    snap.values = values or {
-        "status": "running",
-        "run_id": str(uuid.uuid4()),
-        "human_input": None,
-        "messages": [],
-        "variables": {},
-    }
-    snap.next = next_nodes
-    snap.config = {"configurable": {"checkpoint_id": str(uuid.uuid4())}}
-    snap.metadata = {"step": 1, "created_at": "2026-01-01T00:00:00Z"}
-    return snap
-
-
-async def _noop_stream() -> AsyncGenerator[dict[str, Any], None]:
-    yield {"start": {"status": "started"}}
-    yield {"process": {"status": "running"}}
-
-
-# ---------------------------------------------------------------------------
-# Tests — POST /conversations/run  (now returns 202 + run_id for polling)
-# ---------------------------------------------------------------------------
-
+async def _noop_stream():
+    yield {}
 
 @pytest.mark.asyncio
 async def test_start_run_returns_run_id(test_client: TestClient):
-    """POST /run should return 202 with run_id and thread_id for polling."""
+    """POST /run should return 202 with run_id and thread_id."""
     thread_id = str(uuid.uuid4())
 
     with patch("src.api.routers.conversations.get_langgraph_runtime") as mock_rt:
         runtime = MagicMock()
-        runtime.execute_run = MagicMock(return_value=_noop_stream())
+        runtime.execute_step = MagicMock(return_value={"status": "running", "events": [{"some": "event"}]})
         mock_rt.return_value = runtime
 
         resp = test_client.post(
@@ -103,8 +26,8 @@ async def test_start_run_returns_run_id(test_client: TestClient):
     data = resp.json()
     assert "run_id" in data
     assert data["thread_id"] == thread_id
-    assert data["status"] == "queued"
-    # run_id must be a valid UUID
+    assert data["status"] == "running"
+    assert "events" in data
     uuid.UUID(data["run_id"])
 
 
@@ -113,7 +36,7 @@ async def test_start_run_generates_thread_id_when_omitted(test_client: TestClien
     """POST /run without thread_id should auto-assign one (visible in response body)."""
     with patch("src.api.routers.conversations.get_langgraph_runtime") as mock_rt:
         runtime = MagicMock()
-        runtime.execute_run = MagicMock(return_value=_noop_stream())
+        runtime.execute_step = MagicMock(return_value={"status": "running", "events": []})
         mock_rt.return_value = runtime
 
         resp = test_client.post(
@@ -123,7 +46,6 @@ async def test_start_run_generates_thread_id_when_omitted(test_client: TestClien
 
     assert resp.status_code == 202
     data = resp.json()
-    # thread_id is returned in the JSON body
     assert "thread_id" in data
     uuid.UUID(data["thread_id"])
 
@@ -140,195 +62,43 @@ async def test_start_run_requires_auth():
     assert resp.status_code == 401
 
 
-# ---------------------------------------------------------------------------
-# Tests — GET /conversations/run/{run_id}/status
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.asyncio
-async def test_get_run_status_returns_events(test_client: TestClient):
-    """GET /run/{run_id}/status should return status and new events since cursor."""
-    from src.runtime.run_store import RunState, RunStatus
-
+async def test_run_step_returns_events(test_client: TestClient):
+    """POST /run/{run_id}/step should execute next node and return events."""
     run_id = str(uuid.uuid4())
     thread_id = str(uuid.uuid4())
 
-    fake_state = RunState(
-        run_id=run_id,
-        thread_id=thread_id,
-        status=RunStatus.DONE,
-        events=[{"event": {"test": {}}}],
-    )
+    with patch("src.api.routers.conversations.get_langgraph_runtime") as mock_rt:
+        runtime = MagicMock()
+        runtime.execute_step = MagicMock(return_value={"status": "done", "events": [{"final": "result"}]})
+        mock_rt.return_value = runtime
 
-    with patch("src.runtime.run_store.get_run", new=AsyncMock(return_value=fake_state)):
-        resp = test_client.get(f"/api/v1/conversations/run/{run_id}/status?cursor=0")
+        resp = test_client.post(
+            f"/api/v1/conversations/run/{run_id}/step",
+            json={"thread_id": thread_id},
+        )
 
     assert resp.status_code == 200
     data = resp.json()
     assert data["status"] == "done"
-    assert data["run_id"] == run_id
     assert len(data["events"]) == 1
-    assert data["cursor"] == 1
-
-
-
-
-
-
+    assert data["events"][0] == {"final": "result"}
 
 @pytest.mark.asyncio
-async def test_get_run_status_404_for_unknown_run_id(test_client: TestClient):
-    """GET /run/{run_id}/status for an unknown run_id should return 404."""
-    resp = test_client.get("/api/v1/conversations/run/nonexistent-run-id/status")
-    assert resp.status_code == 404
-
-
-# ---------------------------------------------------------------------------
-# Tests — POST /conversations/{thread_id}/resume
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_resume_run_streams_sse(test_client: TestClient):
-    """POST /{thread_id}/resume should resume and stream updates."""
+async def test_resume_run(test_client: TestClient):
+    """POST /run/{thread_id}/resume should accept string inputs"""
     thread_id = str(uuid.uuid4())
-
-    async def _resume_stream() -> AsyncGenerator[dict, None]:
-        yield {"validate": {"human_input": "approve"}}
-        yield {"end": {"status": "completed"}}
 
     with patch("src.api.routers.conversations.get_langgraph_runtime") as mock_rt:
         runtime = MagicMock()
-        # get_state returns a non-empty dict so the 404 guard passes
-        runtime.get_state = AsyncMock(return_value={"status": "paused"})
-        runtime.resume_run = MagicMock(return_value=_resume_stream())
+        runtime.resume_run = MagicMock(return_value=_noop_stream())
         mock_rt.return_value = runtime
 
         resp = test_client.post(
-            f"/api/v1/conversations/{thread_id}/resume",
-            json={"decision": "approve"},
+            f"/api/v1/conversations/run/{thread_id}/resume",
+            json={"feedback": "approve"},
         )
+        assert resp.status_code == 200
+        # Check standard HTTP responses
+        assert resp.json() == {"status": "ok", "message": "Resumed execution"}
 
-    assert resp.status_code == 200
-    assert "text/event-stream" in resp.headers["content-type"]
-    body = resp.text
-    assert "[DONE]" in body
-    assert "approve" in body
-
-
-@pytest.mark.asyncio
-async def test_resume_run_404_when_thread_missing(test_client: TestClient):
-    """POST /{thread_id}/resume on an unknown thread should return 404."""
-    with patch("src.api.routers.conversations.get_langgraph_runtime") as mock_rt:
-        runtime = MagicMock()
-        runtime.get_state = AsyncMock(return_value=None)
-        mock_rt.return_value = runtime
-
-        resp = test_client.post(
-            "/api/v1/conversations/nonexistent-thread/resume",
-            json={"decision": "approve"},
-        )
-
-    assert resp.status_code == 404
-
-
-# ---------------------------------------------------------------------------
-# Tests — GET /conversations/{thread_id}/state
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_get_state_returns_snapshot(test_client: TestClient):
-    """GET /{thread_id}/state should return a ThreadStateResponse."""
-    thread_id = str(uuid.uuid4())
-    run_id = str(uuid.uuid4())
-    snapshot = _make_snapshot(
-        values={
-            "status": "paused",
-            "run_id": run_id,
-            "human_input": None,
-            "messages": [],
-            "variables": {},
-        },
-        next_nodes=("validate",),
-    )
-
-    with patch("src.api.routers.conversations.get_langgraph_runtime") as mock_rt:
-        runtime = MagicMock()
-        runtime.graph = MagicMock()
-        runtime.graph.aget_state = AsyncMock(return_value=snapshot)
-        mock_rt.return_value = runtime
-
-        resp = test_client.get(f"/api/v1/conversations/{thread_id}/state")
-
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["thread_id"] == thread_id
-    assert data["status"] == "paused"
-    assert data["is_paused"] is True
-    assert "validate" in data["next"]
-    assert data["run_id"] == run_id
-
-
-@pytest.mark.asyncio
-async def test_get_state_404_on_missing_thread(test_client: TestClient):
-    """GET /{thread_id}/state should return 404 when no snapshot exists."""
-    with patch("src.api.routers.conversations.get_langgraph_runtime") as mock_rt:
-        runtime = MagicMock()
-        runtime.graph = MagicMock()
-        runtime.graph.aget_state = AsyncMock(return_value=None)
-        mock_rt.return_value = runtime
-
-        resp = test_client.get("/api/v1/conversations/ghost-thread/state")
-
-    assert resp.status_code == 404
-
-
-# ---------------------------------------------------------------------------
-# Tests — GET /conversations/{thread_id}/history
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_get_history_returns_entries(test_client: TestClient):
-    """GET /{thread_id}/history should return a list of checkpoint snapshots."""
-    thread_id = str(uuid.uuid4())
-
-    async def _history_gen(*_args, **_kwargs):
-        for i in range(3):
-            snap = _make_snapshot(next_nodes=())
-            snap.metadata = {"step": i, "created_at": "2026-01-01T00:00:00Z"}
-            yield snap
-
-    with patch("src.api.routers.conversations.get_langgraph_runtime") as mock_rt:
-        runtime = MagicMock()
-        runtime.graph = MagicMock()
-        runtime.graph.aget_state_history = _history_gen
-        mock_rt.return_value = runtime
-
-        resp = test_client.get(f"/api/v1/conversations/{thread_id}/history")
-
-    assert resp.status_code == 200
-    data = resp.json()
-    assert isinstance(data, list)
-    assert len(data) == 3
-    assert data[0]["step"] == 0
-
-
-@pytest.mark.asyncio
-async def test_get_history_404_when_empty(test_client: TestClient):
-    """GET /{thread_id}/history returns 404 when no checkpoints exist."""
-
-    async def _empty_gen(*_args, **_kwargs):
-        return
-        yield  # make it an async generator
-
-    with patch("src.api.routers.conversations.get_langgraph_runtime") as mock_rt:
-        runtime = MagicMock()
-        runtime.graph = MagicMock()
-        runtime.graph.aget_state_history = _empty_gen
-        mock_rt.return_value = runtime
-
-        resp = test_client.get("/api/v1/conversations/ghost-thread/history")
-
-    assert resp.status_code == 404

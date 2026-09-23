@@ -247,6 +247,157 @@ class LangGraphRuntime:
                 except Exception as e:
                     logger.error(f"Failed to trigger end-of-run memory hooks: {e}")
 
+
+    async def execute_step(
+        self, run_id: str, thread_id: str, goal: str = "", research_mode: str = "balanced", environment_mode: str = "local", org_id: str | None = None, is_first: bool = False
+    ) -> dict:
+        """Executes exactly one step (superstep) of the LangGraph workflow and returns events."""
+        from langchain_core.runnables.config import RunnableConfig
+        import uuid
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        config = RunnableConfig(configurable={"thread_id": thread_id})
+        
+        input_data = None
+        if is_first:
+            logger.info(f"Initiating step-by-step run '{run_id}' under thread: '{thread_id}' with goal: '{goal}'")
+            from src.utils.host_manager import host_manager
+            host_manager.stop_session(thread_id)
+            if run_id != thread_id:
+                host_manager.stop_session(run_id)
+
+            await self.memory.working.set_state(thread_id, "active_run_id", run_id)
+            
+            injected_memories_text = ""
+            from src.runtime.memory_hooks import is_memory_enabled, store_working_memory, store_episodic_memory, extract_and_store_durable_memories
+            org_uuid = None
+            if org_id and is_memory_enabled():
+                try:
+                    from src.services.memory_service import MemoryService
+                    from src.api.dependencies import get_uow_factory
+                    from src.db.models.memory_entry import MemoryType
+                    memory_service = MemoryService(get_uow_factory())
+                    org_uuid = uuid.UUID(str(org_id))
+                    
+                    top_memories = []
+                    for mtype in [MemoryType.SEMANTIC, MemoryType.PROCEDURAL, MemoryType.EPISODIC]:
+                        mems = await memory_service.get_top_memories(namespace="default", memory_type=mtype, org_id=org_uuid, limit=2)
+                        top_memories.extend(mems)
+                        
+                    top_memories.sort(key=lambda x: x.importance_score, reverse=True)
+                    top_memories = top_memories[:5]
+                    
+                    if top_memories:
+                        injected_memories_text = "Relevant Past Memories:\n" + "\n".join(f"- [{m.memory_type}] {m.content}" for m in top_memories) + "\n\n"
+                        
+                    await store_working_memory(run_id, org_uuid, f"Goal: {goal}")
+                except Exception as e:
+                    logger.error(f"Failed to retrieve or store initial memories: {e}")
+
+            augmented_goal = injected_memories_text + goal
+            input_data = {
+                "goal": augmented_goal,
+                "messages": [{"role": "user", "content": augmented_goal}] if goal else [],
+                "environment_mode": environment_mode,
+                "credentials_status": {},
+                "local_secrets": [],
+                "plan": [],
+                "status": "started",
+                "next_action": None,
+                "run_id": run_id,
+                "thread_id": thread_id,
+                "variables": {"research_mode": research_mode},
+                "human_input": None,
+            }
+            
+        events = []
+        try:
+            async for event in self.graph.astream(input_data, config, stream_mode="updates"):
+                events.append(event)
+                # Hook Working Memory for the executed step
+                from src.runtime.memory_hooks import is_memory_enabled, store_working_memory
+                if org_id and is_memory_enabled():
+                    try:
+                        org_uuid = uuid.UUID(str(org_id))
+                        for node_name, node_data in event.items():
+                            if "messages" in node_data and node_data["messages"]:
+                                last_msg = node_data["messages"][-1]
+                                if isinstance(last_msg, dict):
+                                    content = last_msg.get("content", "")
+                                    role = last_msg.get("role", "")
+                                    name = last_msg.get("name", "")
+                                else:
+                                    content = getattr(last_msg, "content", "")
+                                    role = getattr(last_msg, "type", "")
+                                    name = getattr(last_msg, "name", "")
+                                if role == "tool" or name:
+                                    await store_working_memory(run_id, org_uuid, f"Tool {name or role} output: {content}", source=f"tool_{name or role}")
+                                elif role == "ai" or role == "assistant":
+                                    await store_working_memory(run_id, org_uuid, f"AI Thought: {content}", source="ai_step")
+                    except Exception as e:
+                        logger.error(f"Working memory step hook failed: {e}")
+                break
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Execution step error: {e}", exc_info=True)
+            return {"status": "error", "events": events, "error": str(e)}
+            
+        state = await self.graph.aget_state(config)
+        is_done = len(state.next) == 0 if state else True
+        
+        if is_done:
+            # End of run extraction
+            from src.runtime.memory_hooks import is_memory_enabled, store_episodic_memory, extract_and_store_durable_memories
+            from src.utils.safe_execute import safe_fire_and_forget
+            if org_id and is_memory_enabled():
+                try:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    org_uuid = uuid.UUID(str(org_id))
+                    # Reconstruct transcript
+                    transcript_builder = [f"Goal: {goal}"] if goal else []
+                    tools_used = set()
+                    final_response = ""
+                    success = False
+                    
+                    if state and "messages" in state.values:
+                        for msg in state.values["messages"]:
+                            if isinstance(msg, dict):
+                                content = msg.get("content", "")
+                                role = msg.get("role", "")
+                                name = msg.get("name", "")
+                            else:
+                                content = getattr(msg, "content", "")
+                                role = getattr(msg, "type", "")
+                                name = getattr(msg, "name", "")
+                            
+                            if role == "tool" or name:
+                                tools_used.add(name or role)
+                                transcript_builder.append(f"Tool {name or role} Output: {str(content)[:200]}...")
+                            elif role == "ai" or role == "assistant":
+                                transcript_builder.append(f"AI: {str(content)[:200]}...")
+                                final_response = str(content)
+                                
+                    if state and state.values.get("status") == "completed":
+                        success = True
+                        
+                    transcript_str = "\n".join(transcript_builder)
+                    await store_episodic_memory(run_id, org_uuid, goal, final_response, list(tools_used), success)
+                    
+                    import os
+                    if os.environ.get("VERCEL") == "1" or os.environ.get("SERVERLESS") == "1":
+                        await extract_and_store_durable_memories(run_id, org_uuid, transcript_str)
+                    else:
+                        safe_fire_and_forget(extract_and_store_durable_memories(run_id, org_uuid, transcript_str))
+                except Exception as e:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error(f"Failed to trigger end-of-run memory hooks: {e}")
+                    
+        return {"status": "done" if is_done else "running", "events": events}
+
     async def resume_run(
         self, thread_id: str, human_input: str
     ) -> AsyncGenerator[dict[str, Any], None]:

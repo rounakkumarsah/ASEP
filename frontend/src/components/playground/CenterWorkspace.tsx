@@ -1028,37 +1028,32 @@ export function CenterWorkspace() {
         }
       };
 
-      while (pollCount < MAX_POLLS) {
+      let currentStatus = "running";
+      while (currentStatus === "running" && pollCount < MAX_POLLS) {
         pollCount++;
-        await new Promise((r) => setTimeout(r, 1500));
-
-        const pollRes = await fetch(
-          `${apiBase}/api/v1/conversations/run/${runId}/status?cursor=${cursor}`,
-          { headers },
-        );
-        if (!pollRes.ok) break;
-
-        const pollData = await pollRes.json() as {
-          status: string;
-          events: Array<Record<string, unknown>>;
-          cursor: number;
-          error?: string;
-        };
-
-        cursor = pollData.cursor;
-
-        for (const ev of pollData.events) {
-          try {
-            processEventData(ev);
-          } catch {}
-        }
-
-        if (pollData.status === "done" || pollData.status === "error") {
-          if (pollData.status === "error" && pollData.error) {
-            throw new Error(pollData.error);
+        
+        const stepRes = await fetch(
+          `${apiBase}/api/v1/conversations/run/${runId}/step`,
+          { 
+            method: "POST", 
+            headers,
+            body: JSON.stringify({ thread_id: newThreadId })
           }
-          break;
+        );
+        
+        if (!stepRes.ok) {
+           throw new Error(`API returned HTTP ${stepRes.status}: ${stepRes.statusText}`);
         }
+        
+        const stepData = await stepRes.json();
+        if (stepData.events) {
+          for (const ev of stepData.events) {
+            try {
+              processEventData(ev);
+            } catch {}
+          }
+        }
+        currentStatus = stepData.status;
       }
 
       if (aiResponse) {
