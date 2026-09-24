@@ -157,7 +157,11 @@ async def planner_node(state: AgentState) -> dict[str, Any]:
         if match:
             plan = json.loads(match.group(0))
     except Exception as exc:
-        logger.warning("LLM planning fallback triggered: %s", exc)
+        logger.warning(
+            "LLM planning fallback triggered: exception_type=%s, message=%s",
+            type(exc).__name__,
+            str(exc),
+        )
 
     if not plan:
         # Structured deterministic fallback
@@ -334,7 +338,11 @@ async def coding_node(state: AgentState) -> dict[str, Any]:
         res = await runtime.complete(req)
         answer = res.text
     except Exception as exc:
-        logger.warning("AIRuntime coding generation fallback triggered: %s", exc)
+        logger.warning(
+            "AIRuntime coding generation fallback triggered: exception_type=%s, message=%s",
+            type(exc).__name__,
+            str(exc),
+        )
 
     if not answer:
         # High quality structural response

@@ -80,6 +80,10 @@ class StateGraphWrapper:
                     return phase_map[idx + 1]
                 return "end"
             except ValueError:
+                if current == "clarification_gate":
+                    return "blueprint"
+                if current == "deploy_clarification_gate":
+                    return "deploy"
                 return "end"
 
         # The orchestrator decides the first phase
@@ -87,7 +91,7 @@ class StateGraphWrapper:
 
         # Register all possible phases in conditional edges
         all_phases = [
-            "explore", "research", "blueprint", "scaffold", "implement", "critic", "debugger", "test", "security_audit", "deploy",
+            "explore", "research", "clarification_gate", "blueprint", "scaffold", "implement", "critic", "debugger", "test", "security_audit", "deploy_clarification_gate", "deploy",
             "host_manager",
             "capability_blueprint", "tool_design", "agent_loop_implementation", "memory_state_design",
             "sandbox_tests", "evaluation_runs", "goal_decomposition_design", "planner_executor_critic_architecture",
