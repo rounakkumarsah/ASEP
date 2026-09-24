@@ -323,7 +323,7 @@ class DocCrawler:
                 text = _html_to_text(html)
                 chunks = self._chunk(text, url=url, product_type=product_type, project_id=project_id)
                 all_chunks.extend(chunks)
-                logger.info("[DocCrawler] %s → %d chunks", url, len(chunks))
+                logger.info("[DocCrawler] %s -> %d chunks", url, len(chunks))
             except Exception as exc:
                 logger.warning("[DocCrawler] Failed to fetch %s: %s", url, exc)
                 # Produce a fallback chunk with known pattern hints

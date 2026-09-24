@@ -32,6 +32,20 @@ async def test_all_orchestrator_phases_have_edges_no_dead_ends():
         for phase in phase_map:
             all_emitted_phases.add(phase)
 
+    # Introspect orchestrator_node AST to guarantee 100% of all assigned phases are caught
+    import ast
+    import inspect
+    source = inspect.getsource(orchestrator_node)
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id == "phase_map":
+                    if isinstance(node.value, ast.List):
+                        for elt in node.value.elts:
+                            if isinstance(elt, ast.Constant) and isinstance(elt.value, str):
+                                all_emitted_phases.add(elt.value)
+
     runtime = LangGraphRuntime(MagicMock())
     registered_nodes = set(runtime.nodes.get_all().keys())
     branch_nodes = set(runtime.wrapper.workflow.branches.keys())
