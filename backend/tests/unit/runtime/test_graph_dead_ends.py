@@ -213,3 +213,70 @@ async def test_execute_step_durability_and_pending_nodes():
     assert state is not None
     assert len(state.next) == 0
 
+
+@pytest.mark.asyncio
+async def test_execute_step_safety_cap_and_continuation(monkeypatch):
+    """
+    Assert execute_step halts when safety cap is reached (e.g. MAX_EVENTS),
+    returning 'running' with partial events and pending nodes, and that a
+    subsequent execute_step call with is_first=False resumes and completes the pipeline.
+    """
+    import uuid
+    mock_mem = MagicMock()
+    mock_mem.working.set_state = AsyncMock()
+    mock_mem.working.get_state = AsyncMock(return_value=None)
+    runtime = LangGraphRuntime(mock_mem)
+
+    thread_id = str(uuid.uuid4())
+    run_id = str(uuid.uuid4())
+
+    orig_astream = runtime.graph.astream
+    call_count = 0
+
+    def capped_astream(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        gen = orig_astream(*args, **kwargs)
+
+        async def stream_wrapper():
+            count = 0
+            async for item in gen:
+                count += 1
+                yield item
+                # Simulate cap hit on first step after 3 events
+                if call_count == 1 and count >= 3:
+                    break
+
+        return stream_wrapper()
+
+    monkeypatch.setattr(runtime.graph, "astream", capped_astream)
+
+    # First call - should stop at 3 events and report running
+    res1 = await runtime.execute_step(
+        run_id=run_id,
+        thread_id=thread_id,
+        goal="Build a microservice",
+        is_first=True,
+    )
+    assert res1.get("status") == "running"
+    assert len(res1.get("events", [])) == 3
+
+    state1 = await runtime.graph.aget_state({"configurable": {"thread_id": thread_id}})
+    assert state1 is not None
+    assert len(state1.next) > 0
+
+    # Second call - should resume from checkpoint without is_first and finish
+    res2 = await runtime.execute_step(
+        run_id=run_id,
+        thread_id=thread_id,
+        goal="Build a microservice",
+        is_first=False,
+    )
+    assert res2.get("status") == "done"
+    assert len(res2.get("events", [])) > 0
+
+    state2 = await runtime.graph.aget_state({"configurable": {"thread_id": thread_id}})
+    assert state2 is not None
+    assert len(state2.next) == 0
+
+
