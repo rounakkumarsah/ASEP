@@ -37,7 +37,6 @@ async def _ensure_agent_run(
                 from src.db.models.agent_run import AgentRun, RunStatus
                 new_run = AgentRun(
                     id=run_uuid,
-                    org_id=org_id,
                     goal=goal or "Agent Run",
                     status=RunStatus.RUNNING,
                 )

@@ -64,7 +64,7 @@ class MemoryEntryRepository(BaseRepository[MemoryEntry, uuid.UUID]):
     async def get_by_agent_run(
         self,
         agent_run_id: uuid.UUID,
-        org_id: uuid.UUID,
+        org_id: uuid.UUID | None = None,  # kept for API compatibility; not used in queries
         *options: ExecutableOption,
         limit: int = DEFAULT_LIMIT,
         offset: int = DEFAULT_OFFSET,
@@ -74,7 +74,6 @@ class MemoryEntryRepository(BaseRepository[MemoryEntry, uuid.UUID]):
         stmt = (
             select(MemoryEntry)
             .where(MemoryEntry.agent_run_id == agent_run_id)
-            .where(MemoryEntry.org_id == org_id)
             .where(or_(MemoryEntry.expires_at.is_(None), MemoryEntry.expires_at > func.now()))
             .order_by(MemoryEntry.created_at.desc())
             .limit(_clamp_limit(limit))
@@ -92,7 +91,7 @@ class MemoryEntryRepository(BaseRepository[MemoryEntry, uuid.UUID]):
     async def get_by_namespace(
         self,
         namespace: str,
-        org_id: uuid.UUID,
+        org_id: uuid.UUID | None = None,  # kept for API compatibility; not used in queries
         *options: ExecutableOption,
         limit: int = DEFAULT_LIMIT,
         offset: int = DEFAULT_OFFSET,
@@ -102,7 +101,6 @@ class MemoryEntryRepository(BaseRepository[MemoryEntry, uuid.UUID]):
         stmt = (
             select(MemoryEntry)
             .where(MemoryEntry.namespace == namespace)
-            .where(MemoryEntry.org_id == org_id)
             .where(or_(MemoryEntry.expires_at.is_(None), MemoryEntry.expires_at > func.now()))
             .order_by(MemoryEntry.importance_score.desc())
             .limit(_clamp_limit(limit))
@@ -117,7 +115,7 @@ class MemoryEntryRepository(BaseRepository[MemoryEntry, uuid.UUID]):
         self,
         namespace: str,
         memory_type: MemoryType,
-        org_id: uuid.UUID,
+        org_id: uuid.UUID | None = None,  # kept for API compatibility; not used in queries
         *options: ExecutableOption,
         limit: int = DEFAULT_LIMIT,
         offset: int = DEFAULT_OFFSET,
@@ -129,7 +127,6 @@ class MemoryEntryRepository(BaseRepository[MemoryEntry, uuid.UUID]):
             .where(
                 MemoryEntry.namespace == namespace,
                 MemoryEntry.memory_type == memory_type,
-                MemoryEntry.org_id == org_id,
             )
             .where(or_(MemoryEntry.expires_at.is_(None), MemoryEntry.expires_at > func.now()))
             .order_by(MemoryEntry.importance_score.desc())
@@ -148,7 +145,7 @@ class MemoryEntryRepository(BaseRepository[MemoryEntry, uuid.UUID]):
     async def get_by_embedding_id(
         self,
         embedding_id: uuid.UUID,
-        org_id: uuid.UUID,
+        org_id: uuid.UUID | None = None,  # kept for API compatibility; not used in queries
         *options: ExecutableOption,
     ) -> MemoryEntry | None:
         """Return the memory entry that corresponds to a Qdrant point ID."""
@@ -156,7 +153,6 @@ class MemoryEntryRepository(BaseRepository[MemoryEntry, uuid.UUID]):
         stmt = (
             select(MemoryEntry)
             .where(MemoryEntry.embedding_id == embedding_id)
-            .where(MemoryEntry.org_id == org_id)
             .where(or_(MemoryEntry.expires_at.is_(None), MemoryEntry.expires_at > func.now()))
         )
         if options:
@@ -172,7 +168,7 @@ class MemoryEntryRepository(BaseRepository[MemoryEntry, uuid.UUID]):
         namespace: str,
         min_score: Decimal,
         max_score: Decimal,
-        org_id: uuid.UUID,
+        org_id: uuid.UUID | None = None,  # kept for API compatibility; not used in queries
         *options: ExecutableOption,
         limit: int = DEFAULT_LIMIT,
     ) -> list[MemoryEntry]:
@@ -184,7 +180,6 @@ class MemoryEntryRepository(BaseRepository[MemoryEntry, uuid.UUID]):
                 MemoryEntry.namespace == namespace,
                 MemoryEntry.importance_score >= min_score,
                 MemoryEntry.importance_score <= max_score,
-                MemoryEntry.org_id == org_id,
             )
             .where(or_(MemoryEntry.expires_at.is_(None), MemoryEntry.expires_at > func.now()))
             .order_by(MemoryEntry.importance_score.desc())
@@ -203,7 +198,7 @@ class MemoryEntryRepository(BaseRepository[MemoryEntry, uuid.UUID]):
         self,
         namespace: str,
         memory_type: MemoryType,
-        org_id: uuid.UUID,
+        org_id: uuid.UUID | None = None,  # kept for API compatibility; not used in queries
         *options: ExecutableOption,
         limit: int = DEFAULT_LIMIT,
     ) -> list[MemoryEntry]:
@@ -214,7 +209,6 @@ class MemoryEntryRepository(BaseRepository[MemoryEntry, uuid.UUID]):
             .where(
                 MemoryEntry.namespace == namespace,
                 MemoryEntry.memory_type == memory_type,
-                MemoryEntry.org_id == org_id,
             )
             .where(or_(MemoryEntry.expires_at.is_(None), MemoryEntry.expires_at > func.now()))
             .order_by(

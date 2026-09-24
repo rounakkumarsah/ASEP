@@ -166,7 +166,6 @@ class MemoryService:
             id=uuid.uuid4(),
             content=content,
             namespace=namespace,
-            org_id=org_id,
             memory_type=memory_type,
             agent_run_id=agent_run_id,
             importance_score=score,
