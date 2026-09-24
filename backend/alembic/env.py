@@ -42,7 +42,11 @@ def get_database_url() -> str:
     settings = get_settings()
     url = settings.DATABASE_URL
     if "postgresql+asyncpg://" in url:
-        url = url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
+        url = url.replace("postgresql+asyncpg://", "postgresql+pg8000://")
+    elif "postgresql://" in url and "+pg8000" not in url:
+        url = url.replace("postgresql://", "postgresql+pg8000://")
+    elif "postgres://" in url:
+        url = url.replace("postgres://", "postgresql+pg8000://")
     import re
     url = re.sub(r'\?.*', '', url)
     return url

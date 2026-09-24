@@ -262,4 +262,76 @@ async def run_step(
     return step_result
 
 
+@router.get(
+    "/{thread_id}/explore",
+    summary="Get exploration events and summary for a conversation thread",
+)
+async def get_exploration_data(
+    thread_id: str,
+    current_user: CurrentUser,
+) -> dict[str, Any]:
+    """Retrieve all structured exploration events and latest summary for a thread."""
+    from src.runtime.explore_manager import get_explore_manager
+
+    explore_mgr = get_explore_manager()
+    events = explore_mgr.get_events(thread_id)
+    summary = explore_mgr.get_summary(thread_id)
+
+    return {
+        "thread_id": thread_id,
+        "events": events,
+        "summary": summary,
+        "count": len(events),
+    }
+
+
+@router.get(
+    "/{thread_id}/explore/stream",
+    summary="Stream live exploration events via SSE",
+    response_class=StreamingResponse,
+)
+async def stream_exploration_events(
+    thread_id: str,
+    current_user: CurrentUser,
+) -> StreamingResponse:
+    """Stream real-time exploration events via SSE."""
+    from collections.abc import AsyncGenerator
+    import asyncio
+    from src.runtime.explore_manager import get_explore_manager
+
+    explore_mgr = get_explore_manager()
+
+    async def _sse_generator() -> AsyncGenerator[str, None]:
+        sent_ids = set()
+        # Stream existing events first
+        for ev in explore_mgr.get_events(thread_id):
+            ev_id = ev.get("id")
+            if ev_id not in sent_ids:
+                sent_ids.add(ev_id)
+                yield _sse_line({"event": ev})
+
+        # Poll for new events
+        for _ in range(60):
+            await asyncio.sleep(0.5)
+            new_events = [ev for ev in explore_mgr.get_events(thread_id) if ev.get("id") not in sent_ids]
+            for ev in new_events:
+                sent_ids.add(ev["id"])
+                yield _sse_line({"event": ev})
+            summary = explore_mgr.get_summary(thread_id)
+            if summary:
+                yield _sse_line({"summary": summary})
+                break
+        yield _sse_done()
+
+    return StreamingResponse(
+        _sse_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Thread-Id": thread_id,
+        },
+    )
+
+
+
 
