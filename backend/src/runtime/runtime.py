@@ -322,17 +322,27 @@ class LangGraphRuntime:
                 "human_input": None,
             }
             
+        import time
+        start_time = time.perf_counter()
         events = []
+        nodes_executed: list[str] = []
+        MAX_EVENTS = 40
+        MAX_SECONDS = 45.0
+
         try:
             async for event in self.graph.astream(input_data, config, stream_mode="updates", durability="sync"):
                 events.append(event)
+                for node_name in event.keys():
+                    if node_name not in nodes_executed:
+                        nodes_executed.append(node_name)
+
                 # Hook Working Memory for the executed step
                 from src.runtime.memory_hooks import is_memory_enabled, store_working_memory
                 if org_id and is_memory_enabled():
                     try:
                         org_uuid = uuid.UUID(str(org_id))
                         for node_name, node_data in event.items():
-                            if "messages" in node_data and node_data["messages"]:
+                            if isinstance(node_data, dict) and "messages" in node_data and node_data["messages"]:
                                 last_msg = node_data["messages"][-1]
                                 if isinstance(last_msg, dict):
                                     content = last_msg.get("content", "")
@@ -348,17 +358,28 @@ class LangGraphRuntime:
                                     await store_working_memory(run_id, org_uuid, f"AI Thought: {content}", source="ai_step")
                     except Exception as e:
                         logger.error(f"Working memory step hook failed: {e}")
-                break
+
+                elapsed = time.perf_counter() - start_time
+                if len(events) >= MAX_EVENTS or elapsed >= MAX_SECONDS:
+                    logger.warning(
+                        f"Safety cap reached in execute_step: events={len(events)}/{MAX_EVENTS}, "
+                        f"elapsed={elapsed:.2f}s/{MAX_SECONDS}s. Stopping stream."
+                    )
+                    break
         except Exception as e:
             import logging
             logger = logging.getLogger(__name__)
             logger.error(f"Execution step error: {e}", exc_info=True)
             return {"status": "error", "events": events, "error": str(e)}
             
+        elapsed_seconds = round(time.perf_counter() - start_time, 2)
         state = await self.graph.aget_state(config)
         is_done = len(state.next) == 0 if state else True
         pending_nodes = list(state.next) if state else []
-        logger.info(f"events_yielded={len(events)}, pending_nodes={pending_nodes}")
+        logger.info(
+            f"total_events={len(events)}, nodes_executed={nodes_executed}, "
+            f"elapsed_seconds={elapsed_seconds}, final_pending_nodes={pending_nodes}"
+        )
         
         if is_done:
             # End of run extraction

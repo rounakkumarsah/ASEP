@@ -185,10 +185,9 @@ async def test_extract_and_store_durable_memories_uses_resolved_model():
 @pytest.mark.asyncio
 async def test_execute_step_durability_and_pending_nodes():
     """
-    FIX 1 Unit Test:
-    Assert execute_step correctly persists synchronously with durability='sync',
-    yielding events and leaving pending_nodes correctly populated in state.next
-    without prematurely marking the run done.
+    Assert execute_step correctly runs through the graph nodes synchronously with durability='sync',
+    collecting events across multiple nodes into the single step response and completing
+    the run when all nodes finish.
     """
     import uuid
     mock_mem = MagicMock()
@@ -206,12 +205,11 @@ async def test_execute_step_durability_and_pending_nodes():
         is_first=True,
     )
 
-    assert res.get("status") == "running"
-    assert len(res.get("events", [])) == 1
+    assert res.get("status") == "done"
+    assert len(res.get("events", [])) > 1
     
-    # State checkpoint must reflect real pending nodes
+    # State checkpoint must reflect completed graph (no pending nodes)
     state = await runtime.graph.aget_state({"configurable": {"thread_id": thread_id}})
     assert state is not None
-    assert len(state.next) > 0
-    assert "orchestrator" in state.next
+    assert len(state.next) == 0
 
