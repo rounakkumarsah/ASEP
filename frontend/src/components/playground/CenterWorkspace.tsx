@@ -78,27 +78,49 @@ export interface MessageItem {
   role?: string;
   type?: string;
   name?: string;
-  content?: string;
+  content?: string | unknown;
 }
 
-export function isStatusContent(text?: string): boolean {
-  if (!text || typeof text !== "string") return true;
-  const trimmed = text.trim();
+export function extractMessageContent(content: unknown): string {
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content
+      .map((part) => {
+        if (typeof part === "string") return part;
+        if (part && typeof part === "object") {
+          return (part as { text?: string }).text || (part as { content?: string }).content || "";
+        }
+        return "";
+      })
+      .filter(Boolean)
+      .join("\n");
+  }
+  if (content && typeof content === "object") {
+    return (content as { text?: string }).text || (content as { content?: string }).content || "";
+  }
+  return "";
+}
+
+export function isStatusContent(text?: unknown): boolean {
+  const extracted = extractMessageContent(text);
+  if (!extracted || typeof extracted !== "string") return true;
+  const trimmed = extracted.trim();
   if (!trimmed) return true;
   const lower = trimmed.toLowerCase();
 
   // Known backend telemetry/orchestration status patterns
   if (
-    lower.startsWith("langgraph execution initiated") ||
-    lower.startsWith("phase started") ||
-    lower.startsWith("phase complete") ||
-    lower.startsWith("phase map generated") ||
-    lower.startsWith("checkpoint saved") ||
-    lower.startsWith("deploy clarification gate") ||
-    lower.startsWith("deploy gate") ||
-    lower.startsWith("critic phase complete") ||
-    lower.startsWith("test phase complete") ||
-    lower.startsWith("task processed through") ||
+    lower.includes("langgraph execution initiated") ||
+    lower.includes("phase started") ||
+    lower.includes("phase complete") ||
+    lower.includes("phase map generated") ||
+    lower.includes("orchestrator classified product") ||
+    lower.includes("checkpoint saved") ||
+    lower.includes("deploy clarification gate") ||
+    lower.includes("deploy gate") ||
+    lower.includes("critic phase complete") ||
+    lower.includes("test phase complete") ||
+    lower.includes("task processed through") ||
     lower.startsWith("resumed execution") ||
     lower.startsWith("commit notice") ||
     lower.startsWith("[git]") ||
@@ -111,7 +133,8 @@ export function isStatusContent(text?: string): boolean {
     lower.startsWith("heal cycle #") ||
     trimmed.startsWith("[Heal Cycle") ||
     trimmed.startsWith("[Critic Execution]") ||
-    trimmed.startsWith("[Self-Healing") ||
+    trimmed.startsWith("[Self-Healing Escalation]") ||
+    (trimmed.startsWith("[Self-Healing") && !trimmed.startsWith("### Self-Healing Patch")) ||
     trimmed.startsWith("[Research Node]") ||
     trimmed.startsWith("[KB Query]") ||
     trimmed.startsWith("[Knowledge Query]") ||
@@ -126,7 +149,9 @@ export function isStatusContent(text?: string): boolean {
     trimmed.startsWith("[Metrics]") ||
     trimmed.startsWith("[Explore Event]") ||
     trimmed.startsWith("[Explore Summary]") ||
-    trimmed.startsWith("[Active Skill Applied]")
+    trimmed.startsWith("[Active Skill Applied]") ||
+    trimmed.startsWith("[Skill Activated]") ||
+    trimmed.startsWith("[Skill Reference]")
   ) {
     return true;
   }
@@ -134,32 +159,121 @@ export function isStatusContent(text?: string): boolean {
 }
 
 export function classifyEvent(item: MessageItem): EventClassification {
-  if (!item.content || typeof item.content !== "string") {
+  const content = extractMessageContent(item.content);
+  if (!content || !content.trim()) {
     return "STATUS";
   }
 
+  const role = (item.role || "").toLowerCase();
+  const type = (item.type || "").toLowerCase();
+
   // System, telemetry, or tool messages are always STATUS
   if (
-    item.role === "system" ||
-    item.role === "telemetry" ||
-    item.type === "tool" ||
-    item.type === "system" ||
-    item.type === "telemetry"
+    role === "system" ||
+    role === "telemetry" ||
+    role === "tool" ||
+    type === "tool" ||
+    type === "system" ||
+    type === "telemetry"
   ) {
     return "STATUS";
   }
 
   // If the content matches internal status/plumbing patterns, classify as STATUS
-  if (isStatusContent(item.content)) {
+  if (isStatusContent(content)) {
     return "STATUS";
   }
 
-  // Only assistant role (or explicit AI answer type) with non-status content is FINAL_ANSWER
-  if (item.role === "assistant" || item.type === "ai" || item.type === "assistant") {
+  // Assistant / AI / Model role or type with non-status content is FINAL_ANSWER
+  if (
+    role === "assistant" ||
+    role === "ai" ||
+    role === "model" ||
+    type === "ai" ||
+    type === "assistant" ||
+    type === "model"
+  ) {
     return "FINAL_ANSWER";
   }
 
   return "STATUS";
+}
+
+export function processEventData(
+  data: Record<string, unknown>,
+  handlers: {
+    setActiveNode?: (name: string) => void;
+    addCompletedNode?: (name: string) => void;
+    onFinalAnswer?: (answer: string) => void;
+    onStatusEvent?: (item: MessageItem) => void;
+  }
+): void {
+  if (!data || typeof data !== "object") return;
+  const eventPayload = (data.event && typeof data.event === "object" ? data.event : data) as Record<string, unknown>;
+
+  for (const [nodeName, updateVal] of Object.entries(eventPayload)) {
+    if (handlers.setActiveNode) handlers.setActiveNode(nodeName);
+    if (handlers.addCompletedNode) handlers.addCompletedNode(nodeName);
+
+    if (!updateVal) continue;
+
+    const itemsToProcess: MessageItem[] = [];
+
+    if (typeof updateVal === "string") {
+      itemsToProcess.push({ role: "system", content: updateVal });
+    } else if (typeof updateVal === "object") {
+      const updateObj = updateVal as Record<string, unknown>;
+
+      // 1. messages (array or single item)
+      if (Array.isArray(updateObj.messages)) {
+        for (const m of updateObj.messages) {
+          if (typeof m === "string") {
+            itemsToProcess.push({ role: "system", content: m });
+          } else if (m && typeof m === "object") {
+            itemsToProcess.push(m as MessageItem);
+          }
+        }
+      } else if (updateObj.messages && typeof updateObj.messages === "object") {
+        itemsToProcess.push(updateObj.messages as MessageItem);
+      }
+
+      // 2. message (singular object or string)
+      if (updateObj.message) {
+        if (typeof updateObj.message === "string") {
+          itemsToProcess.push({ role: "assistant", content: updateObj.message });
+        } else if (typeof updateObj.message === "object") {
+          itemsToProcess.push(updateObj.message as MessageItem);
+        }
+      }
+
+      // 3. content (string or object) - from node updates
+      if (updateObj.content && !updateObj.message && !updateObj.messages) {
+        if (typeof updateObj.content === "string") {
+          itemsToProcess.push({ role: "assistant", content: updateObj.content });
+        } else if (typeof updateObj.content === "object") {
+          itemsToProcess.push(updateObj.content as MessageItem);
+        }
+      }
+
+      // 4. answer / output / result fallback fields
+      if (!updateObj.messages && !updateObj.message && !updateObj.content) {
+        const altText = updateObj.answer || updateObj.output || updateObj.result;
+        if (typeof altText === "string") {
+          itemsToProcess.push({ role: "assistant", content: altText });
+        }
+      }
+    }
+
+    for (const item of itemsToProcess) {
+      const classification = classifyEvent(item);
+      const textContent = extractMessageContent(item.content).trim();
+      if (classification === "FINAL_ANSWER") {
+        if (handlers.onFinalAnswer && textContent) handlers.onFinalAnswer(textContent);
+      } else {
+        if (handlers.onStatusEvent) handlers.onStatusEvent(item);
+      }
+    }
+  }
 }
 
 export function CenterWorkspace() {
@@ -643,7 +757,7 @@ export function CenterWorkspace() {
 
 
   const handleStatusEvent = (messageItem: MessageItem) => {
-    const c = messageItem.content || "";
+    const c = extractMessageContent(messageItem.content);
 
     if (
       messageItem.type === "tool" &&
@@ -819,6 +933,15 @@ export function CenterWorkspace() {
           }),
         });
       } catch {}
+    } else if (c.startsWith("[Skill Activated]") || c.startsWith("[Skill Reference]")) {
+      addMessage({
+        role: "system",
+        content: c,
+        timestamp: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      });
     } else {
       // Unmatched STATUS event (e.g. "LangGraph execution initiated for run...", "Phase started:...", etc.)
       // Route to terminal activity log; NEVER to chat transcript
@@ -879,26 +1002,16 @@ export function CenterWorkspace() {
             if (dataStr === "[DONE]") break;
             try {
               const data = JSON.parse(dataStr);
-              if (data.event) {
-                const nodeEntries = Object.entries(data.event);
-                for (const [nodeName, updateVal] of nodeEntries) {
-                  setActiveNode(nodeName);
-                  addCompletedNode(nodeName);
-                  const updateObj = updateVal as Record<string, unknown>;
-                  const msg = updateObj.messages;
-                  if (msg && Array.isArray(msg) && msg.length > 0) {
-                    for (const m of msg) {
-                      const messageItem = m as MessageItem;
-                      const classification = classifyEvent(messageItem);
-                      if (classification === "FINAL_ANSWER") {
-                        aiResponse = messageItem.content!.trim();
-                      } else {
-                        handleStatusEvent(messageItem);
-                      }
-                    }
-                  }
-                }
-              }
+              processEventData(data, {
+                setActiveNode,
+                addCompletedNode,
+                onFinalAnswer: (ans) => {
+                  aiResponse = ans;
+                },
+                onStatusEvent: (item) => {
+                  handleStatusEvent(item);
+                },
+              });
             } catch (e) {
               // Ignore parse errors
             }
@@ -906,7 +1019,7 @@ export function CenterWorkspace() {
         }
       }
 
-      const finalResumeAnswer = aiResponse && aiResponse.trim();
+      const finalResumeAnswer = aiResponse && !isStatusContent(aiResponse) ? aiResponse.trim() : "";
       addMessage({
         role: "assistant",
         content: finalResumeAnswer || "The agent could not complete this task. Please try again.",
@@ -977,33 +1090,6 @@ export function CenterWorkspace() {
       let pollCount = 0;
       const MAX_POLLS = 240; // 240 * 1.5 s = 6 minutes max
 
-      const processEventData = (data: Record<string, unknown>) => {
-        if (!data.event) return;
-        const nodeEntries = Object.entries(
-          data.event as Record<string, unknown>,
-        );
-        for (const [nodeName, updateVal] of nodeEntries) {
-          setActiveNode(nodeName);
-          addCompletedNode(nodeName);
-
-          if (updateVal && typeof updateVal === "object") {
-            const updateObj = updateVal as Record<string, unknown>;
-            const msg = updateObj.messages;
-            if (msg && Array.isArray(msg) && msg.length > 0) {
-              for (const m of msg) {
-                const messageItem = m as MessageItem;
-                const classification = classifyEvent(messageItem);
-                if (classification === "FINAL_ANSWER") {
-                  aiResponse = messageItem.content!.trim();
-                } else {
-                  handleStatusEvent(messageItem);
-                }
-              }
-            }
-          }
-        }
-      };
-
       let currentStatus = "running";
       while (currentStatus === "running" && pollCount < MAX_POLLS) {
         pollCount++;
@@ -1017,7 +1103,21 @@ export function CenterWorkspace() {
         if (stepData.events) {
           for (const ev of stepData.events) {
             try {
-              processEventData(ev && typeof ev === "object" && "event" in ev ? ev : { event: ev });
+              processEventData(
+                ev && typeof ev === "object" && "event" in ev
+                  ? (ev as Record<string, unknown>)
+                  : { event: ev },
+                {
+                  setActiveNode,
+                  addCompletedNode,
+                  onFinalAnswer: (ans) => {
+                    aiResponse = ans;
+                  },
+                  onStatusEvent: (item) => {
+                    handleStatusEvent(item);
+                  },
+                }
+              );
             } catch {}
           }
         }
@@ -1029,7 +1129,7 @@ export function CenterWorkspace() {
         if (codeMatch && codeMatch[1]) setArtifactCode(codeMatch[1].trim());
       }
 
-      const finalAnswer = aiResponse && aiResponse.trim();
+      const finalAnswer = aiResponse && !isStatusContent(aiResponse) ? aiResponse.trim() : "";
       addMessage({
         role: "assistant",
         content:
