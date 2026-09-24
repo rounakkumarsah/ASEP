@@ -72,6 +72,7 @@ class RunRequest(BaseModel):
 
 class StepRequest(BaseModel):
     thread_id: str = Field(..., description="The LangGraph thread ID associated with the run")
+    goal: str | None = Field(default=None, description="Optional goal description fallback")
 
 class ResumeRequest(BaseModel):
     """Payload for resuming a paused (interrupted) run."""
@@ -169,10 +170,16 @@ async def start_run(
     try:
         from src.api.dependencies import get_uow_factory
         from src.db.models.agent_run import AgentRun, RunStatus as DbRunStatus
+        parsed_org_uuid = None
+        if org_id:
+            try:
+                parsed_org_uuid = uuid.UUID(str(org_id))
+            except (ValueError, TypeError):
+                pass
         async with get_uow_factory()() as uow:
             run_record = AgentRun(
                 id=uuid.UUID(run_id),
-                org_id=org_id,
+                org_id=parsed_org_uuid,
                 goal=payload.goal,
                 status=DbRunStatus.RUNNING,
             )
@@ -221,15 +228,16 @@ async def run_step(
         logger.warning("Could not inspect graph state for thread %s: %s", thread_id, e)
         is_initial = True
 
-    goal = ""
-    try:
-        from src.api.dependencies import get_uow_factory
-        async with get_uow_factory()() as uow:
-            run_record = await uow.agent_runs.get(uuid.UUID(run_id))
-            if run_record and run_record.goal:
-                goal = run_record.goal
-    except Exception as e:
-        logger.warning("Could not load AgentRun %s: %s", run_id, e)
+    goal = payload.goal or ""
+    if not goal:
+        try:
+            from src.api.dependencies import get_uow_factory
+            async with get_uow_factory()() as uow:
+                run_record = await uow.agent_runs.get(uuid.UUID(run_id))
+                if run_record and run_record.goal:
+                    goal = run_record.goal
+        except Exception as e:
+            logger.warning("Could not load AgentRun %s: %s", run_id, e)
 
     step_result = await runtime.execute_step(
         run_id=run_id,

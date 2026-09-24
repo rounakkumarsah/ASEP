@@ -193,6 +193,13 @@ class AgentRun(TimestampMixin, Base):
     # Caller context
     # ------------------------------------------------------------------
 
+    org_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        nullable=True,
+        index=True,
+        doc="Tenant organization ID. Nullable for backward compatibility.",
+    )
+
     session_id: Mapped[str | None] = mapped_column(
         String(255),
         nullable=True,

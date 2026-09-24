@@ -224,6 +224,13 @@ class MemoryEntry(TimestampMixin, Base):
         ),
     )
 
+    org_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        nullable=True,
+        index=True,
+        doc="Tenant organization ID. Nullable for backward compatibility.",
+    )
+
     # ------------------------------------------------------------------
     # TTL
     # ------------------------------------------------------------------

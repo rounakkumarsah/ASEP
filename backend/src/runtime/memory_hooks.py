@@ -34,9 +34,15 @@ async def _ensure_agent_run(
         async with uow_factory() as uow:
             existing = await uow.agent_runs.get(run_uuid)
             if not existing:
-                from src.db.models.agent_run import AgentRun, RunStatus
+                parsed_org_id = None
+                if org_id:
+                    try:
+                        parsed_org_id = uuid.UUID(str(org_id))
+                    except (ValueError, TypeError):
+                        pass
                 new_run = AgentRun(
                     id=run_uuid,
+                    org_id=parsed_org_id,
                     goal=goal or "Agent Run",
                     status=RunStatus.RUNNING,
                 )

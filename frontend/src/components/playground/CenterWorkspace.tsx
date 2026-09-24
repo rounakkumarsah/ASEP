@@ -1035,7 +1035,7 @@ export function CenterWorkspace() {
         
         const stepRes = await apiClient.post<{ status: string; events?: any[] }>(
           `/api/v1/conversations/run/${runId}/step`,
-          { thread_id: newThreadId }
+          { thread_id: newThreadId, goal: currentInput }
         );
         
         const stepData = stepRes.data;
