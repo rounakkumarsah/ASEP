@@ -55,6 +55,10 @@ async def init_postgres_checkpointer() -> None:
     elif "postgres://" in db_url:
         db_url = db_url.replace("postgres://", "postgresql://")
 
+    # psycopg3 expects sslmode=... rather than asyncpg's ssl=...
+    import re
+    db_url = re.sub(r"([?&])ssl=", r"\1sslmode=", db_url)
+
     logger.info("Initializing Postgres checkpointer connection pool.")
 
     try:
@@ -63,7 +67,7 @@ async def init_postgres_checkpointer() -> None:
 
         # autocommit=True is MANDATORY for LangGraph's saver
         _pool = AsyncConnectionPool(
-            conninfo=db_url, max_size=20, open=False, kwargs={"autocommit": True}
+            conninfo=db_url, min_size=0, max_size=20, open=False, kwargs={"autocommit": True}
         )
         await _pool.open()
 
