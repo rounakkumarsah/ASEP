@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { refreshAccessToken, isTokenExpiringSoon } from "../api/client";
 
 export type User = {
   id: string;
@@ -42,6 +43,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const initAuth = async () => {
     // Check local and session storage first for active session
     if (typeof window !== "undefined") {
+      const token =
+        localStorage.getItem("asep_auth_token") ||
+        sessionStorage.getItem("asep_auth_token");
+
+      if (token && isTokenExpiringSoon(token, 30)) {
+        try {
+          await refreshAccessToken();
+        } catch (err) {
+          const errStatus = (err as { response?: { status?: number } })?.response?.status;
+          if (errStatus === 400 || errStatus === 401) {
+            localStorage.removeItem("asep_user_session");
+            localStorage.removeItem("asep_auth_token");
+            localStorage.removeItem("asep_refresh_token");
+            sessionStorage.removeItem("asep_user_session");
+            sessionStorage.removeItem("asep_auth_token");
+            sessionStorage.removeItem("asep_refresh_token");
+            setUser(null);
+            setIsLoading(false);
+            return;
+          }
+        }
+      }
+
       const localStored = localStorage.getItem("asep_user_session");
       const sessionStored = sessionStorage.getItem("asep_user_session");
       const stored = localStored || sessionStored;
@@ -129,6 +153,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(userData);
     if (typeof window !== "undefined") {
       const storage = rememberMe ? localStorage : sessionStorage;
+      const otherStorage = rememberMe ? sessionStorage : localStorage;
+
+      otherStorage.removeItem("asep_user_session");
+      otherStorage.removeItem("asep_auth_token");
+      otherStorage.removeItem("asep_refresh_token");
+
       storage.setItem("asep_user_session", JSON.stringify(userData));
       if (token) {
         storage.setItem("asep_auth_token", token);

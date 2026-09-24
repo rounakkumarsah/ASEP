@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = "change_me_in_production"
     JWT_REFRESH_SECRET_KEY: str = "change_me_in_production_refresh"
     JWT_ALGORITHM: str = "HS256"
-    JWT_ACCESS_EXPIRE_MINUTES: int = 30
+    JWT_ACCESS_EXPIRE_MINUTES: int = 120
     JWT_REFRESH_EXPIRE_DAYS: int = 7
 
     # -----------------------------------------------------------------------

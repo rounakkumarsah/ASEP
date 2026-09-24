@@ -184,7 +184,8 @@ async def start_run(
     return {
         "run_id": run_id,
         "thread_id": thread_id,
-        "status": "running"
+        "status": "running",
+        "events": [],
     }
 
 
@@ -198,18 +199,49 @@ async def run_step(
     current_user: CurrentUser,
 ) -> dict[str, Any]:
     """Execute the next node in the LangGraph workflow."""
+    import inspect
+    from langchain_core.runnables.config import RunnableConfig
+
     org_id = current_user.org_id or current_user.id
     thread_id = payload.thread_id
-    
+
     runtime = get_langgraph_runtime()
+    config = RunnableConfig(configurable={"thread_id": thread_id})
+
+    is_initial = False
+    try:
+        state = None
+        if hasattr(runtime, "graph") and hasattr(runtime.graph, "aget_state"):
+            state_call = runtime.graph.aget_state(config)
+            if inspect.isawaitable(state_call):
+                state = await state_call
+        if state is None or not getattr(state, "values", None):
+            is_initial = True
+    except Exception as e:
+        logger.warning("Could not inspect graph state for thread %s: %s", thread_id, e)
+        is_initial = True
+
+    goal = ""
+    try:
+        from src.api.dependencies import get_uow_factory
+        async with get_uow_factory()() as uow:
+            run_record = await uow.agent_runs.get(uuid.UUID(run_id))
+            if run_record and run_record.goal:
+                goal = run_record.goal
+    except Exception as e:
+        logger.warning("Could not load AgentRun %s: %s", run_id, e)
+
     step_result = await runtime.execute_step(
         run_id=run_id,
         thread_id=thread_id,
+        goal=goal,
+        research_mode="balanced",
+        environment_mode="local",
         org_id=org_id,
-        is_first=False
+        is_first=is_initial,
     )
-    
-    if step_result["status"] == "done":
+
+    if step_result.get("status") == "done":
         try:
             from src.api.dependencies import get_uow_factory
             from src.db.models.agent_run import RunStatus as DbRunStatus
@@ -218,7 +250,7 @@ async def run_step(
                 await uow.commit()
         except Exception:
             pass
-            
+
     return step_result
 
 

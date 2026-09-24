@@ -108,3 +108,64 @@ async def test_run_step_returns_events(test_client: TestClient):
     assert data["status"] == "done"
     assert len(data["events"]) == 1
     assert data["events"][0] == {"final": "result"}
+
+
+@pytest.mark.asyncio
+async def test_run_step_initial_step_passes_goal_and_is_first(test_client: TestClient):
+    """POST /run/{run_id}/step should identify is_first=True when graph state is empty and pass goal."""
+    run_id = str(uuid.uuid4())
+    thread_id = str(uuid.uuid4())
+
+    with patch("src.api.routers.conversations.get_langgraph_runtime") as mock_rt, \
+         patch("src.api.dependencies.get_uow_factory") as mock_uow_factory:
+
+        runtime = MagicMock()
+        runtime.graph.aget_state = AsyncMock(return_value=None)
+        runtime.execute_step = AsyncMock(return_value={"status": "running", "events": []})
+        mock_rt.return_value = runtime
+
+        mock_uow = AsyncMock()
+        mock_run_record = MagicMock()
+        mock_run_record.goal = "Analyze market data"
+        mock_uow.agent_runs.get = AsyncMock(return_value=mock_run_record)
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_uow
+        mock_context.__aexit__.return_value = None
+        mock_uow_factory.return_value = MagicMock(return_value=mock_context)
+
+        resp = test_client.post(
+            f"/api/v1/conversations/run/{run_id}/step",
+            json={"thread_id": thread_id},
+        )
+
+        assert resp.status_code == 200
+        runtime.execute_step.assert_called_once()
+        call_kwargs = runtime.execute_step.call_args.kwargs
+        assert call_kwargs["run_id"] == run_id
+        assert call_kwargs["thread_id"] == thread_id
+        assert call_kwargs["goal"] == "Analyze market data"
+        assert call_kwargs["is_first"] is True
+
+
+@pytest.mark.asyncio
+async def test_run_step_subsequent_step_sets_is_first_false(test_client: TestClient):
+    """POST /run/{run_id}/step should set is_first=False when graph state has values."""
+    run_id = str(uuid.uuid4())
+    thread_id = str(uuid.uuid4())
+
+    with patch("src.api.routers.conversations.get_langgraph_runtime") as mock_rt:
+        runtime = MagicMock()
+        mock_state = MagicMock()
+        mock_state.values = {"messages": ["hello"]}
+        runtime.graph.aget_state = AsyncMock(return_value=mock_state)
+        runtime.execute_step = AsyncMock(return_value={"status": "done", "events": []})
+        mock_rt.return_value = runtime
+
+        resp = test_client.post(
+            f"/api/v1/conversations/run/{run_id}/step",
+            json={"thread_id": thread_id},
+        )
+
+        assert resp.status_code == 200
+        runtime.execute_step.assert_called_once()
+        assert runtime.execute_step.call_args.kwargs["is_first"] is False
