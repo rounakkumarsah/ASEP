@@ -123,6 +123,7 @@ async def extract_and_store_durable_memories(
         return
     try:
         ai_service = AIRuntimeService()
+        resolved_model = ai_service.registry.get_default_model()
         prompt = (
             "Analyze the following agent transcript and extract 2-5 durable facts (Semantic) "
             "and any highly reusable 'how-to' sequences (Procedural). "
@@ -134,7 +135,7 @@ async def extract_and_store_durable_memories(
         
         req = CompletionRequest(
             messages=[Message(role="user", content=prompt)],
-            model="gpt-4o-mini",  # Adjust model as needed
+            model=resolved_model,
             temperature=0.0
         )
         resp = await ai_service.complete(req)
@@ -168,4 +169,10 @@ async def extract_and_store_durable_memories(
             )
             
     except Exception as e:
-        logger.error(f"Failed to extract durable memories for run {run_id}: {e}", exc_info=True)
+        logger.warning(
+            "Failed to extract durable memories for run %s: exception_type=%s, message=%s",
+            run_id,
+            type(e).__name__,
+            str(e),
+            exc_info=True,
+        )

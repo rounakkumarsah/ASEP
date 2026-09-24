@@ -144,6 +144,10 @@ class Settings(BaseSettings):
     # Groq & OpenRouter
     GROQ_API_KEY: str | None = Field(default=None, description="Groq API Key for Whisper / LLMs")
     OPENROUTER_API_KEY: str | None = Field(default=None, description="OpenRouter API Key")
+    AI_PROVIDER_PRIORITY: str = Field(
+        default="gemini,groq,openrouter,openai,ollama",
+        description="Comma-separated provider order for AI runtime fallback chain."
+    )
 
     # Voice Transcription Configuration
     VOICE_PROVIDER_ORDER: str = Field(

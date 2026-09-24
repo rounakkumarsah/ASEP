@@ -42,9 +42,17 @@ class AIRuntimeService:
             chain = self.registry.get_priority_chain(request.model)
             model_success = False
 
-            for provider in chain:
+            # Diagnostic logging: key_present booleans in priority order
+            key_status_str = ", ".join(f"{p}:key_present={self.registry.is_key_present(p)}" for p in self.registry.priority)
+            logger.info("AI Provider priority key check", key_statuses=key_status_str)
+
+            primary_name = self.registry.resolve_provider_for_model(request.model)
+
+            for idx, provider in enumerate(chain):
                 breaker = self.registry.get_breaker(provider.name)
-                logger.info("ProviderSelected", provider=provider.name, model=request.model)
+                reason = "priority[0]" if provider.name == primary_name and (self.registry.priority and self.registry.priority[0] == primary_name) else (f"model_match({request.model})" if provider.name == primary_name else f"priority_fallback[{idx}]")
+                logger.info(f"Provider resolved: provider={provider.name}, reason={reason}")
+                logger.info("ProviderSelected", provider=provider.name, model=request.model, reason=reason)
 
                 cap = provider.get_capability_matrix()
                 self.context_manager.token_budget = cap.context_window
@@ -119,10 +127,11 @@ class AIRuntimeService:
                                 res.router_reason = router_reason
                             return res
                     except Exception as exc:
-                        logger.warn(
+                        logger.warning(
                             "RetryAttempt",
                             provider=provider.name,
                             attempt=attempt,
+                            exception_type=type(exc).__name__,
                             error=str(exc)
                         )
                         last_error = exc
@@ -136,7 +145,12 @@ class AIRuntimeService:
                 if not error_msg and type(last_error).__name__ == "ReadTimeout":
                     error_msg = "Connection timed out"
                     
-                logger.warn("Failover", provider=provider.name, error=error_msg)
+                logger.warning(
+                    "Failover",
+                    provider=provider.name,
+                    exception_type=type(last_error).__name__ if last_error else "None",
+                    error=error_msg,
+                )
                 
                 # If AutoRouter is active, check if we tripped the model circuit breaker
                 if is_auto:

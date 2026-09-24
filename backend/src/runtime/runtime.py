@@ -258,6 +258,17 @@ class LangGraphRuntime:
         logger = logging.getLogger(__name__)
         
         config = RunnableConfig(configurable={"thread_id": thread_id})
+        config["durability"] = "sync"
+
+        # Diagnostic logging: AI Provider Priority & Key Check
+        try:
+            from src.ai_runtime.registry import ProviderRegistry
+            _reg = ProviderRegistry()
+            _key_status_str = ", ".join(f"{p}:key_present={_reg.is_key_present(p)}" for p in _reg.priority)
+            _default_p = _reg.get_default_provider_name()
+            logger.info(f"AI Provider Priority: keys=[{_key_status_str}], resolved_default={_default_p} (reason=priority[0])")
+        except Exception as _e:
+            logger.warning(f"Could not log AI provider priority status: {_e}")
         
         input_data = None
         if is_first:
@@ -313,7 +324,7 @@ class LangGraphRuntime:
             
         events = []
         try:
-            async for event in self.graph.astream(input_data, config, stream_mode="updates"):
+            async for event in self.graph.astream(input_data, config, stream_mode="updates", durability="sync"):
                 events.append(event)
                 # Hook Working Memory for the executed step
                 from src.runtime.memory_hooks import is_memory_enabled, store_working_memory
@@ -346,6 +357,8 @@ class LangGraphRuntime:
             
         state = await self.graph.aget_state(config)
         is_done = len(state.next) == 0 if state else True
+        pending_nodes = list(state.next) if state else []
+        logger.info(f"events_yielded={len(events)}, pending_nodes={pending_nodes}")
         
         if is_done:
             # End of run extraction
