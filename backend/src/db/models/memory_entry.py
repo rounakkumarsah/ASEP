@@ -225,17 +225,6 @@ class MemoryEntry(TimestampMixin, Base):
     )
 
     # ------------------------------------------------------------------
-    # Tenant Security
-    # ------------------------------------------------------------------
-
-    org_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid(as_uuid=True),
-        nullable=False,
-        index=True,
-        doc="Tenant organization ID this memory belongs to for strict isolation.",
-    )
-
-    # ------------------------------------------------------------------
     # TTL
     # ------------------------------------------------------------------
 
