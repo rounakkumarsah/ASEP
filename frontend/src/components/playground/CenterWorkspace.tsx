@@ -72,6 +72,96 @@ const TOOLS = [
   { id: 'sandbox', name: 'Python Sandbox' }
 ];
 
+export type EventClassification = "FINAL_ANSWER" | "STATUS";
+
+export interface MessageItem {
+  role?: string;
+  type?: string;
+  name?: string;
+  content?: string;
+}
+
+export function isStatusContent(text?: string): boolean {
+  if (!text || typeof text !== "string") return true;
+  const trimmed = text.trim();
+  if (!trimmed) return true;
+  const lower = trimmed.toLowerCase();
+
+  // Known backend telemetry/orchestration status patterns
+  if (
+    lower.startsWith("langgraph execution initiated") ||
+    lower.startsWith("phase started") ||
+    lower.startsWith("phase complete") ||
+    lower.startsWith("phase map generated") ||
+    lower.startsWith("checkpoint saved") ||
+    lower.startsWith("deploy clarification gate") ||
+    lower.startsWith("deploy gate") ||
+    lower.startsWith("critic phase complete") ||
+    lower.startsWith("test phase complete") ||
+    lower.startsWith("task processed through") ||
+    lower.startsWith("resumed execution") ||
+    lower.startsWith("commit notice") ||
+    lower.startsWith("[git]") ||
+    lower.startsWith("git commit") ||
+    trimmed.startsWith("[Auto Router") ||
+    trimmed.startsWith("[Clarification Required]") ||
+    trimmed.startsWith("[Token ") ||
+    trimmed.startsWith("[AST Slicer]") ||
+    trimmed.startsWith("[Diff Streamer]") ||
+    lower.startsWith("heal cycle #") ||
+    trimmed.startsWith("[Heal Cycle") ||
+    trimmed.startsWith("[Critic Execution]") ||
+    trimmed.startsWith("[Self-Healing") ||
+    trimmed.startsWith("[Research Node]") ||
+    trimmed.startsWith("[KB Query]") ||
+    trimmed.startsWith("[Knowledge Query]") ||
+    trimmed.startsWith("[Docs Search]") ||
+    trimmed.startsWith("[Knowledge Base") ||
+    trimmed.startsWith("[FROM: ") ||
+    trimmed.startsWith("[Host Manager") ||
+    trimmed.startsWith("[MCP") ||
+    trimmed.startsWith("[Security Audit]") ||
+    trimmed.startsWith("[Local Secrets]") ||
+    trimmed.startsWith("[Credentials Status]") ||
+    trimmed.startsWith("[Metrics]") ||
+    trimmed.startsWith("[Explore Event]") ||
+    trimmed.startsWith("[Explore Summary]") ||
+    trimmed.startsWith("[Active Skill Applied]")
+  ) {
+    return true;
+  }
+  return false;
+}
+
+export function classifyEvent(item: MessageItem): EventClassification {
+  if (!item.content || typeof item.content !== "string") {
+    return "STATUS";
+  }
+
+  // System, telemetry, or tool messages are always STATUS
+  if (
+    item.role === "system" ||
+    item.role === "telemetry" ||
+    item.type === "tool" ||
+    item.type === "system" ||
+    item.type === "telemetry"
+  ) {
+    return "STATUS";
+  }
+
+  // If the content matches internal status/plumbing patterns, classify as STATUS
+  if (isStatusContent(item.content)) {
+    return "STATUS";
+  }
+
+  // Only assistant role (or explicit AI answer type) with non-status content is FINAL_ANSWER
+  if (item.role === "assistant" || item.type === "ai" || item.type === "assistant") {
+    return "FINAL_ANSWER";
+  }
+
+  return "STATUS";
+}
+
 export function CenterWorkspace() {
   const {
     messages,
@@ -552,6 +642,190 @@ export function CenterWorkspace() {
   }, [messages, isThinking]);
 
 
+  const handleStatusEvent = (messageItem: MessageItem) => {
+    const c = messageItem.content || "";
+
+    if (
+      messageItem.type === "tool" &&
+      messageItem.name === "github" &&
+      c
+    ) {
+      try {
+        const parsed = JSON.parse(c);
+        if (parsed.success && parsed.result && parsed.result.files) {
+          usePlaygroundStore.getState().setGithubRepo({
+            url: parsed.result.repo_name || "GitHub Repo",
+            files: parsed.result.files,
+            activeFile: null,
+          });
+          if (parsed.result.readme) setArtifactCode(parsed.result.readme);
+        } else if (
+          parsed.success &&
+          parsed.result &&
+          parsed.result.file &&
+          parsed.result.content
+        ) {
+          usePlaygroundStore
+            .getState()
+            .setGithubActiveFile(parsed.result.file);
+          setArtifactCode(parsed.result.content);
+          setActiveCenterTab("artifacts");
+        }
+      } catch {}
+      return;
+    }
+
+    if (!c) return;
+
+    if (c.includes("[Auto Router Toast]")) {
+      setToastMessage(c.replace("[Auto Router Toast]", "").trim());
+      setTimeout(() => setToastMessage(null), 6000);
+    } else if (c.includes("Phase map generated:")) {
+      const match = c.match(/Phase map generated: (.*?)\./);
+      if (match && match[1]) setPhaseMap(match[1].split(" -> "));
+    } else if (c.includes("[Clarification Required]")) {
+      setClarificationPrompt(
+        c.replace("[Clarification Required]", "").trim(),
+      );
+    } else if (c.includes("[Token Budgets]")) {
+      try {
+        setTokenBudgets(
+          JSON.parse(c.replace("[Token Budgets]", "").trim()),
+        );
+      } catch {}
+    } else if (c.includes("[Token Usage]")) {
+      try {
+        setTokenUsagePerPhase(
+          JSON.parse(c.replace("[Token Usage]", "").trim()),
+        );
+      } catch {}
+    } else if (c.includes("[Token Savings]")) {
+      try {
+        setTokenSavings(
+          JSON.parse(c.replace("[Token Savings]", "").trim()),
+        );
+      } catch {}
+    } else if (c.includes("[Token Budget Exceeded]")) {
+      const matchPhase = c.match(/Phase '([^']+)'/);
+      const matchTokens = c.match(/consumed (\d+) tokens/);
+      const matchBudget = c.match(/allocated budget: (\d+)/);
+      const used = matchTokens ? parseInt(matchTokens[1], 10) : 0;
+      const budget = matchBudget
+        ? parseInt(matchBudget[1], 10)
+        : 2500;
+      setBudgetExceeded({
+        phase: matchPhase ? matchPhase[1] : "current_phase",
+        prompt: c.replace("[Token Budget Exceeded]", "").trim(),
+        used,
+        budget,
+        percent: budget > 0 ? Math.round((used / budget) * 100) : 100,
+      });
+    } else if (
+      c.includes("[AST Slicer]") ||
+      c.includes("[Diff Streamer]") ||
+      c.includes("heal cycle #") ||
+      c.includes("[Heal Cycle") ||
+      c.includes("[Critic Execution]") ||
+      c.includes("[Self-Healing")
+    ) {
+      addTerminalLog("system", c);
+    } else if (c.includes("[Research Node]")) {
+      addTerminalLog("system", "🔍 " + c);
+    } else if (
+      c.includes("[KB Query]") ||
+      c.includes("[Knowledge Query]") ||
+      c.includes("[Docs Search]") ||
+      c.includes("[Knowledge Base Context]") ||
+      c.includes("[Knowledge Base Preview]") ||
+      c.includes("[FROM: ")
+    ) {
+      addTerminalLog("system", "📚 " + c);
+    } else if (c.includes("[Host Manager Status]")) {
+      const statusText = c.replace("[Host Manager Status]", "").trim();
+      const urlMatch = statusText.match(/https?:\/\/localhost:\d+/);
+      if (urlMatch) setAppUrl(urlMatch[0]);
+      if (statusText.startsWith("[OK]")) {
+        addTerminalLog("success", "🚀 " + statusText);
+        setActiveCenterTab("terminal");
+      } else {
+        addTerminalLog("system", "⚠️ " + statusText);
+      }
+    } else if (c.includes("[Host Manager]")) {
+      addTerminalLog("system", "🖥️ " + c);
+    } else if (c.includes("[Host Manager Install]")) {
+      addTerminalLog("system", "📦 " + c);
+    } else if (c.includes("[MCP Confirmation Required]")) {
+      const promptText = c
+        .replace("[MCP Confirmation Required]", "")
+        .trim();
+      const matchTool = promptText.match(
+        /(?:allow|tool)\s+([a-zA-Z0-9_\-\.]+)/i,
+      );
+      setMcpConfirmation({
+        tool: matchTool ? matchTool[1] : "mcp_tool",
+        message: promptText,
+      });
+    } else if (c.includes("[MCP:")) {
+      addTerminalLog("system", c);
+    } else if (c.includes("[Security Audit]")) {
+      const findingsStr = c.replace("[Security Audit]", "").trim();
+      try {
+        setSecurityFindings(JSON.parse(findingsStr));
+        setActiveCenterTab("security");
+      } catch {}
+    } else if (c.includes("[Local Secrets]")) {
+      try {
+        const parsed = JSON.parse(
+          c.replace("[Local Secrets]", "").trim(),
+        );
+        setLocalSecrets(
+          Array.isArray(parsed) ? parsed : Object.keys(parsed || {}),
+        );
+      } catch {}
+    } else if (c.includes("[Credentials Status]")) {
+      try {
+        setCredentialsStatus(
+          JSON.parse(c.replace("[Credentials Status]", "").trim()),
+        );
+      } catch {}
+    } else if (c.includes("[Metrics]")) {
+      try {
+        const metrics = JSON.parse(
+          c.replace("[Metrics]", "").trim(),
+        );
+        usePlaygroundStore.getState().setSessionMetrics({
+          estimatedCost: metrics.estimated_cost,
+          confidence: metrics.confidence || null,
+        });
+      } catch {}
+    } else if (c.includes("[Explore Event]")) {
+      try {
+        const ev = JSON.parse(
+          c.replace("[Explore Event]", "").trim(),
+        );
+        addExplorationEvent(ev);
+      } catch {}
+    } else if (c.includes("[Explore Summary]")) {
+      try {
+        const raw = c.replace("[Explore Summary]", "").trim();
+        const summary = JSON.parse(raw);
+        setPhaseExploration(summary.phase, summary);
+        addMessage({
+          role: "system",
+          content: `[Explore Summary] ${raw}`,
+          timestamp: new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        });
+      } catch {}
+    } else {
+      // Unmatched STATUS event (e.g. "LangGraph execution initiated for run...", "Phase started:...", etc.)
+      // Route to terminal activity log; NEVER to chat transcript
+      addTerminalLog("system", c);
+    }
+  };
+
   const handleResume = async (e?: React.FormEvent, overrideDecision?: string) => {
     if (e) e.preventDefault();
     const decision = overrideDecision || clarificationInput;
@@ -593,8 +867,6 @@ export function CenterWorkspace() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let aiResponse = "";
-      const streamMessages: string[] = [];
-      
 
       while (true) {
         const { value, done } = await reader.read();
@@ -616,136 +888,12 @@ export function CenterWorkspace() {
                   const msg = updateObj.messages;
                   if (msg && Array.isArray(msg) && msg.length > 0) {
                     for (const m of msg) {
-                      const messageItem = m as { role?: string; type?: string; name?: string; content?: string };
-                      if (messageItem.role === "assistant" && messageItem.content && typeof messageItem.content === "string") {
-                        aiResponse = messageItem.content;
-                      } else if (messageItem.role === "system" && messageItem.content && typeof messageItem.content === "string") {
-                        if (messageItem.content.includes("[Auto Router Toast]")) {
-                          setToastMessage(messageItem.content.replace("[Auto Router Toast]", "").trim());
-                          setTimeout(() => setToastMessage(null), 6000);
-                        } else if (messageItem.content.includes("Phase map generated:")) {
-                          const match = messageItem.content.match(/Phase map generated: (.*?)\./);
-                          if (match && match[1]) {
-                            const phases = match[1].split(" -> ");
-                            setPhaseMap(phases);
-                          }
-                        } else if (messageItem.content.includes("[Clarification Required]")) {
-                          setClarificationPrompt(messageItem.content.replace("[Clarification Required]", "").trim());
-                        } else if (messageItem.content.includes("[Token Budgets]")) {
-                          try {
-                            const budgets = JSON.parse(messageItem.content.replace("[Token Budgets]", "").trim());
-                            setTokenBudgets(budgets);
-                          } catch {}
-                        } else if (messageItem.content.includes("[Token Usage]")) {
-                          try {
-                            const usage = JSON.parse(messageItem.content.replace("[Token Usage]", "").trim());
-                            setTokenUsagePerPhase(usage);
-                          } catch {}
-                        } else if (messageItem.content.includes("[Token Savings]")) {
-                          try {
-                            const savings = JSON.parse(messageItem.content.replace("[Token Savings]", "").trim());
-                            setTokenSavings(savings);
-                          } catch {}
-                        } else if (messageItem.content.includes("[Token Budget Exceeded]")) {
-                          const content = messageItem.content;
-                          const matchPhase = content.match(/Phase '([^']+)'/);
-                          const matchTokens = content.match(/consumed (\d+) tokens/);
-                          const matchBudget = content.match(/allocated budget: (\d+)/);
-                          const phase = matchPhase ? matchPhase[1] : "current_phase";
-                          const used = matchTokens ? parseInt(matchTokens[1], 10) : 0;
-                          const budget = matchBudget ? parseInt(matchBudget[1], 10) : 2500;
-                          const percent = budget > 0 ? Math.round((used / budget) * 100) : 100;
-                          setBudgetExceeded({
-                            phase,
-                            prompt: content.replace("[Token Budget Exceeded]", "").trim(),
-                            used,
-                            budget,
-                            percent,
-                          });
-                        } else if (
-                          messageItem.content.includes("[AST Slicer]") ||
-                          messageItem.content.includes("[Diff Streamer]") ||
-                          messageItem.content.includes("heal cycle #") ||
-                          messageItem.content.includes("[Heal Cycle") ||
-                          messageItem.content.includes("[Critic Execution]") ||
-                          messageItem.content.includes("[Self-Healing")
-                        ) {
-                          addTerminalLog("system", messageItem.content);
-                        } else if (messageItem.content.includes("[Research Node]")) {
-                          addTerminalLog("system", "🔍 " + messageItem.content);
-                        } else if (
-                          messageItem.content.includes("[KB Query]") ||
-                          messageItem.content.includes("[Knowledge Base Context]") ||
-                          messageItem.content.includes("[Knowledge Base Preview]")
-                        ) {
-                          addTerminalLog("system", "📚 " + messageItem.content);
-
-                        } else if (messageItem.content.includes("[Host Manager Status]")) {
-                          const statusText = messageItem.content.replace("[Host Manager Status]", "").trim();
-                          // Extract URL for live banner
-                          const urlMatch = statusText.match(/https?:\/\/localhost:\d+/);
-                          if (urlMatch) {
-                            setAppUrl(urlMatch[0]);
-                          }
-                          if (statusText.startsWith("[OK]")) {
-                            addTerminalLog("success", "🚀 " + statusText);
-                            setActiveCenterTab("terminal");
-                          } else {
-                            addTerminalLog("system", "⚠️ " + statusText);
-                          }
-                        } else if (messageItem.content.includes("[Host Manager]")) {
-                          addTerminalLog("system", "🖥️ " + messageItem.content);
-                        } else if (messageItem.content.includes("[Host Manager Install]")) {
-                          addTerminalLog("system", "📦 " + messageItem.content);
-
-                        } else if (messageItem.content.includes("[MCP Confirmation Required]")) {
-                          const promptText = messageItem.content.replace("[MCP Confirmation Required]", "").trim();
-                          const matchTool = promptText.match(/(?:allow|tool)\s+([a-zA-Z0-9_\-\.]+)/i);
-                          setMcpConfirmation({
-                            tool: matchTool ? matchTool[1] : "mcp_tool",
-                            message: promptText,
-                          });
-                        } else if (messageItem.content.includes("[MCP:")) {
-                          addTerminalLog("system", messageItem.content);
-                        } else if (messageItem.content.includes("[Security Audit]")) {
-                          const findingsStr = messageItem.content.replace("[Security Audit]", "").trim();
-                          try {
-                              setSecurityFindings(JSON.parse(findingsStr));
-                              setActiveCenterTab("security");
-                          } catch {}
-                        } else if (messageItem.content.includes("[Local Secrets]")) {
-                          try {
-                            const parsed = JSON.parse(messageItem.content.replace("[Local Secrets]", "").trim());
-                            setLocalSecrets(Array.isArray(parsed) ? parsed : Object.keys(parsed || {}));
-                          } catch {}
-                        } else if (messageItem.content.includes("[Credentials Status]")) {
-                          try {
-                            setCredentialsStatus(JSON.parse(messageItem.content.replace("[Credentials Status]", "").trim()));
-                          } catch {}
-                        } else if (messageItem.content.includes("[Metrics]")) {
-                          const metricsStr = messageItem.content.replace("[Metrics]", "").trim();
-                          try {
-                              const metrics = JSON.parse(metricsStr);
-                              usePlaygroundStore.getState().setSessionMetrics(metrics);
-                          } catch {}
-                        } else if (messageItem.content.includes("[Explore Event]")) {
-                          try {
-                            const raw = messageItem.content.replace("[Explore Event]", "").trim();
-                            const ev = JSON.parse(raw);
-                            addExplorationEvent(ev);
-                          } catch {}
-                        } else if (messageItem.content.includes("[Explore Summary]")) {
-                          try {
-                            const raw = messageItem.content.replace("[Explore Summary]", "").trim();
-                            const summary = JSON.parse(raw);
-                            setPhaseExploration(summary.phase, summary);
-                            addMessage({
-                              role: "system",
-                              content: `[Explore Summary] ${raw}`,
-                              timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-                            });
-                          } catch {}
-                        }
+                      const messageItem = m as MessageItem;
+                      const classification = classifyEvent(messageItem);
+                      if (classification === "FINAL_ANSWER") {
+                        aiResponse = messageItem.content!.trim();
+                      } else {
+                        handleStatusEvent(messageItem);
                       }
                     }
                   }
@@ -758,15 +906,18 @@ export function CenterWorkspace() {
         }
       }
 
+      const finalResumeAnswer = aiResponse && aiResponse.trim();
       addMessage({
         role: "assistant",
-        content: aiResponse || "Resumed execution.",
+        content: finalResumeAnswer || "The agent could not complete this task. Please try again.",
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       });
     } catch (error) {
+      const errMsg = error instanceof Error ? error.message : "Backend unavailable";
+      addTerminalLog("system", `[Error] ${errMsg}`);
       addMessage({
         role: "assistant",
-        content: `Error resuming run: ${error instanceof Error ? error.message : "Backend unavailable"}`,
+        content: "The agent could not complete this task. Please try again.",
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       });
     } finally {
@@ -823,7 +974,6 @@ export function CenterWorkspace() {
       // 2. Poll for events and status
       let cursor = 0;
       let aiResponse = "";
-      const streamMessages: string[] = [];
       let pollCount = 0;
       const MAX_POLLS = 240; // 240 * 1.5 s = 6 minutes max
 
@@ -841,187 +991,12 @@ export function CenterWorkspace() {
             const msg = updateObj.messages;
             if (msg && Array.isArray(msg) && msg.length > 0) {
               for (const m of msg) {
-                const messageItem = m as {
-                  role?: string;
-                  type?: string;
-                  name?: string;
-                  content?: string;
-                };
-                if (
-                  messageItem.role === "assistant" &&
-                  messageItem.content &&
-                  typeof messageItem.content === "string"
-                ) {
-                  aiResponse = messageItem.content;
-                } else if (
-                  messageItem.role === "system" &&
-                  messageItem.content &&
-                  typeof messageItem.content === "string"
-                ) {
-                  const c = messageItem.content;
-                  if (c.includes("[Auto Router Toast]")) {
-                    setToastMessage(c.replace("[Auto Router Toast]", "").trim());
-                    setTimeout(() => setToastMessage(null), 6000);
-                  } else if (c.includes("Phase map generated:")) {
-                    const match = c.match(/Phase map generated: (.*?)\./);
-                    if (match && match[1]) setPhaseMap(match[1].split(" -> "));
-                  } else if (c.includes("[Clarification Required]")) {
-                    setClarificationPrompt(
-                      c.replace("[Clarification Required]", "").trim(),
-                    );
-                  } else if (c.includes("[Token Budgets]")) {
-                    try {
-                      setTokenBudgets(
-                        JSON.parse(c.replace("[Token Budgets]", "").trim()),
-                      );
-                    } catch {}
-                  } else if (c.includes("[Token Usage]")) {
-                    try {
-                      setTokenUsagePerPhase(
-                        JSON.parse(c.replace("[Token Usage]", "").trim()),
-                      );
-                    } catch {}
-                  } else if (c.includes("[Token Savings]")) {
-                    try {
-                      setTokenSavings(
-                        JSON.parse(c.replace("[Token Savings]", "").trim()),
-                      );
-                    } catch {}
-                  } else if (c.includes("[Token Budget Exceeded]")) {
-                    const matchPhase = c.match(/Phase '([^']+)'/);
-                    const matchTokens = c.match(/consumed (\d+) tokens/);
-                    const matchBudget = c.match(/allocated budget: (\d+)/);
-                    const used = matchTokens ? parseInt(matchTokens[1], 10) : 0;
-                    const budget = matchBudget
-                      ? parseInt(matchBudget[1], 10)
-                      : 2500;
-                    setBudgetExceeded({
-                      phase: matchPhase ? matchPhase[1] : "current_phase",
-                      prompt: c.replace("[Token Budget Exceeded]", "").trim(),
-                      used,
-                      budget,
-                      percent: budget > 0 ? Math.round((used / budget) * 100) : 100,
-                    });
-                  } else if (
-                    c.includes("[AST Slicer]") ||
-                    c.includes("[Diff Streamer]") ||
-                    c.includes("heal cycle #") ||
-                    c.includes("[Heal Cycle") ||
-                    c.includes("[Critic Execution]") ||
-                    c.includes("[Self-Healing")
-                  ) {
-                    addTerminalLog("system", c);
-                  } else if (c.includes("[Research Node]")) {
-                    addTerminalLog("system", "🔍 " + c);
-                  } else if (
-                    c.includes("[KB Query]") ||
-                    c.includes("[Knowledge Base Context]") ||
-                    c.includes("[Knowledge Base Preview]")
-                  ) {
-                    addTerminalLog("system", "📚 " + c);
-                  } else if (c.includes("[Host Manager Status]")) {
-                    const statusText = c.replace("[Host Manager Status]", "").trim();
-                    const urlMatch = statusText.match(/https?:\/\/localhost:\d+/);
-                    if (urlMatch) setAppUrl(urlMatch[0]);
-                    if (statusText.startsWith("[OK]")) {
-                      addTerminalLog("success", "🚀 " + statusText);
-                      setActiveCenterTab("terminal");
-                    } else {
-                      addTerminalLog("system", "⚠️ " + statusText);
-                    }
-                  } else if (c.includes("[Host Manager]")) {
-                    addTerminalLog("system", "🖥️ " + c);
-                  } else if (c.includes("[Host Manager Install]")) {
-                    addTerminalLog("system", "📦 " + c);
-                  } else if (c.includes("[MCP Confirmation Required]")) {
-                    const promptText = c
-                      .replace("[MCP Confirmation Required]", "")
-                      .trim();
-                    const matchTool = promptText.match(
-                      /(?:allow|tool)\s+([a-zA-Z0-9_\-\.]+)/i,
-                    );
-                    setMcpConfirmation({
-                      tool: matchTool ? matchTool[1] : "mcp_tool",
-                      message: promptText,
-                    });
-                  } else if (c.includes("[MCP:")) {
-                    addTerminalLog("system", c);
-                  } else if (c.includes("[Local Secrets]")) {
-                    try {
-                      const parsed = JSON.parse(
-                        c.replace("[Local Secrets]", "").trim(),
-                      );
-                      setLocalSecrets(
-                        Array.isArray(parsed) ? parsed : Object.keys(parsed || {}),
-                      );
-                    } catch {}
-                  } else if (c.includes("[Credentials Status]")) {
-                    try {
-                      setCredentialsStatus(
-                        JSON.parse(c.replace("[Credentials Status]", "").trim()),
-                      );
-                    } catch {}
-                  } else if (c.includes("[Metrics]")) {
-                    try {
-                      const metrics = JSON.parse(
-                        c.replace("[Metrics]", "").trim(),
-                      );
-                      usePlaygroundStore.getState().setSessionMetrics({
-                        estimatedCost: metrics.estimated_cost,
-                        confidence: metrics.confidence || null,
-                      });
-                    } catch {}
-                  } else if (c.includes("[Explore Event]")) {
-                    try {
-                      const ev = JSON.parse(
-                        c.replace("[Explore Event]", "").trim(),
-                      );
-                      addExplorationEvent(ev);
-                    } catch {}
-                  } else if (c.includes("[Explore Summary]")) {
-                    try {
-                      const raw = c.replace("[Explore Summary]", "").trim();
-                      const summary = JSON.parse(raw);
-                      setPhaseExploration(summary.phase, summary);
-                      addMessage({
-                        role: "system",
-                        content: `[Explore Summary] ${raw}`,
-                        timestamp: new Date().toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        }),
-                      });
-                    } catch {}
-                  } else {
-                    streamMessages.push(c);
-                  }
-                } else if (
-                  messageItem.type === "tool" &&
-                  messageItem.name === "github" &&
-                  messageItem.content
-                ) {
-                  try {
-                    const parsed = JSON.parse(messageItem.content);
-                    if (parsed.success && parsed.result && parsed.result.files) {
-                      usePlaygroundStore.getState().setGithubRepo({
-                        url: parsed.result.repo_name || "GitHub Repo",
-                        files: parsed.result.files,
-                        activeFile: null,
-                      });
-                      if (parsed.result.readme) setArtifactCode(parsed.result.readme);
-                    } else if (
-                      parsed.success &&
-                      parsed.result &&
-                      parsed.result.file &&
-                      parsed.result.content
-                    ) {
-                      usePlaygroundStore
-                        .getState()
-                        .setGithubActiveFile(parsed.result.file);
-                      setArtifactCode(parsed.result.content);
-                      setActiveCenterTab("artifacts");
-                    }
-                  } catch {}
+                const messageItem = m as MessageItem;
+                const classification = classifyEvent(messageItem);
+                if (classification === "FINAL_ANSWER") {
+                  aiResponse = messageItem.content!.trim();
+                } else {
+                  handleStatusEvent(messageItem);
                 }
               }
             }
@@ -1054,13 +1029,11 @@ export function CenterWorkspace() {
         if (codeMatch && codeMatch[1]) setArtifactCode(codeMatch[1].trim());
       }
 
+      const finalAnswer = aiResponse && aiResponse.trim();
       addMessage({
         role: "assistant",
         content:
-          aiResponse ||
-          (streamMessages.length > 0
-            ? streamMessages.join("\n\n")
-            : "Task processed through LangGraph multi-agent execution pipeline."),
+          finalAnswer || "The agent could not complete this task. Please try again.",
         timestamp: new Date().toLocaleTimeString([], {
           hour: "2-digit",
           minute: "2-digit",
@@ -1074,9 +1047,10 @@ export function CenterWorkspace() {
         errObj?.response?.data?.detail ||
         errObj?.response?.data?.message ||
         (error instanceof Error ? error.message : "Backend unavailable");
+      addTerminalLog("system", `[Error] ${errMsg}`);
       addMessage({
         role: "assistant",
-        content: `Error executing LangGraph run: ${errMsg}`,
+        content: "The agent could not complete this task. Please try again.",
         timestamp: new Date().toLocaleTimeString([], {
           hour: "2-digit",
           minute: "2-digit",
@@ -1226,6 +1200,13 @@ export function CenterWorkspace() {
                           <ExplorationCard content={msg.content} />
                         </div>
                       );
+                    }
+
+                    if (msg.role !== 'user' && msg.role !== 'assistant') {
+                      return null;
+                    }
+                    if (msg.role === 'assistant' && isStatusContent(msg.content)) {
+                      return null;
                     }
 
                     return (
