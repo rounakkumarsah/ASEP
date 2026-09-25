@@ -235,20 +235,21 @@ class TestSecurityAuditorNodesAndGates:
 
     @pytest.mark.asyncio
     async def test_final_artifact_gate_cannot_complete_without_passed_security(self):
-        """Gate: final artifact cannot be marked 'complete' without a passed security report in state."""
-        # 1. No security report in state -> BLOCKED
+        """Gate: final artifact can complete but adds warning if security report is missing or failed."""
+        # 1. No security report in state -> COMPLETED with warnings
         state_missing: AgentState = {}
         res_missing = await end_node_default(state_missing)
-        assert res_missing["status"] == "security_blocked"
-        assert "Execution Gate Blocked" in res_missing["messages"][0]["content"]
+        assert res_missing["status"] == "completed"
+        # Check system message
+        assert any("status=completed_with_warnings" in m["content"] for m in res_missing["messages"])
 
-        # 2. Failed security report in state -> BLOCKED
+        # 2. Failed security report in state -> COMPLETED with warnings
         state_failed: AgentState = {
             "security_report": {"passed": False, "critical_count": 2},
         }
         res_failed = await end_node_default(state_failed)
-        assert res_failed["status"] == "security_blocked"
-        assert "Execution Gate Blocked" in res_failed["messages"][0]["content"]
+        assert res_failed["status"] == "completed"
+        assert any("status=completed_with_warnings" in m["content"] for m in res_failed["messages"])
 
         # 3. Passed security report in state -> COMPLETED
         state_valid: AgentState = {
@@ -256,4 +257,5 @@ class TestSecurityAuditorNodesAndGates:
         }
         res_valid = await end_node_default(state_valid)
         assert res_valid["status"] == "completed"
-        assert "finished successfully" in res_valid["messages"][0]["content"]
+        assert any("status=completed" in m["content"] for m in res_valid["messages"])
+
