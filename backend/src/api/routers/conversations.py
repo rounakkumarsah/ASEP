@@ -129,6 +129,10 @@ async def get_visual_graph() -> dict[str, Any]:
     return parse_graph_to_react_flow()
 
 
+@router.options("/run")
+async def options_start_run():
+    return {"message": "OK"}
+
 @router.post(
     "/run",
     summary="Start a new agent run — returns immediately; poll /run/{run_id}/status for updates",
@@ -195,6 +199,10 @@ async def start_run(
         "events": [],
     }
 
+
+@router.options("/run/{run_id}/step")
+async def options_run_step(run_id: str):
+    return {"message": "OK"}
 
 @router.post(
     "/run/{run_id}/step",

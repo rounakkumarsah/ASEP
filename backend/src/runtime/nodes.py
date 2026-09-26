@@ -658,9 +658,11 @@ async def orchestrator_node(state: AgentState) -> dict[str, Any]:
                 Message(role="user", content=goal),
             ]
             
+            model_name = state.get("model") or "gemini-1.5-flash"
+            
             request = CompletionRequest(
                 messages=messages_for_llm,
-                model="auto-router",
+                model=model_name,
                 max_tokens=2048
             )
             
