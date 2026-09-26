@@ -13,7 +13,7 @@ const API_URL = env.NEXT_PUBLIC_API_URL;
 
 export const apiClient = axios.create({
   baseURL: API_URL,
-  timeout: 60000, // 60 second timeout to handle Serverless cold starts and agent run steps
+  timeout: 120000, // 120 second timeout to handle Serverless cold starts and agent run steps
   headers: {
     "Content-Type": "application/json",
   },

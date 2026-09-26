@@ -14,6 +14,7 @@ Fallback strategy:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -96,7 +97,7 @@ async def _decompose_with_llm(goal: str) -> list[str]:
             temperature=0.3,
             max_tokens=1024,
         )
-        response = await runtime.complete(request)
+        response = await asyncio.wait_for(runtime.complete(request), timeout=5.0)
         raw = response.text.strip()
         return _parse_plan(raw, goal)
 

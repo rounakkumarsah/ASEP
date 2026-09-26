@@ -138,7 +138,7 @@ async def extract_and_store_durable_memories(
             model=resolved_model,
             temperature=0.0
         )
-        resp = await ai_service.complete(req)
+        resp = await asyncio.wait_for(ai_service.complete(req), timeout=5.0)
         
         # parse json from text
         import json

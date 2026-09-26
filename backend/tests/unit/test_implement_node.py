@@ -146,3 +146,52 @@ async def test_implement_phase_node_timeout_fallback():
     assert "TodoItem" in code
     assert result["status"] == "verified"
 
+
+@pytest.mark.asyncio
+async def test_planner_node_timeout_fallback():
+    """When LLM provider hangs or times out, planner_node should abort within 5s."""
+    from src.runtime.nodes import planner_node
+    state = {
+        "goal": "build a todo api",
+        "run_id": "test-planner-timeout",
+        "token_usage_per_phase": {},
+        "token_budget_per_phase": {},
+        "token_savings": {},
+        "file_history": {},
+        "budget_approvals": [],
+        "active_skills": [],
+        "skill_instructions": [],
+        "skill_citations": [],
+    }
+
+    async def slow_complete(*args, **kwargs):
+        await asyncio.sleep(10.0)
+
+    with patch("src.ai_runtime.service.AIRuntimeService.complete", side_effect=slow_complete):
+        start = asyncio.get_event_loop().time()
+        result = await planner_node(state)
+        elapsed = asyncio.get_event_loop().time() - start
+
+    assert elapsed < 7.0
+    assert result["status"] == "planned"
+    assert len(result["plan"]) > 0
+
+
+@pytest.mark.asyncio
+async def test_durable_memories_timeout_resilience():
+    """When LLM provider hangs or times out during durable memory extraction, it aborts within 5s without raising."""
+    from src.runtime.memory_hooks import extract_and_store_durable_memories
+    import uuid
+
+    async def slow_complete(*args, **kwargs):
+        await asyncio.sleep(10.0)
+
+    with patch("src.ai_runtime.service.AIRuntimeService.complete", side_effect=slow_complete):
+        start = asyncio.get_event_loop().time()
+        # Should not raise exception and should complete in < 7.0s
+        await extract_and_store_durable_memories("run-timeout", uuid.uuid4(), "User: build todo app")
+        elapsed = asyncio.get_event_loop().time() - start
+
+    assert elapsed < 7.0
+
+

@@ -328,7 +328,7 @@ class LangGraphRuntime:
         events = []
         nodes_executed: list[str] = []
         MAX_EVENTS = 40
-        MAX_SECONDS = 8.0 if (os.environ.get("VERCEL") == "1" or os.environ.get("SERVERLESS") == "1") else 60.0
+        MAX_SECONDS = 8.0 if (os.environ.get("VERCEL") == "1" or os.environ.get("SERVERLESS") == "1") else 45.0
 
         try:
             async for event in self.graph.astream(input_data, config, stream_mode="updates", durability="sync"):

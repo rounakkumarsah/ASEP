@@ -134,6 +134,7 @@ async def planner_node(state: AgentState) -> dict[str, Any]:
     logger.info("Planner Agent generating plan for goal: %s", goal)
 
     plan: list[str] = []
+    res = None
     try:
         from src.ai_runtime.contracts import CompletionRequest, Message
         from src.ai_runtime.service import AIRuntimeService

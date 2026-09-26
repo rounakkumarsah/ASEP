@@ -1110,7 +1110,8 @@ export function CenterWorkspace() {
           thread_id: newThreadId,
           research_mode: researchMode,
           environment_mode: environmentMode,
-        }
+        },
+        { timeout: 120000 }
       );
 
       const startData = startRes.data;
@@ -1135,7 +1136,7 @@ export function CenterWorkspace() {
             stepRes = await apiClient.post<{ status: string; events?: any[] }>(
               `/api/v1/conversations/run/${runId}/step`,
               { thread_id: newThreadId, goal: currentInput },
-              { timeout: 60000 }
+              { timeout: 120000 }
             );
             break;
           } catch (err: any) {
@@ -1143,7 +1144,9 @@ export function CenterWorkspace() {
             const isTimeoutOrNetwork =
               err?.code === "ECONNABORTED" ||
               err?.message?.includes("timeout") ||
-              !err?.response;
+              err?.status === 0 ||
+              err?.status === 504 ||
+              err?.status === 502;
             if (retries <= MAX_STEP_RETRIES && isTimeoutOrNetwork) {
               addTerminalLog("system", `[Warning] Step execution timed out, retrying step (${retries}/${MAX_STEP_RETRIES})...`);
               await new Promise((r) => setTimeout(r, 1000));
