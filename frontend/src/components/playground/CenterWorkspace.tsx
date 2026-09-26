@@ -110,6 +110,8 @@ export function isStatusContent(text?: unknown): boolean {
 
   // Known backend telemetry/orchestration status patterns
   if (
+    lower.includes("security audit severity table") ||
+    lower.startsWith("### security audit") ||
     lower.includes("langgraph execution initiated") ||
     lower.includes("phase started") ||
     lower.includes("phase complete") ||
@@ -206,6 +208,7 @@ export function processEventData(
     addCompletedNode?: (name: string) => void;
     onFinalAnswer?: (answer: string) => void;
     onStatusEvent?: (item: MessageItem) => void;
+    onArtifactCode?: (code: string) => void;
   }
 ): void {
   if (!data || typeof data !== "object") return;
@@ -223,6 +226,12 @@ export function processEventData(
       itemsToProcess.push({ role: "system", content: updateVal });
     } else if (typeof updateVal === "object") {
       const updateObj = updateVal as Record<string, unknown>;
+
+      // Direct code fields on node output
+      const directCode = updateObj.generated_code || updateObj.file_content || updateObj.code_context;
+      if (typeof directCode === "string" && directCode.trim() && handlers.onArtifactCode) {
+        handlers.onArtifactCode(directCode.trim());
+      }
 
       // 1. messages (array or single item)
       if (Array.isArray(updateObj.messages)) {
@@ -267,6 +276,10 @@ export function processEventData(
     for (const item of itemsToProcess) {
       const classification = classifyEvent(item);
       const textContent = extractMessageContent(item.content).trim();
+      const codeMatch = textContent.match(/```(?:[a-zA-Z0-9_\-\.\+]*)\n([\s\S]*?)```/);
+      if (codeMatch && codeMatch[1] && handlers.onArtifactCode) {
+        handlers.onArtifactCode(codeMatch[1].trim());
+      }
       if (classification === "FINAL_ANSWER") {
         if (handlers.onFinalAnswer && textContent) handlers.onFinalAnswer(textContent);
       } else {
@@ -418,6 +431,9 @@ export function CenterWorkspace() {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [securityFindings, setSecurityFindings] = React.useState<any[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const securityFindingsRef = React.useRef<any[]>([]);
+  securityFindingsRef.current = securityFindings;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [editorInstance, setEditorInstance] = React.useState<any>(null);
 
@@ -884,8 +900,12 @@ export function CenterWorkspace() {
     } else if (c.includes("[Security Audit]")) {
       const findingsStr = c.replace("[Security Audit]", "").trim();
       try {
-        setSecurityFindings(JSON.parse(findingsStr));
-        setActiveCenterTab("security");
+        const parsed = JSON.parse(findingsStr);
+        setSecurityFindings(parsed);
+        securityFindingsRef.current = Array.isArray(parsed) ? parsed : [];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setActiveCenterTab("security");
+        }
       } catch {}
     } else if (c.includes("[Local Secrets]")) {
       try {
@@ -1011,6 +1031,9 @@ export function CenterWorkspace() {
                 onStatusEvent: (item) => {
                   handleStatusEvent(item);
                 },
+                onArtifactCode: (code) => {
+                  setArtifactCode(code);
+                },
               });
             } catch (e) {
               // Ignore parse errors
@@ -1087,6 +1110,7 @@ export function CenterWorkspace() {
       // 2. Poll for events and status
       let cursor = 0;
       let aiResponse = "";
+      let currentArtifactCode = "";
       let pollCount = 0;
       const MAX_POLLS = 240; // 240 * 1.5 s = 6 minutes max
 
@@ -1116,6 +1140,10 @@ export function CenterWorkspace() {
                   onStatusEvent: (item) => {
                     handleStatusEvent(item);
                   },
+                  onArtifactCode: (code) => {
+                    currentArtifactCode = code;
+                    setArtifactCode(code);
+                  },
                 }
               );
             } catch {}
@@ -1125,8 +1153,22 @@ export function CenterWorkspace() {
       }
 
       if (aiResponse) {
-        const codeMatch = aiResponse.match(/```(?:python|bash|sh|txt|)\n([\s\S]*?)```/);
-        if (codeMatch && codeMatch[1]) setArtifactCode(codeMatch[1].trim());
+        const codeMatch = aiResponse.match(/```(?:[a-zA-Z0-9_\-\.\+]*)\n([\s\S]*?)```/);
+        if (codeMatch && codeMatch[1]) {
+          currentArtifactCode = codeMatch[1].trim();
+          setArtifactCode(currentArtifactCode);
+        }
+      }
+
+      const activeTab = usePlaygroundStore.getState().activeCenterTab;
+      const findings = securityFindingsRef.current;
+      const findingsCount = Array.isArray(findings) ? findings.length : securityFindings.length;
+      if (activeTab === "security" && findingsCount === 0) {
+        if (currentArtifactCode || artifactCode) {
+          setActiveCenterTab("artifacts");
+        } else {
+          setActiveCenterTab("chat");
+        }
       }
 
       const finalAnswer = aiResponse && !isStatusContent(aiResponse) ? aiResponse.trim() : "";

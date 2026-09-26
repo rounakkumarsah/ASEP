@@ -3,6 +3,7 @@ ASEP — Unified LangGraph Runtime Orchestrator
 """
 
 import logging
+import os
 from collections.abc import AsyncGenerator
 from typing import Any
 
@@ -327,7 +328,7 @@ class LangGraphRuntime:
         events = []
         nodes_executed: list[str] = []
         MAX_EVENTS = 40
-        MAX_SECONDS = 8.0  # Must complete within Vercel Hobby 10s function timeout
+        MAX_SECONDS = 8.0 if (os.environ.get("VERCEL") == "1" or os.environ.get("SERVERLESS") == "1") else 60.0
 
         try:
             async for event in self.graph.astream(input_data, config, stream_mode="updates", durability="sync"):
@@ -420,7 +421,6 @@ class LangGraphRuntime:
                     transcript_str = "\n".join(transcript_builder)
                     await store_episodic_memory(run_id, org_uuid, goal, final_response, list(tools_used), success)
                     
-                    import os
                     if os.environ.get("VERCEL") == "1" or os.environ.get("SERVERLESS") == "1":
                         await extract_and_store_durable_memories(run_id, org_uuid, transcript_str)
                     else:

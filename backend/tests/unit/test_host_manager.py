@@ -329,6 +329,35 @@ def test_host_manager_node_no_code_skips():
 
 
 # ===========================================================================
+# Test 10b — host_manager_node: serverless env (VERCEL=1) → skips hosting, status=verified
+# ===========================================================================
+def test_host_manager_node_serverless_skips():
+    """host_manager_node should skip spawning local dev server in serverless environments."""
+    from src.runtime.nodes import host_manager_node
+    import os
+
+    state = {
+        "generated_code": FASTAPI_CODE,
+        "product_type": "api",
+        "run_id": "test-serverless",
+        "status": "verified",
+        "token_usage_per_phase": {},
+        "token_budget_per_phase": {},
+        "token_savings": {},
+        "file_history": {},
+        "budget_approvals": [],
+    }
+
+    with patch.dict(os.environ, {"VERCEL": "1"}):
+        result = asyncio.run(host_manager_node(state))
+        assert result["status"] == "verified"
+        assert result["app_url"] == ""
+        assert result["app_port"] == 0
+        messages = result.get("messages", [])
+        assert any("serverless environment detected" in m.get("content", "").lower() for m in messages)
+
+
+# ===========================================================================
 # Test 11 — HostManager tracks spawned PIDs per session
 # ===========================================================================
 def test_host_manager_tracks_spawned_pids_per_session():

@@ -145,6 +145,8 @@ describe('CenterWorkspace UX - Event Classification, Extraction, and Message Rou
       expect(isStatusContent('Resumed execution.')).toBe(true);
       expect(isStatusContent('[Skill Activated] [SKILL: react]')).toBe(true);
       expect(isStatusContent('[Skill Reference] https://react.dev')).toBe(true);
+      expect(isStatusContent('Security Audit Severity Table\n| Severity | Count |\n| Critical | 0 |')).toBe(true);
+      expect(isStatusContent('### Security Audit: PASSED\n\nAll security policies passed.')).toBe(true);
     });
 
     it('returns false for actual LLM-generated answers and advice', () => {
@@ -267,6 +269,45 @@ describe('CenterWorkspace UX - Event Classification, Extraction, and Message Rou
       processEventData(eventData, { onFinalAnswer, onStatusEvent });
       expect(onStatusEvent).toHaveBeenCalledTimes(1);
       expect(onFinalAnswer).toHaveBeenCalledWith('Final code generated.');
+    });
+
+    it('extracts code blocks into onArtifactCode handler', () => {
+      const onFinalAnswer = vi.fn();
+      const onStatusEvent = vi.fn();
+      const onArtifactCode = vi.fn();
+
+      const eventData = {
+        event: {
+          implement: {
+            messages: [
+              {
+                role: 'assistant',
+                content: '```python\napp = FastAPI()\n```',
+              },
+            ],
+          },
+        },
+      };
+
+      processEventData(eventData, { onFinalAnswer, onStatusEvent, onArtifactCode });
+      expect(onArtifactCode).toHaveBeenCalledWith('app = FastAPI()');
+    });
+
+    it('extracts direct generated_code field into onArtifactCode handler', () => {
+      const onFinalAnswer = vi.fn();
+      const onStatusEvent = vi.fn();
+      const onArtifactCode = vi.fn();
+
+      const eventData = {
+        event: {
+          implement: {
+            generated_code: 'print("hello world")',
+          },
+        },
+      };
+
+      processEventData(eventData, { onFinalAnswer, onStatusEvent, onArtifactCode });
+      expect(onArtifactCode).toHaveBeenCalledWith('print("hello world")');
     });
   });
 
