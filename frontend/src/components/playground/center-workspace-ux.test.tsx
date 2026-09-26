@@ -309,6 +309,50 @@ describe('CenterWorkspace UX - Event Classification, Extraction, and Message Rou
       processEventData(eventData, { onFinalAnswer, onStatusEvent, onArtifactCode });
       expect(onArtifactCode).toHaveBeenCalledWith('print("hello world")');
     });
+
+    it('extracts code blocks with CRLF line endings and trailing whitespace', () => {
+      const onFinalAnswer = vi.fn();
+      const onStatusEvent = vi.fn();
+      const onArtifactCode = vi.fn();
+
+      const eventData = {
+        event: {
+          implement: {
+            messages: [
+              {
+                role: 'assistant',
+                content: '```python  \r\ndef get_todos():\r\n    return []\r\n```',
+              },
+            ],
+          },
+        },
+      };
+
+      processEventData(eventData, { onFinalAnswer, onStatusEvent, onArtifactCode });
+      expect(onArtifactCode).toHaveBeenCalledWith('def get_todos():\r\n    return []');
+    });
+
+    it('extracts code blocks without language specifier', () => {
+      const onFinalAnswer = vi.fn();
+      const onStatusEvent = vi.fn();
+      const onArtifactCode = vi.fn();
+
+      const eventData = {
+        event: {
+          implement: {
+            messages: [
+              {
+                role: 'assistant',
+                content: '```\nconst x = 42;\n```',
+              },
+            ],
+          },
+        },
+      };
+
+      processEventData(eventData, { onFinalAnswer, onStatusEvent, onArtifactCode });
+      expect(onArtifactCode).toHaveBeenCalledWith('const x = 42;');
+    });
   });
 
   describe('No Final Answer Fallback Rule', () => {

@@ -276,7 +276,7 @@ export function processEventData(
     for (const item of itemsToProcess) {
       const classification = classifyEvent(item);
       const textContent = extractMessageContent(item.content).trim();
-      const codeMatch = textContent.match(/```(?:[a-zA-Z0-9_\-\.\+]*)\n([\s\S]*?)```/);
+      const codeMatch = textContent.match(/```(?:[a-zA-Z0-9_\-\.\+]*)[^\S\r\n]*\r?\n([\s\S]*?)```/);
       if (codeMatch && codeMatch[1] && handlers.onArtifactCode) {
         handlers.onArtifactCode(codeMatch[1].trim());
       }
@@ -1042,6 +1042,13 @@ export function CenterWorkspace() {
         }
       }
 
+      if (aiResponse) {
+        const codeMatch = aiResponse.match(/```(?:[a-zA-Z0-9_\-\.\+]*)[^\S\r\n]*\r?\n([\s\S]*?)```/);
+        if (codeMatch && codeMatch[1]) {
+          setArtifactCode(codeMatch[1].trim());
+        }
+      }
+
       const finalResumeAnswer = aiResponse && !isStatusContent(aiResponse) ? aiResponse.trim() : "";
       addMessage({
         role: "assistant",
@@ -1079,6 +1086,8 @@ export function CenterWorkspace() {
     setClarificationThreadId(newThreadId);
     setIsThinking(true);
     resetActiveNodes();
+    setSecurityFindings([]);
+    securityFindingsRef.current = [];
 
     // ------------------------------------------------------------------
     // Polling-based run execution
@@ -1153,7 +1162,7 @@ export function CenterWorkspace() {
       }
 
       if (aiResponse) {
-        const codeMatch = aiResponse.match(/```(?:[a-zA-Z0-9_\-\.\+]*)\n([\s\S]*?)```/);
+        const codeMatch = aiResponse.match(/```(?:[a-zA-Z0-9_\-\.\+]*)[^\S\r\n]*\r?\n([\s\S]*?)```/);
         if (codeMatch && codeMatch[1]) {
           currentArtifactCode = codeMatch[1].trim();
           setArtifactCode(currentArtifactCode);

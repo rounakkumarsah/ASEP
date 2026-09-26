@@ -1668,11 +1668,13 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
             )
             res = await runtime.complete(req)
             text = (res.text or "").strip()
-            match = re.search(r"```(?:[a-zA-Z0-9_\-\.\+]*)\n([\s\S]*?)```", text)
+            match = re.search(r"```(?:[a-zA-Z0-9_\-\.\+]*)[^\S\r\n]*\r?\n([\s\S]*?)```", text)
             if match:
                 generated = match.group(1).strip()
             elif text:
-                generated = text
+                cleaned = re.sub(r"^```(?:[a-zA-Z0-9_\-\.\+]*)[^\S\r\n]*\r?\n", "", text)
+                cleaned = re.sub(r"\r?\n```$", "", cleaned)
+                generated = cleaned.strip()
         except Exception as exc:
             logger.warning("LLM code generation fallback triggered: %s", exc)
 
