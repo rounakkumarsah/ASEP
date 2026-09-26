@@ -111,3 +111,38 @@ async def test_security_audit_phase_node_emits_system_role_table():
     for msg in messages:
         if "severity" in msg.get("content", "").lower() or "table" in msg.get("content", "").lower():
             assert msg.get("role") == "system"
+
+
+@pytest.mark.asyncio
+async def test_implement_phase_node_timeout_fallback():
+    """When LLM provider hangs or times out, implement_phase_node should safely fall back within timeout."""
+    state = {
+        "goal": "build a simple REST API for a todo app",
+        "product_type": "api",
+        "status": "verified",
+        "run_id": "test-todo-timeout",
+        "token_usage_per_phase": {},
+        "token_budget_per_phase": {},
+        "token_savings": {},
+        "file_history": {},
+        "budget_approvals": [],
+        "active_skills": [],
+        "skill_instructions": [],
+        "skill_citations": [],
+    }
+
+    async def slow_complete(*args, **kwargs):
+        await asyncio.sleep(10.0)
+
+    with patch("src.ai_runtime.service.AIRuntimeService.complete", side_effect=slow_complete):
+        start = asyncio.get_event_loop().time()
+        result = await implement_phase_node(state)
+        elapsed = asyncio.get_event_loop().time() - start
+
+    assert elapsed < 7.0
+    code = result.get("generated_code", "")
+    assert "FastAPI" in code
+    assert "/todos" in code
+    assert "TodoItem" in code
+    assert result["status"] == "verified"
+

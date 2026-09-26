@@ -150,7 +150,7 @@ async def planner_node(state: AgentState) -> dict[str, Any]:
             temperature=0.2,
             max_tokens=512,
         )
-        res = await runtime.complete(req)
+        res = await asyncio.wait_for(runtime.complete(req), timeout=5.0)
         text = res.text.strip()
         # Parse JSON
         match = re.search(r"\[.*\]", text, re.DOTALL)
@@ -335,7 +335,7 @@ async def coding_node(state: AgentState) -> dict[str, Any]:
             temperature=0.3,
             max_tokens=2048,
         )
-        res = await runtime.complete(req)
+        res = await asyncio.wait_for(runtime.complete(req), timeout=5.0)
         answer = res.text
     except Exception as exc:
         logger.warning(
@@ -666,7 +666,7 @@ async def orchestrator_node(state: AgentState) -> dict[str, Any]:
                 max_tokens=2048
             )
             
-            response = await ai_service.complete(request)
+            response = await asyncio.wait_for(ai_service.complete(request), timeout=5.0)
             
             return {
                 "status": "verified",
@@ -1666,7 +1666,7 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
                 temperature=0.2,
                 max_tokens=2048,
             )
-            res = await runtime.complete(req)
+            res = await asyncio.wait_for(runtime.complete(req), timeout=5.0)
             text = (res.text or "").strip()
             match = re.search(r"```(?:[a-zA-Z0-9_\-\.\+]*)[^\S\r\n]*\r?\n([\s\S]*?)```", text)
             if match:

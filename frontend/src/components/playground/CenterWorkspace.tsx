@@ -1127,11 +1127,33 @@ export function CenterWorkspace() {
       while (currentStatus === "running" && pollCount < MAX_POLLS) {
         pollCount++;
         
-        const stepRes = await apiClient.post<{ status: string; events?: any[] }>(
-          `/api/v1/conversations/run/${runId}/step`,
-          { thread_id: newThreadId, goal: currentInput }
-        );
-        
+        let stepRes;
+        let retries = 0;
+        const MAX_STEP_RETRIES = 2;
+        while (retries <= MAX_STEP_RETRIES) {
+          try {
+            stepRes = await apiClient.post<{ status: string; events?: any[] }>(
+              `/api/v1/conversations/run/${runId}/step`,
+              { thread_id: newThreadId, goal: currentInput },
+              { timeout: 60000 }
+            );
+            break;
+          } catch (err: any) {
+            retries++;
+            const isTimeoutOrNetwork =
+              err?.code === "ECONNABORTED" ||
+              err?.message?.includes("timeout") ||
+              !err?.response;
+            if (retries <= MAX_STEP_RETRIES && isTimeoutOrNetwork) {
+              addTerminalLog("system", `[Warning] Step execution timed out, retrying step (${retries}/${MAX_STEP_RETRIES})...`);
+              await new Promise((r) => setTimeout(r, 1000));
+              continue;
+            }
+            throw err;
+          }
+        }
+
+        if (!stepRes) break;
         const stepData = stepRes.data;
         if (stepData.events) {
           for (const ev of stepData.events) {
