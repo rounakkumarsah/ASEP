@@ -625,8 +625,63 @@ async def orchestrator_node(state: AgentState) -> dict[str, Any]:
     goal = state.get("goal", "")
     logger.info("ORCHESTRATOR analyzing request: %s", goal)
     
-    goal_lower = goal.lower()
+    goal_lower = goal.lower().strip()
     
+    # Check if this is a conversational/explanatory query (not a build task)
+    # If so, call the LLM directly and short-circuit the pipeline
+    conversational_indicators = [
+        "explain", "describe", "what is", "what are", "how do", "how does",
+        "how would", "how can", "why ", "tell me", "summarize", "compare",
+        "list ", "define ", "help me understand", "what's the difference",
+        "can you ", "could you ", "please ", "write me", "give me",
+        "hello", "hi ", "hey ", "good morning", "good evening",
+        "thank", "thanks",
+    ]
+    build_indicators = [
+        "build", "create", "implement", "develop", "deploy", "scaffold",
+        "generate code", "write code", "make a", "make an", "set up",
+        "install", "configure", "fix the bug", "debug", "refactor code",
+    ]
+
+    is_conversational = any(goal_lower.startswith(ind) or f" {ind}" in f" {goal_lower}" for ind in conversational_indicators)
+    is_build = any(ind in goal_lower for ind in build_indicators)
+
+    if is_conversational and not is_build:
+        # Route to LLM directly — skip the full pipeline
+        try:
+            from src.ai_runtime.service import AIRuntimeService
+            from src.ai_runtime.contracts import CompletionRequest, Message
+            
+            ai_service = AIRuntimeService()
+            messages_for_llm = [
+                Message(role="system", content="You are ASEP, an expert AI-powered software engineering assistant. Provide clear, concise, and helpful answers."),
+                Message(role="user", content=goal),
+            ]
+            
+            model_name = state.get("model") or "gemini-1.5-flash"
+            
+            request = CompletionRequest(
+                messages=messages_for_llm,
+                model=model_name,
+                max_tokens=2048
+            )
+            
+            response = await ai_service.complete(request)
+            
+            return {
+                "status": "verified",
+                "current_phase": "orchestrator",
+                "phase_map": ["end"],
+                "product_type": "conversational",
+                "messages": [
+                    {"role": "system", "content": "Conversational query detected — routing directly to LLM."},
+                    {"role": "assistant", "content": response.text},
+                ],
+            }
+        except Exception as e:
+            logger.warning("LLM direct call failed for conversational query: %s", e)
+            # Fall through to normal pipeline
+
     # Classify product type based on keywords
     if "ai agent" in goal_lower:
         product_type = "ai_agent"
