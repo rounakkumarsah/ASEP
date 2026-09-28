@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useSessions } from "@/lib/api/hooks/use-sessions";
 import { SessionCard } from "@/components/dashboard/sessions/session-card";
-import { Plus, RefreshCw } from "lucide-react";
+import { Plus, RefreshCw, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AnimatedModal, ModalHeader, ModalTitle, ModalDescription, ModalContent, ModalFooter } from "@/components/ui/animated-modal";
@@ -123,6 +123,3 @@ export default function SessionsPage() {
     </div>
   );
 }
-
-// Just importing Bot inside the file if missing
-import { Bot } from "lucide-react";

@@ -58,6 +58,8 @@ from src.api.routers.integrations_github import router as integrations_github_ro
 from src.api.routers.skills import router as skills_router
 from src.api.routers.voice import router as voice_router
 from src.api.routers.prompts import router as prompts_router
+from src.routes.agents import router as agents_router
+from src.routes.billing import router as billing_router
 from src.cache.redis import close_redis, init_redis
 from src.config.settings import get_settings
 from src.db.postgres import close_db, init_db
@@ -169,6 +171,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except Exception as cp_exc:
         logger.warning("Postgres checkpointer initialization failed: %s", cp_exc)
 
+    # Initialize BackgroundTaskQueue and recover any pending jobs across restart
+    try:
+        from src.services.task_queue_service import get_task_queue
+
+        tq = get_task_queue()
+        tq.start()
+        await tq.recover_pending_jobs()
+    except Exception as tq_exc:
+        logger.warning("BackgroundTaskQueue initialization failed: %s", tq_exc)
+
     yield
 
     logger.info("ASEP backend shutting down")
@@ -205,6 +217,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         from src.runtime import close_postgres_checkpointer
 
         await close_postgres_checkpointer()
+    except Exception:
+        pass
+
+    # Shutdown BackgroundTaskQueue
+    try:
+        from src.services.task_queue_service import get_task_queue
+
+        get_task_queue().shutdown(wait=False)
     except Exception:
         pass
 
@@ -281,6 +301,7 @@ def create_app() -> FastAPI:
     app.include_router(health_router, prefix="/v1", tags=["Observability"])
     app.include_router(health_router, prefix="/api/v1", tags=["Observability"])
     app.include_router(metrics_router, tags=["Observability"])
+    app.include_router(metrics_router, prefix="/api/v1", tags=["Observability"])
     app.include_router(diagnostics_router, tags=["Observability"])
 
     app.include_router(auth_router, prefix="/api/v1")
@@ -311,6 +332,10 @@ def create_app() -> FastAPI:
     app.include_router(skills_router)
     app.include_router(voice_router, prefix="/api/v1")
     app.include_router(prompts_router, prefix="/api/v1")
+    app.include_router(agents_router)
+    app.include_router(agents_router, prefix="/api/v1")
+    app.include_router(billing_router)
+    app.include_router(billing_router, prefix="/api/v1")
 
     # -----------------------------------------------------------------------
     # Observability (Prometheus Metrics)

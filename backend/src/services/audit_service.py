@@ -281,6 +281,17 @@ class AuditService:
         async with self._uow_factory() as uow:
             return await uow.audit_logs.get_critical_failures(since, limit=limit)
 
+    async def get_recent_logs(
+        self,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[AuditLog], int]:
+        """Return all audit log events with total count ordered by created_at DESC."""
+        async with self._uow_factory() as uow:
+            items = await uow.audit_logs.list(limit=limit, offset=offset)
+            total = await uow.audit_logs.count()
+            return items, total
+
     # ------------------------------------------------------------------
     # Read — distributed tracing
     # ------------------------------------------------------------------

@@ -4,7 +4,7 @@ import { ApiResponse, SystemHealth } from "../types";
 export const controlPlaneService = {
   async getSystemOverview(): Promise<ApiResponse<SystemHealth>> {
     try {
-      const response = await apiClient.get("/metrics");
+      const response = await apiClient.get("/api/v1/metrics");
       const metrics = response.data;
       
       return {

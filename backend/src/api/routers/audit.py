@@ -15,7 +15,9 @@ from src.db.models.audit_log import ActorType
 router = APIRouter(prefix="/audit", tags=["Audit"])
 
 
+@router.get("", response_model=PaginatedResponse[AuditLogResponse], dependencies=[RequirePermission(Permission.AUDIT_READ)])
 @router.get("/", response_model=PaginatedResponse[AuditLogResponse], dependencies=[RequirePermission(Permission.AUDIT_READ)])
+@router.get("/logs", response_model=PaginatedResponse[AuditLogResponse], dependencies=[RequirePermission(Permission.AUDIT_READ)])
 async def list_audit_logs(
     service: AuditServiceDep,
     actor_type: ActorType | None = None,
@@ -24,7 +26,7 @@ async def list_audit_logs(
     resource_id: str | None = None,
     pagination: PaginationParams = Depends(),
 ) -> PaginatedResponse[AuditLogResponse]:
-    """List audit logs with filtering."""
+    """List audit logs with filtering or recent global history."""
     if actor_type and actor_id:
         logs = await service.get_actor_history(
             actor_type=actor_type,
@@ -32,6 +34,7 @@ async def list_audit_logs(
             limit=pagination.limit,
             offset=pagination.offset
         )
+        total = len(logs)
     elif resource_type:
         logs = await service.get_resource_history(
             resource_type=resource_type,
@@ -39,14 +42,16 @@ async def list_audit_logs(
             limit=pagination.limit,
             offset=pagination.offset
         )
+        total = len(logs)
     else:
-        # Default empty return or generic query if not implemented in service yet.
-        # Audit service currently only exposes actor and resource history, not global history.
-        logs = []
+        logs, total = await service.get_recent_logs(
+            limit=pagination.limit,
+            offset=pagination.offset,
+        )
 
     return PaginatedResponse(
         items=logs,
-        total=len(logs),  # Mock total as count is not implemented for all filters
+        total=total,
         limit=pagination.limit,
         offset=pagination.offset
     )

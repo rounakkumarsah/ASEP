@@ -1,0 +1,274 @@
+"""
+ASEP — Production Multi-LLM Supervisor Test Suite
+=================================================
+Tests verifying:
+1. All 3 nodes (code_writer, code_reviewer, test_runner) execute sequentially in < 5.0 seconds.
+2. Provider fallback chain automatically activates when primary provider fails.
+3. Token usage is accurately counted and logged per provider to user_quota_logs.
+4. If all providers in fallback chain fail, an explicit error is returned (NO silent mock).
+5. Qdrant vector context is injected into LLM system prompts when available.
+"""
+
+from __future__ import annotations
+
+import time
+import uuid
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+from src.agents.state import AgentState
+from src.agents.supervisor import (
+    MultiLLMRouter,
+    build_supervisor_graph,
+    code_review_node,
+    code_write_node,
+    test_gen_node,
+)
+from src.ai_runtime.contracts import CompletionResponse, UsageInfo
+
+
+@pytest.fixture
+def mock_usage():
+    def _make(tokens: int):
+        return UsageInfo(
+            total_tokens=tokens,
+            prompt_tokens=int(tokens * 0.4),
+            completion_tokens=int(tokens * 0.6),
+            latency_ms=45.0,
+        )
+
+    return _make
+
+
+@pytest.fixture
+def mock_registry(mock_usage):
+    """Creates a mock provider registry with Groq, Gemini, and OpenRouter mocked."""
+    registry = MagicMock()
+
+    groq_provider = AsyncMock()
+    groq_provider.name = "groq"
+    groq_provider.complete.return_value = CompletionResponse(
+        text="def calculate_total(items):\n    return sum(item.price for item in items)",
+        usage=mock_usage(150),
+        model="llama-3.3-70b-versatile",
+        provider="groq",
+    )
+
+    gemini_provider = AsyncMock()
+    gemini_provider.name = "gemini"
+    gemini_provider.complete.return_value = CompletionResponse(
+        text="Code Review: Logic is clean. Add input validation for empty lists and negative prices.",
+        usage=mock_usage(220),
+        model="gemini-2.0-flash",
+        provider="gemini",
+    )
+
+    openrouter_provider = AsyncMock()
+    openrouter_provider.name = "openrouter"
+    openrouter_provider.complete.return_value = CompletionResponse(
+        text="def test_calculate_total():\n    assert calculate_total([]) == 0",
+        usage=mock_usage(180),
+        model="openrouter/auto",
+        provider="openrouter",
+    )
+
+    registry.providers = {
+        "groq": groq_provider,
+        "gemini": gemini_provider,
+        "openrouter": openrouter_provider,
+    }
+    return registry
+
+
+@pytest.mark.asyncio
+async def test_all_three_nodes_execute_under_five_seconds(mock_registry, monkeypatch):
+    """Test 1: Verify code_writer, code_reviewer, and test_runner execute sequentially in < 5.0 seconds."""
+    test_router = MultiLLMRouter(registry=mock_registry)
+    test_router.max_retries = 1
+    monkeypatch.setattr("src.agents.supervisor.router", test_router)
+
+    # Disable vector lookup overhead during speed test
+    monkeypatch.setattr(test_router, "get_vector_context", AsyncMock(return_value=""))
+    monkeypatch.setattr(test_router, "log_quota_usage", AsyncMock())
+
+    initial_state: AgentState = {
+        "run_id": uuid.uuid4(),
+        "goal": "Implement an order total calculation function",
+        "current_step": 0,
+        "messages": [],
+    }
+
+    start_time = time.perf_counter()
+
+    # 1. Code Writer Node
+    state_after_write = await code_write_node(initial_state)
+    assert state_after_write["code"] is not None
+    assert "def calculate_total" in state_after_write["code"]
+    assert state_after_write["current_step"] == 1
+    initial_state.update(state_after_write)
+
+    # 2. Code Reviewer Node
+    state_after_review = await code_review_node(initial_state)
+    assert state_after_review["review"] is not None
+    assert "Code Review" in state_after_review["review"]
+    assert state_after_review["current_step"] == 2
+    initial_state.update(state_after_review)
+
+    # 3. Test Generator Node
+    state_after_test = await test_gen_node(initial_state)
+    assert state_after_test["tests"] is not None
+    assert "def test_calculate_total" in state_after_test["tests"]
+    assert state_after_test["is_complete"] is True
+    initial_state.update(state_after_test)
+
+    elapsed_time = time.perf_counter() - start_time
+
+    # Requirement: all 3 nodes execute in < 5s total
+    assert elapsed_time < 5.0, f"Execution took {elapsed_time:.2f}s, expected < 5.0s"
+    assert initial_state["final_output"] is not None
+
+
+@pytest.mark.asyncio
+async def test_provider_fallback_chain_on_primary_failure(mock_registry, monkeypatch):
+    """Test 2: When primary provider fails, router fails over to secondary provider."""
+    # Groq (Primary for code writing) fails with a simulated 429 Rate Limit
+    mock_registry.providers["groq"].complete.side_effect = RuntimeError("Groq 429: Rate limit reached")
+
+    # Gemini (Secondary) succeeds
+    mock_registry.providers["gemini"].complete.return_value = CompletionResponse(
+        text="# Generated by Gemini fallback\ndef fallback_solution(): pass",
+        usage=UsageInfo(total_tokens=140),
+        model="gemini-2.0-flash",
+        provider="gemini",
+    )
+
+    test_router = MultiLLMRouter(registry=mock_registry)
+    test_router.max_retries = 1
+    monkeypatch.setattr("src.agents.supervisor.router", test_router)
+    monkeypatch.setattr(test_router, "get_vector_context", AsyncMock(return_value=""))
+
+    mock_log_quota = AsyncMock()
+    monkeypatch.setattr(test_router, "log_quota_usage", mock_log_quota)
+
+    state: AgentState = {
+        "goal": "Write fallback solution",
+        "current_step": 0,
+        "user_id": uuid.uuid4(),
+    }
+
+    result = await code_write_node(state)
+
+    assert result.get("error") is None
+    assert "fallback_solution" in result["code"]
+    # Check that Gemini was called as fallback
+    assert mock_registry.providers["gemini"].complete.called
+    # Check that quota was logged for the successful fallback provider
+    mock_log_quota.assert_called_once_with(state["user_id"], 140, "gemini")
+
+
+@pytest.mark.asyncio
+async def test_token_counting_per_provider(mock_registry, monkeypatch):
+    """Test 3: Token usage is accurately logged per provider."""
+    logged_usage = []
+
+    async def mock_log(user_id, tokens_used, provider_name):
+        logged_usage.append({"user_id": user_id, "tokens": tokens_used, "provider": provider_name})
+
+    test_router = MultiLLMRouter(registry=mock_registry)
+    test_router.max_retries = 1
+    monkeypatch.setattr("src.agents.supervisor.router", test_router)
+    monkeypatch.setattr(test_router, "get_vector_context", AsyncMock(return_value=""))
+    monkeypatch.setattr(test_router, "log_quota_usage", mock_log)
+
+    test_user_id = uuid.uuid4()
+    state: AgentState = {
+        "goal": "Build quota test function",
+        "current_step": 0,
+        "user_id": test_user_id,
+    }
+
+    # Execute all 3 nodes
+    s1 = await code_write_node(state)
+    state.update(s1)
+
+    s2 = await code_review_node(state)
+    state.update(s2)
+
+    s3 = await test_gen_node(state)
+    state.update(s3)
+
+    # Check 3 quota log records were emitted
+    assert len(logged_usage) == 3
+
+    providers = [entry["provider"] for entry in logged_usage]
+    assert "groq" in providers
+    assert "gemini" in providers
+    assert "openrouter" in providers
+
+    tokens = [entry["tokens"] for entry in logged_usage]
+    assert 150 in tokens  # Groq token count
+    assert 220 in tokens  # Gemini token count
+    assert 180 in tokens  # OpenRouter token count
+
+
+@pytest.mark.asyncio
+async def test_all_providers_fail_emits_error_no_silent_mock(mock_registry, monkeypatch):
+    """Test 4: When all providers in chain fail, explicit error is returned (NO silent fallback template)."""
+    mock_registry.providers["groq"].complete.side_effect = RuntimeError("Groq down")
+    mock_registry.providers["gemini"].complete.side_effect = RuntimeError("Gemini down")
+    mock_registry.providers["openrouter"].complete.side_effect = RuntimeError("OpenRouter down")
+
+    test_router = MultiLLMRouter(registry=mock_registry)
+    test_router.max_retries = 1
+    monkeypatch.setattr("src.agents.supervisor.router", test_router)
+    monkeypatch.setattr(test_router, "get_vector_context", AsyncMock(return_value=""))
+    monkeypatch.setattr(test_router, "log_quota_usage", AsyncMock())
+
+    state: AgentState = {
+        "goal": "Task destined to fail",
+        "current_step": 0,
+    }
+
+    result = await code_write_node(state)
+
+    # Verify error is surfaced and is_complete is False
+    assert result.get("error") is not None
+    assert "code_write_node error" in result["error"]
+    assert "All providers in fallback chain failed" in result["error"]
+    assert result["is_complete"] is False
+    # Ensure no fake code was generated
+    assert "code" not in result or result.get("code") is None
+
+
+@pytest.mark.asyncio
+async def test_vector_memory_context_injection(mock_registry, monkeypatch):
+    """Test 5: Semantic context retrieved from vector store is injected into prompt."""
+    test_router = MultiLLMRouter(registry=mock_registry)
+    test_router.max_retries = 1
+    monkeypatch.setattr("src.agents.supervisor.router", test_router)
+    monkeypatch.setattr(test_router, "log_quota_usage", AsyncMock())
+
+    # Mock Qdrant vector context returning relevant reference
+    mock_context = "Reference implementation: auth.verify_password(plain, hashed)"
+    monkeypatch.setattr(test_router, "get_vector_context", AsyncMock(return_value=mock_context))
+
+    state: AgentState = {
+        "goal": "Implement password verification helper",
+        "current_step": 0,
+    }
+
+    await code_write_node(state)
+
+    # Check the messages sent to the primary provider (Groq)
+    call_args = mock_registry.providers["groq"].complete.call_args[0][0]
+    system_msg = call_args.messages[0].content
+    assert "Relevant Codebase Context:" in system_msg
+    assert mock_context in system_msg
+
+
+def test_supervisor_graph_builds_and_compiles():
+    """Test 6: LangGraph StateGraph builds with all nodes and conditional routing."""
+    graph = build_supervisor_graph()
+    assert graph is not None
+    assert hasattr(graph, "invoke") or hasattr(graph, "ainvoke")

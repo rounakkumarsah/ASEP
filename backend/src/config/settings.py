@@ -144,6 +144,7 @@ class Settings(BaseSettings):
     # Groq & OpenRouter
     GROQ_API_KEY: str | None = Field(default=None, description="Groq API Key for Whisper / LLMs")
     OPENROUTER_API_KEY: str | None = Field(default=None, description="OpenRouter API Key")
+    LLM_RETRY_ATTEMPTS: int = Field(default=3, description="Maximum retry attempts per provider with exponential backoff")
     AI_PROVIDER_PRIORITY: str = Field(
         default="gemini,groq,openrouter,openai,ollama",
         description="Comma-separated provider order for AI runtime fallback chain."

@@ -16,11 +16,13 @@ import uvicorn
 
 from src.api.app import create_app
 from src.config.settings import get_settings
+from src.middleware.quota_middleware import QuotaEnforcementMiddleware
 
 # ---------------------------------------------------------------------------
 # Application instance (imported by uvicorn / gunicorn)
 # ---------------------------------------------------------------------------
 app = create_app()
+app.add_middleware(QuotaEnforcementMiddleware)
 
 
 # ---------------------------------------------------------------------------

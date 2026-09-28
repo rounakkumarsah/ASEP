@@ -41,30 +41,31 @@ export default function MetricsPage() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
   const [timeFilter, setTimeFilter] = React.useState("1h");
-  const DEFAULT_DEMO_METRICS: MetricsData = {
-    requests_total: 1248,
-    request_latency_sum: 15.4,
+  const EMPTY_METRICS: MetricsData = {
+    requests_total: 0,
+    request_latency_sum: 0,
     errors_total: 0,
     error_rate: 0,
-    active_sessions: 4,
+    active_sessions: 0,
     pending_tasks: 0,
     system: {
-      process_cpu_percent: 2.8,
-      process_memory_rss_bytes: 68 * 1024 * 1024,
+      process_cpu_percent: 0,
+      process_memory_rss_bytes: 0,
     },
   };
 
   const fetchMetrics = async () => {
-    setError("");
     try {
-      const res = await apiClient.get("/metrics");
-      if (res.data) {
+      const res = await apiClient.get("/api/v1/metrics");
+      if (res.data && typeof res.data === "object" && typeof res.data.requests_total === "number") {
         setMetrics(res.data);
+        setError("");
       } else {
-        setMetrics(DEFAULT_DEMO_METRICS);
+        setMetrics(prev => prev || EMPTY_METRICS);
       }
-    } catch {
-      setMetrics(DEFAULT_DEMO_METRICS);
+    } catch (err: unknown) {
+      setError("Unable to connect to live telemetry stream. Retrying...");
+      setMetrics(prev => prev || EMPTY_METRICS);
     } finally {
       setLoading(false);
     }

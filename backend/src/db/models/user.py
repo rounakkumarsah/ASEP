@@ -15,6 +15,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     String,
     Uuid,
     func,
@@ -178,6 +179,13 @@ class User(TimestampMixin, Base):
         default="free",
         nullable=True,
         doc="User active subscription plan tier (free, pro, enterprise).",
+    )
+
+    monthly_token_quota: Mapped[int | None] = mapped_column(
+        Integer,
+        default=100000,
+        nullable=True,
+        doc="Monthly token quota limit for user. Defaults to 100,000.",
     )
 
     # -----------------------------------------------------------------------

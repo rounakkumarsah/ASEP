@@ -139,41 +139,6 @@ interface NotificationItem {
   read: boolean;
 }
 
-const INITIAL_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: "n1",
-    title: "Agent Supervisor Online",
-    message: "LangGraph autonomous agent swarm ready for instructions.",
-    time: "Just now",
-    type: "success",
-    read: false,
-  },
-  {
-    id: "n2",
-    title: "Zero-Trust Sandbox Enforced",
-    message: "Network egress and safe tool policy filters actively running.",
-    time: "12m ago",
-    type: "info",
-    read: false,
-  },
-  {
-    id: "n3",
-    title: "System Cluster Healthy",
-    message: "99.9% uptime reported across all backend execution pods.",
-    time: "45m ago",
-    type: "success",
-    read: false,
-  },
-  {
-    id: "n4",
-    title: "Daily Quota Active",
-    message: "Free tier active: 10 daily agent runs available for your workspace.",
-    time: "2h ago",
-    type: "info",
-    read: false,
-  },
-];
-
 export function DashboardHeader() {
   const [isOpen, setIsOpen] = React.useState(false);
   const [isProfileOpen, setIsProfileOpen] = React.useState(false);
@@ -181,7 +146,7 @@ export function DashboardHeader() {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [selectedSearchIndex, setSelectedSearchIndex] = React.useState(0);
   const [isNotificationsOpen, setIsNotificationsOpen] = React.useState(false);
-  const [notifications, setNotifications] = React.useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
+  const [notifications, setNotifications] = React.useState<NotificationItem[]>([]);
 
   const pathname = usePathname();
   const searchParams = useSearchParams();

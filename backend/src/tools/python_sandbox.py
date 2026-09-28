@@ -38,9 +38,26 @@ class PythonSandboxTool(BaseTool):
                 client = docker.from_env()
                 client.ping()
             except Exception as docker_exc:
+                logger.info(
+                    "Docker daemon unreachable (%s), falling back to in-process RestrictedExecutor sandbox.",
+                    docker_exc,
+                )
+                from src.services.restricted_code_sandbox import RestrictedExecutor
+
+                res = await RestrictedExecutor.execute(inputs.code, timeout=30.0)
+                if res["success"]:
+                    return ToolExecutionOutput(
+                        success=True,
+                        data={
+                            "output": res["stdout"],
+                            "result": res["result"],
+                            "execution_mode": "restricted_python",
+                            "execution_time_ms": res["execution_time_ms"],
+                        },
+                    )
                 return ToolExecutionOutput(
                     success=False,
-                    error=f"Docker daemon is not running or unreachable. Sandbox execution is required: {docker_exc}",
+                    error=res.get("error") or "Execution failed in sandbox",
                 )
 
             # We write the code to a temporary file in the workspace or host /tmp

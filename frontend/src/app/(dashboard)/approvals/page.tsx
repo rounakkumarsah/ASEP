@@ -35,27 +35,6 @@ interface ApprovalFile {
 
 import { MonacoDiffViewer } from "@/components/MonacoDiffViewer";
 
-const DEFAULT_DEMO_APPROVALS: ReviewSession[] = [
-  {
-    session_id: "sess_hitl_9021",
-    tool_name: "filesystem_write",
-    args: { path: "/etc/hosts", content: "127.0.0.1 custom_host" },
-    status: "pending",
-    notes: "Policy violation: Root directory write restriction",
-    reviewer: "pending",
-    created_at: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
-  },
-  {
-    session_id: "sess_hitl_9022",
-    tool_name: "network_egress",
-    args: { host: "unverified-api.internal", port: 443 },
-    status: "escalated",
-    notes: "Policy violation: Sovereign air-gap egress boundary",
-    reviewer: "pending",
-    created_at: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-  },
-];
-
 export default function ApprovalsPage() {
   const { user } = useAuth();
   const [queue, setQueue] = React.useState<ReviewSession[]>([]);
@@ -72,18 +51,18 @@ export default function ApprovalsPage() {
     setError("");
     try {
       const res = await apiClient.get("/api/v1/governance/hitl/queue");
-      const sessions = res.data && Array.isArray(res.data) && res.data.length > 0 ? res.data : DEFAULT_DEMO_APPROVALS;
+      const sessions = res.data && Array.isArray(res.data) ? res.data : [];
       setQueue(sessions);
       
       const pending = sessions.filter((item: ReviewSession) => item.status === "pending" || item.status === "escalated");
       if (pending.length > 0 && !activeSessionId) {
         setActiveSessionId(pending[0].session_id);
+      } else if (pending.length === 0) {
+        setActiveSessionId(null);
       }
     } catch {
-      setQueue(DEFAULT_DEMO_APPROVALS);
-      if (!activeSessionId) {
-        setActiveSessionId(DEFAULT_DEMO_APPROVALS[0].session_id);
-      }
+      setQueue([]);
+      setActiveSessionId(null);
     } finally {
       setLoading(false);
     }
@@ -97,27 +76,13 @@ export default function ApprovalsPage() {
     setLoadingFiles(true);
     try {
       const res = await apiClient.get(`/api/v1/sessions/${sessId}/approvals/pending`);
-      if (res.data && res.data.files) {
+      if (res.data && Array.isArray(res.data.files)) {
         setActiveFiles(res.data.files);
       } else {
-        // Fallback mockup if no files are bound to the session yet
-        setActiveFiles([
-          {
-            path: "main.py",
-            original: "# No modifications yet\nprint('hello')",
-            modified: "# Modifications added\nprint('hello world')",
-          }
-        ]);
+        setActiveFiles([]);
       }
     } catch {
-      // Mockup default values if endpoint fails
-      setActiveFiles([
-        {
-          path: "main.py",
-          original: "def execute():\n    pass",
-          modified: "def execute():\n    print('Approved Execution')",
-        }
-      ]);
+      setActiveFiles([]);
     } finally {
       setLoadingFiles(false);
     }

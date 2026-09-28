@@ -108,7 +108,33 @@ class SandboxRunner:
             res.duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
             return res
 
-        # 2. Subprocess sandbox fallback
+        # 2. In-process RestrictedPython sandbox execution
+        try:
+            from src.services.restricted_code_sandbox import RestrictedExecutor
+
+            sb_res = RestrictedExecutor.execute_sync(code, timeout=timeout_seconds)
+            if sb_res["success"]:
+                return SandboxRunResult(
+                    exit_code=0,
+                    stdout=sb_res["stdout"],
+                    stderr="",
+                    duration_ms=round((time.perf_counter() - start_time) * 1000, 2),
+                    timed_out=False,
+                    execution_mode="restricted_python",
+                )
+            elif sb_res.get("security_violation"):
+                return SandboxRunResult(
+                    exit_code=1,
+                    stdout="",
+                    stderr=sb_res.get("error", "Security violation"),
+                    duration_ms=round((time.perf_counter() - start_time) * 1000, 2),
+                    timed_out=False,
+                    execution_mode="restricted_python",
+                )
+        except Exception as exc:
+            logger.debug("RestrictedExecutor execution skipped: %s", exc)
+
+        # 3. Subprocess fallback
         res = cls._run_subprocess(code, filename, timeout_seconds)
         res.duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
         return res
