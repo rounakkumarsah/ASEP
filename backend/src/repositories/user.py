@@ -25,8 +25,14 @@ class UserRepository(BaseRepository[User, uuid.UUID]):
 
     async def get_by_email(self, email: str) -> User | None:
         """Get a user by email (normalized and case-insensitive)."""
-        from sqlalchemy import func
+        from sqlalchemy import func, or_
         clean_email = normalize_email(email)
-        stmt = select(User).where(func.lower(User.email) == clean_email)
+        raw_email = email.strip().lower() if email else ""
+        if not clean_email and not raw_email:
+            return None
+        if clean_email != raw_email and raw_email:
+            stmt = select(User).where(or_(func.lower(User.email) == clean_email, func.lower(User.email) == raw_email))
+        else:
+            stmt = select(User).where(func.lower(User.email) == clean_email)
         result = await self._session.execute(stmt)
         return result.scalars().first()

@@ -238,7 +238,7 @@ async def invite_member(
     if not org:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found.")
 
-    valid_roles = {"owner", "admin", "developer", "manager", "billing", "viewer"}
+    valid_roles = {"owner", "admin", "developer", "manager", "billing", "viewer", "user"}
     role = payload.role.lower()
     if role not in valid_roles:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid role. Must be one of: {', '.join(valid_roles)}")

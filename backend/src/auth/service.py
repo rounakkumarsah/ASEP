@@ -692,7 +692,8 @@ class AuthService:
                 await uow.commit()
                 return user
 
-            user = await uow.users.get_by_email(profile.email)
+            clean_email = normalize_email(profile.email)
+            user = await uow.users.get_by_email(clean_email)
             if user:
                 user.oauth_provider = profile.provider
                 user.oauth_id = profile.oauth_id
@@ -704,7 +705,7 @@ class AuthService:
                 await uow.commit()
                 return user
 
-            username_base = profile.email.split("@")[0]
+            username_base = clean_email.split("@")[0] if clean_email else profile.email.split("@")[0]
             username = username_base
             counter = 1
             while await uow.users.get_by_username(username):
@@ -718,7 +719,7 @@ class AuthService:
             new_user = UserModel(
                 id=uuid.uuid4(),
                 username=username,
-                email=profile.email,
+                email=clean_email or profile.email,
                 first_name=first_name,
                 last_name=last_name,
                 hashed_password=None,
@@ -726,9 +727,12 @@ class AuthService:
                 oauth_id=profile.oauth_id,
                 avatar_url=profile.avatar_url,
                 email_verified=True,
-                role="developer",
+                role="user",
                 status="active",
                 is_active=True,
+                account_type="individual",
+                current_plan="free",
+                monthly_token_quota=100000,
                 last_login=datetime.datetime.now(datetime.UTC),
             )
             created = await uow.users.create(new_user)

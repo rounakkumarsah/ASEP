@@ -162,5 +162,16 @@ def test_normalize_email_rounak_variations():
     """Verify Gmail dot normalization for Rounak's addresses."""
     assert normalize_email("rounak.kr.sah429@gmail.com") == "rounakkrsah429@gmail.com"
     assert normalize_email("Rounak.Kumar4294@gmail.com") == "rounakkumar4294@gmail.com"
+    assert normalize_email("rounak.kr.sah429+test@gmail.com") == "rounakkrsah429@gmail.com"
+    assert normalize_email(None) == ""
+    assert normalize_email("") == ""
+    assert normalize_email("user.name@otherdomain.com") == "user.name@otherdomain.com"
 
 
+def test_user_model_defaults_standard():
+    """Verify User model default plan, quota, and account_type."""
+    from src.db.models.user import User
+
+    assert User.__table__.c.account_type.default.arg == "individual"
+    assert User.__table__.c.current_plan.default.arg == "free"
+    assert User.__table__.c.monthly_token_quota.default.arg == 100000
