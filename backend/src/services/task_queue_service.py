@@ -87,7 +87,7 @@ class BackgroundTaskQueue:
             return self._scheduler
 
         jobstores: dict[str, Any] = {}
-        raw_url = getattr(self.settings, "DATABASE_URL", "")
+        raw_url = getattr(self.settings, "DATABASE_URL", "") or ""
         sync_url = (
             raw_url.replace("postgresql+asyncpg://", "postgresql+psycopg://")
             .replace("postgres://", "postgresql://")
@@ -148,10 +148,11 @@ class BackgroundTaskQueue:
 
         # Schedule automatic daily cleanup of jobs older than 7 days
         try:
-            if sched.running and not sched.get_job("daily_job_cleanup"):
+            active_sched = self._scheduler
+            if active_sched and active_sched.running and not active_sched.get_job("daily_job_cleanup"):
                 from src.agents.supervisor import cleanup_completed_jobs
 
-                sched.add_job(
+                active_sched.add_job(
                     cleanup_completed_jobs,
                     "interval",
                     hours=24,
@@ -324,16 +325,30 @@ class BackgroundTaskQueue:
             job_ids = result.scalars().all()
 
             for jid in job_ids:
-                try:
-                    self.scheduler.add_job(
-                        run_agent_job,
-                        args=[str(jid)],
-                        id=str(jid),
-                        replace_existing=True,
+                if not APSCHEDULER_AVAILABLE or self.scheduler is None:
+                    logger.warning(
+                        "APScheduler not available, falling back to asyncio task execution for recovered job %s",
+                        jid,
                     )
+                    asyncio.create_task(run_agent_job(str(jid)))
                     recovered_count += 1
-                except Exception as exc:
-                    logger.error("Failed to recover job %s: %s", jid, exc)
+                else:
+                    try:
+                        self.scheduler.add_job(
+                            run_agent_job,
+                            args=[str(jid)],
+                            id=str(jid),
+                            replace_existing=True,
+                        )
+                        recovered_count += 1
+                    except Exception as exc:
+                        logger.warning(
+                            "Failed to recover job %s with scheduler (%s), falling back to asyncio task",
+                            jid,
+                            exc,
+                        )
+                        asyncio.create_task(run_agent_job(str(jid)))
+                        recovered_count += 1
 
         logger.info("Recovered %d interrupted jobs on startup.", recovered_count)
         return recovered_count

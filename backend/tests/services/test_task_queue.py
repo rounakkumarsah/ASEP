@@ -388,3 +388,48 @@ async def test_auto_cleanup_7_day_retention(setup_test_db, test_queue):
     # Old job should be purged, recent job preserved
     assert await test_queue.get_job_status(old_job_id) is None
     assert await test_queue.get_job_status(recent_job_id) == "completed"
+
+
+@pytest.mark.asyncio
+async def test_apscheduler_unavailable_fallback_enqueue_and_recovery(setup_test_db, monkeypatch):
+    """Verifies graceful fallback to asyncio.create_task when APScheduler is unavailable."""
+    import src.services.task_queue_service as tqs
+
+    monkeypatch.setattr(tqs, "APSCHEDULER_AVAILABLE", False)
+
+    fallback_queue = tqs.BackgroundTaskQueue(scheduler=None)
+    assert fallback_queue.scheduler is None
+
+    # start() should be safe no-op
+    fallback_queue.start()
+
+    run_jobs = []
+
+    async def mock_run_agent_job(job_id: str):
+        run_jobs.append(job_id)
+
+    monkeypatch.setattr(tqs, "run_agent_job", mock_run_agent_job)
+
+    job_id = await fallback_queue.enqueue_agent_execution(
+        user_id=uuid.uuid4(),
+        spec={"prompt": "Test fallback execution"},
+        workspace_id="ws-fallback",
+    )
+    assert job_id is not None
+    await asyncio.sleep(0.01)
+    assert str(job_id) in run_jobs
+
+    # Recovery of interrupted jobs should also succeed via fallback
+    session_factory = setup_test_db
+    user_id = uuid.uuid4()
+    job_rec = uuid.uuid4()
+    async with session_factory() as session:
+        session.add(QueueJob(id=job_rec, user_id=user_id, workspace_id="ws-fallback", status="pending", spec={}))
+        await session.commit()
+
+    recovered = await fallback_queue.recover_pending_jobs()
+    assert recovered == 2  # The pending job from enqueue plus job_rec
+    await asyncio.sleep(0.01)
+    assert str(job_rec) in run_jobs
+
+
