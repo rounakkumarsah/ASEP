@@ -156,7 +156,11 @@ export default function LoginPage() {
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        setError(errorData.detail || "Invalid email or password");
+        if (res.status >= 500) {
+          setError(errorData.detail || "Authentication service temporarily unavailable. Please try again.");
+        } else {
+          setError(errorData.detail || "Invalid email or password");
+        }
         turnstileRef.current?.reset();
         setIsSubmitting(false);
         return;

@@ -108,6 +108,8 @@ class AuthService:
         async with self.user_service._uow_factory() as uow:
             user = await uow.users.get_by_email(clean_email)
             if not user:
+                user = await uow.users.get_by_username(email.strip())
+            if not user:
                 return None, "INVALID_CREDENTIALS"
 
             if not user.hashed_password or not verify_password(password, user.hashed_password):

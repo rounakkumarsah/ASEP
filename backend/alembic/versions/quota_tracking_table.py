@@ -1,7 +1,7 @@
 """add user_quota_logs table and monthly_token_quota column
 
 Revision ID: q1u2o3t4a5l6
-Revises: f1b2c3d4e5f6
+Revises: eea51b074ec7
 Create Date: 2026-09-27 16:30:00.000000
 
 """
@@ -13,7 +13,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "q1u2o3t4a5l6"
-down_revision: str | Sequence[str] | None = "f1b2c3d4e5f6"
+down_revision: str | Sequence[str] | None = "eea51b074ec7"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
