@@ -43,6 +43,7 @@ _ROLE_TOOL_PERMISSIONS: dict[Role, list[str]] = {
     Role.VIEWER:    [],
     Role.OPERATOR:  [ToolPermission.SYS_INFO],
     Role.DEVELOPER: [ToolPermission.SYS_INFO, ToolPermission.FS_READ],
+    Role.USER:      [ToolPermission.SYS_INFO, ToolPermission.FS_READ],
     Role.ADMIN:     [ToolPermission.SYS_INFO, ToolPermission.FS_READ, ToolPermission.FS_WRITE, ToolPermission.WEB_SEARCH],
     Role.SYSTEM:    [ToolPermission.SYS_INFO, ToolPermission.FS_READ, ToolPermission.FS_WRITE, ToolPermission.WEB_SEARCH],
 }

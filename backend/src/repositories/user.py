@@ -6,6 +6,7 @@ import uuid
 
 from sqlalchemy import select
 
+from src.auth.utils import normalize_email
 from src.db.models.user import User
 from src.repositories.base import BaseRepository
 
@@ -23,9 +24,9 @@ class UserRepository(BaseRepository[User, uuid.UUID]):
         return result.scalars().first()
 
     async def get_by_email(self, email: str) -> User | None:
-        """Get a user by email (case-insensitive)."""
+        """Get a user by email (normalized and case-insensitive)."""
         from sqlalchemy import func
-        clean_email = email.strip().lower()
+        clean_email = normalize_email(email)
         stmt = select(User).where(func.lower(User.email) == clean_email)
         result = await self._session.execute(stmt)
         return result.scalars().first()

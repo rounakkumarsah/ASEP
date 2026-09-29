@@ -12,4 +12,5 @@ class Role(StrEnum):
     DEVELOPER = "developer"
     OPERATOR = "operator"
     VIEWER = "viewer"
+    USER = "user"
     SYSTEM = "system"

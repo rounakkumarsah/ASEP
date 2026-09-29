@@ -140,3 +140,27 @@ def test_schemas_remember_me_aliasing():
     r2 = RefreshTokenRequest(rememberMe=False)
     assert r2.remember_me is False
 
+
+def test_role_user_rbac_policies():
+    """Verify Role.USER exists and has DEVELOPER_PERMISSIONS."""
+    from src.auth.policies import DEVELOPER_PERMISSIONS, ROLE_PERMISSIONS, get_permissions_for_role
+    from src.auth.roles import Role
+
+    assert Role.USER == "user"
+    assert ROLE_PERMISSIONS[Role.USER] == DEVELOPER_PERMISSIONS
+    assert get_permissions_for_role("user") == DEVELOPER_PERMISSIONS
+
+
+def test_user_model_default_role():
+    """Verify default role in User model is 'user'."""
+    from src.db.models.user import User
+
+    assert User.__table__.c.role.default.arg == "user"
+
+
+def test_normalize_email_rounak_variations():
+    """Verify Gmail dot normalization for Rounak's addresses."""
+    assert normalize_email("rounak.kr.sah429@gmail.com") == "rounakkrsah429@gmail.com"
+    assert normalize_email("Rounak.Kumar4294@gmail.com") == "rounakkumar4294@gmail.com"
+
+

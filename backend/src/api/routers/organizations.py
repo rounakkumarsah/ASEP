@@ -349,7 +349,7 @@ async def update_member_role(
     if not org or org.owner_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the owner can update member roles.")
 
-    valid_roles = {"owner", "admin", "developer", "manager", "billing", "viewer"}
+    valid_roles = {"owner", "admin", "developer", "manager", "billing", "viewer", "user"}
     if payload.role.lower() not in valid_roles:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid role. Must be one of: {', '.join(valid_roles)}")
 

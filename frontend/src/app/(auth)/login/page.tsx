@@ -74,28 +74,6 @@ export default function LoginPage() {
   const handleGithubLogin = () => handleOAuthLogin("github");
   const handleGoogleLogin = () => handleOAuthLogin("google");
 
-  const handleDemoAccess = () => {
-    setIsSubmitting(true);
-    const demoUser = {
-      id: "usr_guest_demo_001",
-      username: "demo_evaluator",
-      email: "demo@asep.dev",
-      role: "admin",
-      first_name: "Demo",
-      last_name: "Evaluator",
-      company: "Sovereign Systems Preview",
-      email_verified: true,
-      mfa_enabled: false,
-      account_type: "enterprise",
-      current_plan: "Enterprise Scale",
-      timezone: "UTC",
-      locale: "en-US",
-    };
-    setTimeout(() => {
-      login("demo-guest-token-evaluator", demoUser, true);
-    }, 300);
-  };
-
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -265,7 +243,7 @@ export default function LoginPage() {
                       <FormLabel className="text-xs font-mono font-semibold uppercase text-[#9CA6B5]">Email or Username</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="admin or email"
+                          placeholder="name@company.com or username"
                           autoComplete="email"
                           className="border-[#202833] bg-[#090B0F] text-[#F5F7FA] h-9 text-xs"
                           {...field}
@@ -367,25 +345,6 @@ export default function LoginPage() {
                   ) : (
                     "Sign In"
                   )}
-                </Button>
-
-                <div className="relative my-3">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-[#202833]" />
-                  </div>
-                  <div className="relative flex justify-center text-[10px] uppercase font-mono">
-                    <span className="bg-[#0D1117] px-2 text-[#667085]">or direct preview</span>
-                  </div>
-                </div>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleDemoAccess}
-                  disabled={isSubmitting}
-                  className="w-full text-xs font-mono font-semibold border-[#22D3EE]/40 text-[#22D3EE] hover:bg-[#22D3EE]/10 h-10 gap-2"
-                >
-                  ⚡ Instant Demo Access (Admin Preview)
                 </Button>
               </form>
             </Form>

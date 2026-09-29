@@ -30,19 +30,7 @@ from src.services.user_service import UserService
 logger = logging.getLogger(__name__)
 
 from src.auth.username import RESERVED_USERNAMES
-
-
-def normalize_email(email: str) -> str:
-    """Normalize email address: trim, lowercase, and handle Gmail dot/plus normalization."""
-    clean = email.strip().lower()
-    parts = clean.split("@")
-    if len(parts) == 2:
-        local_part, domain = parts[0], parts[1]
-        if domain in ["gmail.com", "googlemail.com"]:
-            # Remove dots and plus-tags for Gmail domain
-            local_part = local_part.split("+")[0].replace(".", "")
-            return f"{local_part}@{domain}"
-    return clean
+from src.auth.utils import normalize_email
 
 
 def _generate_totp_secret() -> str:
@@ -196,7 +184,7 @@ class AuthService:
                 company=data.company.strip() if data.company else None,
                 email=clean_email,
                 hashed_password=hashed_pass,
-                role="developer",
+                role="user",
                 status="active",
                 email_verified=False,
                 is_active=True,
@@ -277,7 +265,7 @@ class AuthService:
 
     async def verify_email_code(self, email: str | None = None, code: str | None = None, token: str | None = None) -> bool:
         """Verify the email activation code or token and mark user as verified."""
-        clean_email = email.strip().lower() if email else None
+        clean_email = normalize_email(email) if email else None
         clean_code = str(code).strip() if code is not None else None
         clean_token = token.strip() if token else None
 
@@ -296,9 +284,10 @@ class AuthService:
                 try:
                     email_bytes = await redis.get(f"email_verify_token:{clean_token}")
                     if email_bytes:
-                        resolved_email = (
+                        raw_email = (
                             email_bytes if isinstance(email_bytes, str) else email_bytes.decode("utf-8")
-                        ).strip().lower()
+                        ).strip()
+                        resolved_email = normalize_email(raw_email)
                         await redis.delete(f"email_verify_token:{clean_token}")
                 except Exception as exc:
                     logger.warning("Redis token lookup failed: %s", exc)
@@ -387,7 +376,7 @@ class AuthService:
     async def generate_email_verify_code(self, email: str) -> str:
         """Generate verification code, store in Redis, and send verify email."""
         import uuid
-        clean_email = email.strip().lower()
+        clean_email = normalize_email(email)
         settings = get_settings()
 
         redis = None
@@ -426,7 +415,7 @@ class AuthService:
 
     async def resend_verification_code(self, email: str) -> bool:
         """Regenerate verification code, store in Redis, and send resend email."""
-        clean_email = email.strip().lower()
+        clean_email = normalize_email(email)
         async with self.user_service._uow_factory() as uow:
             user = await uow.users.get_by_email(clean_email)
             if not user or user.email_verified:
@@ -465,7 +454,7 @@ class AuthService:
 
     async def generate_password_reset_token(self, email: str) -> str | None:
         """Generate and store password reset token in Redis, and send forgot password email."""
-        clean_email = email.strip().lower()
+        clean_email = normalize_email(email)
         async with self.user_service._uow_factory() as uow:
             user = await uow.users.get_by_email(clean_email)
             if not user:
@@ -499,8 +488,9 @@ class AuthService:
         if not email:
             return False
 
+        clean_email = normalize_email(email)
         async with self.user_service._uow_factory() as uow:
-            user = await uow.users.get_by_email(email)
+            user = await uow.users.get_by_email(clean_email)
             if not user:
                 return False
             user.hashed_password = get_password_hash(password)
@@ -512,7 +502,7 @@ class AuthService:
                 await redis.delete(f"password_reset_token:{token}")
 
         # Send password changed confirmation email
-        await self.email_service.send_password_changed_email(email)
+        await self.email_service.send_password_changed_email(clean_email)
         return True
 
     async def revoke_tokens(self, access_token: str, refresh_token: str | None = None) -> None:

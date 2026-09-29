@@ -103,7 +103,7 @@ class User(TimestampMixin, Base):
 
     role: Mapped[str] = mapped_column(
         String(50),
-        default="viewer",
+        default="user",
         nullable=False,
         doc="RBAC role assigned to the user.",
     )
