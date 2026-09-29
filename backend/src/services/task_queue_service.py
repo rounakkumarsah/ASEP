@@ -23,9 +23,16 @@ import logging
 import uuid
 from typing import Any
 
-from apscheduler.jobstores.memory import MemoryJobStore
-from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+try:
+    from apscheduler.jobstores.memory import MemoryJobStore
+    from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+    from apscheduler.schedulers.asyncio import AsyncIOScheduler
+    APSCHEDULER_AVAILABLE = True
+except ImportError:
+    MemoryJobStore = None  # type: ignore[assignment,misc]
+    SQLAlchemyJobStore = None  # type: ignore[assignment,misc]
+    AsyncIOScheduler = None  # type: ignore[assignment,misc]
+    APSCHEDULER_AVAILABLE = False
 from sqlalchemy import func, select
 
 from src.config.settings import get_settings
@@ -70,15 +77,19 @@ class BackgroundTaskQueue:
         self._scheduler = scheduler
         self._initialized = False
 
-    def _init_scheduler(self) -> AsyncIOScheduler:
+    def _init_scheduler(self) -> AsyncIOScheduler | None:
         """Initialize APScheduler with PostgreSQL job store and memory fallback."""
+        if not APSCHEDULER_AVAILABLE:
+            logger.warning("APScheduler is not available; task execution falls back to asyncio.create_task.")
+            return None
+
         if self._scheduler is not None:
             return self._scheduler
 
         jobstores: dict[str, Any] = {}
         raw_url = getattr(self.settings, "DATABASE_URL", "")
         sync_url = (
-            raw_url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
+            raw_url.replace("postgresql+asyncpg://", "postgresql+psycopg://")
             .replace("postgres://", "postgresql://")
         )
 
@@ -98,14 +109,20 @@ class BackgroundTaskQueue:
         return self._scheduler
 
     @property
-    def scheduler(self) -> AsyncIOScheduler:
-        if self._scheduler is None:
+    def scheduler(self) -> AsyncIOScheduler | None:
+        if self._scheduler is None and APSCHEDULER_AVAILABLE:
             self._init_scheduler()
-        return self._scheduler  # type: ignore[return-value]
+        return self._scheduler
 
     def start(self) -> None:
         """Start the background task scheduler."""
+        if not APSCHEDULER_AVAILABLE:
+            logger.warning("APScheduler is not available; task execution falls back to asyncio.create_task.")
+            return
+
         sched = self.scheduler
+        if sched is None:
+            return
         if not sched.running:
             try:
                 # Verify that an asyncio event loop is currently running
@@ -214,18 +231,22 @@ class BackgroundTaskQueue:
             await session.commit()
 
         # 3. Register job in APScheduler
-        self.start()
-        try:
-            self.scheduler.add_job(
-                run_agent_job,
-                args=[str(job_id)],
-                id=str(job_id),
-                replace_existing=True,
-            )
-        except Exception as exc:
-            # Fallback to direct asyncio task if scheduler jobstore fails
-            logger.warning("APScheduler job registration failed (%s), falling back to asyncio task", exc)
+        if not APSCHEDULER_AVAILABLE or self.scheduler is None:
+            logger.warning("APScheduler not available, falling back to asyncio task execution for job %s", job_id)
             asyncio.create_task(run_agent_job(str(job_id)))
+        else:
+            self.start()
+            try:
+                self.scheduler.add_job(
+                    run_agent_job,
+                    args=[str(job_id)],
+                    id=str(job_id),
+                    replace_existing=True,
+                )
+            except Exception as exc:
+                # Fallback to direct asyncio task if scheduler jobstore fails
+                logger.warning("APScheduler job registration failed (%s), falling back to asyncio task", exc)
+                asyncio.create_task(run_agent_job(str(job_id)))
 
         logger.info(
             "Enqueued agent execution job %s for workspace %s",

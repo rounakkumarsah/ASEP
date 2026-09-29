@@ -260,6 +260,9 @@ def create_app() -> FastAPI:
 
     app.add_middleware(StructuredLoggingMiddleware)
 
+    from src.middleware.quota_middleware import QuotaEnforcementMiddleware
+    app.add_middleware(QuotaEnforcementMiddleware)
+
     from collections.abc import Awaitable, Callable
 
     from fastapi import Request, Response

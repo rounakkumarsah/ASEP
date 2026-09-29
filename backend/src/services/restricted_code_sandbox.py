@@ -25,7 +25,7 @@ from typing import Any
 
 from RestrictedPython import PrintCollector, compile_restricted
 
-from config.sandbox_config import (
+from src.config.sandbox_config import (
     DEFAULT_SANDBOX_TIMEOUT_SECONDS,
     DISALLOWED_BUILTINS,
     create_safe_builtins,

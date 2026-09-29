@@ -2,6 +2,7 @@ absl-py==2.5.0
 alembic==1.18.5
 annotated-doc==0.0.4
 annotated-types==0.7.0
+APScheduler==3.11.3
 anyio==4.14.2
 argon2-cffi==25.1.0
 argon2-cffi-bindings==25.1.0
@@ -133,6 +134,7 @@ referencing==0.37.0
 requests==2.34.2
 requests-toolbelt==1.0.0
 resend==2.34.0
+RestrictedPython==8.5
 rfc3339-validator==0.1.4
 rfc3986-validator==0.1.1
 rfc3987-syntax==1.1.0
