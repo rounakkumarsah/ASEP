@@ -426,7 +426,11 @@ export function CenterWorkspace() {
   const [cmdIndex, setCmdIndex] = React.useState(0);
 
   const handleCopyMessage = (content: string) => {
-    navigator.clipboard.writeText(content.trim());
+    const textOnly = content
+      .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .trim();
+    navigator.clipboard.writeText(textOnly);
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
