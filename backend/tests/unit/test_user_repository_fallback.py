@@ -79,6 +79,37 @@ async def test_user_repository_fallback_on_get_by_username():
 
 
 @pytest.mark.asyncio
+async def test_user_repository_fallback_on_get():
+    """Verify UserRepository fallback works for get by primary key."""
+    session_mock = AsyncMock()
+
+    error_msg = "column users.monthly_token_quota does not exist"
+    programming_error = ProgrammingError("statement", {}, Exception(error_msg))
+
+    user_id = uuid.uuid4()
+    mock_user = User(
+        id=user_id,
+        email="test3@example.com",
+        username="testuser3",
+    )
+
+    session_mock.get.side_effect = [
+        programming_error,
+        mock_user,
+    ]
+
+    repo = UserRepository(session_mock)
+
+    user = await repo.get(user_id)
+
+    assert user is not None
+    assert user.id == user_id
+    session_mock.rollback.assert_awaited_once()
+    assert session_mock.get.await_count == 2
+    assert user.monthly_token_quota == 100000
+
+
+@pytest.mark.asyncio
 async def test_user_repository_reraises_other_programming_errors():
     """Verify UserRepository does NOT catch unrelated ProgrammingErrors."""
     session_mock = AsyncMock()
@@ -93,3 +124,4 @@ async def test_user_repository_reraises_other_programming_errors():
 
     assert "syntax error" in str(exc_info.value)
     session_mock.rollback.assert_not_awaited()
+

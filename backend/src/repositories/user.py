@@ -36,6 +36,24 @@ class UserRepository(BaseRepository[User, uuid.UUID]):
                 return user
             raise
 
+    async def get(
+        self,
+        pk: uuid.UUID,
+        *options: Any,
+    ) -> User | None:
+        """Retrieve a user by primary key with defensive fallback."""
+        try:
+            return await super().get(pk, *options)
+        except ProgrammingError as exc:
+            if "monthly_token_quota" in str(exc):
+                await self._session.rollback()
+                opts = list(options) + [defer(User.monthly_token_quota)]
+                user = await super().get(pk, *opts)
+                if user is not None:
+                    user.__dict__["monthly_token_quota"] = 100000
+                return user
+            raise
+
     async def get_by_username(self, username: str) -> User | None:
         """Get a user by username (case-insensitive)."""
         clean_username = username.strip().lower()
