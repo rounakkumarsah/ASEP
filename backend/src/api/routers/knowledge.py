@@ -200,6 +200,42 @@ class DirectIndexRequest(BaseModel):
     tags: list[str] | None = None
 
 
+@router.get("/knowledge/documents")
+async def list_knowledge_documents(
+    query: str | None = None,
+) -> dict[str, Any]:
+    """List indexed documentation files for RAG and workspace."""
+    from src.knowledge.sync import get_sync_engine
+
+    engine = get_sync_engine()
+    docs = list(engine.documents.values())
+    if query:
+        q = query.lower()
+        docs = [
+            d for d in docs
+            if q in (d.source_name or "").lower() or q in (d.content or "").lower()
+        ]
+    items = [
+        {
+            "document_id": d.document_id,
+            "source_name": d.source_name,
+            "source_type": d.source_type,
+            "content": d.content,
+            "created_at": d.created_at,
+            "updated_at": d.updated_at,
+            "tags": ["knowledge", d.source_type],
+        }
+        for d in docs
+    ]
+    return {
+        "items": items,
+        "total": len(items),
+        "page": 1,
+        "size": max(50, len(items)),
+        "pages": 1,
+    }
+
+
 @router.post("/knowledge")
 @router.post("/knowledge/documents")
 async def index_knowledge_document(

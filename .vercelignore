@@ -16,11 +16,16 @@ logs/
 backend/logs/
 *.log
 
-# Coverage reports
+# Coverage reports and tests
 htmlcov/
 backend/htmlcov/
 .coverage
 backend/.coverage
+backend/tests/
+backend/*.html
+backend/*.log
+backend/*.pyc
+backend/attachments/
 
 # Dependencies and build directories
 node_modules/

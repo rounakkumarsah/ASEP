@@ -71,14 +71,16 @@ logger = logging.getLogger(__name__)
 try:
     import sentry_sdk
     from sentry_sdk.integrations.fastapi import FastApiIntegration
+    from sentry_sdk.integrations.logging import LoggingIntegration
 
     sentry_sdk.init(
         dsn="https://5c21de97f08fe501ade2875fc00e3678@o4511818217226240.ingest.us.sentry.io/4511818269065216",
         send_default_pii=True,
-        traces_sample_rate=1.0,
-        integrations=[FastApiIntegration()],
+        traces_sample_rate=0.1,
+        integrations=[FastApiIntegration(), LoggingIntegration()],
+        default_integrations=False,
     )
-    logger.info("Sentry SDK initialized with FastAPI integration.")
+    logger.info("Sentry SDK initialized with optimized FastAPI integration.")
 except Exception as exc:
     logger.warning("Failed to initialize Sentry SDK: %s", exc)
 
@@ -95,8 +97,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         1. Configure structured logging
         2. Initialize PostgreSQL connection pool
         3. Initialize Redis connection pool
-        4. Initialize Neo4j driver
-        5. Initialize Qdrant client
+        4. Initialize Neo4j driver (skipped on serverless to prevent cold-start stall)
+        5. Initialize Qdrant client (skipped on serverless to prevent cold-start stall)
         6. Initialize Postgres checkpointer (LangGraph durable persistence)
 
     Shutdown:
@@ -109,6 +111,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     )
 
     import asyncio
+    import os
+
+    is_serverless = bool(
+        os.environ.get("VERCEL")
+        or os.environ.get("SERVERLESS")
+        or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")
+    )
 
     # Initialize database connection pool
     try:
@@ -118,68 +127,71 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # Initialize redis pool — short timeout so cold start is non-blocking if Redis is unreachable
     try:
-        await asyncio.wait_for(init_redis(), timeout=2.0)
+        await asyncio.wait_for(init_redis(), timeout=1.0)
     except Exception as redis_exc:
         logger.warning("Redis initialization failed or timed out: %s", str(redis_exc))
 
-    # Initialize Neo4j driver — graceful degradation if unavailable at startup
-    try:
-        from src.graph.neo4j import close_neo4j, init_neo4j
+    # On serverless (e.g. Vercel), external heavy services and schedulers must not
+    # block cold-start HTTP requests with multi-second connection timeouts.
+    if not is_serverless:
+        # Initialize Neo4j driver — graceful degradation if unavailable at startup
+        try:
+            from src.graph.neo4j import init_neo4j
 
-        await asyncio.wait_for(init_neo4j(), timeout=2.0)
-        logger.info("Neo4j driver ready.")
-    except Exception as neo4j_exc:
-        logger.warning(
-            "Neo4j is unavailable at startup (%s). "
-            "The application will start in degraded mode — Graph endpoints will fail "
-            "until Neo4j becomes reachable.",
-            str(neo4j_exc),
-        )
+            await asyncio.wait_for(init_neo4j(), timeout=1.0)
+            logger.info("Neo4j driver ready.")
+        except Exception as neo4j_exc:
+            logger.warning(
+                "Neo4j is unavailable at startup (%s). "
+                "The application will start in degraded mode — Graph endpoints will fail "
+                "until Neo4j becomes reachable.",
+                str(neo4j_exc),
+            )
 
-    # Initialize Qdrant client — graceful degradation if unavailable at startup.
-    try:
-        from src.vector.qdrant import close_qdrant, init_qdrant
+        # Initialize Qdrant client — graceful degradation if unavailable at startup.
+        try:
+            from src.vector.qdrant import init_qdrant
 
-        await asyncio.wait_for(init_qdrant(), timeout=2.0)
-        from src.config.settings import get_settings as _get_settings
-        from src.vector.collections import create_collection_if_not_exists
-        from src.vector.qdrant import get_qdrant_client
+            await asyncio.wait_for(init_qdrant(), timeout=1.0)
+            from src.config.settings import get_settings as _get_settings
+            from src.vector.collections import create_collection_if_not_exists
+            from src.vector.qdrant import get_qdrant_client
 
-        _settings = _get_settings()
-        await create_collection_if_not_exists(
-            get_qdrant_client(),
-            collection_name=_settings.QDRANT_COLLECTION,
-            vector_size=_settings.QDRANT_VECTOR_SIZE,
-        )
-        logger.info(
-            "Qdrant ready — collection '%s' available.",
-            _settings.QDRANT_COLLECTION,
-        )
-    except Exception as qdrant_exc:
-        logger.warning(
-            "Qdrant is unavailable at startup (%s). "
-            "The application will start in degraded mode — RAG endpoints will fail "
-            "until Qdrant becomes reachable.",
-            str(qdrant_exc),
-        )
+            _settings = _get_settings()
+            await create_collection_if_not_exists(
+                get_qdrant_client(),
+                collection_name=_settings.QDRANT_COLLECTION,
+                vector_size=_settings.QDRANT_VECTOR_SIZE,
+            )
+            logger.info(
+                "Qdrant ready — collection '%s' available.",
+                _settings.QDRANT_COLLECTION,
+            )
+        except Exception as qdrant_exc:
+            logger.warning(
+                "Qdrant is unavailable at startup (%s). "
+                "The application will start in degraded mode — RAG endpoints will fail "
+                "until Qdrant becomes reachable.",
+                str(qdrant_exc),
+            )
 
-    # Initialize Postgres checkpointer (LangGraph durable persistence)
-    try:
-        from src.runtime import init_postgres_checkpointer
+        # Initialize Postgres checkpointer (LangGraph durable persistence)
+        try:
+            from src.runtime import init_postgres_checkpointer
 
-        await init_postgres_checkpointer()
-    except Exception as cp_exc:
-        logger.warning("Postgres checkpointer initialization failed: %s", cp_exc)
+            await init_postgres_checkpointer()
+        except Exception as cp_exc:
+            logger.warning("Postgres checkpointer initialization failed: %s", cp_exc)
 
-    # Initialize BackgroundTaskQueue and recover any pending jobs across restart
-    try:
-        from src.services.task_queue_service import get_task_queue
+        # Initialize BackgroundTaskQueue and recover any pending jobs across restart
+        try:
+            from src.services.task_queue_service import get_task_queue
 
-        tq = get_task_queue()
-        tq.start()
-        await tq.recover_pending_jobs()
-    except Exception as tq_exc:
-        logger.warning("BackgroundTaskQueue initialization failed: %s", tq_exc)
+            tq = get_task_queue()
+            tq.start()
+            await tq.recover_pending_jobs()
+        except Exception as tq_exc:
+            logger.warning("BackgroundTaskQueue initialization failed: %s", tq_exc)
 
     yield
 

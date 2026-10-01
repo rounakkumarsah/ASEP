@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "regions": ["sin1"],
   "builds": [
     {
       "src": "frontend/package.json",
@@ -12,7 +13,12 @@
         "maxDuration": 300,
         "runtime": "python3.12",
         "includeFiles": [
-          "backend/**",
+          "backend/src/**",
+          "backend/config/**",
+          "backend/skills/**",
+          "backend/main.py",
+          "backend/__init__.py",
+          "backend/requirements.txt",
           "api/**",
           "skills/**",
           "main.py"

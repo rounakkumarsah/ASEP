@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import time
 from collections.abc import AsyncGenerator
 from typing import Annotated
@@ -66,14 +67,20 @@ def _get_engine() -> AsyncEngine:
 
     db_url = settings.DATABASE_URL
 
+    is_serverless = bool(
+        os.environ.get("VERCEL")
+        or os.environ.get("SERVERLESS")
+        or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")
+    )
+
     _engine = create_async_engine(
         db_url,
         echo=settings.APP_ENV == "development",
-        # Connection pool settings
-        pool_size=20,
-        max_overflow=10,
-        pool_timeout=30,
-        pool_recycle=3600,
+        # Connection pool settings (conservative sizing for serverless)
+        pool_size=2 if is_serverless else 20,
+        max_overflow=3 if is_serverless else 10,
+        pool_timeout=10 if is_serverless else 30,
+        pool_recycle=300 if is_serverless else 3600,
         # Pre-ping ensures stale connections are recycled
         pool_pre_ping=True,
         # Driver-specific settings for asyncpg
