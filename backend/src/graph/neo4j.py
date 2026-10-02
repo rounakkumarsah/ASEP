@@ -79,7 +79,12 @@ async def init_neo4j() -> None:
             await driver.verify_connectivity()
         except Exception as exc:
             cause = getattr(exc, "__cause__", None)
-            exc_str = repr(exc) + " " + repr(cause)
+            parts = [str(exc), repr(exc), str(cause), repr(cause)]
+            if hasattr(exc, "exceptions"):
+                parts.extend(f"{str(e)} {repr(e)}" for e in exc.exceptions)
+            if hasattr(cause, "exceptions"):
+                parts.extend(f"{str(e)} {repr(e)}" for e in cause.exceptions)
+            exc_str = " ".join(parts)
             if "SSLCertVerificationError" in exc_str or "certificate verify failed" in exc_str:
                 try:
                     import certifi

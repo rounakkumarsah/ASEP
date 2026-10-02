@@ -21,7 +21,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -186,9 +186,18 @@ class Settings(BaseSettings):
     # Neo4j
     # -----------------------------------------------------------------------
     NEO4J_URI: str = Field(default="bolt://localhost:7687", description="Neo4j connection URI")
-    NEO4J_USER: str = Field(default="neo4j", validation_alias="NEO4J_USERNAME", description="Neo4j username")
+    NEO4J_USER: str = Field(
+        default="neo4j",
+        validation_alias=AliasChoices("NEO4J_USER", "NEO4J_USERNAME"),
+        description="Neo4j username",
+    )
     NEO4J_PASSWORD: str = Field(default="changeme", description="Neo4j password")
-    NEO4J_DATABASE: str | None = Field(default=None, description="Neo4j database name (None = driver default, use None for Aura)")
+    NEO4J_DATABASE: str | None = Field(
+        default=None,
+        description="Neo4j database name (None = driver default, use None for Aura)",
+    )
+    AURA_INSTANCEID: str | None = Field(default=None, description="Neo4j Aura instance ID")
+    AURA_INSTANCENAME: str | None = Field(default=None, description="Neo4j Aura instance name")
 
     # -----------------------------------------------------------------------
     # Qdrant
