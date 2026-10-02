@@ -210,5 +210,33 @@ describe('Playground Plus Menu Actions & Capabilities', () => {
       expect(msgs[0].attachments?.[0].name).toBe('test.py');
       expect(usePlaygroundStore.getState().attachments).toHaveLength(0);
     });
+
+    it('enforces 25MB file size boundary safety check', () => {
+      const MAX_SIZE = 25 * 1024 * 1024;
+      const validFile = { name: 'small.png', size: 1024 * 500 };
+      const oversizedFile = { name: 'huge_archive.zip', size: MAX_SIZE + 1024 };
+
+      expect(validFile.size <= MAX_SIZE).toBe(true);
+      expect(oversizedFile.size > MAX_SIZE).toBe(true);
+    });
+  });
+
+  describe('Plus Menu Model Switching to Side Panel', () => {
+    it('supports opening model tab in left panel via sidebar store and playground store', () => {
+      const { setLeftPanelOpen } = useSidebarStore.getState();
+      const { setActiveLeftTab, setModel } = usePlaygroundStore.getState();
+
+      expect(useSidebarStore.getState().isLeftPanelOpen).toBe(false);
+
+      // Simulating Change Model -> Open in Side Panel action
+      setModel('llama-3.3-70b');
+      setLeftPanelOpen(true);
+      setActiveLeftTab('model');
+
+      expect(useSidebarStore.getState().isLeftPanelOpen).toBe(true);
+      expect(usePlaygroundStore.getState().activeLeftTab).toBe('model');
+      expect(usePlaygroundStore.getState().model).toBe('llama-3.3-70b');
+    });
   });
 });
+

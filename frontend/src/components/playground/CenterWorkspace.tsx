@@ -445,9 +445,30 @@ export function CenterWorkspace() {
   const [showModelModal, setShowModelModal] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  // Close modals on Escape key
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (showToolsModal) setShowToolsModal(false);
+        if (showModelModal) setShowModelModal(false);
+      }
+    };
+    if (showToolsModal || showModelModal) {
+      window.addEventListener("keydown", handleKeyDown);
+      return () => window.removeEventListener("keydown", handleKeyDown);
+    }
+  }, [showToolsModal, showModelModal]);
+
   const handleFiles = (files: FileList | File[]) => {
     const fileArray = Array.from(files);
     fileArray.forEach((file) => {
+      // 25MB safety limit to protect browser memory
+      if (file.size > 25 * 1024 * 1024) {
+        setToastMessage(`File "${file.name}" exceeds the 25MB limit.`);
+        setTimeout(() => setToastMessage(null), 4000);
+        return;
+      }
+
       const isImg = file.type.startsWith("image/");
       const id = `att-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
@@ -467,11 +488,15 @@ export function CenterWorkspace() {
             },
           ]);
         };
+        reader.onerror = () => {
+          setToastMessage(`Failed to read "${file.name}".`);
+          setTimeout(() => setToastMessage(null), 3000);
+        };
         reader.readAsDataURL(file);
       } else {
         const isTextFile =
           file.type.startsWith("text/") ||
-          /\.(txt|md|py|json|js|ts|tsx|html|css|yaml|yml|sh|env)$/i.test(file.name);
+          /\.(txt|md|py|json|js|ts|tsx|html|css|yaml|yml|sh|env|sql|xml|csv)$/i.test(file.name);
 
         if (isTextFile) {
           const reader = new FileReader();
@@ -489,6 +514,10 @@ export function CenterWorkspace() {
               },
             ]);
           };
+          reader.onerror = () => {
+            setToastMessage(`Failed to read "${file.name}".`);
+            setTimeout(() => setToastMessage(null), 3000);
+          };
           reader.readAsText(file);
         } else {
           const reader = new FileReader();
@@ -505,6 +534,10 @@ export function CenterWorkspace() {
                 isImage: false,
               },
             ]);
+          };
+          reader.onerror = () => {
+            setToastMessage(`Failed to read "${file.name}".`);
+            setTimeout(() => setToastMessage(null), 3000);
           };
           reader.readAsDataURL(file);
         }
@@ -1599,6 +1632,38 @@ export function CenterWorkspace() {
                               ? 'bg-[#22D3EE]/10 text-foreground border border-[#22D3EE]/20' 
                               : 'bg-card border border-border/50 text-card-foreground'
                           }`}>
+                            {msg.attachments && msg.attachments.length > 0 && (
+                              <div className="flex flex-wrap gap-2 mb-2.5 pb-2 border-b border-border/30">
+                                {msg.attachments.map((att) => (
+                                  <div
+                                    key={att.id}
+                                    className="flex items-center gap-1.5 bg-background/80 border border-border/70 rounded-lg py-1 px-2 text-xs shadow-xs"
+                                  >
+                                    {att.isImage && att.url ? (
+                                      <img
+                                        src={att.url}
+                                        alt={att.name}
+                                        className="h-6 w-6 rounded object-cover border border-border/40 shrink-0"
+                                      />
+                                    ) : (
+                                      <Paperclip className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
+                                    )}
+                                    <div className="flex flex-col min-w-0">
+                                      <span className="max-w-[140px] truncate font-medium text-[11px] leading-tight" title={att.name}>
+                                        {att.name}
+                                      </span>
+                                      <span className="text-[9px] text-muted-foreground font-mono">
+                                        {att.size < 1024
+                                          ? `${att.size} B`
+                                          : att.size < 1024 * 1024
+                                          ? `${Math.round(att.size / 1024)} KB`
+                                          : `${(att.size / (1024 * 1024)).toFixed(1)} MB`}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                             <div className="prose prose-sm dark:prose-invert max-w-none">
                               <ReactMarkdown>
                                 {msg.content}
@@ -2749,8 +2814,11 @@ export function CenterWorkspace() {
                 <DropdownMenuContent align="start" className="w-56" sideOffset={8}>
                   <DropdownMenuItem
                     className="gap-2 text-xs cursor-pointer"
-                    onSelect={() => {
-                      fileInputRef.current?.click();
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      setTimeout(() => {
+                        fileInputRef.current?.click();
+                      }, 0);
                     }}
                   >
                     <Paperclip className="h-4 w-4 text-cyan-400" />
@@ -3170,9 +3238,19 @@ export function CenterWorkspace() {
             </div>
 
             <div className="pt-3 border-t border-border/40 flex items-center justify-between">
-              <span className="text-[11px] text-muted-foreground">
-                Current: <span className="text-foreground font-medium">{getModelName(model)}</span>
-              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-xs text-muted-foreground hover:text-foreground"
+                onClick={() => {
+                  setShowModelModal(false);
+                  setActiveLeftTab('model');
+                  setLeftPanelOpen(true);
+                }}
+              >
+                Open in Side Panel →
+              </Button>
               <Button
                 type="button"
                 variant="outline"
