@@ -83,11 +83,18 @@ async def run_verification():
     # Query neighbors / traversal via search_related_entities (GraphRAG pathway)
     print("    Testing GraphRAG entity search / expansion...")
     related = await service.search_related_entities(entity_ids=["asep-test-node-1"], depth=1)
-    print(f"    [PASS] GraphRAG 1-hop traversal: found {len(related)} related entity connections.")
+    print(f"    [PASS] GraphRAG 1-hop traversal: found {len(related)} related entity connections: {related}")
+    assert len(related) > 0, f"Expected at least 1 related entity connection, found {len(related)}"
+    assert any(r.get("target_id") == "asep-test-node-2" or r.get("source_id") == "asep-test-node-2" for r in related), "Did not find connected entity asep-test-node-2"
 
     # Clean up test nodes & relationships
     print("    Cleaning up test nodes...")
     await service.execute_write("MATCH (n) WHERE n.id IN $ids DETACH DELETE n", {"ids": ["asep-test-node-1", "asep-test-node-2"]})
+
+    # Clean up any scratch edge file if present
+    edge_file = os.path.join(os.path.dirname(__file__), "test_edge.py")
+    if os.path.exists(edge_file):
+        os.remove(edge_file)
     
     # Confirm clean
     verify_del = await service.execute_read("MATCH (n) WHERE n.id IN $ids RETURN count(n) AS remaining", {"ids": ["asep-test-node-1", "asep-test-node-2"]})

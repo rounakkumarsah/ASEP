@@ -135,10 +135,16 @@ class GraphService:
                 "props": node.properties or {},
             })
 
-        # We construct a Cypher query using MERGE.
-        # Since Cypher doesn't support parameterized labels directly (e.g. MERGE (n:$label)),
-        # we MERGE on a base Entity label or a default label, then set dynamic labels.
+        # Modern Neo4j 5+ (e.g. Aura) supports native dynamic labels: SET n:$(labels)
         query = """
+        UNWIND $nodes AS node_data
+        MERGE (n:Entity {id: node_data.id})
+        SET n += node_data.props
+        SET n:$(node_data.labels)
+        RETURN count(n) AS count
+        """
+        # APOC fallback for legacy Neo4j 4.x setups
+        apoc_query = """
         UNWIND $nodes AS node_data
         MERGE (n:Entity {id: node_data.id})
         SET n += node_data.props
@@ -146,8 +152,7 @@ class GraphService:
         CALL apoc.create.addLabels(n, node_data.labels) YIELD node
         RETURN count(node) AS count
         """
-        # APOC might not be present on all instances (like basic local test setups).
-        # We can write a pure Cypher fallback that handles the primary label or just sets properties.
+        # Standard fallback if dynamic labels and APOC are unavailable
         fallback_query = """
         UNWIND $nodes AS node_data
         MERGE (n:Entity {id: node_data.id})
@@ -158,9 +163,12 @@ class GraphService:
         try:
             await self.execute_write(query, {"nodes": node_dicts})
         except Exception:
-            # Fallback if APOC is not available
-            logger.debug("APOC label setting failed — falling back to standard MERGE.")
-            await self.execute_write(fallback_query, {"nodes": node_dicts})
+            try:
+                logger.debug("Native dynamic labels failed — falling back to APOC.")
+                await self.execute_write(apoc_query, {"nodes": node_dicts})
+            except Exception:
+                logger.debug("APOC label setting failed — falling back to standard MERGE.")
+                await self.execute_write(fallback_query, {"nodes": node_dicts})
 
         logger.info("Successfully created/merged %d nodes in the graph.", len(nodes))
         return True
@@ -184,17 +192,23 @@ class GraphService:
                 "props": rel.properties or {},
             })
 
-        # Since Cypher doesn't allow variable relationship types (e.g. MERGE (a)-[r:$type]->(b)),
-        # we either run them individually or use APOC. Let's do a fast Cypher loop using APOC,
-        # or execute them in a fallback loop for compatibility.
+        # Modern Neo4j 5+ (e.g. Aura) supports native dynamic relationship types: CREATE (a)-[r:$(relType)]->(b)
         query = """
+        UNWIND $rels AS rel_data
+        MATCH (a:Entity {id: rel_data.start_id})
+        MATCH (b:Entity {id: rel_data.end_id})
+        CREATE (a)-[r:$(rel_data.type)]->(b)
+        SET r += rel_data.props
+        RETURN count(r) AS count
+        """
+        # APOC fallback for legacy Neo4j 4.x setups
+        apoc_query = """
         UNWIND $rels AS rel_data
         MATCH (a:Entity {id: rel_data.start_id})
         MATCH (b:Entity {id: rel_data.end_id})
         CALL apoc.create.relationship(a, rel_data.type, rel_data.props, b) YIELD rel
         RETURN count(rel) AS count
         """
-
         fallback_loop_query = """
         MATCH (a:Entity {id: $start_id})
         MATCH (b:Entity {id: $end_id})
@@ -206,9 +220,13 @@ class GraphService:
         try:
             await self.execute_write(query, {"rels": rel_dicts})
         except Exception:
-            logger.debug("APOC relationship creation failed — falling back to sequential execution.")
-            for rel in rel_dicts:
-                await self.execute_write(fallback_loop_query, rel)
+            try:
+                logger.debug("Native dynamic relationship failed — falling back to APOC.")
+                await self.execute_write(apoc_query, {"rels": rel_dicts})
+            except Exception:
+                logger.debug("APOC relationship creation failed — falling back to sequential execution.")
+                for rel in rel_dicts:
+                    await self.execute_write(fallback_loop_query, rel)
 
         logger.info("Successfully created %d relationships in the graph.", len(relationships))
         return True
@@ -243,15 +261,16 @@ class GraphService:
         if not entity_ids:
             return []
 
+        # Generic relationship traversal across any relationship type up to specified depth
         query = f"""
         MATCH (n:Entity) WHERE n.id IN $ids
-        MATCH path = (n)-[r:RELATED*1..{depth}]-(m:Entity)
-        RETURN n.id AS source_id, labels(n) AS source_labels, n AS source_props,
-               m.id AS target_id, labels(m) AS target_labels, m AS target_props,
-               [rel IN r | {{type: type(rel), properties: properties(rel)}}] AS path_relationships
+        MATCH path = (n)-[r*1..{depth}]-(m:Entity)
+        RETURN n.id AS source_id, labels(n) AS source_labels, properties(n) AS source_props,
+               m.id AS target_id, labels(m) AS target_labels, properties(m) AS target_props,
+               [rel IN relationships(path) | {{type: type(rel), properties: properties(rel)}}] AS path_relationships
         LIMIT 100
         """
-        # Simple fallback matching any relationship if 'RELATED' is not standard
+        # Fallback matching any relationship without requiring the Entity label
         fallback_query = """
         MATCH (n) WHERE n.id IN $ids
         MATCH (n)-[r]-(m)
@@ -265,7 +284,7 @@ class GraphService:
             result = await self.execute_read(query, {"ids": entity_ids})
             return [dict(record) for record in result.records]
         except Exception:
-            logger.debug("Aura-optimized traversal failed — running generic relationship search.")
+            logger.debug("Path traversal failed — running generic relationship search.")
             result = await self.execute_read(fallback_query, {"ids": entity_ids})
             return [dict(record) for record in result.records]
 
