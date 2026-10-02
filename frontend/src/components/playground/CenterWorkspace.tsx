@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { MessageSquare, Code, Terminal, Send, Loader2, Bot, User as UserIcon, Plus, Copy, Edit2, GitCompare, Paperclip, Wrench, Cpu, Workflow, Play, FileText, FolderGit2, ShieldAlert, Gauge, Zap, BarChart2, AlertTriangle, Square, GitBranch, ExternalLink, Check, RefreshCw, GitPullRequest, CheckCircle2, Sparkles, PanelLeftOpen, PanelRightOpen, Mic } from "lucide-react";
+import { MessageSquare, Code, Terminal, Send, Loader2, Bot, User as UserIcon, Plus, Copy, Edit2, GitCompare, Paperclip, Wrench, Cpu, Workflow, Play, FileText, FolderGit2, ShieldAlert, Gauge, Zap, BarChart2, AlertTriangle, Square, GitBranch, ExternalLink, Check, RefreshCw, GitPullRequest, CheckCircle2, Sparkles, PanelLeftOpen, PanelRightOpen, Mic, X, Globe, Database, Server } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -58,19 +58,103 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const MODELS = [
-  { id: 'gemini-flash-latest', name: 'Gemini 1.5 Flash' },
-  { id: 'gemini-pro-latest', name: 'Gemini 1.5 Pro' },
-  { id: 'claude-3-5-sonnet-20240620', name: 'Claude 3.5 Sonnet' },
-  { id: 'gpt-4o', name: 'GPT-4o' }
+export interface AvailableModel {
+  id: string;
+  name: string;
+  provider: string;
+  desc: string;
+  badge?: string;
+}
+
+export const AVAILABLE_MODELS: AvailableModel[] = [
+  {
+    id: 'gemini-flash-latest',
+    name: 'Gemini 1.5 Flash',
+    provider: 'Google',
+    desc: 'Ultra-fast, 1M context token window, balanced performance & low latency.',
+    badge: 'Recommended'
+  },
+  {
+    id: 'gemini-pro-latest',
+    name: 'Gemini 1.5 Pro',
+    provider: 'Google',
+    desc: 'Deep reasoning, complex system architectures, multi-file code generation.',
+    badge: 'Deep Reasoning'
+  },
+  {
+    id: 'claude-3-5-sonnet-20240620',
+    name: 'Claude 3.5 Sonnet',
+    provider: 'Anthropic',
+    desc: 'State-of-the-art coding, tool use & step-by-step reasoning.',
+    badge: 'Pro Coding'
+  },
+  {
+    id: 'gpt-4o',
+    name: 'GPT-4o',
+    provider: 'OpenAI',
+    desc: 'High intelligence multimodal flagship model for complex programming tasks.',
+    badge: 'Multimodal'
+  },
+  {
+    id: 'deepseek-coder',
+    name: 'DeepSeek Coder V2',
+    provider: 'DeepSeek',
+    desc: 'Specialized open-weight code reasoning and synthesis engine.',
+    badge: 'Open Weights'
+  },
+  {
+    id: 'llama-3.3-70b',
+    name: 'Llama 3.3 70B (Groq)',
+    provider: 'Groq Cloud',
+    desc: 'Ultra-low latency inference powered by Groq LPU hardware.',
+    badge: 'Fast Inference'
+  },
+  {
+    id: 'auto-router',
+    name: 'Auto Router (Cost/Perf)',
+    provider: 'Smart Routing',
+    desc: 'Dynamically routes each phase to the most optimal model based on query complexity.',
+    badge: 'Dynamic'
+  }
 ];
 
-const TOOLS = [
-  { id: 'web', name: 'Web Search' },
-  { id: 'docs', name: 'Official Docs' },
-  { id: 'github', name: 'GitHub Repos' },
-  { id: 'sandbox', name: 'Python Sandbox' }
+const MODELS = AVAILABLE_MODELS.map(m => ({ id: m.id, name: m.name }));
+
+export interface ToolCapability {
+  id: string;
+  name: string;
+  icon: React.ComponentType<{ className?: string }>;
+  desc: string;
+}
+
+export const ALL_TOOLS: ToolCapability[] = [
+  {
+    id: 'web',
+    name: 'Web Search',
+    icon: Globe,
+    desc: 'Live web search for latest technical documentation, libraries, and package APIs.'
+  },
+  {
+    id: 'docs',
+    name: 'Official Docs',
+    icon: Database,
+    desc: 'Fast semantic search over indexed official frameworks and documentation.'
+  },
+  {
+    id: 'github',
+    name: 'GitHub Repos',
+    icon: FolderGit2,
+    desc: 'Inspect GitHub repositories, pull code, create branches, and sync changes.'
+  },
+  {
+    id: 'sandbox',
+    name: 'Python Sandbox',
+    icon: Terminal,
+    desc: 'Execute Python code safely in an isolated Docker sandbox environment.'
+  }
 ];
+
+const TOOLS = ALL_TOOLS.map(t => ({ id: t.id, name: t.name }));
 
 export type EventClassification = "FINAL_ANSWER" | "STATUS";
 
@@ -303,6 +387,8 @@ export function CenterWorkspace() {
     toggleTool,
     activeTools,
     researchMode,
+    attachments,
+    setAttachments,
     activeNode,
     setActiveNode,
     addCompletedNode,
@@ -350,11 +436,98 @@ export function CenterWorkspace() {
     setPhaseExploration,
     voiceMetrics,
   } = usePlaygroundStore();
-  const { isLeftPanelOpen, toggleLeftPanel, isRightPanelOpen, toggleRightPanel } = useSidebarStore();
+  const { isLeftPanelOpen, toggleLeftPanel, setLeftPanelOpen, isRightPanelOpen, toggleRightPanel } = useSidebarStore();
   const [input, setInput] = React.useState("");
   const [cmdMenu, setCmdMenu] = React.useState<'tool' | 'model' | null>(null);
   const [artifactCode, setArtifactCode] = React.useState<string>("");
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
+  const [showToolsModal, setShowToolsModal] = React.useState(false);
+  const [showModelModal, setShowModelModal] = React.useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleFiles = (files: FileList | File[]) => {
+    const fileArray = Array.from(files);
+    fileArray.forEach((file) => {
+      const isImg = file.type.startsWith("image/");
+      const id = `att-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+      if (isImg) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const dataUrl = e.target?.result as string;
+          setAttachments((prev) => [
+            ...prev,
+            {
+              id,
+              name: file.name,
+              size: file.size,
+              type: file.type || "image/png",
+              url: dataUrl,
+              isImage: true,
+            },
+          ]);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        const isTextFile =
+          file.type.startsWith("text/") ||
+          /\.(txt|md|py|json|js|ts|tsx|html|css|yaml|yml|sh|env)$/i.test(file.name);
+
+        if (isTextFile) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const textContent = (e.target?.result as string) || "";
+            setAttachments((prev) => [
+              ...prev,
+              {
+                id,
+                name: file.name,
+                size: file.size,
+                type: file.type || "text/plain",
+                extractedText: textContent.slice(0, 20000),
+                isImage: false,
+              },
+            ]);
+          };
+          reader.readAsText(file);
+        } else {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const dataUrl = e.target?.result as string;
+            setAttachments((prev) => [
+              ...prev,
+              {
+                id,
+                name: file.name,
+                size: file.size,
+                type: file.type || "application/octet-stream",
+                url: dataUrl,
+                isImage: false,
+              },
+            ]);
+          };
+          reader.readAsDataURL(file);
+        }
+      }
+    });
+  };
+
+  const handleRemoveAttachment = (id: string) => {
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
+  };
+
+  const handleToggleTool = (toolId: string) => {
+    toggleTool(toolId);
+    if (toolId === "sandbox" && activeTools.includes("python")) toggleTool("python");
+    if (toolId === "python" && activeTools.includes("sandbox")) toggleTool("sandbox");
+  };
+
+  const isToolActive = (toolId: string) => {
+    if (activeTools.includes(toolId)) return true;
+    if (toolId === "sandbox" && activeTools.includes("python")) return true;
+    if (toolId === "python" && activeTools.includes("sandbox")) return true;
+    return false;
+  };
 
   // Universal Voice Typing
   const initialVoiceInputRef = React.useRef<string>("");
@@ -1076,16 +1249,35 @@ export function CenterWorkspace() {
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedInput = input.trim();
-    if (!trimmedInput || isThinking) return;
+    if ((!trimmedInput && attachments.length === 0) || isThinking) return;
+
+    const currentAttachments = [...attachments];
+    let goalContent = trimmedInput;
+    if (currentAttachments.length > 0) {
+      const summaries = currentAttachments.map((a) => {
+        if (a.extractedText) {
+          return `\n\n[Attached File: ${a.name}]\n\`\`\`\n${a.extractedText}\n\`\`\``;
+        }
+        return `\n\n[Attached File: ${a.name} (${Math.round(a.size / 1024)} KB, type: ${a.type})]`;
+      }).join("");
+
+      if (!goalContent) {
+        goalContent = `Please review and analyze the attached file${currentAttachments.length > 1 ? "s" : ""}: ${currentAttachments.map(a => a.name).join(", ")}` + summaries;
+      } else {
+        goalContent = `${trimmedInput}` + summaries;
+      }
+    }
 
     addMessage({
       role: "user",
-      content: trimmedInput,
+      content: trimmedInput || `[Attached ${currentAttachments.length} file(s): ${currentAttachments.map(a => a.name).join(", ")}]`,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      attachments: currentAttachments.length > 0 ? currentAttachments : undefined,
     });
 
-    const currentInput = trimmedInput;
+    const currentInput = goalContent;
     setInput("");
+    setAttachments([]);
     const newThreadId = "playground-session-" + Date.now();
     setClarificationThreadId(newThreadId);
     setIsThinking(true);
@@ -1243,10 +1435,14 @@ export function CenterWorkspace() {
   };
 
   const getModelName = (modelId: string) => {
+    const found = AVAILABLE_MODELS.find(m => m.id === modelId);
+    if (found) return found.name;
     if (modelId === 'claude-3-5-sonnet-20240620') return 'Claude 3.5 Sonnet';
     if (modelId === 'gemini-flash-latest') return 'Gemini 1.5 Flash';
+    if (modelId === 'gemini-pro-latest') return 'Gemini 1.5 Pro';
     if (modelId === 'deepseek-coder') return 'DeepSeek Coder V2';
     if (modelId === 'gpt-4o') return 'GPT-4o';
+    if (modelId === 'llama-3.3-70b') return 'Llama 3.3 70B (Groq)';
     if (modelId === 'auto-router') return 'Auto Router (Cost/Perf)';
     return modelId;
   };
@@ -2495,37 +2691,107 @@ export function CenterWorkspace() {
       <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-[#0D1117] via-[#0D1117]/90 to-transparent pt-12">
         <div className="max-w-4xl mx-auto relative">
           <form onSubmit={handleSend} className="relative rounded-xl border border-border/50 bg-card shadow-2xl focus-within:ring-1 focus-within:ring-primary/50 focus-within:border-primary/50 transition-all flex flex-col">
+            {attachments.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 px-3 pt-2.5 pb-2 border-b border-border/40 bg-accent/10 rounded-t-xl">
+                {attachments.map((att) => (
+                  <div
+                    key={att.id}
+                    className="flex items-center gap-1.5 bg-background/90 border border-border/80 rounded-lg py-1 px-2.5 text-xs shadow-sm hover:border-primary/50 transition-colors"
+                  >
+                    {att.isImage && att.url ? (
+                      <img
+                        src={att.url}
+                        alt={att.name}
+                        className="h-5 w-5 rounded object-cover border border-border/40 shrink-0"
+                      />
+                    ) : (
+                      <Paperclip className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
+                    )}
+                    <span className="max-w-[130px] sm:max-w-[180px] truncate font-medium text-foreground text-[11px]" title={att.name}>
+                      {att.name}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      {att.size < 1024
+                        ? `${att.size} B`
+                        : att.size < 1024 * 1024
+                        ? `${Math.round(att.size / 1024)} KB`
+                        : `${(att.size / (1024 * 1024)).toFixed(1)} MB`}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveAttachment(att.id)}
+                      className="text-muted-foreground hover:text-foreground hover:bg-muted rounded p-0.5 ml-1 transition-colors"
+                      title={`Remove ${att.name}`}
+                      aria-label={`Remove ${att.name}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setAttachments([])}
+                  className="h-6 text-[10px] px-1.5 text-muted-foreground hover:text-destructive"
+                >
+                  Clear all
+                </Button>
+              </div>
+            )}
             <div className="flex items-end p-2 gap-2">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button type="button" variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-accent shrink-0 text-muted-foreground">
+                  <Button type="button" variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-accent shrink-0 text-muted-foreground" aria-label="Add media, manage tools, or change model">
                     <Plus className="h-5 w-5" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-56" sideOffset={8}>
-                  <DropdownMenuItem className="gap-2 text-xs cursor-pointer" onSelect={(e) => {
-                    e.preventDefault();
-                    document.getElementById('media-upload')?.click();
-                  }}>
-                    <Paperclip className="h-4 w-4" />
+                  <DropdownMenuItem
+                    className="gap-2 text-xs cursor-pointer"
+                    onSelect={() => {
+                      fileInputRef.current?.click();
+                    }}
+                  >
+                    <Paperclip className="h-4 w-4 text-cyan-400" />
                     Upload Media (PDF, Images, etc)
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="gap-2 text-xs cursor-pointer" onSelect={() => setActiveLeftTab('tools')}>
-                    <Wrench className="h-4 w-4" />
+                  <DropdownMenuItem
+                    className="gap-2 text-xs cursor-pointer"
+                    onSelect={() => {
+                      setShowToolsModal(true);
+                      setActiveLeftTab('tools');
+                    }}
+                  >
+                    <Wrench className="h-4 w-4 text-amber-400" />
                     Manage Tools
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="gap-2 text-xs cursor-pointer" onSelect={() => setActiveLeftTab('model')}>
-                    <Cpu className="h-4 w-4" />
+                  <DropdownMenuItem
+                    className="gap-2 text-xs cursor-pointer"
+                    onSelect={() => {
+                      setShowModelModal(true);
+                      setActiveLeftTab('model');
+                    }}
+                  >
+                    <Cpu className="h-4 w-4 text-purple-400" />
                     Change Model
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <input type="file" id="media-upload" className="hidden" multiple accept="image/*,application/pdf" onChange={(e) => {
-                // Mock handling file upload
-                if (e.target.files && e.target.files.length > 0) {
-                  alert(`Selected ${e.target.files.length} file(s). Media upload will be processed by the agent.`);
-                }
-              }} />
+              <input
+                ref={fileInputRef}
+                type="file"
+                id="media-upload"
+                className="hidden"
+                multiple
+                accept="image/*,.pdf,.txt,.md,.py,.json"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files.length > 0) {
+                    handleFiles(e.target.files);
+                    e.target.value = '';
+                  }
+                }}
+              />
               
               <div className="flex-1 flex flex-col relative min-h-[44px]">
                 {cmdMenu && filteredCmdItems.length > 0 && (
@@ -2560,16 +2826,7 @@ export function CenterWorkspace() {
                     onPaste={(e) => {
                       if (e.clipboardData.files && e.clipboardData.files.length > 0) {
                         e.preventDefault();
-                        const dt = new DataTransfer();
-                        for (let i = 0; i < e.clipboardData.files.length; i++) {
-                          dt.items.add(e.clipboardData.files[i]);
-                        }
-                        const fileInput = document.getElementById('media-upload') as HTMLInputElement;
-                        if (fileInput) {
-                          fileInput.files = dt.files;
-                          const event = new Event('change', { bubbles: true });
-                          fileInput.dispatchEvent(event);
-                        }
+                        handleFiles(e.clipboardData.files);
                         return;
                       }
 
@@ -2665,9 +2922,10 @@ export function CenterWorkspace() {
 
               <Button 
                 type="submit" 
-                disabled={!input.trim() || isThinking}
+                disabled={(!input.trim() && attachments.length === 0) || isThinking}
                 className="h-9 w-9 rounded-lg shrink-0 bg-[#22D3EE] text-black hover:bg-[#22D3EE]/90 shadow-none mb-1 mr-1 disabled:opacity-50"
                 size="icon"
+                aria-label="Send message"
               >
                 <Send className="h-4 w-4" />
               </Button>
@@ -2675,10 +2933,18 @@ export function CenterWorkspace() {
             
             <div className="px-3 pb-2 pt-0 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-[10px] text-muted-foreground bg-accent/30 px-1.5 py-0.5 rounded flex items-center gap-1 border border-border/50">
-                  <Cpu className="h-3 w-3" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowModelModal(true);
+                    setActiveLeftTab('model');
+                  }}
+                  className="text-[10px] text-muted-foreground bg-accent/30 hover:bg-accent/60 hover:text-foreground transition-colors px-1.5 py-0.5 rounded flex items-center gap-1 border border-border/50 cursor-pointer"
+                  title="Click to change model"
+                >
+                  <Cpu className="h-3 w-3 text-purple-400" />
                   {getModelName(model)}
-                </span>
+                </button>
               </div>
               <span className="text-[9px] text-muted-foreground/70 hidden sm:inline">
                 AI Engineering Workspace uses advanced models. Verify generated code.
@@ -2687,6 +2953,238 @@ export function CenterWorkspace() {
           </form>
         </div>
       </div>
+      )}
+
+      {/* Manage Tools Modal */}
+      {showToolsModal && (
+        <div
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={() => setShowToolsModal(false)}
+          onKeyDown={(e) => { if (e.key === 'Escape') setShowToolsModal(false); }}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Manage Tools & Capabilities"
+        >
+          <div
+            className="bg-background border border-border/80 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-border/40 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                  <Wrench className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm text-foreground">Manage Tools & Capabilities</h3>
+                  <p className="text-[11px] text-muted-foreground">Enable or disable agent tools and runtime skills</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowToolsModal(false)}
+                className="text-muted-foreground hover:text-foreground text-sm p-1 rounded-md hover:bg-muted transition-colors"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+                <span>Active Tools ({activeTools.length} / {ALL_TOOLS.length})</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      ALL_TOOLS.forEach(t => {
+                        if (!isToolActive(t.id)) handleToggleTool(t.id);
+                      });
+                    }}
+                    className="text-[11px] text-primary hover:underline"
+                  >
+                    Enable all
+                  </button>
+                  <span>•</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      ALL_TOOLS.forEach(t => {
+                        if (isToolActive(t.id)) handleToggleTool(t.id);
+                      });
+                    }}
+                    className="text-[11px] text-muted-foreground hover:underline"
+                  >
+                    Disable all
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {ALL_TOOLS.map((t) => {
+                  const isActive = isToolActive(t.id);
+                  return (
+                    <div
+                      key={t.id}
+                      onClick={() => handleToggleTool(t.id)}
+                      className={`flex items-start justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                        isActive
+                          ? "bg-primary/5 border-primary/40 shadow-sm"
+                          : "bg-card hover:bg-accent/40 border-border/50 text-muted-foreground"
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`mt-0.5 p-1.5 rounded-lg ${isActive ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                          <t.icon className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold flex items-center gap-2 text-foreground">
+                            {t.name}
+                            {isActive && (
+                              <span className="text-[9px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.2 rounded-full font-mono font-medium">
+                                ACTIVE
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">{t.desc}</p>
+                        </div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={isActive}
+                        readOnly
+                        aria-label={`Toggle ${t.name}`}
+                        className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary/40 cursor-pointer"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-border/40 flex items-center justify-between">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-xs text-muted-foreground hover:text-foreground"
+                onClick={() => {
+                  setShowToolsModal(false);
+                  setActiveLeftTab('tools');
+                  setLeftPanelOpen(true);
+                }}
+              >
+                Open in Side Panel →
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="bg-primary text-primary-foreground text-xs"
+                onClick={() => setShowToolsModal(false)}
+              >
+                Done
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Change Model Modal */}
+      {showModelModal && (
+        <div
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={() => setShowModelModal(false)}
+          onKeyDown={(e) => { if (e.key === 'Escape') setShowModelModal(false); }}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Select AI Model"
+        >
+          <div
+            className="bg-background border border-border/80 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-border/40 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+                  <Cpu className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm text-foreground">Select AI Model</h3>
+                  <p className="text-[11px] text-muted-foreground">Switch the reasoning engine and intelligence tier</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowModelModal(false)}
+                className="text-muted-foreground hover:text-foreground text-sm p-1 rounded-md hover:bg-muted transition-colors"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+              {AVAILABLE_MODELS.map((m) => {
+                const isSelected = model === m.id;
+                return (
+                  <div
+                    key={m.id}
+                    onClick={() => {
+                      setModel(m.id);
+                      setActiveLeftTab('model');
+                      setToastMessage(`Switched active model to ${m.name}`);
+                      setTimeout(() => setToastMessage(null), 3000);
+                      setShowModelModal(false);
+                    }}
+                    className={`flex items-start justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                      isSelected
+                        ? "bg-purple-500/10 border-purple-500/50 shadow-md ring-1 ring-purple-500/30"
+                        : "bg-card hover:bg-accent/40 border-border/50 text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <div className="flex-1 pr-3">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-xs text-foreground">{m.name}</span>
+                        <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-normal border-border/60">
+                          {m.provider}
+                        </Badge>
+                        {m.badge && (
+                          <span className="text-[9px] bg-primary/20 text-primary border border-primary/30 px-1.5 py-0.5 rounded-full font-mono font-medium">
+                            {m.badge}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                        {m.desc}
+                      </p>
+                    </div>
+                    {isSelected ? (
+                      <div className="h-5 w-5 rounded-full bg-purple-500 flex items-center justify-center text-white shrink-0 mt-0.5">
+                        <Check className="h-3 w-3" />
+                      </div>
+                    ) : (
+                      <div className="h-5 w-5 rounded-full border border-border/80 shrink-0 mt-0.5" />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="pt-3 border-t border-border/40 flex items-center justify-between">
+              <span className="text-[11px] text-muted-foreground">
+                Current: <span className="text-foreground font-medium">{getModelName(model)}</span>
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="text-xs"
+                onClick={() => setShowModelModal(false)}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

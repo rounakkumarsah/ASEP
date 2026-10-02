@@ -139,9 +139,11 @@ export function LeftPanel() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="gemini-flash-latest">Gemini 1.5 Flash</SelectItem>
+                    <SelectItem value="gemini-pro-latest">Gemini 1.5 Pro</SelectItem>
                     <SelectItem value="claude-3-5-sonnet-20240620">Claude 3.5 Sonnet</SelectItem>
                     <SelectItem value="gpt-4o">GPT-4o</SelectItem>
                     <SelectItem value="deepseek-coder">DeepSeek Coder V2</SelectItem>
+                    <SelectItem value="llama-3.3-70b">Llama 3.3 70B (Groq)</SelectItem>
                     <SelectItem value="auto-router">Auto Router (Cost/Perf)</SelectItem>
                   </SelectContent>
                 </Select>
