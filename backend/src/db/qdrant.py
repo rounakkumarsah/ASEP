@@ -32,16 +32,19 @@ def _get_client() -> AsyncQdrantClient:
     global _client
     if _client is None:
         settings = get_settings()
-        kwargs: dict = {
-            "host": settings.QDRANT_HOST,
-            "port": settings.QDRANT_PORT,
-        }
+        kwargs: dict = {}
+        if settings.QDRANT_URL and settings.QDRANT_URL not in ("http://localhost:6333", ""):
+            kwargs["url"] = settings.QDRANT_URL
+        else:
+            kwargs["host"] = settings.QDRANT_HOST
+            kwargs["port"] = settings.QDRANT_PORT
+
         if settings.QDRANT_API_KEY:
             kwargs["api_key"] = settings.QDRANT_API_KEY
         _client = AsyncQdrantClient(**kwargs)
         logger.info(
             "Qdrant async client created",
-            extra={"host": settings.QDRANT_HOST, "port": settings.QDRANT_PORT},
+            extra={"url": kwargs.get("url"), "host": kwargs.get("host"), "port": kwargs.get("port")},
         )
     return _client
 
