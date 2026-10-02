@@ -71,12 +71,35 @@ async def init_neo4j() -> None:
         # Lazy import — neo4j is an optional heavy dependency
         from neo4j import AsyncGraphDatabase  # noqa: PLC0415
 
-        # AsyncGraphDatabase.driver is thread-safe and acts as a connection pool
-        driver = AsyncGraphDatabase.driver(
-            settings.NEO4J_URI,
-            auth=(settings.NEO4J_USER, settings.NEO4J_PASSWORD),
-        )
-        await driver.verify_connectivity()
+        try:
+            driver = AsyncGraphDatabase.driver(
+                settings.NEO4J_URI,
+                auth=(settings.NEO4J_USER, settings.NEO4J_PASSWORD),
+            )
+            await driver.verify_connectivity()
+        except Exception as exc:
+            cause = getattr(exc, "__cause__", None)
+            exc_str = repr(exc) + " " + repr(cause)
+            if "SSLCertVerificationError" in exc_str or "certificate verify failed" in exc_str:
+                try:
+                    import certifi
+                    from neo4j import TrustCustomCAs
+                    clean_uri = (
+                        settings.NEO4J_URI.replace("neo4j+s://", "neo4j://")
+                        .replace("bolt+s://", "bolt://")
+                    )
+                    driver = AsyncGraphDatabase.driver(
+                        clean_uri,
+                        auth=(settings.NEO4J_USER, settings.NEO4J_PASSWORD),
+                        encrypted=True,
+                        trusted_certificates=TrustCustomCAs(certifi.where()),
+                    )
+                    await driver.verify_connectivity()
+                except Exception as fallback_exc:
+                    raise fallback_exc from exc
+            else:
+                raise exc
+
         logger.info("Successfully connected to Neo4j at %s", host_label)
         _neo4j_driver = driver
     except Exception as exc:
