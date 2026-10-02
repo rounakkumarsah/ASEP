@@ -47,6 +47,22 @@ def _safe_qdrant_host(url: str) -> str:
 import os
 
 
+def _normalize_qdrant_url(url: str) -> str:
+    """Normalize Qdrant URL for local and cloud environments."""
+    url = url.strip().rstrip("/")
+    if "cloud.qdrant.io" in url:
+        if not url.startswith("https://"):
+            if url.startswith("http://"):
+                url = "https://" + url[len("http://") :]
+            else:
+                url = f"https://{url}"
+        if ":6333" in url:
+            url = url.replace(":6333", "")
+    elif not url.startswith(("http://", "https://")):
+        url = f"http://{url}"
+    return url
+
+
 @retry(
     stop=stop_after_attempt(1 if (os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV")) else 2),
     wait=wait_exponential(multiplier=1, min=1, max=2),
@@ -70,11 +86,7 @@ async def init_qdrant() -> None:
     from qdrant_client import AsyncQdrantClient  # noqa: PLC0415
 
     settings = get_settings()
-    url = settings.QDRANT_URL.rstrip("/")
-    # Qdrant Cloud HTTPS endpoints run on port 6334 (gRPC) / 443 (HTTPS REST).
-    # If a cloud URL includes explicit :6333, strip it so AsyncQdrantClient uses default HTTPS 443 REST / 6334 gRPC.
-    if url.startswith("https://") and ":6333" in url:
-        url = url.replace(":6333", "")
+    url = _normalize_qdrant_url(settings.QDRANT_URL)
 
     host_label = _safe_qdrant_host(url)
     logger.info("Connecting to Qdrant at %s", host_label)
@@ -103,6 +115,7 @@ async def init_qdrant() -> None:
             return
         except Exception as fallback_exc:
             logger.error("Local Qdrant fallback also failed: %s", str(fallback_exc))
+            await fallback_client.close()
             raise exc
 
 
@@ -119,12 +132,19 @@ def get_qdrant_client() -> AsyncQdrantClient:
     """
     Return the initialised Qdrant client singleton.
 
-    Raises:
-        RuntimeError: If ``init_qdrant()`` has not been called yet.
+    If not yet initialised (e.g. running in serverless / Vercel environments where
+    startup lifespan connections are skipped to prevent cold-start stalls),
+    lazily instantiates the client using current settings.
     """
+    global _qdrant_client
     if _qdrant_client is None:
-        raise RuntimeError(
-            "Qdrant client is not initialised. Ensure init_qdrant() completes during startup."
+        from qdrant_client import AsyncQdrantClient  # noqa: PLC0415
+
+        settings = get_settings()
+        url = _normalize_qdrant_url(settings.QDRANT_URL)
+        _qdrant_client = AsyncQdrantClient(
+            url=url,
+            api_key=settings.QDRANT_API_KEY,
         )
     return _qdrant_client
 

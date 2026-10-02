@@ -163,3 +163,36 @@ async def test_vector_service_health_check_unhealthy():
     res = await service.health_check()
 
     assert res is False
+
+
+def test_normalize_qdrant_url_cloud_cases():
+    from src.vector.qdrant import _normalize_qdrant_url
+
+    # Cloud URL with port 6333 stripped
+    raw = "https://a8697179-1b71-4269-89ce-13bd8a9626e2.ca-central-1-0.aws.cloud.qdrant.io:6333"
+    assert _normalize_qdrant_url(raw) == "https://a8697179-1b71-4269-89ce-13bd8a9626e2.ca-central-1-0.aws.cloud.qdrant.io"
+
+    # Cloud URL without scheme
+    raw2 = "a8697179-1b71-4269-89ce-13bd8a9626e2.ca-central-1-0.aws.cloud.qdrant.io:6333/"
+    assert _normalize_qdrant_url(raw2) == "https://a8697179-1b71-4269-89ce-13bd8a9626e2.ca-central-1-0.aws.cloud.qdrant.io"
+
+    # Cloud URL with http upgraded to https
+    raw3 = "http://a8697179-1b71-4269-89ce-13bd8a9626e2.ca-central-1-0.aws.cloud.qdrant.io"
+    assert _normalize_qdrant_url(raw3) == "https://a8697179-1b71-4269-89ce-13bd8a9626e2.ca-central-1-0.aws.cloud.qdrant.io"
+
+    # Local URL kept intact
+    raw_local = "http://localhost:6333"
+    assert _normalize_qdrant_url(raw_local) == "http://localhost:6333"
+
+    # Bare local host gets http://
+    assert _normalize_qdrant_url("localhost:6333") == "http://localhost:6333"
+
+
+def test_get_qdrant_client_lazy_instantiation(monkeypatch):
+    import src.vector.qdrant as qdrant_mod
+    monkeypatch.setattr(qdrant_mod, "_qdrant_client", None)
+
+    client = qdrant_mod.get_qdrant_client()
+    assert client is not None
+    assert qdrant_mod._qdrant_client is client
+

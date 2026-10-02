@@ -52,8 +52,8 @@ async def create_collection_if_not_exists(
         distance_metric = Distance.COSINE
 
     settings = get_settings()
-    name = collection_name or settings.QDRANT_COLLECTION
-    size = vector_size or settings.QDRANT_VECTOR_SIZE
+    name = collection_name or settings.QDRANT_COLLECTION or DEFAULT_COLLECTION
+    size = vector_size or settings.QDRANT_VECTOR_SIZE or 1536
 
     exists = await client.collection_exists(collection_name=name)
     if not exists:
