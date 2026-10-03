@@ -1812,8 +1812,42 @@ async def critic_node(state: AgentState) -> dict[str, Any]:
     ) or code_stripped.startswith("# ") and "\n" not in code_stripped.strip("\n")
 
     if is_serverless or is_non_python or is_placeholder:
+        # On serverless with real Python code: still validate via RestrictedPython
+        if is_serverless and not is_non_python and not is_placeholder:
+            try:
+                from src.config.sandbox_config import RestrictedExecutor
+                executor = RestrictedExecutor()
+                result = executor.execute(code, timeout=10)
+                if result.exit_code == 0:
+                    logger.info("Critic: RestrictedPython validation passed on serverless")
+                    return {
+                        "status": "verified",
+                        "current_phase": "critic",
+                        "critic_result": {"exit_code": 0, "stdout": result.stdout, "passed": True},
+                        "messages": [{
+                            "role": "system",
+                            "content": f"Critic Phase Complete: Code validated via RestrictedPython.\nOutput: {(result.stdout or '')[:500]}",
+                        }],
+                    }
+                else:
+                    logger.warning("Critic: RestrictedPython validation failed: %s", result.stderr[:200] if result.stderr else "")
+                    return {
+                        "status": "failed",
+                        "current_phase": "critic",
+                        "heal_cycle_count": heal_count + 1,
+                        "critic_result": {"exit_code": result.exit_code, "stderr": result.stderr, "passed": False},
+                        "messages": [{
+                            "role": "system",
+                            "content": f"Critic Phase: Code validation FAILED.\nError: {(result.stderr or '')[:500]}",
+                        }],
+                    }
+            except Exception as e:
+                logger.warning("Critic: RestrictedPython execution error: %s", e)
+                # Fall through to skip
+        
+        # Skip for non-Python code, placeholder code, or if RestrictedPython failed
         skip_reason = (
-            "serverless environment (no sandbox available)" if is_serverless
+            "serverless environment (RestrictedPython unavailable)" if is_serverless
             else "non-Python code detected" if is_non_python
             else "placeholder code (no real code to validate)"
         )

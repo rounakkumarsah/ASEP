@@ -1,7 +1,7 @@
 import asyncio
 import json
 import logging
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Any
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -88,3 +88,108 @@ async def stream_python_execution(request: SandboxRunRequest) -> StreamingRespon
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+class TerminalRequest(BaseModel):
+    command: str
+    cwd: str | None = None
+
+@router.post("/terminal/execute")
+async def terminal_execute(request: TerminalRequest) -> dict[str, Any]:
+    """Execute a command. On serverless: uses RestrictedPython for Python,
+    subprocess for simple system commands with strict timeout."""
+    import os
+    import shlex
+    
+    cmd = request.command.strip()
+    is_serverless = os.environ.get("VERCEL") == "1" or os.environ.get("SERVERLESS") == "1"
+    
+    # Python code execution
+    if cmd.startswith("python ") or cmd.startswith("python3 "):
+        # Extract the code or filename
+        parts = cmd.split(" ", 1)
+        code_arg = parts[1].strip() if len(parts) > 1 else ""
+        
+        if code_arg.startswith("-c "):
+            code = code_arg[3:].strip().strip('"').strip("'")
+        else:
+            code = f"print('Would execute: {code_arg}')"  # File execution placeholder
+        
+        try:
+            from src.config.sandbox_config import RestrictedExecutor
+            executor = RestrictedExecutor()
+            result = executor.execute(code, timeout=10)
+            return {
+                "stdout": result.stdout or "",
+                "stderr": result.stderr or "",
+                "exit_code": result.exit_code,
+            }
+        except Exception as e:
+            return {"stdout": "", "stderr": str(e), "exit_code": 1}
+    
+    # Simple system-like commands (safe subset)
+    safe_commands = {
+        "whoami": lambda: os.environ.get("USER", os.environ.get("USERNAME", "asep-agent")),
+        "pwd": lambda: os.getcwd(),
+        "date": lambda: __import__("datetime").datetime.now().isoformat(),
+        "env": lambda: "\n".join(f"{k}={v}" for k, v in sorted(os.environ.items()) if k.startswith("ASEP_") or k in ("VERCEL", "NODE_ENV", "PYTHON_VERSION")),
+        "uname": lambda: f"{os.name} {__import__('platform').platform()}",
+    }
+    
+    cmd_name = cmd.split()[0].lower()
+    if cmd_name in safe_commands:
+        try:
+            output = safe_commands[cmd_name]()
+            return {"stdout": str(output), "stderr": "", "exit_code": 0}
+        except Exception as e:
+            return {"stdout": "", "stderr": str(e), "exit_code": 1}
+    
+    # For other commands on serverless: cannot run arbitrary subprocesses
+    if is_serverless:
+        return {
+            "stdout": "",
+            "stderr": f"Command '{cmd_name}' is not available in the serverless environment.\nAvailable commands: python, whoami, pwd, date, env, uname\nFor Python code: python -c 'print(\"hello\")'",
+            "exit_code": 127,
+        }
+    
+    # Local development: run via subprocess with strict timeout
+    import subprocess
+    try:
+        proc = subprocess.run(
+            cmd, shell=True, capture_output=True, text=True, timeout=10,
+            cwd=request.cwd,
+        )
+        return {
+            "stdout": proc.stdout,
+            "stderr": proc.stderr,
+            "exit_code": proc.returncode,
+        }
+    except subprocess.TimeoutExpired:
+        return {"stdout": "", "stderr": "Command timed out after 10 seconds.", "exit_code": 124}
+    except Exception as e:
+        return {"stdout": "", "stderr": str(e), "exit_code": 1}
+
+class ExecuteRequest(BaseModel):
+    code: str
+    timeout: int = 10
+
+@router.post("/execute")
+async def execute_code(request: ExecuteRequest) -> dict[str, Any]:
+    """Execute Python code via RestrictedPython. No Docker required.
+    Used by the Critic node on serverless environments."""
+    try:
+        from src.config.sandbox_config import RestrictedExecutor
+        executor = RestrictedExecutor()
+        result = executor.execute(request.code, timeout=min(request.timeout, 30))
+        return {
+            "stdout": result.stdout or "",
+            "stderr": result.stderr or "",
+            "exit_code": result.exit_code,
+            "success": result.exit_code == 0,
+        }
+    except Exception as e:
+        return {
+            "stdout": "",
+            "stderr": f"Sandbox execution error: {str(e)}",
+            "exit_code": 1,
+            "success": False,
+        }

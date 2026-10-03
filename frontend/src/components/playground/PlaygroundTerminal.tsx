@@ -142,166 +142,28 @@ export function PlaygroundTerminal() {
         clearLogs();
         break;
 
-      case "status":
-        addLog(
-          "output",
-          `[WORKSPACE STATUS]\n` +
-            `  Active Model:    ${model}\n` +
-            `  Linked Project:  ${selectedProjectName || "None (Default Workspace)"}\n` +
-            `  Active Tools:    ${activeTools.join(", ") || "None"}\n` +
-            `  Research Mode:   ${researchMode}\n` +
-            `  Active Node:     ${activeNode || "Idle"}\n` +
-            `  Cluster State:   Online (Latency: 1.2s, Cost Est: $0.02)`
-        );
-        break;
-
-      case "model":
-        if (!args) {
-          addLog("output", `Current model: ${model}\nAvailable: gemini-flash-latest, gemini-pro-latest, claude-3-5-sonnet-20240620, gpt-4o`);
-        } else {
-          const target = args.trim();
-          setModel(target);
-          addLog("success", `[OK] Switched active model to: ${target}`);
-        }
-        break;
-
-      case "tools":
-        if (!args || args === "list") {
-          addLog("output", `Active tools: ${activeTools.join(", ")}\nAvailable: web, docs, github, sandbox\nUse 'tools toggle <name>' to toggle.`);
-        } else if (args.startsWith("toggle")) {
-          const toolId = args.replace("toggle", "").trim();
-          if (toolId) {
-            toggleTool(toolId);
-            addLog("success", `[OK] Toggled tool: ${toolId}`);
-          } else {
-            addLog("error", "Usage: tools toggle <web|docs|github|sandbox>");
-          }
-        } else {
-          addLog("error", "Usage: tools [list | toggle <id>]");
-        }
-        break;
-
-      case "ls":
-      case "dir":
-        addLog(
-          "output",
-          `total 48\n` +
-            `-rw-r--r-- 1 asep asep  1200 Sep 15 12:00 main.py\n` +
-            `-rw-r--r-- 1 asep asep   450 Sep 15 12:00 config.json\n` +
-            `-rw-r--r-- 1 asep asep  2400 Sep 15 12:00 requirements.txt\n` +
-            `drwxr-xr-x 4 asep asep  4096 Sep 15 12:00 src/\n` +
-            `drwxr-xr-x 2 asep asep  4096 Sep 15 12:00 tests/`
-        );
-        break;
-
-      case "cat":
-        if (args.includes("config.json")) {
-          addLog("output", `{\n  "app": "ASEP",\n  "environment": "production",\n  "version": "0.1.0"\n}`);
-        } else if (args.includes("main.py")) {
-          addLog("output", `def calculate_metrics(data):\n    # Automated agent calculation pipeline\n    return {"status": "success", "data": data}`);
-        } else {
-          addLog("error", `File '${args || "null"}' not found. Try 'cat main.py' or 'cat config.json'`);
-        }
-        break;
-
-      case "whoami":
-        addLog("output", `asep-operator (Role: Developer / Tenant: Sachin's Workspace)`);
-        break;
-
-      case "date":
-        addLog("output", new Date().toUTCString());
-        break;
-
-      case "python":
-      case "eval":
-        if (!args) {
-          addLog("error", "Usage: python <expression or code> (e.g. python 2**16)");
-        } else {
-          try {
-            // Safe evaluation of simple math or string operations
-            const fn = new Function(`"use strict"; return (${args})`);
-            const result = fn();
-            addLog("output", `>>> ${result}`);
-          } catch {
-            addLog("output", `[Python Sandbox Output]\nExecuted code successfully in isolated container: ${args}`);
-          }
-        }
-        break;
-
-      case "workflow":
-      case "test": {
-        setIsExecuting(true);
-        resetActiveNodes();
-        addLog("system", "Starting LangGraph Autonomous Workflow Execution...");
-        
-        const nodes = [
-          { name: "supervisor", label: "Supervisor Agent routing task" },
-          { name: "planner", label: "Planner Agent formulating execution steps" },
-          { name: "research", label: "Research Swarm querying documentation and web" },
-          { name: "rag", label: "RAG Engine indexing codebase context" },
-          { name: "coding", label: "Coding Agent synthesizing code changes" },
-          { name: "validate", label: "HITL Security Gate verifying policy compliance" },
-        ];
-
-        for (let i = 0; i < nodes.length; i++) {
-          const n = nodes[i];
-          setActiveNode(n.name);
-          addCompletedNode(n.name);
-          addLog("agent", `[NODE: ${n.name.toUpperCase()}] ${n.label}...`);
-          // simulate step delay
-          await new Promise((r) => setTimeout(r, 600));
-        }
-
-        setActiveNode(null);
-        setIsExecuting(false);
-        addLog("success", "[WORKFLOW COMPLETE] All 6 agent graph nodes executed with 0 policy violations.");
-        break;
-      }
-
-      case "run":
-      case "agent":
-      case "agent-cli": {
-        if (!args) {
-          addLog("error", "Usage: run <task description> (e.g. 'run refactor database connection pooling')");
-          return;
-        }
-
-        setIsExecuting(true);
-        setIsThinking(true);
-        addLog("system", `[DISPATCH] Launching autonomous task: "${args}"`);
-        
-        // Add to main chat history
-        addMessage({
-          role: "user",
-          content: args,
-          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        });
-
-        // Simulate multi-step terminal feedback
-        await new Promise((r) => setTimeout(r, 500));
-        addLog("agent", "Routing prompt to Supervisor Agent...");
-        await new Promise((r) => setTimeout(r, 800));
-        addLog("agent", `Formulating plan with model: ${model}...`);
-        await new Promise((r) => setTimeout(r, 900));
-        
-        const agentResponse = `Task executed: Analyzed requirements for "${args}". Code and artifacts updated in the workspace.`;
-        addMessage({
-          role: "assistant",
-          content: agentResponse,
-          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        });
-
-        setIsThinking(false);
-        setIsExecuting(false);
-        addLog("success", `[COMPLETED] Agent response generated and synchronized with Chat tab.`);
-        break;
-      }
-
       default:
-        addLog(
-          "error",
-          `zsh: command not found: ${command}. Type 'help' to see all supported commands.`
-        );
+        setIsExecuting(true);
+        addLog("system", "Executing...");
+        try {
+          const token = localStorage.getItem('asep_auth_token') || sessionStorage.getItem('asep_auth_token') || '';
+          const res = await fetch('/api/v1/sandbox/terminal/execute', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({ command: trimmed }),
+          });
+          const data = await res.json();
+          if (data.stdout) addLog("output", data.stdout);
+          if (data.stderr) addLog("error", data.stderr);
+          if (!data.stdout && !data.stderr) addLog("system", "Command completed with no output.");
+        } catch (err) {
+          addLog("error", `Error: ${err instanceof Error ? err.message : 'Network error'}`);
+        } finally {
+          setIsExecuting(false);
+        }
         break;
     }
   };
