@@ -451,7 +451,17 @@ async def human_validation_node_default(state: AgentState) -> dict[str, Any]:
     }
 
 
-
+async def end_node_default(state: AgentState) -> dict[str, Any]:
+    logger.info("End node executed for run %s", state.get("run_id"))
+    return {
+        "status": "completed",
+        "messages": [
+            {
+                "role": "system",
+                "content": "LangGraph multi-agent execution pipeline finished successfully.",
+            }
+        ],
+    }
 def execute_phase_token_guard(
     phase: str,
     state: AgentState,
@@ -1657,7 +1667,7 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
                 temperature=0.2,
                 max_tokens=2048,
             )
-            res = await asyncio.wait_for(runtime.complete(req), timeout=120.0)
+            res = await asyncio.wait_for(runtime.complete(req), timeout=5.0)
             text = (res.text or "").strip()
             match = re.search(r"```(?:[a-zA-Z0-9_\-\.\+]*)[^\S\r\n]*\r?\n([\s\S]*?)```", text)
             if match:
@@ -1820,7 +1830,7 @@ async def critic_node(state: AgentState) -> dict[str, Any]:
                         }],
                     }
                 else:
-                    logger.warning("Critic: RestrictedPython validation failed: %s", (result.stderr or '')[:200])
+                    logger.warning("Critic: RestrictedPython validation failed: %s", result.stderr[:200] if result.stderr else "")
                     return {
                         "status": "failed",
                         "current_phase": "critic",

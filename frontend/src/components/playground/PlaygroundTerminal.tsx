@@ -146,11 +146,11 @@ export function PlaygroundTerminal() {
         setIsExecuting(true);
         addLog("system", "Executing...");
         try {
-          const token = localStorage.getItem("asep_auth_token") || sessionStorage.getItem("asep_auth_token") || "";
-          const res = await fetch("/api/v1/sandbox/terminal/execute", {
-            method: "POST",
+          const token = localStorage.getItem('asep_auth_token') || sessionStorage.getItem('asep_auth_token') || '';
+          const res = await fetch('/api/v1/sandbox/terminal/execute', {
+            method: 'POST',
             headers: {
-              "Content-Type": "application/json",
+              'Content-Type': 'application/json',
               ...(token ? { Authorization: `Bearer ${token}` } : {}),
             },
             body: JSON.stringify({ command: trimmed }),
@@ -160,7 +160,7 @@ export function PlaygroundTerminal() {
           if (data.stderr) addLog("error", data.stderr);
           if (!data.stdout && !data.stderr) addLog("system", "Command completed with no output.");
         } catch (err) {
-          addLog("error", `Error: ${err instanceof Error ? err.message : "Network error"}`);
+          addLog("error", `Error: ${err instanceof Error ? err.message : 'Network error'}`);
         } finally {
           setIsExecuting(false);
         }

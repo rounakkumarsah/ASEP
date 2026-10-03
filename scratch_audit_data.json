@@ -1,0 +1,1753 @@
+{
+  "loc": {
+    "frontend": 55742,
+    "backend": 55446,
+    "tests": 41005,
+    "other": 32875
+  },
+  "file_counts": {
+    "frontend": 261,
+    "backend": 395,
+    "tests": 146,
+    "other": 218
+  },
+  "todos": [
+    {
+      "file": "CHANGELOG.md",
+      "line": 42,
+      "text": "- **LangGraph Agent State & Memory Pipeline**: Resolved critical Phase 0.2 `TODO` comments. Refactored the `AgentState` schema from an immutable `pydantic.BaseModel` to an official LangGraph `TypedDict`, fully implementing the `MemoryContext`, `CostTracker`, and `ToolCall` reducers."
+    },
+    {
+      "file": "IMPLEMENTATION_SUMMARY.md",
+      "line": 221,
+      "text": "4. TODO: Start Redis"
+    },
+    {
+      "file": "IMPLEMENTATION_SUMMARY.md",
+      "line": 222,
+      "text": "5. TODO: Start Neo4j"
+    },
+    {
+      "file": "IMPLEMENTATION_SUMMARY.md",
+      "line": 223,
+      "text": "6. TODO: Start Qdrant"
+    },
+    {
+      "file": "IMPLEMENTATION_SUMMARY.md",
+      "line": 224,
+      "text": "7. TODO: Initialize LangGraph supervisor"
+    },
+    {
+      "file": "IMPLEMENTATION_SUMMARY.md",
+      "line": 228,
+      "text": "2. TODO: Close Redis"
+    },
+    {
+      "file": "IMPLEMENTATION_SUMMARY.md",
+      "line": 229,
+      "text": "3. TODO: Close Neo4j"
+    },
+    {
+      "file": "IMPLEMENTATION_SUMMARY.md",
+      "line": 230,
+      "text": "4. TODO: Close Qdrant"
+    },
+    {
+      "file": "IMPLEMENTATION_SUMMARY.md",
+      "line": 231,
+      "text": "5. TODO: Shutdown supervisor"
+    },
+    {
+      "file": "backend\\src\\main.py",
+      "line": 6,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend\\src\\agents\\checkpoint.py",
+      "line": 7,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend\\src\\agents\\checkpoint.py",
+      "line": 25,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend\\src\\agents\\checkpoint.py",
+      "line": 38,
+      "text": "TODO (Phase 0.2): return AsyncPostgresSaver instance."
+    },
+    {
+      "file": "backend\\src\\agents\\registry.py",
+      "line": 11,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend\\src\\agents\\registry.py",
+      "line": 42,
+      "text": "TODO (Phase 0.2): Validate agent interface compliance on registration."
+    },
+    {
+      "file": "backend\\src\\agents\\supervisor.py",
+      "line": 11,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend\\src\\agents\\supervisor.py",
+      "line": 30,
+      "text": "# TODO (Phase 0.2): \"code_writer\""
+    },
+    {
+      "file": "backend\\src\\agents\\supervisor.py",
+      "line": 31,
+      "text": "# TODO (Phase 0.2): \"code_reviewer\""
+    },
+    {
+      "file": "backend\\src\\agents\\supervisor.py",
+      "line": 32,
+      "text": "# TODO (Phase 0.2): \"test_runner\""
+    },
+    {
+      "file": "backend\\src\\agents\\supervisor.py",
+      "line": 33,
+      "text": "# TODO (Phase 0.2): \"file_system\""
+    },
+    {
+      "file": "backend\\src\\agents\\supervisor.py",
+      "line": 34,
+      "text": "# TODO (Phase 0.2): \"web_search\""
+    },
+    {
+      "file": "backend\\src\\agents\\supervisor.py",
+      "line": 35,
+      "text": "# TODO (Phase 0.2): \"memory_retriever\""
+    },
+    {
+      "file": "backend\\src\\api\\app.py",
+      "line": 11,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend\\src\\config\\settings.py",
+      "line": 12,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend\\src\\db\\neo4j.py",
+      "line": 11,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend\\src\\db\\postgres.py",
+      "line": 130,
+      "text": "TODO (Phase 0.3):"
+    },
+    {
+      "file": "backend\\src\\db\\qdrant.py",
+      "line": 9,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend\\src\\db\\redis.py",
+      "line": 10,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend\\src\\db\\services\\__init__.py",
+      "line": 4,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend\\src\\governance\\service.py",
+      "line": 12,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend\\src\\governance\\service.py",
+      "line": 31,
+      "text": "TODO (Phase 0.2): implement policy engine and audit logger."
+    },
+    {
+      "file": "backend\\src\\governance\\service.py",
+      "line": 45,
+      "text": "# TODO (Phase 0.2): evaluate against PolicyEngine rules"
+    },
+    {
+      "file": "backend\\src\\governance\\service.py",
+      "line": 54,
+      "text": "# TODO (Phase 0.2): persist to PostgreSQL audit_log table"
+    },
+    {
+      "file": "backend\\src\\knowledge\\service.py",
+      "line": 9,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend\\src\\knowledge\\service.py",
+      "line": 26,
+      "text": "TODO (Phase 0.2): implement code graph ingestion pipeline."
+    },
+    {
+      "file": "backend\\src\\knowledge\\service.py",
+      "line": 36,
+      "text": "# TODO (Phase 0.2): parse AST, extract entities, push to Neo4j + Qdrant"
+    },
+    {
+      "file": "backend\\src\\memory\\service.py",
+      "line": 13,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend\\src\\memory\\service.py",
+      "line": 31,
+      "text": "TODO (Phase 0.2): implement using Qdrant + Redis + PostgreSQL."
+    },
+    {
+      "file": "backend\\src\\memory\\service.py",
+      "line": 37,
+      "text": "# TODO (Phase 0.2): embed value and upsert into Qdrant"
+    },
+    {
+      "file": "backend\\src\\memory\\service.py",
+      "line": 42,
+      "text": "# TODO (Phase 0.2): embed query, search Qdrant, return top_k results"
+    },
+    {
+      "file": "backend\\src\\multi_agent\\governance_agent.py",
+      "line": 46,
+      "text": "restricted = [\"hack\", \"bypass\", \"exploit\", \"rootkit\"]"
+    },
+    {
+      "file": "backend\\src\\replay\\__init__.py",
+      "line": 4,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend\\src\\runtime\\nodes.py",
+      "line": 1684,
+      "text": "elif any(k in goal.lower() for k in (\"todo\", \"to-do\", \"rest api\", \"crud\", \"endpoint\", \"api\")):"
+    },
+    {
+      "file": "backend\\src\\utils\\logging.py",
+      "line": 7,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend\\tests\\unit\\test_implement_node.py",
+      "line": 15,
+      "text": "\"run_id\": \"test-todo-fallback\","
+    },
+    {
+      "file": "backend\\tests\\unit\\test_implement_node.py",
+      "line": 120,
+      "text": "\"goal\": \"build a simple REST API for a todo app\","
+    },
+    {
+      "file": "backend\\tests\\unit\\test_implement_node.py",
+      "line": 123,
+      "text": "\"run_id\": \"test-todo-timeout\","
+    },
+    {
+      "file": "backend\\tests\\unit\\test_implement_node.py",
+      "line": 155,
+      "text": "\"goal\": \"build a todo api\","
+    },
+    {
+      "file": "backend\\tests\\unit\\test_implement_node.py",
+      "line": 192,
+      "text": "await extract_and_store_durable_memories(\"run-timeout\", uuid.uuid4(), \"User: build todo app\")"
+    },
+    {
+      "file": "benchmarks\\__init__.py",
+      "line": 6,
+      "text": "TODO (Phase 0.3):"
+    },
+    {
+      "file": "benchmarks\\__init__.py",
+      "line": 13,
+      "text": "# TODO (Phase 0.3): implement with pytest-benchmark or locust"
+    },
+    {
+      "file": "docker\\postgres\\init.sql",
+      "line": 10,
+      "text": "-- TODO (Phase 0.2): Create schemas, tables, and indices"
+    },
+    {
+      "file": "docs\\DEPLOYMENT_GUIDE.md",
+      "line": 199,
+      "text": "DATABASE_URL=postgresql+asyncpg://user:password@ep-xxx.neon.tech/neondb?sslmode=require"
+    },
+    {
+      "file": "docs\\DEPLOYMENT_GUIDE.md",
+      "line": 209,
+      "text": "REDIS_URL=rediss://:password@xxx.upstash.io:6380/0"
+    },
+    {
+      "file": "docs\\Development.md",
+      "line": 74,
+      "text": "- Every new module must include `TODO` markers for future implementation"
+    },
+    {
+      "file": "docs\\FolderStructure.md",
+      "line": 47,
+      "text": "\u2502   \u2502   \u2502   \u251c\u2500\u2500 models/         \u2190 SQLAlchemy ORM model definitions (TODO)"
+    },
+    {
+      "file": "docs\\FolderStructure.md",
+      "line": 48,
+      "text": "\u2502   \u2502   \u2502   \u2514\u2500\u2500 services/       \u2190 DB-layer service classes (TODO)"
+    },
+    {
+      "file": "docs\\FolderStructure.md",
+      "line": 50,
+      "text": "\u2502   \u2502   \u251c\u2500\u2500 tools/              \u2190 Agent tool definitions (TODO)"
+    },
+    {
+      "file": "docs\\FolderStructure.md",
+      "line": 51,
+      "text": "\u2502   \u2502   \u251c\u2500\u2500 evaluation/         \u2190 Eval harness (TODO)"
+    },
+    {
+      "file": "docs\\FolderStructure.md",
+      "line": 52,
+      "text": "\u2502   \u2502   \u251c\u2500\u2500 replay/             \u2190 Trace replay engine (TODO)"
+    },
+    {
+      "file": "docs\\sales_package\\14_INSTITUTIONAL_MA_MARKET_RESEARCH_REPORT.md",
+      "line": 448,
+      "text": "| **TODO Comments in main.py** | \ud83d\udfe1 LOW | Lines 6-10 contain `TODO (Phase 0.2)` about LangGraph supervisor, agent registry, OpenTelemetry | Remove TODOs before listing |"
+    },
+    {
+      "file": "docs\\sales_package\\14_INSTITUTIONAL_MA_MARKET_RESEARCH_REPORT.md",
+      "line": 502,
+      "text": "- [ ] **Day 1 (30 min):** Remove all TODO comments from `backend/src/main.py` lines 6\u201310"
+    },
+    {
+      "file": "frontend\\next.config.ts",
+      "line": 7,
+      "text": "* TODO (Phase 0.2):"
+    }
+  ],
+  "mocks_stubs": [
+    {
+      "file": "01_REPOSITORY_OVERVIEW.md",
+      "line": 48,
+      "text": "- **AI Runtime Providers**: Google Gemini (`google-generativeai`), OpenAI API, Ollama (Local LLM backend), and Mock testing harness."
+    },
+    {
+      "file": "02_MISSING_FEATURES.md",
+      "line": 15,
+      "text": "- `backend/src/ai_runtime/providers/` contains `gemini.py`, `openai.py`, `ollama.py`, and `mock.py`."
+    },
+    {
+      "file": "04_AI_CAPABILITIES.md",
+      "line": 21,
+      "text": "4. **Mock Provider** (`backend/src/ai_runtime/providers/mock.py`):"
+    },
+    {
+      "file": "06_AI_RUNTIME_REPORT.md",
+      "line": 25,
+      "text": "4. **`MockProvider` (`mock.py`)**:"
+    },
+    {
+      "file": "09_PRODUCTION_READINESS.md",
+      "line": 24,
+      "text": "| **Secrets Management** | &check; Implemented | Environment-based configuration, no hardcoded API keys |"
+    },
+    {
+      "file": "13_COMPETITOR_MAPPING.md",
+      "line": 11,
+      "text": "| **Multi-Agent DAG Engine** | **Implemented** (`planner.py`, `supervisor.py`) | Implemented (Core library) | Implemented (Process/Crew) | Not Implemented (Chat UI only) | Partial (Inline completion / single agent) |"
+    },
+    {
+      "file": "13_COMPETITOR_MAPPING.md",
+      "line": 12,
+      "text": "| **Sandboxed Docker Exec** | **Implemented** (`executor/docker.py`) | Partial (External runners) | Not Implemented (Runs on host) | Not Implemented | Partial (Local terminal / dev containers) |"
+    },
+    {
+      "file": "13_COMPETITOR_MAPPING.md",
+      "line": 13,
+      "text": "| **HITL Cryptographic Gates** | **Implemented** (`governance/hitl.py`) | Implemented (Interrupts) | Partial (Human input flag) | Not Implemented | Partial (Manual accept diff) |"
+    },
+    {
+      "file": "13_COMPETITOR_MAPPING.md",
+      "line": 16,
+      "text": "| **Turnstile + RBAC Auth** | **Implemented** (`auth.py`, `Turnstile`) | Not Implemented (Cloud only) | Not Implemented | Implemented (Local auth) | Implemented (GitHub OAuth) |"
+    },
+    {
+      "file": "13_COMPETITOR_MAPPING.md",
+      "line": 17,
+      "text": "| **Payment & Subscriptions** | **Implemented** (`payments.py`) | Not Implemented (SaaS backend) | Not Implemented | Not Implemented | Implemented (Stripe) |"
+    },
+    {
+      "file": "13_COMPETITOR_MAPPING.md",
+      "line": 18,
+      "text": "| **Interactive 3D Control Plane**| **Implemented** (Next.js 15 + Canvas 3D) | Partial (LangSmith Web UI) | Not Implemented | Implemented (Chat UI) | Implemented (Desktop IDE) |"
+    },
+    {
+      "file": "ALEMBIC_IMPLEMENTATION_COMPLETE.md",
+      "line": 170,
+      "text": "- No hardcoded credentials"
+    },
+    {
+      "file": "CHANGELOG.md",
+      "line": 66,
+      "text": "- `backend/src/agents/planner.py` \u2014 stub replaced with real LLM goal decomposition via `AIRuntimeService`"
+    },
+    {
+      "file": "CHANGELOG.md",
+      "line": 67,
+      "text": "- `backend/src/production/cloudinary_service.py` \u2014 fake URL fallback replaced with `RuntimeError` when `CLOUDINARY_URL` is unconfigured"
+    },
+    {
+      "file": "DATA_ROOM_INDEX.md",
+      "line": 136,
+      "text": "python scripts/benchmark_suite.py --mock-runs 20"
+    },
+    {
+      "file": "fix_registry.py",
+      "line": 6,
+      "text": "# Always fallback to mock if everything else is broken"
+    },
+    {
+      "file": "fix_registry.py",
+      "line": 7,
+      "text": "if \\\"mock\\\" in self.providers and self.providers[\\\"mock\\\"] not in chain:"
+    },
+    {
+      "file": "fix_registry.py",
+      "line": 8,
+      "text": "chain.append(self.providers[\\\"mock\\\"])"
+    },
+    {
+      "file": "gen_graph.py",
+      "line": 77,
+      "text": "# Connect orchestrator to all possible first phases, and each phase to deploy (just a dummy edge so it's not disconnected, or orchestrator connects to all to show routing)"
+    },
+    {
+      "file": "IMPLEMENTATION_SUMMARY.md",
+      "line": 247,
+      "text": "- Retries not implemented (Tenacity can be added later)"
+    },
+    {
+      "file": "setup.sh",
+      "line": 83,
+      "text": "read -p \"Enter GEMINI_API_KEY (leave blank for placeholder): \" INPUT_GEMINI"
+    },
+    {
+      "file": "setup.sh",
+      "line": 84,
+      "text": "read -p \"Enter OPENAI_API_KEY (leave blank for placeholder): \" INPUT_OPENAI"
+    },
+    {
+      "file": "backend\\ALEMBIC_REQUIREMENTS_CHECKLIST.md",
+      "line": 148,
+      "text": "- Impact: Initial migration is empty placeholder"
+    },
+    {
+      "file": "backend\\ALEMBIC_SETUP_SUMMARY.md",
+      "line": 52,
+      "text": "**Purpose**: Empty placeholder migration to establish baseline"
+    },
+    {
+      "file": "backend\\fix_orch.py",
+      "line": 43,
+      "text": "\"- NEVER hardcode fake data in final artifacts.\\\\n\""
+    },
+    {
+      "file": "backend\\fix_orch.py",
+      "line": 45,
+      "text": "\"- Ship partial-but-real over complete-but-fake.\""
+    },
+    {
+      "file": "backend\\fix_orch2.py",
+      "line": 45,
+      "text": "\"- NEVER hardcode fake data in final artifacts.\\\\n\""
+    },
+    {
+      "file": "backend\\fix_orch2.py",
+      "line": 47,
+      "text": "\"- Ship partial-but-real over complete-but-fake.\""
+    },
+    {
+      "file": "backend\\modify.py",
+      "line": 45,
+      "text": "\"- NEVER hardcode fake data in final artifacts.\\\\n\""
+    },
+    {
+      "file": "backend\\modify.py",
+      "line": 47,
+      "text": "\"- Ship partial-but-real over complete-but-fake.\""
+    },
+    {
+      "file": "backend\\replace_orchestrator.py",
+      "line": 44,
+      "text": "\"- NEVER hardcode fake data in final artifacts.\\\\n\""
+    },
+    {
+      "file": "backend\\replace_orchestrator.py",
+      "line": 46,
+      "text": "\"- Ship partial-but-real over complete-but-fake.\""
+    },
+    {
+      "file": "backend\\xxhash.py",
+      "line": 1,
+      "text": "# Mock xxhash to bypass AppLocker/Application Control DLL blocking"
+    },
+    {
+      "file": "backend\\scripts\\simulate_single_step_run.py",
+      "line": 12,
+      "text": "from unittest.mock import AsyncMock, MagicMock"
+    },
+    {
+      "file": "backend\\scripts\\simulate_single_step_run.py",
+      "line": 19,
+      "text": "os.environ[\"AI_PROVIDER_PRIORITY\"] = \"mock\""
+    },
+    {
+      "file": "backend\\skills\\builtin\\security-auditor.md",
+      "line": 17,
+      "text": "2. **Credential Protection**: Never commit or hardcode raw API keys, secrets, tokens, or private keys. Always use secure environment variables, encrypted stores, or mock tokens during sandbox testing."
+    },
+    {
+      "file": "backend\\src\\agents\\checkpoint.py",
+      "line": 2,
+      "text": "ASEP \u2014 LangGraph Checkpoint Manager (Placeholder)"
+    },
+    {
+      "file": "backend\\src\\agents\\checkpoint.py",
+      "line": 23,
+      "text": "Placeholder for the LangGraph checkpoint manager."
+    },
+    {
+      "file": "backend\\src\\agents\\checkpoint.py",
+      "line": 32,
+      "text": "logger.info(\"CheckpointManager initialised (stub)\")"
+    },
+    {
+      "file": "backend\\src\\agents\\planner.py",
+      "line": 12,
+      "text": "failure to the graph rather than silently producing stub output."
+    },
+    {
+      "file": "backend\\src\\agents\\registry.py",
+      "line": 2,
+      "text": "ASEP \u2014 Agent Registry (Placeholder)"
+    },
+    {
+      "file": "backend\\src\\agents\\supervisor.py",
+      "line": 2,
+      "text": "ASEP \u2014 LangGraph Supervisor (Placeholder)"
+    },
+    {
+      "file": "backend\\src\\agents\\supervisor.py",
+      "line": 43,
+      "text": "\"\"\"Mock executor node until full agent runtime is implemented.\"\"\""
+    },
+    {
+      "file": "backend\\src\\ai_runtime\\context.py",
+      "line": 53,
+      "text": "\"\"\"Placeholder hook for semantic context compression (e.g. summarisation).\"\"\""
+    },
+    {
+      "file": "backend\\src\\ai_runtime\\registry.py",
+      "line": 10,
+      "text": "from src.ai_runtime.providers.mock import MockProvider"
+    },
+    {
+      "file": "backend\\src\\ai_runtime\\registry.py",
+      "line": 37,
+      "text": "\"mock\": CircuitBreaker()"
+    },
+    {
+      "file": "backend\\src\\ai_runtime\\registry.py",
+      "line": 70,
+      "text": "if name == \"mock\":"
+    },
+    {
+      "file": "backend\\src\\ai_runtime\\registry.py",
+      "line": 120,
+      "text": "elif \"mock\" in model_lower:"
+    },
+    {
+      "file": "backend\\src\\ai_runtime\\registry.py",
+      "line": 121,
+      "text": "return \"mock\""
+    },
+    {
+      "file": "backend\\src\\ai_runtime\\providers\\mock.py",
+      "line": 21,
+      "text": "return \"mock\""
+    },
+    {
+      "file": "backend\\src\\ai_runtime\\providers\\mock.py",
+      "line": 25,
+      "text": "text = f\"Mock completion response for: '{request.messages[-1].content}'\""
+    },
+    {
+      "file": "backend\\src\\ai_runtime\\providers\\mock.py",
+      "line": 44,
+      "text": "text = \"Mock streaming response: \""
+    },
+    {
+      "file": "backend\\src\\ai_runtime\\providers\\mock.py",
+      "line": 64,
+      "text": "# Simply return dummy mock json structure matching a generic schema representation"
+    },
+    {
+      "file": "backend\\src\\ai_runtime\\providers\\mock.py",
+      "line": 84,
+      "text": "# Return mock float vector"
+    },
+    {
+      "file": "backend\\src\\ai_runtime\\providers\\mock.py",
+      "line": 91,
+      "text": "active_model=\"mock-default\","
+    },
+    {
+      "file": "backend\\src\\ai_runtime\\providers\\mock.py",
+      "line": 95,
+      "text": "loaded_models=[\"mock-default\", \"mock-lite\"],"
+    },
+    {
+      "file": "backend\\src\\ai_runtime\\providers\\vision.py",
+      "line": 86,
+      "text": "# Fallback mock for offline sandbox runs"
+    },
+    {
+      "file": "backend\\src\\ai_runtime\\providers\\vision.py",
+      "line": 89,
+      "text": "text=f\"Mock Vision output for model {request.model}: Processed image layout successfully.\","
+    },
+    {
+      "file": "backend\\src\\ai_runtime\\providers\\vision.py",
+      "line": 97,
+      "text": "# Simple generator mock fallback for vision stream"
+    },
+    {
+      "file": "backend\\src\\api\\routers\\agent_runs.py",
+      "line": 33,
+      "text": "created_by=\"api_user\"  # Placeholder until auth is implemented"
+    },
+    {
+      "file": "backend\\src\\api\\routers\\agent_runs.py",
+      "line": 46,
+      "text": "# but let's use get_active_runs for the list endpoint as a proxy, or add a stub."
+    },
+    {
+      "file": "backend\\src\\api\\routers\\agent_runs.py",
+      "line": 50,
+      "text": "# Mock total count for pagination schema"
+    },
+    {
+      "file": "backend\\src\\api\\routers\\audit.py",
+      "line": 43,
+      "text": "# Default empty return or generic query if not implemented in service yet."
+    },
+    {
+      "file": "backend\\src\\api\\routers\\audit.py",
+      "line": 49,
+      "text": "total=len(logs),  # Mock total as count is not implemented for all filters"
+    },
+    {
+      "file": "backend\\src\\api\\routers\\evaluation.py",
+      "line": 18,
+      "text": "# Mock history data to populate /history endpoint"
+    },
+    {
+      "file": "backend\\src\\api\\routers\\evaluation.py",
+      "line": 68,
+      "text": "# Create dummy events generator for executing runner"
+    },
+    {
+      "file": "backend\\src\\api\\routers\\evaluation.py",
+      "line": 128,
+      "text": "# Re-run or return mock report"
+    },
+    {
+      "file": "backend\\src\\auth\\service.py",
+      "line": 288,
+      "text": "is_mock_provider = not self.email_service.api_key or self.email_service.api_key in (\"mock\", \"\", \"None\")"
+    },
+    {
+      "file": "backend\\src\\auth\\service.py",
+      "line": 332,
+      "text": "# - Default code \"123456\" or \"000000\" ONLY if mock email provider OR if not in production"
+    },
+    {
+      "file": "backend\\src\\auth\\service.py",
+      "line": 397,
+      "text": "has_real_email = bool(self.email_service.api_key and self.email_service.api_key not in (\"mock\", \"\", \"None\"))"
+    },
+    {
+      "file": "backend\\src\\auth\\service.py",
+      "line": 442,
+      "text": "has_real_email = bool(self.email_service.api_key and self.email_service.api_key not in (\"mock\", \"\", \"None\"))"
+    },
+    {
+      "file": "backend\\src\\auth\\turnstile.py",
+      "line": 27,
+      "text": "\"mock-turnstile-token\","
+    },
+    {
+      "file": "backend\\src\\auth\\turnstile.py",
+      "line": 28,
+      "text": "\"dummy-turnstile-token\","
+    },
+    {
+      "file": "backend\\src\\auth\\turnstile.py",
+      "line": 29,
+      "text": "\"mock-cloudflare-turnstile-token\","
+    },
+    {
+      "file": "backend\\src\\auth\\turnstile.py",
+      "line": 31,
+      "text": "logger.debug(\"Turnstile bypassed (dev mode, mock token)\")"
+    },
+    {
+      "file": "backend\\src\\config\\settings.py",
+      "line": 384,
+      "text": "logging.getLogger(__name__).warning(\"Production Security Warning: %s is using default placeholder value.\", info.field_name)"
+    },
+    {
+      "file": "backend\\src\\control_plane\\policies.py",
+      "line": 18,
+      "text": "For Phase 2.3, we return a mock active ruleset metadata.\"\"\""
+    },
+    {
+      "file": "backend\\src\\control_plane\\policies.py",
+      "line": 26,
+      "text": "\"\"\"Stub for dynamic policy update.\"\"\""
+    },
+    {
+      "file": "backend\\src\\documents\\ingestion.py",
+      "line": 114,
+      "text": "# Placeholder space to insert once computed"
+    },
+    {
+      "file": "backend\\src\\documents\\loaders.py",
+      "line": 74,
+      "text": "# Fallback mock for presentation logs"
+    },
+    {
+      "file": "backend\\src\\documents\\ocr.py",
+      "line": 64,
+      "text": "# Mock Fallback for local runtime environments lacking system-level OCR bindings"
+    },
+    {
+      "file": "backend\\src\\documents\\ocr.py",
+      "line": 65,
+      "text": "logger.warning(\"System OCR bindings not found. Running mock character extractor.\")"
+    },
+    {
+      "file": "backend\\src\\documents\\ocr.py",
+      "line": 66,
+      "text": "# Simulating extraction of mock trace logs if present in filename context"
+    },
+    {
+      "file": "backend\\src\\documents\\ocr.py",
+      "line": 77,
+      "text": "text_content = f\"Mock normalized OCR text extracted from image size: {w}x{h}\""
+    },
+    {
+      "file": "backend\\src\\executor\\dispatcher.py",
+      "line": 23,
+      "text": "\"\"\"Default placeholder handler.  Succeeds immediately with empty output.\"\"\""
+    },
+    {
+      "file": "backend\\src\\governance\\health.py",
+      "line": 36,
+      "text": "# Assuming the Mock human approved it, it should be ALLOW"
+    },
+    {
+      "file": "backend\\src\\governance\\policy_engine.py",
+      "line": 17,
+      "text": "# Hardcoded example policy rules for Phase 2.2"
+    },
+    {
+      "file": "backend\\src\\governance\\screenshot_debug.py",
+      "line": 61,
+      "text": "# If cache missed, fall back to mock recommendation logic"
+    },
+    {
+      "file": "backend\\src\\governance\\service.py",
+      "line": 2,
+      "text": "ASEP \u2014 Governance Module (Placeholder)"
+    },
+    {
+      "file": "backend\\src\\governance\\service.py",
+      "line": 29,
+      "text": "Placeholder governance service."
+    },
+    {
+      "file": "backend\\src\\governance\\service.py",
+      "line": 42,
+      "text": "\"GovernanceService.check_policy (stub \u2014 always allow)\","
+    },
+    {
+      "file": "backend\\src\\governance\\service.py",
+      "line": 51,
+      "text": "\"GovernanceService.audit_log (stub)\","
+    },
+    {
+      "file": "backend\\src\\knowledge\\service.py",
+      "line": 2,
+      "text": "ASEP \u2014 Knowledge Module (Placeholder)"
+    },
+    {
+      "file": "backend\\src\\knowledge\\service.py",
+      "line": 24,
+      "text": "Placeholder knowledge service."
+    },
+    {
+      "file": "backend\\src\\knowledge\\service.py",
+      "line": 35,
+      "text": "logger.info(\"KnowledgeService.ingest_codebase (stub)\", extra={\"path\": path})"
+    },
+    {
+      "file": "backend\\src\\memory\\consolidation.py",
+      "line": 71,
+      "text": "# Hook placeholder for scheduling task summaries"
+    },
+    {
+      "file": "backend\\src\\memory\\service.py",
+      "line": 2,
+      "text": "ASEP \u2014 Memory Module (Placeholder)"
+    },
+    {
+      "file": "backend\\src\\memory\\service.py",
+      "line": 29,
+      "text": "Placeholder memory service."
+    },
+    {
+      "file": "backend\\src\\memory\\service.py",
+      "line": 36,
+      "text": "logger.info(\"MemoryService.store (stub)\", extra={\"key\": key, \"namespace\": namespace})"
+    },
+    {
+      "file": "backend\\src\\memory\\service.py",
+      "line": 41,
+      "text": "logger.info(\"MemoryService.retrieve (stub)\", extra={\"query\": query, \"namespace\": namespace})"
+    },
+    {
+      "file": "backend\\src\\multi_agent\\evaluator_agent.py",
+      "line": 31,
+      "text": "# Hallucination check stub: search context words"
+    },
+    {
+      "file": "backend\\src\\multi_agent\\health.py",
+      "line": 18,
+      "text": "m = AgentManifest(name=\"Dummy\", description=\"Dummy healthcheck agent\")"
+    },
+    {
+      "file": "backend\\src\\multi_agent\\research_agent.py",
+      "line": 37,
+      "text": "# Step 1: Repository & Workspace search (Local file lookup mock integration)"
+    },
+    {
+      "file": "backend\\src\\multi_agent\\review_agent.py",
+      "line": 44,
+      "text": "issues.append({\"category\": \"security\", \"severity\": \"CRITICAL\", \"message\": \"Potential hardcoded credential.\"})"
+    },
+    {
+      "file": "backend\\src\\production\\cloudinary_service.py",
+      "line": 6,
+      "text": "via environment variables without hardcoded credentials."
+    },
+    {
+      "file": "backend\\src\\production\\cloudinary_service.py",
+      "line": 76,
+      "text": "strictly via os.getenv without hardcoded values."
+    },
+    {
+      "file": "backend\\src\\production\\integration.py",
+      "line": 27,
+      "text": "# 2. Mock full pipeline run (Planner -> Executor -> Memory -> Evaluator -> Reflection -> Control Plane)"
+    },
+    {
+      "file": "backend\\src\\production\\recovery.py",
+      "line": 26,
+      "text": "# Mock recovery logic: register it as paused"
+    },
+    {
+      "file": "backend\\src\\runtime\\edges.py",
+      "line": 40,
+      "text": "safe_input = human_input if human_input in (\"reject\", \"deny\", \"revise\", \"approve\", \"mock\") else \"[REDACTED]\""
+    },
+    {
+      "file": "backend\\src\\runtime\\health.py",
+      "line": 26,
+      "text": "# Dummy callbacks to verify graph compilation pathways"
+    },
+    {
+      "file": "backend\\src\\runtime\\nodes.py",
+      "line": 718,
+      "text": "\"- NEVER hardcode fake data in final artifacts.\\n\""
+    },
+    {
+      "file": "backend\\src\\runtime\\nodes.py",
+      "line": 720,
+      "text": "\"- Ship partial-but-real over complete-but-fake.\""
+    },
+    {
+      "file": "backend\\src\\runtime\\nodes.py",
+      "line": 1161,
+      "text": "# Dummy/test words in live mode count as an invalid attempt"
+    },
+    {
+      "file": "backend\\src\\runtime\\nodes.py",
+      "line": 1162,
+      "text": "if any(dummy in val.lower() for dummy in [\"dummy\", \"fake\", \"invalid\", \"test\", \"example\", \"badkey\"]):"
+    },
+    {
+      "file": "backend\\src\\runtime\\nodes.py",
+      "line": 1163,
+      "text": "return False, \"Dummy or test keys cannot be used in production mode.\""
+    },
+    {
+      "file": "backend\\src\\runtime\\nodes.py",
+      "line": 1220,
+      "text": "credentials_status[field] = \"mock\""
+    },
+    {
+      "file": "backend\\src\\runtime\\nodes.py",
+      "line": 1240,
+      "text": "if credentials_status.get(field) and credentials_status[field] != \"mock\":"
+    },
+    {
+      "file": "backend\\src\\runtime\\nodes.py",
+      "line": 1246,
+      "text": "f\"I need: {field}. Please provide valid LIVE credentials, or type 'mock' to deliberately deploy with test services.\""
+    },
+    {
+      "file": "backend\\src\\runtime\\nodes.py",
+      "line": 1257,
+      "text": "if \"mock\" in human_input.lower():"
+    },
+    {
+      "file": "backend\\src\\runtime\\nodes.py",
+      "line": 1258,
+      "text": "credentials_status[field] = \"mock\""
+    },
+    {
+      "file": "backend\\src\\runtime\\nodes.py",
+      "line": 1324,
+      "text": "if credentials_status.get(f) == \"mock\" or f not in credentials_status"
+    },
+    {
+      "file": "backend\\src\\runtime\\nodes.py",
+      "line": 1818,
+      "text": "else \"placeholder code (no real code to validate)\""
+    },
+    {
+      "file": "backend\\src\\runtime\\nodes.py",
+      "line": 2138,
+      "text": "- Hardcoded secrets and credentials"
+    },
+    {
+      "file": "backend\\src\\runtime\\runtime.py",
+      "line": 439,
+      "text": "safe_response = human_input if human_input in (\"approve\", \"reject\", \"mock\") else (f\"{human_input[:3]}...[REDACTED]\" if len(human_input) > 6 else \"[REDACTED]\")"
+    },
+    {
+      "file": "backend\\src\\runtime\\runtime.py",
+      "line": 466,
+      "text": "# Create a lightweight mock MemoryManager to fulfill runtime facade requirements"
+    },
+    {
+      "file": "backend\\src\\services\\email_service.py",
+      "line": 105,
+      "text": "if self.api_key and self.api_key not in (\"mock\", \"\", \"None\"):"
+    },
+    {
+      "file": "backend\\src\\services\\email_service.py",
+      "line": 110,
+      "text": "logger.warning(\"Resend SDK not installed. Falling back to mock email delivery.\")"
+    },
+    {
+      "file": "backend\\src\\services\\email_service.py",
+      "line": 111,
+      "text": "self.api_key = \"mock\""
+    },
+    {
+      "file": "backend\\src\\services\\email_service.py",
+      "line": 114,
+      "text": "\"\"\"Deliver email using Resend SDK or mock delivery locally with robust retry logic.\"\"\""
+    },
+    {
+      "file": "backend\\src\\services\\email_service.py",
+      "line": 117,
+      "text": "# If API key is missing or mock, simulate delivery and write to audit logs"
+    },
+    {
+      "file": "backend\\src\\services\\email_service.py",
+      "line": 118,
+      "text": "if not self.api_key or self.api_key in (\"mock\", \"\", \"None\"):"
+    },
+    {
+      "file": "backend\\src\\services\\email_service.py",
+      "line": 119,
+      "text": "logger.info(f\"Email sent: [MOCK SDK EMAIL] To: {to_email} | Type: {email_type} | Subject: {subject}\")"
+    },
+    {
+      "file": "backend\\src\\services\\email_service.py",
+      "line": 121,
+      "text": "# Audit log mock delivery"
+    },
+    {
+      "file": "backend\\src\\tools\\health.py",
+      "line": 18,
+      "text": "True if tooling configurations resolve and mock handshakes succeed, False otherwise."
+    },
+    {
+      "file": "backend\\src\\tools\\health.py",
+      "line": 28,
+      "text": "client = MCPClient(server_name=\"mock_mcp\", server_url=\"http://mock-mcp-server:8000\")"
+    },
+    {
+      "file": "backend\\src\\tools\\impl.py",
+      "line": 249,
+      "text": "# Mock implementation returning placeholder data for testing"
+    },
+    {
+      "file": "backend\\src\\tools\\impl.py",
+      "line": 277,
+      "text": "# Mock or run subprocess if docker command exists"
+    },
+    {
+      "file": "backend\\src\\tools\\impl.py",
+      "line": 299,
+      "text": "# Fallback to mock if docker command is not installed locally"
+    },
+    {
+      "file": "backend\\src\\tools\\impl.py",
+      "line": 303,
+      "text": "\"mock\": True,"
+    },
+    {
+      "file": "backend\\src\\tools\\impl.py",
+      "line": 471,
+      "text": "# Mock/Ping or execute logic (mocked here for base suite safety)"
+    },
+    {
+      "file": "backend\\src\\tools\\mcp_client.py",
+      "line": 6,
+      "text": "health pinging, auto-reconnect backoff, and fallback mock capabilities."
+    },
+    {
+      "file": "backend\\src\\unit_of_work\\sqlalchemy.py",
+      "line": 41,
+      "text": "(e.g. backed by an in-memory SQLite engine or a mock)."
+    },
+    {
+      "file": "backend\\src\\utils\\doc_crawler.py",
+      "line": 513,
+      "text": "\"\"\"Return hardcoded pattern hints as chunks when all HTTP fetches fail.\"\"\""
+    },
+    {
+      "file": "backend\\src\\utils\\safe_execute.py",
+      "line": 63,
+      "text": "# Return a dummy already-done future for interface compatibility."
+    },
+    {
+      "file": "backend\\src\\utils\\security_scanner.py",
+      "line": 7,
+      "text": "2. Hardcoded Secrets & Credentials"
+    },
+    {
+      "file": "backend\\src\\utils\\security_scanner.py",
+      "line": 32,
+      "text": "category: str  # \"SQL Injection\", \"Command Injection\", \"Template Injection\", \"Hardcoded Secret\", \"Debug Flag\", \"Missing Auth\", \"Vulnerable Dependency\""
+    },
+    {
+      "file": "backend\\src\\utils\\security_scanner.py",
+      "line": 246,
+      "text": "# --- D. HARDCODED SECRETS (HIGH / CRITICAL) ---"
+    },
+    {
+      "file": "backend\\src\\utils\\security_scanner.py",
+      "line": 251,
+      "text": "category=\"Hardcoded Secret\","
+    },
+    {
+      "file": "backend\\src\\utils\\security_scanner.py",
+      "line": 258,
+      "text": "# Don't flag dummy/placeholder tokens"
+    },
+    {
+      "file": "backend\\src\\utils\\security_scanner.py",
+      "line": 261,
+      "text": "if not any(placeholder in val for placeholder in (\"placeholder\", \"test\", \"your_\", \"dummy\", \"example\")):"
+    },
+    {
+      "file": "backend\\src\\utils\\security_scanner.py",
+      "line": 265,
+      "text": "category=\"Hardcoded Secret\","
+    },
+    {
+      "file": "backend\\src\\utils\\security_scanner.py",
+      "line": 268,
+      "text": "description=\"Hardcoded Secret: Sensitive credential, password, or API token detected in code.\","
+    },
+    {
+      "file": "backend\\uuid_utils\\compat.py",
+      "line": 1,
+      "text": "# Mock compat module for uuid_utils"
+    },
+    {
+      "file": "backend\\uuid_utils\\__init__.py",
+      "line": 1,
+      "text": "# Mock uuid_utils to bypass DLL block"
+    },
+    {
+      "file": "benchmarks\\__init__.py",
+      "line": 2,
+      "text": "ASEP \u2014 Benchmark Placeholder"
+    },
+    {
+      "file": "docs\\ACTUAL_IMPLEMENTED_CAPABILITIES.md",
+      "line": 56,
+      "text": "* **Hybrid Search**: **Planned - Not Implemented**"
+    },
+    {
+      "file": "docs\\ACTUAL_IMPLEMENTED_CAPABILITIES.md",
+      "line": 106,
+      "text": "- `github`: Mock repo issues/PR query wrapper."
+    },
+    {
+      "file": "docs\\ACTUAL_IMPLEMENTED_CAPABILITIES.md",
+      "line": 165,
+      "text": "* Advanced SSO (OIDC/SAML) integrations. (*Status: Planned - Not Implemented*)"
+    },
+    {
+      "file": "docs\\ACTUAL_IMPLEMENTED_CAPABILITIES.md",
+      "line": 166,
+      "text": "* Slack/Discord approval alert hook pipelines. (*Status: Planned - Not Implemented*)"
+    },
+    {
+      "file": "docs\\ACTUAL_IMPLEMENTED_CAPABILITIES.md",
+      "line": 171,
+      "text": "* **agents/supervisor.py**: Prototype placeholder supervisor node that is bypassed in the active production graph."
+    },
+    {
+      "file": "docs\\ACTUAL_IMPLEMENTED_CAPABILITIES_V2.md",
+      "line": 103,
+      "text": "* **Supervisor / Planner Agents**: \u26a0 Partially Implemented (Prototype placeholder node implemented in [`backend/src/agents/supervisor.py`](file:///c:/Users/sachi/ASEP/backend/src/agents/supervisor.py) that bypasses dynamic LLM routing)."
+    },
+    {
+      "file": "docs\\ACTUAL_IMPLEMENTED_CAPABILITIES_V2.md",
+      "line": 113,
+      "text": "* **RAG / GraphRAG Pipelines**: \u26a0 Partially Implemented (Document sync mapping implemented in [`backend/src/knowledge/sync.py`](file:///c:/Users/sachi/ASEP/backend/src/knowledge/sync.py), but vector embeddings collection creation is placeholder)."
+    },
+    {
+      "file": "docs\\ACTUAL_IMPLEMENTED_CAPABILITIES_V3.md",
+      "line": 159,
+      "text": "**Yes.** OpenSEP implements a base `CodingAgent` class (in [`backend/src/multi_agent/coding_agent.py`](file:///c:/Users/sachi/ASEP/backend/src/multi_agent/coding_agent.py)) that produces mock python patches for tests. Real-world edits are supported through filesystem action tools (defined in [`backend/src/tools/impl.py`](file:///c:/Users/sachi/ASEP/backend/src/tools/impl.py)), which write raw data directly to disk."
+    },
+    {
+      "file": "docs\\CHANGELOG.md",
+      "line": 11,
+      "text": "- Implemented isolated mock session detail response mechanisms for test executions."
+    },
+    {
+      "file": "docs\\DATA_ROOM_INDEX.md",
+      "line": 136,
+      "text": "python scripts/benchmark_suite.py --mock-runs 20"
+    },
+    {
+      "file": "docs\\FEATURE_AUDIT.md",
+      "line": 206,
+      "text": "* **High Severity**: Fully managed Kubernetes Helm deployment charts. (*Status: Planned - Not Implemented*)"
+    },
+    {
+      "file": "docs\\FEATURE_AUDIT.md",
+      "line": 207,
+      "text": "* **Medium Severity**: Advanced SSO (SAML/OIDC) integration in settings. (*Status: Planned - Not Implemented*)"
+    },
+    {
+      "file": "docs\\FEATURE_AUDIT.md",
+      "line": 208,
+      "text": "* **Low Severity**: Slack / Discord webhook notification alerts on approvals. (*Status: Planned - Not Implemented*)"
+    },
+    {
+      "file": "docs\\FINAL_RC1_VERIFICATION.md",
+      "line": 58,
+      "text": "* **148/148 Passing**: Represented isolated execution of backend unit tests (`pytest tests/unit`) which mock out all external services."
+    },
+    {
+      "file": "docs\\FolderStructure.md",
+      "line": 89,
+      "text": "\u2502   \u2514\u2500\u2500 __init__.py             \u2190 Performance benchmark placeholder"
+    },
+    {
+      "file": "docs\\IMPLEMENTATION_GAP_ANALYSIS.md",
+      "line": 78,
+      "text": "| **Outbound Web Search Client** | \u26a0 Partial | [`backend/src/tools/mcp_client.py`](file:///c:/Users/sachi/ASEP/backend/src/tools/mcp_client.py) (`mcp_web_search` mock tool executes queries on remote servers) |"
+    },
+    {
+      "file": "docs\\IMPLEMENTATION_GAP_ANALYSIS.md",
+      "line": 89,
+      "text": "- *Recommended Enhancement*: Refactor the supervisor registry loop (`backend/src/agents/supervisor.py`) to leverage LLM-based structured function calls instead of hardcoded task lists."
+    },
+    {
+      "file": "docs\\RC1_AUDIT.md",
+      "line": 105,
+      "text": "- *Severity*: **High** (Not Critical blocker for RC1, as local/staging environments can configure these to resolve externally or mock-bypass.)"
+    },
+    {
+      "file": "docs\\Roadmap.md",
+      "line": 17,
+      "text": "- [x] Execution engine placeholder"
+    },
+    {
+      "file": "docs\\sales_package\\05_SECURITY_AUDIT_CHECKLIST.md",
+      "line": 21,
+      "text": "- [x] **Fail-Fast Cloud Storage**: Mock URL fallbacks removed; file uploads require verified storage keys."
+    },
+    {
+      "file": "docs\\sales_package\\10_SECURITY_AND_SAST_AUDIT_REPORT.md",
+      "line": 22,
+      "text": "* **Hardcoded Credentials**: 0 Hardcoded secrets. All API keys, database URLs, and secrets are dynamically read via `pydantic-settings` from environment variables."
+    },
+    {
+      "file": "docs\\sales_package\\20_TECHNICAL_BENCHMARK_REPORT.md",
+      "line": 44,
+      "text": "| **Unit Test Generation** | Medium (Pytest + Mock UoW) | 0.18s | 390 | 750 | **100%** |"
+    },
+    {
+      "file": "docs\\sales_package\\bandit_scan.json",
+      "line": 317,
+      "text": "\"src/ai_runtime\\\\providers\\\\mock.py\": {"
+    },
+    {
+      "file": "docs\\sales_package\\bandit_scan.json",
+      "line": 4443,
+      "text": "\"issue_text\": \"Possible hardcoded password: 'access'\","
+    },
+    {
+      "file": "docs\\sales_package\\bandit_scan.json",
+      "line": 4469,
+      "text": "\"issue_text\": \"Possible hardcoded password: 'refresh'\","
+    },
+    {
+      "file": "docs\\sales_package\\bandit_scan.json",
+      "line": 4495,
+      "text": "\"issue_text\": \"Possible hardcoded password: 'https://github.com/login/oauth/access_token'\","
+    },
+    {
+      "file": "docs\\sales_package\\bandit_scan.json",
+      "line": 4515,
+      "text": "\"issue_text\": \"Possible hardcoded password: 'https://oauth2.googleapis.com/token'\","
+    },
+    {
+      "file": "docs\\sales_package\\bandit_scan.json",
+      "line": 4576,
+      "text": "\"issue_text\": \"Possible hardcoded password: 'bearer'\","
+    },
+    {
+      "file": "docs\\sales_package\\bandit_scan.json",
+      "line": 4674,
+      "text": "\"code\": \"419         has_real_email = bool(self.email_service.api_key and self.email_service.api_key not in (\\\"mock\\\", \\\"\\\", \\\"None\\\"))\\n420         code = str(random.randint(100000, 999999)) if (settings.APP_ENV == \\\"production\\\" and has_real_email) else \\\"123456\\\"\\n421         token = str(uuid.uuid4())\\n\","
+    },
+    {
+      "file": "docs\\sales_package\\bandit_scan.json",
+      "line": 4694,
+      "text": "\"code\": \"465         has_real_email = bool(self.email_service.api_key and self.email_service.api_key not in (\\\"mock\\\", \\\"\\\", \\\"None\\\"))\\n466         code = str(random.randint(100000, 999999)) if (settings.APP_ENV == \\\"production\\\" and has_real_email) else \\\"123456\\\"\\n467         token = str(uuid.uuid4())\\n\","
+    },
+    {
+      "file": "docs\\sales_package\\bandit_scan.json",
+      "line": 5199,
+      "text": "\"code\": \"35         # Assuming the Mock human approved it, it should be ALLOW\\n36         assert decision2.result == DecisionResult.ALLOW\\n37         \\n\","
+    },
+    {
+      "file": "examples\\prompt_catalog\\PROMPT_ENGINEERING_CATALOG.md",
+      "line": 14,
+      "text": "* **Defensive Instructions:** Explicit constraints preventing hallucinated dependencies, placeholder comments, or unverified imports."
+    },
+    {
+      "file": "examples\\prompt_catalog\\PROMPT_ENGINEERING_CATALOG.md",
+      "line": 56,
+      "text": "- Hardcoded secrets, API tokens, or private keys."
+    },
+    {
+      "file": "frontend\\README.md",
+      "line": 108,
+      "text": "- **Global Setup**: `src/test/setup.ts` registers global mock providers, polyfills browser APIs (like `window.matchMedia` and `ResizeObserver`), and mocks global `next/navigation` hooks using a reusable mock router spy (`mockRouter`)."
+    },
+    {
+      "file": "frontend\\README.md",
+      "line": 128,
+      "text": "- **Session Persistence (`storageState`)**: An initial setup project (`e2e/auth.setup.ts`) logs in once using mock credentials (`admin`/`password`) and caches the browser state (localStorage tokens) to `playwright/.auth/user.json`. Other dashboard tests reuse this storage state to bypass redundant logins."
+    },
+    {
+      "file": "frontend\\src\\app\\(auth)\\forgot-password\\page.tsx",
+      "line": 44,
+      "text": "handleToken(\"mock-turnstile-token\");"
+    },
+    {
+      "file": "frontend\\src\\app\\(auth)\\forgot-password\\page.tsx",
+      "line": 153,
+      "text": "<Input type=\"email\" placeholder=\"jane@company.com\" className=\"border-[#202833] bg-[#090B0F] text-[#F5F7FA]\" {...field} />"
+    },
+    {
+      "file": "frontend\\src\\app\\(auth)\\login\\page.tsx",
+      "line": 126,
+      "text": "handleToken(\"mock-turnstile-token\");"
+    },
+    {
+      "file": "frontend\\src\\app\\(auth)\\login\\page.tsx",
+      "line": 264,
+      "text": "placeholder=\"admin or email\""
+    },
+    {
+      "file": "frontend\\src\\app\\(auth)\\login\\page.tsx",
+      "line": 293,
+      "text": "placeholder=\"\u2022\u2022\u2022\u2022\u2022\u2022\""
+    },
+    {
+      "file": "frontend\\src\\app\\(auth)\\reset-password\\page.tsx",
+      "line": 136,
+      "text": "handleToken(\"mock-turnstile-token\");"
+    },
+    {
+      "file": "frontend\\src\\app\\(auth)\\reset-password\\page.tsx",
+      "line": 247,
+      "text": "placeholder=\"\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\""
+    },
+    {
+      "file": "frontend\\src\\app\\(auth)\\reset-password\\page.tsx",
+      "line": 278,
+      "text": "placeholder=\"\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\""
+    },
+    {
+      "file": "frontend\\src\\app\\(auth)\\signup\\page.tsx",
+      "line": 187,
+      "text": "handleToken(\"mock-turnstile-token\");"
+    },
+    {
+      "file": "frontend\\src\\app\\(auth)\\signup\\page.tsx",
+      "line": 350,
+      "text": "<Input placeholder=\"Acme Corp\" className=\"border-[#202833] bg-[#090B0F] text-[#F5F7FA] h-9 text-xs\" {...field} />"
+    },
+    {
+      "file": "frontend\\src\\app\\(auth)\\signup\\page.tsx",
+      "line": 364,
+      "text": "<Input placeholder=\"Jane Doe\" className=\"border-[#202833] bg-[#090B0F] text-[#F5F7FA] h-9 text-xs\" {...field} />"
+    },
+    {
+      "file": "frontend\\src\\app\\(auth)\\signup\\page.tsx",
+      "line": 380,
+      "text": "placeholder=\"jane@company.com\""
+    },
+    {
+      "file": "frontend\\src\\app\\(auth)\\signup\\page.tsx",
+      "line": 412,
+      "text": "placeholder=\"\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\""
+    },
+    {
+      "file": "frontend\\src\\app\\(auth)\\signup\\page.tsx",
+      "line": 456,
+      "text": "placeholder=\"\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\""
+    },
+    {
+      "file": "frontend\\src\\app\\(auth)\\verify-email\\page.tsx",
+      "line": 174,
+      "text": "placeholder=\"\u2022 \u2022 \u2022 \u2022 \u2022 \u2022\""
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\api-keys\\page.tsx",
+      "line": 162,
+      "text": "placeholder=\"e.g. CI/CD Integration Key\""
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\approvals\\page.tsx",
+      "line": 270,
+      "text": "placeholder=\"Explain authorization decisions or list task changes...\""
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\audit\\page.tsx",
+      "line": 213,
+      "text": "placeholder=\"Search by action or resource...\""
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\governance\\page.tsx",
+      "line": 202,
+      "text": "placeholder=\"e.g. Restrict Production DB Access\""
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\knowledge\\page.tsx",
+      "line": 302,
+      "text": "placeholder=\"e.g. Architecture RFC & API Contracts\""
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\knowledge\\page.tsx",
+      "line": 314,
+      "text": "placeholder=\"e.g. Architecture RFC & API Contracts\""
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\knowledge\\page.tsx",
+      "line": 324,
+      "text": "placeholder=\"Paste document markdown, technical specs, or text content...\""
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\knowledge\\page.tsx",
+      "line": 369,
+      "text": "placeholder=\"Search knowledge documents, collections, or tags...\""
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\memory\\page.tsx",
+      "line": 51,
+      "text": "placeholder={`Search ${activeTab} memory...`}"
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\projects\\page.tsx",
+      "line": 143,
+      "text": "placeholder=\"e.g. Next.js SaaS Microservice\""
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\projects\\page.tsx",
+      "line": 152,
+      "text": "placeholder=\"e.g. Autonomous refactoring & test generation pipeline\""
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\projects\\page.tsx",
+      "line": 173,
+      "text": "placeholder=\"Search projects...\""
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\research\\page.tsx",
+      "line": 71,
+      "text": "placeholder=\"e.g. Microservices event-driven GraphRAG using Qdrant and Neo4j\""
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\research\\page.tsx",
+      "line": 72,
+      "text": "className=\"w-full px-4 py-3 rounded-xl bg-background/50 border border-border text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition\""
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\sessions\\page.tsx",
+      "line": 102,
+      "text": "placeholder=\"e.g. Refactor API endpoints\""
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\settings\\page.tsx",
+      "line": 826,
+      "text": "<Input value={firstName} onChange={e => setFirstName(e.target.value)} placeholder=\"e.g. Alex\" />"
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\settings\\page.tsx",
+      "line": 830,
+      "text": "<Input value={lastName} onChange={e => setLastName(e.target.value)} placeholder=\"e.g. Vance\" />"
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\settings\\page.tsx",
+      "line": 853,
+      "text": "placeholder=\"e.g. sachin_dev\""
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\settings\\page.tsx",
+      "line": 1133,
+      "text": "placeholder=\"Current account password\""
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\settings\\page.tsx",
+      "line": 1205,
+      "text": "placeholder=\"123456\""
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\settings\\page.tsx",
+      "line": 1266,
+      "text": "placeholder=\"colleague@company.com\""
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\settings\\page.tsx",
+      "line": 1431,
+      "text": "placeholder=\"e.g. Acme Enterprise Technologies\""
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\settings\\page.tsx",
+      "line": 1619,
+      "text": "placeholder=\"e.g. github, postgres, sqlite\""
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\settings\\page.tsx",
+      "line": 1663,
+      "text": "placeholder=\"e.g. npx -y @modelcontextprotocol/server-github\""
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\settings\\page.tsx",
+      "line": 1679,
+      "text": "placeholder=\"e.g. https://mcp.internal.example.com/sse\""
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\settings\\page.tsx",
+      "line": 1699,
+      "text": "placeholder={`GITHUB_PERSONAL_ACCESS_TOKEN=ghp_xxxx\\nDATABASE_URL=postgresql://...\\n(or paste JSON: {\"API_KEY\": \"val\"})`}"
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\settings\\page.tsx",
+      "line": 2055,
+      "text": "placeholder=\"ghp_...\""
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\settings\\page.tsx",
+      "line": 2241,
+      "text": "const isMock = value === \"mock\";"
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\settings\\page.tsx",
+      "line": 2249,
+      "text": "Running in Test Mode (Mock)"
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\skills\\page.tsx",
+      "line": 513,
+      "text": "placeholder=\"Search skills by name, trigger...\""
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\skills\\page.tsx",
+      "line": 759,
+      "text": "placeholder=\"e.g. django-rest-expert\""
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\skills\\page.tsx",
+      "line": 782,
+      "text": "placeholder=\"e.g. Expert in building idiomatic Django REST Framework APIs\""
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\skills\\page.tsx",
+      "line": 794,
+      "text": "placeholder=\"e.g. python django backend api drf rest\""
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\skills\\page.tsx",
+      "line": 806,
+      "text": "placeholder=\"e.g. test-writer, security-auditor\""
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\skills\\page.tsx",
+      "line": 820,
+      "text": "placeholder=\"Write instructions in markdown...\""
+    },
+    {
+      "file": "frontend\\src\\app\\(dashboard)\\skills\\page.tsx",
+      "line": 977,
+      "text": "placeholder=\"Describe a sample task...\""
+    },
+    {
+      "file": "frontend\\src\\app\\changelog\\page.tsx",
+      "line": 220,
+      "text": "placeholder=\"Search versions...\""
+    },
+    {
+      "file": "frontend\\src\\app\\changelog\\page.tsx",
+      "line": 223,
+      "text": "className=\"w-full text-sm pl-9 pr-4 py-2 rounded-lg border border-border/60 bg-card/50 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-muted-foreground/60\""
+    },
+    {
+      "file": "frontend\\src\\app\\roadmap\\page.tsx",
+      "line": 232,
+      "text": "placeholder=\"Search roadmap items...\""
+    },
+    {
+      "file": "frontend\\src\\app\\roadmap\\page.tsx",
+      "line": 235,
+      "text": "className=\"w-full text-sm pl-9 pr-4 py-2 rounded-lg border border-border/60 bg-background/50 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-muted-foreground/60\""
+    },
+    {
+      "file": "frontend\\src\\components\\auth\\auth-skeleton.tsx",
+      "line": 57,
+      "text": "{/* Turnstile placeholder */}"
+    },
+    {
+      "file": "frontend\\src\\components\\auth\\turnstile.tsx",
+      "line": 140,
+      "text": "// Instantly bypass verification and supply a mock token"
+    },
+    {
+      "file": "frontend\\src\\components\\auth\\turnstile.tsx",
+      "line": 141,
+      "text": "onTokenRef.current(\"mock-turnstile-token\");"
+    },
+    {
+      "file": "frontend\\src\\components\\auth\\turnstile.tsx",
+      "line": 184,
+      "text": "if (mountedRef.current) onTokenRef.current(\"mock-turnstile-token\");"
+    },
+    {
+      "file": "frontend\\src\\components\\dashboard\\enterprise-admin-dashboard.tsx",
+      "line": 28,
+      "text": "// --- Mock Data Generators ---"
+    },
+    {
+      "file": "frontend\\src\\components\\dashboard\\header.tsx",
+      "line": 657,
+      "text": "placeholder=\"Search pages, commands, and settings...\""
+    },
+    {
+      "file": "frontend\\src\\components\\dashboard\\header.tsx",
+      "line": 658,
+      "text": "className=\"w-full bg-transparent px-3 py-3.5 text-sm text-[#F5F7FA] placeholder-[#667085] focus:outline-none\""
+    },
+    {
+      "file": "frontend\\src\\components\\dashboard\\governance\\governance-filter-bar.tsx",
+      "line": 13,
+      "text": "placeholder=\"Search policies, agents, or resource IDs...\""
+    },
+    {
+      "file": "frontend\\src\\components\\dashboard\\sessions\\ai-chat.tsx",
+      "line": 127,
+      "text": "placeholder=\"Instruct the agent...\""
+    },
+    {
+      "file": "frontend\\src\\components\\dashboard\\sessions\\ai-chat.tsx",
+      "line": 128,
+      "text": "className=\"w-full bg-transparent border-none focus-visible:ring-0 pl-10 pr-12 text-[#F5F7FA] font-sans placeholder:text-[#667085]\""
+    },
+    {
+      "file": "frontend\\src\\components\\dashboard\\shared\\search-toolbar.tsx",
+      "line": 7,
+      "text": "placeholder?: string;"
+    },
+    {
+      "file": "frontend\\src\\components\\dashboard\\shared\\search-toolbar.tsx",
+      "line": 13,
+      "text": "placeholder = \"Search...\","
+    },
+    {
+      "file": "frontend\\src\\components\\dashboard\\shared\\search-toolbar.tsx",
+      "line": 23,
+      "text": "placeholder={placeholder}"
+    },
+    {
+      "file": "frontend\\src\\components\\dashboard\\shared\\search-toolbar.tsx",
+      "line": 26,
+      "text": "className=\"pl-9 bg-[#090B0F] text-[#F5F7FA] w-full border border-[#202833] focus-visible:ring-1 focus-visible:ring-[#22D3EE]/50 focus-visible:border-[#22D3EE]/50 shadow-inner placeholder:text-[#667085] transition-all rounded-md h-10 font-mono text-sm\""
+    },
+    {
+      "file": "frontend\\src\\components\\landing\\contact-form.tsx",
+      "line": 20,
+      "text": "placeholder=\"Jane Doe\""
+    },
+    {
+      "file": "frontend\\src\\components\\landing\\contact-form.tsx",
+      "line": 30,
+      "text": "placeholder=\"jane@company.com\""
+    },
+    {
+      "file": "frontend\\src\\components\\landing\\contact-form.tsx",
+      "line": 40,
+      "text": "placeholder=\"Tell us about your requirements...\""
+    },
+    {
+      "file": "frontend\\src\\components\\landing\\footer.tsx",
+      "line": 28,
+      "text": "placeholder=\"Enter your work email\""
+    },
+    {
+      "file": "frontend\\src\\components\\landing\\footer.tsx",
+      "line": 29,
+      "text": "className=\"flex-1 bg-card border border-border rounded-xl px-4 py-2.5 text-foreground text-sm focus:outline-none focus:border-[#22D3EE] focus:ring-1 focus:ring-[#22D3EE] transition-colors placeholder:text-muted-foreground min-h-[44px]\""
+    },
+    {
+      "file": "frontend\\src\\components\\playground\\CenterWorkspace.tsx",
+      "line": 1457,
+      "text": "placeholder=\"Enter credentials or type 'mock'...\""
+    },
+    {
+      "file": "frontend\\src\\components\\playground\\CenterWorkspace.tsx",
+      "line": 1840,
+      "text": "placeholder=\"e.g. my-awesome-app\""
+    },
+    {
+      "file": "frontend\\src\\components\\playground\\CenterWorkspace.tsx",
+      "line": 1894,
+      "text": "placeholder=\"owner/repo-name\""
+    },
+    {
+      "file": "frontend\\src\\components\\playground\\CenterWorkspace.tsx",
+      "line": 2138,
+      "text": "<p className=\"text-sm text-muted-foreground mt-1\">Review critical vulnerabilities and hardcoded secrets found in the generated code.</p>"
+    },
+    {
+      "file": "frontend\\src\\components\\playground\\CenterWorkspace.tsx",
+      "line": 2520,
+      "text": "// Mock handling file upload"
+    },
+    {
+      "file": "frontend\\src\\components\\playground\\CenterWorkspace.tsx",
+      "line": 2625,
+      "text": "placeholder=\"Ask the agent to build, debug, or analyze...\""
+    },
+    {
+      "file": "frontend\\src\\components\\playground\\CenterWorkspace.tsx",
+      "line": 2626,
+      "text": "className=\"w-full resize-none bg-transparent py-3 text-sm focus:outline-none placeholder:text-muted-foreground/70\""
+    },
+    {
+      "file": "frontend\\src\\components\\playground\\ChatHistorySheet.tsx",
+      "line": 215,
+      "text": "placeholder=\"Search conversations...\""
+    },
+    {
+      "file": "frontend\\src\\components\\playground\\CreateProjectModal.tsx",
+      "line": 100,
+      "text": "placeholder=\"e.g. Next.js SaaS, Python API, Mobile Backend\""
+    },
+    {
+      "file": "frontend\\src\\components\\playground\\CreateProjectModal.tsx",
+      "line": 117,
+      "text": "placeholder=\"What is this project building or testing?\""
+    },
+    {
+      "file": "frontend\\src\\components\\playground\\CreateWorkspaceModal.tsx",
+      "line": 82,
+      "text": "placeholder=\"e.g. Acme Corp, Mobile Team, Client Alpha\""
+    },
+    {
+      "file": "frontend\\src\\components\\playground\\CreateWorkspaceModal.tsx",
+      "line": 104,
+      "text": "placeholder=\"Brief description of this workspace's purpose\""
+    },
+    {
+      "file": "frontend\\src\\components\\playground\\LeftPanel.tsx",
+      "line": 138,
+      "text": "<SelectValue placeholder=\"Select model\" />"
+    },
+    {
+      "file": "frontend\\src\\components\\playground\\PlaygroundTerminal.tsx",
+      "line": 541,
+      "text": "className=\"flex-1 bg-transparent border-none outline-none text-xs text-white font-mono placeholder:text-muted-foreground/40 focus:ring-0 p-0\""
+    },
+    {
+      "file": "frontend\\src\\components\\playground\\PlaygroundTerminal.tsx",
+      "line": 542,
+      "text": "placeholder=\"Type a command (e.g. 'help', 'status', 'workflow', 'refresh', 'new')...\""
+    },
+    {
+      "file": "frontend\\src\\components\\ui\\input.tsx",
+      "line": 11,
+      "text": "\"flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#22D3EE] focus-visible:border-[#22D3EE] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm\","
+    },
+    {
+      "file": "frontend\\src\\components\\ui\\select.tsx",
+      "line": 22,
+      "text": "\"flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1\","
+    },
+    {
+      "file": "frontend\\src\\components\\ui\\textarea.tsx",
+      "line": 12,
+      "text": "\"flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm\","
+    },
+    {
+      "file": "scripts\\prod_readiness.py",
+      "line": 335,
+      "text": "\"acceptTerms\": True, \"captchaToken\": \"mock-turnstile-token\","
+    },
+    {
+      "file": "skills\\builtin\\security-auditor.md",
+      "line": 17,
+      "text": "2. **Credential Protection**: Never commit or hardcode raw API keys, secrets, tokens, or private keys. Always use secure environment variables, encrypted stores, or mock tokens during sandbox testing."
+    }
+  ]
+}

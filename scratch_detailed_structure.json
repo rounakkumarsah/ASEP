@@ -1,0 +1,1250 @@
+{
+  "frontend_routes_count": 36,
+  "frontend_routes": [
+    {
+      "route": "/(auth)/callback",
+      "file": "frontend\\src\\app\\(auth)\\callback\\page.tsx"
+    },
+    {
+      "route": "/(auth)/forgot-password",
+      "file": "frontend\\src\\app\\(auth)\\forgot-password\\page.tsx"
+    },
+    {
+      "route": "/(auth)/login",
+      "file": "frontend\\src\\app\\(auth)\\login\\page.tsx"
+    },
+    {
+      "route": "/(auth)/reset-password",
+      "file": "frontend\\src\\app\\(auth)\\reset-password\\page.tsx"
+    },
+    {
+      "route": "/(auth)/signup",
+      "file": "frontend\\src\\app\\(auth)\\signup\\page.tsx"
+    },
+    {
+      "route": "/(auth)/verify-email",
+      "file": "frontend\\src\\app\\(auth)\\verify-email\\page.tsx"
+    },
+    {
+      "route": "/(dashboard)/api-keys",
+      "file": "frontend\\src\\app\\(dashboard)\\api-keys\\page.tsx"
+    },
+    {
+      "route": "/(dashboard)/approvals",
+      "file": "frontend\\src\\app\\(dashboard)\\approvals\\page.tsx"
+    },
+    {
+      "route": "/(dashboard)/audit",
+      "file": "frontend\\src\\app\\(dashboard)\\audit\\page.tsx"
+    },
+    {
+      "route": "/(dashboard)/billing",
+      "file": "frontend\\src\\app\\(dashboard)\\billing\\page.tsx"
+    },
+    {
+      "route": "/(dashboard)/evaluation",
+      "file": "frontend\\src\\app\\(dashboard)\\evaluation\\page.tsx"
+    },
+    {
+      "route": "/(dashboard)/governance",
+      "file": "frontend\\src\\app\\(dashboard)\\governance\\page.tsx"
+    },
+    {
+      "route": "/(dashboard)/knowledge",
+      "file": "frontend\\src\\app\\(dashboard)\\knowledge\\page.tsx"
+    },
+    {
+      "route": "/(dashboard)/memory",
+      "file": "frontend\\src\\app\\(dashboard)\\memory\\page.tsx"
+    },
+    {
+      "route": "/(dashboard)/metrics",
+      "file": "frontend\\src\\app\\(dashboard)\\metrics\\page.tsx"
+    },
+    {
+      "route": "/(dashboard)/overview",
+      "file": "frontend\\src\\app\\(dashboard)\\overview\\page.tsx"
+    },
+    {
+      "route": "/(dashboard)/playground",
+      "file": "frontend\\src\\app\\(dashboard)\\playground\\page.tsx"
+    },
+    {
+      "route": "/(dashboard)/projects",
+      "file": "frontend\\src\\app\\(dashboard)\\projects\\page.tsx"
+    },
+    {
+      "route": "/(dashboard)/research",
+      "file": "frontend\\src\\app\\(dashboard)\\research\\page.tsx"
+    },
+    {
+      "route": "/(dashboard)/sessions",
+      "file": "frontend\\src\\app\\(dashboard)\\sessions\\page.tsx"
+    },
+    {
+      "route": "/(dashboard)/sessions/[id]",
+      "file": "frontend\\src\\app\\(dashboard)\\sessions\\[id]\\page.tsx"
+    },
+    {
+      "route": "/(dashboard)/settings",
+      "file": "frontend\\src\\app\\(dashboard)\\settings\\page.tsx"
+    },
+    {
+      "route": "/(dashboard)/skills",
+      "file": "frontend\\src\\app\\(dashboard)\\skills\\page.tsx"
+    },
+    {
+      "route": "/(marketing)",
+      "file": "frontend\\src\\app\\(marketing)\\page.tsx"
+    },
+    {
+      "route": "/about",
+      "file": "frontend\\src\\app\\about\\page.tsx"
+    },
+    {
+      "route": "/api/log-error",
+      "file": "frontend\\src\\app\\api\\log-error\\route.ts"
+    },
+    {
+      "route": "/api-docs",
+      "file": "frontend\\src\\app\\api-docs\\page.tsx"
+    },
+    {
+      "route": "/architecture",
+      "file": "frontend\\src\\app\\architecture\\page.tsx"
+    },
+    {
+      "route": "/changelog",
+      "file": "frontend\\src\\app\\changelog\\page.tsx"
+    },
+    {
+      "route": "/contact",
+      "file": "frontend\\src\\app\\contact\\page.tsx"
+    },
+    {
+      "route": "/documentation",
+      "file": "frontend\\src\\app\\documentation\\page.tsx"
+    },
+    {
+      "route": "/platform",
+      "file": "frontend\\src\\app\\platform\\page.tsx"
+    },
+    {
+      "route": "/pricing",
+      "file": "frontend\\src\\app\\pricing\\page.tsx"
+    },
+    {
+      "route": "/privacy",
+      "file": "frontend\\src\\app\\privacy\\page.tsx"
+    },
+    {
+      "route": "/roadmap",
+      "file": "frontend\\src\\app\\roadmap\\page.tsx"
+    },
+    {
+      "route": "/terms",
+      "file": "frontend\\src\\app\\terms\\page.tsx"
+    }
+  ],
+  "backend_endpoints_count": 140,
+  "backend_endpoints": [
+    {
+      "method": "POST",
+      "path": "/",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\agent_runs.py",
+      "line": 24
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\agent_runs.py",
+      "line": 38
+    },
+    {
+      "method": "GET",
+      "path": "/{run_id}",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\agent_runs.py",
+      "line": 59
+    },
+    {
+      "method": "POST",
+      "path": "/{run_id}/tasks",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\agent_runs.py",
+      "line": 72
+    },
+    {
+      "method": "GET",
+      "path": "/{run_id}/tasks",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\agent_runs.py",
+      "line": 86
+    },
+    {
+      "method": "GET",
+      "path": "/ai/health",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\ai_runtime.py",
+      "line": 15
+    },
+    {
+      "method": "GET",
+      "path": "/ai/capabilities",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\ai_runtime.py",
+      "line": 20
+    },
+    {
+      "method": "POST",
+      "path": "/ai-runtime/chat/completions",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\ai_runtime.py",
+      "line": 28
+    },
+    {
+      "method": "DELETE",
+      "path": "/{key_id}",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\api_keys.py",
+      "line": 163
+    },
+    {
+      "method": "PATCH",
+      "path": "/{key_id}",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\api_keys.py",
+      "line": 182
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\audit.py",
+      "line": 18
+    },
+    {
+      "method": "GET",
+      "path": "/critical",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\audit.py",
+      "line": 55
+    },
+    {
+      "method": "GET",
+      "path": "/check-username",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\auth.py",
+      "line": 48
+    },
+    {
+      "method": "POST",
+      "path": "/signup",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\auth.py",
+      "line": 108
+    },
+    {
+      "method": "POST",
+      "path": "/login",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\auth.py",
+      "line": 186
+    },
+    {
+      "method": "POST",
+      "path": "/mfa/setup",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\auth.py",
+      "line": 259
+    },
+    {
+      "method": "POST",
+      "path": "/mfa/enable",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\auth.py",
+      "line": 273
+    },
+    {
+      "method": "POST",
+      "path": "/mfa/disable",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\auth.py",
+      "line": 287
+    },
+    {
+      "method": "POST",
+      "path": "/logout",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\auth.py",
+      "line": 301
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\auth.py",
+      "line": 338
+    },
+    {
+      "method": "POST",
+      "path": "/refresh",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\auth.py",
+      "line": 344
+    },
+    {
+      "method": "POST",
+      "path": "/verify-email",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\auth.py",
+      "line": 393
+    },
+    {
+      "method": "POST",
+      "path": "/resend-verification",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\auth.py",
+      "line": 444
+    },
+    {
+      "method": "POST",
+      "path": "/forgot-password",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\auth.py",
+      "line": 491
+    },
+    {
+      "method": "POST",
+      "path": "/reset-password",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\auth.py",
+      "line": 530
+    },
+    {
+      "method": "PUT",
+      "path": "/profile",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\auth.py",
+      "line": 569
+    },
+    {
+      "method": "PATCH",
+      "path": "/profile",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\auth.py",
+      "line": 570
+    },
+    {
+      "method": "GET",
+      "path": "/check-username",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\auth.py",
+      "line": 593
+    },
+    {
+      "method": "GET",
+      "path": "/oauth/github",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\auth.py",
+      "line": 603
+    },
+    {
+      "method": "GET",
+      "path": "/oauth/github/callback",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\auth.py",
+      "line": 631
+    },
+    {
+      "method": "GET",
+      "path": "/oauth/google",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\auth.py",
+      "line": 673
+    },
+    {
+      "method": "GET",
+      "path": "/oauth/google/callback",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\auth.py",
+      "line": 700
+    },
+    {
+      "method": "POST",
+      "path": "/change-password",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\auth.py",
+      "line": 745
+    },
+    {
+      "method": "GET",
+      "path": "/sessions",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\auth.py",
+      "line": 764
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/run",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\conversations.py",
+      "line": 132
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/run/{run_id}/step",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\conversations.py",
+      "line": 203
+    },
+    {
+      "method": "GET",
+      "path": "/diagnostics",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\diagnostics.py",
+      "line": 21
+    },
+    {
+      "method": "GET",
+      "path": "/sentry-debug",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\diagnostics.py",
+      "line": 38
+    },
+    {
+      "method": "GET",
+      "path": "/history",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\evaluation.py",
+      "line": 34
+    },
+    {
+      "method": "GET",
+      "path": "/{dataset_name}",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\evaluation.py",
+      "line": 50
+    },
+    {
+      "method": "POST",
+      "path": "/run",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\evaluation.py",
+      "line": 60
+    },
+    {
+      "method": "GET",
+      "path": "/report/{dataset_name}",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\evaluation.py",
+      "line": 117
+    },
+    {
+      "method": "GET",
+      "path": "/queue",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\hitl.py",
+      "line": 36
+    },
+    {
+      "method": "GET",
+      "path": "/statistics",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\hitl.py",
+      "line": 43
+    },
+    {
+      "method": "POST",
+      "path": "/review",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\hitl.py",
+      "line": 50
+    },
+    {
+      "method": "POST",
+      "path": "/connect",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\integrations_github.py",
+      "line": 99
+    },
+    {
+      "method": "GET",
+      "path": "/status",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\integrations_github.py",
+      "line": 136
+    },
+    {
+      "method": "POST",
+      "path": "/disconnect",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\integrations_github.py",
+      "line": 171
+    },
+    {
+      "method": "GET",
+      "path": "/repos",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\integrations_github.py",
+      "line": 181
+    },
+    {
+      "method": "POST",
+      "path": "/push",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\integrations_github.py",
+      "line": 197
+    },
+    {
+      "method": "POST",
+      "path": "/sync",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\integrations_github.py",
+      "line": 300
+    },
+    {
+      "method": "POST",
+      "path": "/pull-request",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\integrations_github.py",
+      "line": 348
+    },
+    {
+      "method": "POST",
+      "path": "/research/topic",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\knowledge.py",
+      "line": 51
+    },
+    {
+      "method": "POST",
+      "path": "/upload/document",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\knowledge.py",
+      "line": 82
+    },
+    {
+      "method": "POST",
+      "path": "/knowledge",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\knowledge.py",
+      "line": 203
+    },
+    {
+      "method": "POST",
+      "path": "/knowledge/documents",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\knowledge.py",
+      "line": 204
+    },
+    {
+      "method": "POST",
+      "path": "/chat/teacher",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\knowledge.py",
+      "line": 245
+    },
+    {
+      "method": "GET",
+      "path": "/sources",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\knowledge_sync.py",
+      "line": 35
+    },
+    {
+      "method": "POST",
+      "path": "/sources",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\knowledge_sync.py",
+      "line": 43
+    },
+    {
+      "method": "POST",
+      "path": "/sync",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\knowledge_sync.py",
+      "line": 65
+    },
+    {
+      "method": "GET",
+      "path": "/sync/history",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\knowledge_sync.py",
+      "line": 83
+    },
+    {
+      "method": "GET",
+      "path": "/documents",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\knowledge_sync.py",
+      "line": 90
+    },
+    {
+      "method": "GET",
+      "path": "/servers",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\mcp.py",
+      "line": 56
+    },
+    {
+      "method": "POST",
+      "path": "/servers",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\mcp.py",
+      "line": 67
+    },
+    {
+      "method": "POST",
+      "path": "/servers/test",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\mcp.py",
+      "line": 89
+    },
+    {
+      "method": "PATCH",
+      "path": "/servers/{server_id}",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\mcp.py",
+      "line": 105
+    },
+    {
+      "method": "DELETE",
+      "path": "/servers/{server_id}",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\mcp.py",
+      "line": 127
+    },
+    {
+      "method": "POST",
+      "path": "/servers/{server_id}/reconnect",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\mcp.py",
+      "line": 139
+    },
+    {
+      "method": "GET",
+      "path": "/tools",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\mcp.py",
+      "line": 157
+    },
+    {
+      "method": "POST",
+      "path": "/tools/execute",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\mcp.py",
+      "line": 167
+    },
+    {
+      "method": "POST",
+      "path": "/tools/approve",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\mcp.py",
+      "line": 196
+    },
+    {
+      "method": "GET",
+      "path": "/metrics",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\metrics.py",
+      "line": 12
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\monitoring.py",
+      "line": 35
+    },
+    {
+      "method": "GET",
+      "path": "/metrics/prometheus",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\monitoring.py",
+      "line": 85
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\organizations.py",
+      "line": 110
+    },
+    {
+      "method": "PATCH",
+      "path": "/me",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\organizations.py",
+      "line": 147
+    },
+    {
+      "method": "GET",
+      "path": "/members",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\organizations.py",
+      "line": 202
+    },
+    {
+      "method": "POST",
+      "path": "/invites",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\organizations.py",
+      "line": 226
+    },
+    {
+      "method": "GET",
+      "path": "/invites",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\organizations.py",
+      "line": 263
+    },
+    {
+      "method": "DELETE",
+      "path": "/invites/{invite_id}",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\organizations.py",
+      "line": 287
+    },
+    {
+      "method": "DELETE",
+      "path": "/members/{member_id}",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\organizations.py",
+      "line": 305
+    },
+    {
+      "method": "PATCH",
+      "path": "/members/{member_id}/role",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\organizations.py",
+      "line": 336
+    },
+    {
+      "method": "POST",
+      "path": "/transfer-ownership",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\organizations.py",
+      "line": 366
+    },
+    {
+      "method": "GET",
+      "path": "/{project_id}",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\projects.py",
+      "line": 142
+    },
+    {
+      "method": "PATCH",
+      "path": "/{project_id}",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\projects.py",
+      "line": 150
+    },
+    {
+      "method": "DELETE",
+      "path": "/{project_id}",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\projects.py",
+      "line": 166
+    },
+    {
+      "method": "POST",
+      "path": "/rag/search",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\rag.py",
+      "line": 62
+    },
+    {
+      "method": "GET",
+      "path": "/rag/diagnostics",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\rag.py",
+      "line": 124
+    },
+    {
+      "method": "POST",
+      "path": "/python/stream",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\sandbox.py",
+      "line": 19
+    },
+    {
+      "method": "GET",
+      "path": "/{name}",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\skills.py",
+      "line": 72
+    },
+    {
+      "method": "PUT",
+      "path": "/{name}",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\skills.py",
+      "line": 91
+    },
+    {
+      "method": "DELETE",
+      "path": "/{name}",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\skills.py",
+      "line": 106
+    },
+    {
+      "method": "POST",
+      "path": "/{name}/toggle",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\skills.py",
+      "line": 118
+    },
+    {
+      "method": "POST",
+      "path": "/{name}/duplicate",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\skills.py",
+      "line": 128
+    },
+    {
+      "method": "GET",
+      "path": "/{name}/export",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\skills.py",
+      "line": 138
+    },
+    {
+      "method": "POST",
+      "path": "/import",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\skills.py",
+      "line": 156
+    },
+    {
+      "method": "POST",
+      "path": "/{name}/test",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\skills.py",
+      "line": 173
+    },
+    {
+      "method": "POST",
+      "path": "/{name}/attachments",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\skills.py",
+      "line": 182
+    },
+    {
+      "method": "DELETE",
+      "path": "/{name}/attachments/{filename}",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\skills.py",
+      "line": 198
+    },
+    {
+      "method": "POST",
+      "path": "/{name}/restore-version",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\skills.py",
+      "line": 207
+    },
+    {
+      "method": "GET",
+      "path": "/{task_id}",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\tasks.py",
+      "line": 26
+    },
+    {
+      "method": "PATCH",
+      "path": "/{task_id}",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\tasks.py",
+      "line": 35
+    },
+    {
+      "method": "DELETE",
+      "path": "/{task_id}",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\tasks.py",
+      "line": 51
+    },
+    {
+      "method": "POST",
+      "path": "/{task_id}/start",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\tasks.py",
+      "line": 64
+    },
+    {
+      "method": "POST",
+      "path": "/{task_id}/retry",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\tasks.py",
+      "line": 73
+    },
+    {
+      "method": "POST",
+      "path": "/{task_id}/cancel",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\tasks.py",
+      "line": 82
+    },
+    {
+      "method": "PATCH",
+      "path": "/profile",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\users.py",
+      "line": 27
+    },
+    {
+      "method": "GET",
+      "path": "/quota",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\users.py",
+      "line": 50
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\users.py",
+      "line": 79
+    },
+    {
+      "method": "POST",
+      "path": "/transcribe",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\voice.py",
+      "line": 44
+    },
+    {
+      "method": "GET",
+      "path": "/history",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\workflows.py",
+      "line": 36
+    },
+    {
+      "method": "GET",
+      "path": "/{workflow_id}",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\workflows.py",
+      "line": 43
+    },
+    {
+      "method": "POST",
+      "path": "/start",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\workflows.py",
+      "line": 53
+    },
+    {
+      "method": "POST",
+      "path": "/pause",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\workflows.py",
+      "line": 81
+    },
+    {
+      "method": "POST",
+      "path": "/resume",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\workflows.py",
+      "line": 89
+    },
+    {
+      "method": "POST",
+      "path": "/cancel",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\workflows.py",
+      "line": 97
+    },
+    {
+      "method": "POST",
+      "path": "/sync",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\workspace.py",
+      "line": 49
+    },
+    {
+      "method": "GET",
+      "path": "/info",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\workspace.py",
+      "line": 76
+    },
+    {
+      "method": "GET",
+      "path": "/files",
+      "function": "unknown",
+      "file": "backend\\src\\api\\routers\\workspace.py",
+      "line": 82
+    },
+    {
+      "method": "GET",
+      "path": "/graph",
+      "function": "unknown",
+      "file": "backend\\src\\db\\neo4j.py",
+      "line": 50
+    },
+    {
+      "method": "GET",
+      "path": "/users",
+      "function": "unknown",
+      "file": "backend\\src\\db\\postgres.py",
+      "line": 148
+    },
+    {
+      "method": "POST",
+      "path": "/embed",
+      "function": "unknown",
+      "file": "backend\\src\\db\\qdrant.py",
+      "line": 54
+    },
+    {
+      "method": "GET",
+      "path": "/cache",
+      "function": "unknown",
+      "file": "backend\\src\\db\\redis.py",
+      "line": 63
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/resource",
+      "function": "unknown",
+      "file": "backend\\src\\runtime\\nodes.py",
+      "line": 1612
+    },
+    {
+      "method": "GET",
+      "path": "/todos",
+      "function": "unknown",
+      "file": "backend\\src\\runtime\\nodes.py",
+      "line": 1697
+    },
+    {
+      "method": "POST",
+      "path": "/todos",
+      "function": "unknown",
+      "file": "backend\\src\\runtime\\nodes.py",
+      "line": 1700
+    },
+    {
+      "method": "GET",
+      "path": "/todos/{todo_id}",
+      "function": "unknown",
+      "file": "backend\\src\\runtime\\nodes.py",
+      "line": 1707
+    },
+    {
+      "method": "PUT",
+      "path": "/todos/{todo_id}",
+      "function": "unknown",
+      "file": "backend\\src\\runtime\\nodes.py",
+      "line": 1712
+    },
+    {
+      "method": "DELETE",
+      "path": "/todos/{todo_id}",
+      "function": "unknown",
+      "file": "backend\\src\\runtime\\nodes.py",
+      "line": 1719
+    },
+    {
+      "method": "GET",
+      "path": "/items/{item_id}",
+      "function": "unknown",
+      "file": "backend\\src\\utils\\doc_crawler.py",
+      "line": 539
+    },
+    {
+      "method": "POST",
+      "path": "/items/",
+      "function": "unknown",
+      "file": "backend\\src\\utils\\doc_crawler.py",
+      "line": 551
+    },
+    {
+      "method": "GET",
+      "path": "/{user_id}",
+      "function": "unknown",
+      "file": "backend\\src\\utils\\doc_crawler.py",
+      "line": 559
+    },
+    {
+      "method": "GET",
+      "path": "/protected",
+      "function": "unknown",
+      "file": "backend\\src\\utils\\doc_crawler.py",
+      "line": 583
+    },
+    {
+      "method": "GET",
+      "path": "/items/{item_id}",
+      "function": "unknown",
+      "file": "backend\\src\\utils\\doc_crawler.py",
+      "line": 676
+    },
+    {
+      "method": "POST",
+      "path": "/items/",
+      "function": "unknown",
+      "file": "backend\\src\\utils\\doc_crawler.py",
+      "line": 687
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "function": "unknown",
+      "file": "backend\\src\\utils\\doc_crawler.py",
+      "line": 695
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "function": "unknown",
+      "file": "backend\\src\\utils\\doc_crawler.py",
+      "line": 699
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "function": "unknown",
+      "file": "backend\\tests\\unit\\test_host_manager.py",
+      "line": 52
+    },
+    {
+      "method": "GET",
+      "path": "/items/{item_id}",
+      "function": "unknown",
+      "file": "backend\\tests\\unit\\test_host_manager.py",
+      "line": 56
+    },
+    {
+      "method": "POST",
+      "path": "/items/",
+      "function": "unknown",
+      "file": "backend\\tests\\unit\\test_host_manager.py",
+      "line": 60
+    }
+  ],
+  "langgraph_nodes_count": 0,
+  "langgraph_nodes": [],
+  "db_tables_count": 17,
+  "db_tables": [
+    {
+      "table_name": "users",
+      "file": "backend\\src\\db\\postgres.py",
+      "line": 127
+    },
+    {
+      "table_name": "my_table",
+      "file": "backend\\src\\db\\models\\agent_run.py",
+      "line": 102
+    },
+    {
+      "table_name": "agent_runs",
+      "file": "backend\\src\\db\\models\\agent_run.py",
+      "line": 179
+    },
+    {
+      "table_name": "api_keys",
+      "file": "backend\\src\\db\\models\\api_key.py",
+      "line": 42
+    },
+    {
+      "table_name": "audit_logs",
+      "file": "backend\\src\\db\\models\\audit_log.py",
+      "line": 267
+    },
+    {
+      "table_name": "documents",
+      "file": "backend\\src\\db\\models\\document.py",
+      "line": 8
+    },
+    {
+      "table_name": "document_chunks",
+      "file": "backend\\src\\db\\models\\document.py",
+      "line": 20
+    },
+    {
+      "table_name": "hitl_sessions",
+      "file": "backend\\src\\db\\models\\hitl_session.py",
+      "line": 48
+    },
+    {
+      "table_name": "knowledge_documents",
+      "file": "backend\\src\\db\\models\\knowledge_document.py",
+      "line": 115
+    },
+    {
+      "table_name": "mcp_servers",
+      "file": "backend\\src\\db\\models\\mcp_server.py",
+      "line": 26
+    },
+    {
+      "table_name": "memory_entries",
+      "file": "backend\\src\\db\\models\\memory_entry.py",
+      "line": 199
+    },
+    {
+      "table_name": "organizations",
+      "file": "backend\\src\\db\\models\\organization.py",
+      "line": 32
+    },
+    {
+      "table_name": "payments",
+      "file": "backend\\src\\db\\models\\payment.py",
+      "line": 35
+    },
+    {
+      "table_name": "projects",
+      "file": "backend\\src\\db\\models\\project.py",
+      "line": 29
+    },
+    {
+      "table_name": "subscriptions",
+      "file": "backend\\src\\db\\models\\subscription.py",
+      "line": 36
+    },
+    {
+      "table_name": "tasks",
+      "file": "backend\\src\\db\\models\\task.py",
+      "line": 211
+    },
+    {
+      "table_name": "users",
+      "file": "backend\\src\\db\\models\\user.py",
+      "line": 47
+    }
+  ],
+  "skills_count": 5,
+  "skills": [
+    {
+      "name": "attachments",
+      "path": "skills\\attachments",
+      "has_skill_md": false
+    },
+    {
+      "name": "builtin",
+      "path": "skills\\builtin",
+      "has_skill_md": false
+    },
+    {
+      "name": "user",
+      "path": "skills\\user",
+      "has_skill_md": false
+    },
+    {
+      "name": "neon",
+      "path": ".agents\\skills\\neon",
+      "has_skill_md": true
+    },
+    {
+      "name": "neon-postgres",
+      "path": ".agents\\skills\\neon-postgres",
+      "has_skill_md": true
+    }
+  ]
+}

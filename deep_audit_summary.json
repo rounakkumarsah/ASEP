@@ -1,0 +1,1455 @@
+{
+  "endpoints": [
+    {
+      "method": "POST",
+      "path": "/",
+      "function": "unknown",
+      "file": "backend/src/api/routers/agent_runs.py",
+      "line": 24
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "function": "unknown",
+      "file": "backend/src/api/routers/agent_runs.py",
+      "line": 38
+    },
+    {
+      "method": "GET",
+      "path": "/{run_id}",
+      "function": "unknown",
+      "file": "backend/src/api/routers/agent_runs.py",
+      "line": 59
+    },
+    {
+      "method": "POST",
+      "path": "/{run_id}/tasks",
+      "function": "unknown",
+      "file": "backend/src/api/routers/agent_runs.py",
+      "line": 72
+    },
+    {
+      "method": "GET",
+      "path": "/{run_id}/tasks",
+      "function": "unknown",
+      "file": "backend/src/api/routers/agent_runs.py",
+      "line": 86
+    },
+    {
+      "method": "GET",
+      "path": "/ai/health",
+      "function": "unknown",
+      "file": "backend/src/api/routers/ai_runtime.py",
+      "line": 15
+    },
+    {
+      "method": "GET",
+      "path": "/ai/capabilities",
+      "function": "unknown",
+      "file": "backend/src/api/routers/ai_runtime.py",
+      "line": 20
+    },
+    {
+      "method": "POST",
+      "path": "/ai-runtime/chat/completions",
+      "function": "unknown",
+      "file": "backend/src/api/routers/ai_runtime.py",
+      "line": 28
+    },
+    {
+      "method": "POST",
+      "path": "",
+      "function": "unknown",
+      "file": "backend/src/api/routers/api_keys.py",
+      "line": 89
+    },
+    {
+      "method": "GET",
+      "path": "",
+      "function": "unknown",
+      "file": "backend/src/api/routers/api_keys.py",
+      "line": 133
+    },
+    {
+      "method": "DELETE",
+      "path": "/{key_id}",
+      "function": "unknown",
+      "file": "backend/src/api/routers/api_keys.py",
+      "line": 163
+    },
+    {
+      "method": "PATCH",
+      "path": "/{key_id}",
+      "function": "unknown",
+      "file": "backend/src/api/routers/api_keys.py",
+      "line": 182
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "function": "unknown",
+      "file": "backend/src/api/routers/audit.py",
+      "line": 18
+    },
+    {
+      "method": "GET",
+      "path": "/critical",
+      "function": "unknown",
+      "file": "backend/src/api/routers/audit.py",
+      "line": 55
+    },
+    {
+      "method": "GET",
+      "path": "/check-username",
+      "function": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 48
+    },
+    {
+      "method": "POST",
+      "path": "/signup",
+      "function": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 108
+    },
+    {
+      "method": "POST",
+      "path": "/login",
+      "function": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 186
+    },
+    {
+      "method": "POST",
+      "path": "/mfa/setup",
+      "function": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 259
+    },
+    {
+      "method": "POST",
+      "path": "/mfa/enable",
+      "function": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 273
+    },
+    {
+      "method": "POST",
+      "path": "/mfa/disable",
+      "function": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 287
+    },
+    {
+      "method": "POST",
+      "path": "/logout",
+      "function": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 301
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "function": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 338
+    },
+    {
+      "method": "POST",
+      "path": "/refresh",
+      "function": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 344
+    },
+    {
+      "method": "POST",
+      "path": "/verify-email",
+      "function": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 393
+    },
+    {
+      "method": "POST",
+      "path": "/resend-verification",
+      "function": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 444
+    },
+    {
+      "method": "POST",
+      "path": "/forgot-password",
+      "function": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 491
+    },
+    {
+      "method": "POST",
+      "path": "/reset-password",
+      "function": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 530
+    },
+    {
+      "method": "PUT",
+      "path": "/profile",
+      "function": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 569
+    },
+    {
+      "method": "PATCH",
+      "path": "/profile",
+      "function": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 570
+    },
+    {
+      "method": "GET",
+      "path": "/check-username",
+      "function": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 593
+    },
+    {
+      "method": "GET",
+      "path": "/oauth/github",
+      "function": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 603
+    },
+    {
+      "method": "GET",
+      "path": "/oauth/github/callback",
+      "function": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 631
+    },
+    {
+      "method": "GET",
+      "path": "/oauth/google",
+      "function": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 673
+    },
+    {
+      "method": "GET",
+      "path": "/oauth/google/callback",
+      "function": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 700
+    },
+    {
+      "method": "POST",
+      "path": "/change-password",
+      "function": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 745
+    },
+    {
+      "method": "GET",
+      "path": "/sessions",
+      "function": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 764
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/run",
+      "function": "unknown",
+      "file": "backend/src/api/routers/conversations.py",
+      "line": 132
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/run/{run_id}/step",
+      "function": "unknown",
+      "file": "backend/src/api/routers/conversations.py",
+      "line": 203
+    },
+    {
+      "method": "GET",
+      "path": "/diagnostics",
+      "function": "unknown",
+      "file": "backend/src/api/routers/diagnostics.py",
+      "line": 21
+    },
+    {
+      "method": "GET",
+      "path": "/sentry-debug",
+      "function": "unknown",
+      "file": "backend/src/api/routers/diagnostics.py",
+      "line": 38
+    },
+    {
+      "method": "GET",
+      "path": "",
+      "function": "unknown",
+      "file": "backend/src/api/routers/evaluation.py",
+      "line": 26
+    },
+    {
+      "method": "GET",
+      "path": "/history",
+      "function": "unknown",
+      "file": "backend/src/api/routers/evaluation.py",
+      "line": 34
+    },
+    {
+      "method": "GET",
+      "path": "/{dataset_name}",
+      "function": "unknown",
+      "file": "backend/src/api/routers/evaluation.py",
+      "line": 50
+    },
+    {
+      "method": "POST",
+      "path": "/run",
+      "function": "unknown",
+      "file": "backend/src/api/routers/evaluation.py",
+      "line": 60
+    },
+    {
+      "method": "GET",
+      "path": "/report/{dataset_name}",
+      "function": "unknown",
+      "file": "backend/src/api/routers/evaluation.py",
+      "line": 117
+    },
+    {
+      "method": "GET",
+      "path": "/queue",
+      "function": "unknown",
+      "file": "backend/src/api/routers/hitl.py",
+      "line": 36
+    },
+    {
+      "method": "GET",
+      "path": "/statistics",
+      "function": "unknown",
+      "file": "backend/src/api/routers/hitl.py",
+      "line": 43
+    },
+    {
+      "method": "POST",
+      "path": "/review",
+      "function": "unknown",
+      "file": "backend/src/api/routers/hitl.py",
+      "line": 50
+    },
+    {
+      "method": "POST",
+      "path": "/connect",
+      "function": "unknown",
+      "file": "backend/src/api/routers/integrations_github.py",
+      "line": 99
+    },
+    {
+      "method": "GET",
+      "path": "/status",
+      "function": "unknown",
+      "file": "backend/src/api/routers/integrations_github.py",
+      "line": 136
+    },
+    {
+      "method": "POST",
+      "path": "/disconnect",
+      "function": "unknown",
+      "file": "backend/src/api/routers/integrations_github.py",
+      "line": 171
+    },
+    {
+      "method": "GET",
+      "path": "/repos",
+      "function": "unknown",
+      "file": "backend/src/api/routers/integrations_github.py",
+      "line": 181
+    },
+    {
+      "method": "POST",
+      "path": "/push",
+      "function": "unknown",
+      "file": "backend/src/api/routers/integrations_github.py",
+      "line": 197
+    },
+    {
+      "method": "POST",
+      "path": "/sync",
+      "function": "unknown",
+      "file": "backend/src/api/routers/integrations_github.py",
+      "line": 300
+    },
+    {
+      "method": "POST",
+      "path": "/pull-request",
+      "function": "unknown",
+      "file": "backend/src/api/routers/integrations_github.py",
+      "line": 348
+    },
+    {
+      "method": "POST",
+      "path": "/research/topic",
+      "function": "unknown",
+      "file": "backend/src/api/routers/knowledge.py",
+      "line": 51
+    },
+    {
+      "method": "POST",
+      "path": "/upload/document",
+      "function": "unknown",
+      "file": "backend/src/api/routers/knowledge.py",
+      "line": 82
+    },
+    {
+      "method": "POST",
+      "path": "/knowledge",
+      "function": "unknown",
+      "file": "backend/src/api/routers/knowledge.py",
+      "line": 203
+    },
+    {
+      "method": "POST",
+      "path": "/knowledge/documents",
+      "function": "unknown",
+      "file": "backend/src/api/routers/knowledge.py",
+      "line": 204
+    },
+    {
+      "method": "POST",
+      "path": "/chat/teacher",
+      "function": "unknown",
+      "file": "backend/src/api/routers/knowledge.py",
+      "line": 245
+    },
+    {
+      "method": "GET",
+      "path": "/sources",
+      "function": "unknown",
+      "file": "backend/src/api/routers/knowledge_sync.py",
+      "line": 35
+    },
+    {
+      "method": "POST",
+      "path": "/sources",
+      "function": "unknown",
+      "file": "backend/src/api/routers/knowledge_sync.py",
+      "line": 43
+    },
+    {
+      "method": "POST",
+      "path": "/sync",
+      "function": "unknown",
+      "file": "backend/src/api/routers/knowledge_sync.py",
+      "line": 65
+    },
+    {
+      "method": "GET",
+      "path": "/sync/history",
+      "function": "unknown",
+      "file": "backend/src/api/routers/knowledge_sync.py",
+      "line": 83
+    },
+    {
+      "method": "GET",
+      "path": "/documents",
+      "function": "unknown",
+      "file": "backend/src/api/routers/knowledge_sync.py",
+      "line": 90
+    },
+    {
+      "method": "GET",
+      "path": "/servers",
+      "function": "unknown",
+      "file": "backend/src/api/routers/mcp.py",
+      "line": 56
+    },
+    {
+      "method": "POST",
+      "path": "/servers",
+      "function": "unknown",
+      "file": "backend/src/api/routers/mcp.py",
+      "line": 67
+    },
+    {
+      "method": "POST",
+      "path": "/servers/test",
+      "function": "unknown",
+      "file": "backend/src/api/routers/mcp.py",
+      "line": 89
+    },
+    {
+      "method": "PATCH",
+      "path": "/servers/{server_id}",
+      "function": "unknown",
+      "file": "backend/src/api/routers/mcp.py",
+      "line": 105
+    },
+    {
+      "method": "DELETE",
+      "path": "/servers/{server_id}",
+      "function": "unknown",
+      "file": "backend/src/api/routers/mcp.py",
+      "line": 127
+    },
+    {
+      "method": "POST",
+      "path": "/servers/{server_id}/reconnect",
+      "function": "unknown",
+      "file": "backend/src/api/routers/mcp.py",
+      "line": 139
+    },
+    {
+      "method": "GET",
+      "path": "/tools",
+      "function": "unknown",
+      "file": "backend/src/api/routers/mcp.py",
+      "line": 157
+    },
+    {
+      "method": "POST",
+      "path": "/tools/execute",
+      "function": "unknown",
+      "file": "backend/src/api/routers/mcp.py",
+      "line": 167
+    },
+    {
+      "method": "POST",
+      "path": "/tools/approve",
+      "function": "unknown",
+      "file": "backend/src/api/routers/mcp.py",
+      "line": 196
+    },
+    {
+      "method": "POST",
+      "path": "",
+      "function": "unknown",
+      "file": "backend/src/api/routers/memory.py",
+      "line": 25
+    },
+    {
+      "method": "GET",
+      "path": "",
+      "function": "unknown",
+      "file": "backend/src/api/routers/memory.py",
+      "line": 45
+    },
+    {
+      "method": "GET",
+      "path": "/metrics",
+      "function": "unknown",
+      "file": "backend/src/api/routers/metrics.py",
+      "line": 12
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "function": "unknown",
+      "file": "backend/src/api/routers/monitoring.py",
+      "line": 35
+    },
+    {
+      "method": "GET",
+      "path": "/metrics/prometheus",
+      "function": "unknown",
+      "file": "backend/src/api/routers/monitoring.py",
+      "line": 85
+    },
+    {
+      "method": "POST",
+      "path": "",
+      "function": "unknown",
+      "file": "backend/src/api/routers/organizations.py",
+      "line": 61
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "function": "unknown",
+      "file": "backend/src/api/routers/organizations.py",
+      "line": 110
+    },
+    {
+      "method": "PATCH",
+      "path": "/me",
+      "function": "unknown",
+      "file": "backend/src/api/routers/organizations.py",
+      "line": 147
+    },
+    {
+      "method": "GET",
+      "path": "/members",
+      "function": "unknown",
+      "file": "backend/src/api/routers/organizations.py",
+      "line": 202
+    },
+    {
+      "method": "POST",
+      "path": "/invites",
+      "function": "unknown",
+      "file": "backend/src/api/routers/organizations.py",
+      "line": 226
+    },
+    {
+      "method": "GET",
+      "path": "/invites",
+      "function": "unknown",
+      "file": "backend/src/api/routers/organizations.py",
+      "line": 263
+    },
+    {
+      "method": "DELETE",
+      "path": "/invites/{invite_id}",
+      "function": "unknown",
+      "file": "backend/src/api/routers/organizations.py",
+      "line": 287
+    },
+    {
+      "method": "DELETE",
+      "path": "/members/{member_id}",
+      "function": "unknown",
+      "file": "backend/src/api/routers/organizations.py",
+      "line": 305
+    },
+    {
+      "method": "PATCH",
+      "path": "/members/{member_id}/role",
+      "function": "unknown",
+      "file": "backend/src/api/routers/organizations.py",
+      "line": 336
+    },
+    {
+      "method": "POST",
+      "path": "/transfer-ownership",
+      "function": "unknown",
+      "file": "backend/src/api/routers/organizations.py",
+      "line": 366
+    },
+    {
+      "method": "POST",
+      "path": "",
+      "function": "unknown",
+      "file": "backend/src/api/routers/projects.py",
+      "line": 55
+    },
+    {
+      "method": "GET",
+      "path": "",
+      "function": "unknown",
+      "file": "backend/src/api/routers/projects.py",
+      "line": 123
+    },
+    {
+      "method": "GET",
+      "path": "/{project_id}",
+      "function": "unknown",
+      "file": "backend/src/api/routers/projects.py",
+      "line": 142
+    },
+    {
+      "method": "PATCH",
+      "path": "/{project_id}",
+      "function": "unknown",
+      "file": "backend/src/api/routers/projects.py",
+      "line": 150
+    },
+    {
+      "method": "DELETE",
+      "path": "/{project_id}",
+      "function": "unknown",
+      "file": "backend/src/api/routers/projects.py",
+      "line": 166
+    },
+    {
+      "method": "POST",
+      "path": "/rag/search",
+      "function": "unknown",
+      "file": "backend/src/api/routers/rag.py",
+      "line": 62
+    },
+    {
+      "method": "GET",
+      "path": "/rag/diagnostics",
+      "function": "unknown",
+      "file": "backend/src/api/routers/rag.py",
+      "line": 124
+    },
+    {
+      "method": "POST",
+      "path": "/python/stream",
+      "function": "unknown",
+      "file": "backend/src/api/routers/sandbox.py",
+      "line": 19
+    },
+    {
+      "method": "GET",
+      "path": "",
+      "function": "unknown",
+      "file": "backend/src/api/routers/skills.py",
+      "line": 61
+    },
+    {
+      "method": "GET",
+      "path": "/{name}",
+      "function": "unknown",
+      "file": "backend/src/api/routers/skills.py",
+      "line": 72
+    },
+    {
+      "method": "POST",
+      "path": "",
+      "function": "unknown",
+      "file": "backend/src/api/routers/skills.py",
+      "line": 81
+    },
+    {
+      "method": "PUT",
+      "path": "/{name}",
+      "function": "unknown",
+      "file": "backend/src/api/routers/skills.py",
+      "line": 91
+    },
+    {
+      "method": "DELETE",
+      "path": "/{name}",
+      "function": "unknown",
+      "file": "backend/src/api/routers/skills.py",
+      "line": 106
+    },
+    {
+      "method": "POST",
+      "path": "/{name}/toggle",
+      "function": "unknown",
+      "file": "backend/src/api/routers/skills.py",
+      "line": 118
+    },
+    {
+      "method": "POST",
+      "path": "/{name}/duplicate",
+      "function": "unknown",
+      "file": "backend/src/api/routers/skills.py",
+      "line": 128
+    },
+    {
+      "method": "GET",
+      "path": "/{name}/export",
+      "function": "unknown",
+      "file": "backend/src/api/routers/skills.py",
+      "line": 138
+    },
+    {
+      "method": "POST",
+      "path": "/import",
+      "function": "unknown",
+      "file": "backend/src/api/routers/skills.py",
+      "line": 156
+    },
+    {
+      "method": "POST",
+      "path": "/{name}/test",
+      "function": "unknown",
+      "file": "backend/src/api/routers/skills.py",
+      "line": 173
+    },
+    {
+      "method": "POST",
+      "path": "/{name}/attachments",
+      "function": "unknown",
+      "file": "backend/src/api/routers/skills.py",
+      "line": 182
+    },
+    {
+      "method": "DELETE",
+      "path": "/{name}/attachments/{filename}",
+      "function": "unknown",
+      "file": "backend/src/api/routers/skills.py",
+      "line": 198
+    },
+    {
+      "method": "POST",
+      "path": "/{name}/restore-version",
+      "function": "unknown",
+      "file": "backend/src/api/routers/skills.py",
+      "line": 207
+    },
+    {
+      "method": "GET",
+      "path": "/{task_id}",
+      "function": "unknown",
+      "file": "backend/src/api/routers/tasks.py",
+      "line": 26
+    },
+    {
+      "method": "PATCH",
+      "path": "/{task_id}",
+      "function": "unknown",
+      "file": "backend/src/api/routers/tasks.py",
+      "line": 35
+    },
+    {
+      "method": "DELETE",
+      "path": "/{task_id}",
+      "function": "unknown",
+      "file": "backend/src/api/routers/tasks.py",
+      "line": 51
+    },
+    {
+      "method": "POST",
+      "path": "/{task_id}/start",
+      "function": "unknown",
+      "file": "backend/src/api/routers/tasks.py",
+      "line": 64
+    },
+    {
+      "method": "POST",
+      "path": "/{task_id}/retry",
+      "function": "unknown",
+      "file": "backend/src/api/routers/tasks.py",
+      "line": 73
+    },
+    {
+      "method": "POST",
+      "path": "/{task_id}/cancel",
+      "function": "unknown",
+      "file": "backend/src/api/routers/tasks.py",
+      "line": 82
+    },
+    {
+      "method": "PATCH",
+      "path": "/profile",
+      "function": "unknown",
+      "file": "backend/src/api/routers/users.py",
+      "line": 27
+    },
+    {
+      "method": "GET",
+      "path": "/quota",
+      "function": "unknown",
+      "file": "backend/src/api/routers/users.py",
+      "line": 50
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "function": "unknown",
+      "file": "backend/src/api/routers/users.py",
+      "line": 79
+    },
+    {
+      "method": "POST",
+      "path": "/transcribe",
+      "function": "unknown",
+      "file": "backend/src/api/routers/voice.py",
+      "line": 44
+    },
+    {
+      "method": "GET",
+      "path": "",
+      "function": "unknown",
+      "file": "backend/src/api/routers/workflows.py",
+      "line": 29
+    },
+    {
+      "method": "GET",
+      "path": "/history",
+      "function": "unknown",
+      "file": "backend/src/api/routers/workflows.py",
+      "line": 36
+    },
+    {
+      "method": "GET",
+      "path": "/{workflow_id}",
+      "function": "unknown",
+      "file": "backend/src/api/routers/workflows.py",
+      "line": 43
+    },
+    {
+      "method": "POST",
+      "path": "/start",
+      "function": "unknown",
+      "file": "backend/src/api/routers/workflows.py",
+      "line": 53
+    },
+    {
+      "method": "POST",
+      "path": "/pause",
+      "function": "unknown",
+      "file": "backend/src/api/routers/workflows.py",
+      "line": 81
+    },
+    {
+      "method": "POST",
+      "path": "/resume",
+      "function": "unknown",
+      "file": "backend/src/api/routers/workflows.py",
+      "line": 89
+    },
+    {
+      "method": "POST",
+      "path": "/cancel",
+      "function": "unknown",
+      "file": "backend/src/api/routers/workflows.py",
+      "line": 97
+    },
+    {
+      "method": "POST",
+      "path": "/sync",
+      "function": "unknown",
+      "file": "backend/src/api/routers/workspace.py",
+      "line": 49
+    },
+    {
+      "method": "GET",
+      "path": "/info",
+      "function": "unknown",
+      "file": "backend/src/api/routers/workspace.py",
+      "line": 76
+    },
+    {
+      "method": "GET",
+      "path": "/files",
+      "function": "unknown",
+      "file": "backend/src/api/routers/workspace.py",
+      "line": 82
+    },
+    {
+      "method": "GET",
+      "path": "/graph",
+      "function": "unknown",
+      "file": "backend/src/db/neo4j.py",
+      "line": 50
+    },
+    {
+      "method": "GET",
+      "path": "/users",
+      "function": "unknown",
+      "file": "backend/src/db/postgres.py",
+      "line": 148
+    },
+    {
+      "method": "POST",
+      "path": "/embed",
+      "function": "unknown",
+      "file": "backend/src/db/qdrant.py",
+      "line": 54
+    },
+    {
+      "method": "GET",
+      "path": "/cache",
+      "function": "unknown",
+      "file": "backend/src/db/redis.py",
+      "line": 63
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/resource",
+      "function": "unknown",
+      "file": "backend/src/runtime/nodes.py",
+      "line": 1612
+    },
+    {
+      "method": "GET",
+      "path": "/todos",
+      "function": "unknown",
+      "file": "backend/src/runtime/nodes.py",
+      "line": 1697
+    },
+    {
+      "method": "POST",
+      "path": "/todos",
+      "function": "unknown",
+      "file": "backend/src/runtime/nodes.py",
+      "line": 1700
+    },
+    {
+      "method": "GET",
+      "path": "/todos/{todo_id}",
+      "function": "unknown",
+      "file": "backend/src/runtime/nodes.py",
+      "line": 1707
+    },
+    {
+      "method": "PUT",
+      "path": "/todos/{todo_id}",
+      "function": "unknown",
+      "file": "backend/src/runtime/nodes.py",
+      "line": 1712
+    },
+    {
+      "method": "DELETE",
+      "path": "/todos/{todo_id}",
+      "function": "unknown",
+      "file": "backend/src/runtime/nodes.py",
+      "line": 1719
+    },
+    {
+      "method": "GET",
+      "path": "/items/{item_id}",
+      "function": "unknown",
+      "file": "backend/src/utils/doc_crawler.py",
+      "line": 539
+    },
+    {
+      "method": "POST",
+      "path": "/items/",
+      "function": "unknown",
+      "file": "backend/src/utils/doc_crawler.py",
+      "line": 551
+    },
+    {
+      "method": "GET",
+      "path": "/{user_id}",
+      "function": "unknown",
+      "file": "backend/src/utils/doc_crawler.py",
+      "line": 559
+    },
+    {
+      "method": "GET",
+      "path": "/protected",
+      "function": "unknown",
+      "file": "backend/src/utils/doc_crawler.py",
+      "line": 583
+    },
+    {
+      "method": "GET",
+      "path": "/items/{item_id}",
+      "function": "unknown",
+      "file": "backend/src/utils/doc_crawler.py",
+      "line": 676
+    },
+    {
+      "method": "POST",
+      "path": "/items/",
+      "function": "unknown",
+      "file": "backend/src/utils/doc_crawler.py",
+      "line": 687
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "function": "unknown",
+      "file": "backend/src/utils/doc_crawler.py",
+      "line": 695
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "function": "unknown",
+      "file": "backend/src/utils/doc_crawler.py",
+      "line": 699
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "function": "unknown",
+      "file": "backend/tests/unit/test_host_manager.py",
+      "line": 52
+    },
+    {
+      "method": "GET",
+      "path": "/items/{item_id}",
+      "function": "unknown",
+      "file": "backend/tests/unit/test_host_manager.py",
+      "line": 56
+    },
+    {
+      "method": "POST",
+      "path": "/items/",
+      "function": "unknown",
+      "file": "backend/tests/unit/test_host_manager.py",
+      "line": 60
+    }
+  ],
+  "nodes": [
+    {
+      "node_name": "planner",
+      "handler": "planner_node",
+      "file": "backend/src/agents/supervisor.py",
+      "line": 91
+    },
+    {
+      "node_name": "supervisor",
+      "handler": "supervisor_node",
+      "file": "backend/src/agents/supervisor.py",
+      "line": 92
+    },
+    {
+      "node_name": "executor",
+      "handler": "executor_node",
+      "file": "backend/src/agents/supervisor.py",
+      "line": 93
+    },
+    {
+      "node_name": "agent",
+      "handler": "call_agent",
+      "file": "backend/src/utils/doc_crawler.py",
+      "line": 722
+    }
+  ],
+  "pages": [
+    "frontend/src/app/(auth)/callback/page.tsx",
+    "frontend/src/app/(auth)/forgot-password/page.tsx",
+    "frontend/src/app/(auth)/login/page.tsx",
+    "frontend/src/app/(auth)/reset-password/page.tsx",
+    "frontend/src/app/(auth)/signup/page.tsx",
+    "frontend/src/app/(auth)/verify-email/page.tsx",
+    "frontend/src/app/(dashboard)/api-keys/page.tsx",
+    "frontend/src/app/(dashboard)/approvals/page.tsx",
+    "frontend/src/app/(dashboard)/audit/page.tsx",
+    "frontend/src/app/(dashboard)/billing/page.tsx",
+    "frontend/src/app/(dashboard)/evaluation/page.tsx",
+    "frontend/src/app/(dashboard)/governance/page.tsx",
+    "frontend/src/app/(dashboard)/knowledge/page.tsx",
+    "frontend/src/app/(dashboard)/memory/page.tsx",
+    "frontend/src/app/(dashboard)/metrics/page.tsx",
+    "frontend/src/app/(dashboard)/overview/page.tsx",
+    "frontend/src/app/(dashboard)/playground/page.tsx",
+    "frontend/src/app/(dashboard)/projects/page.tsx",
+    "frontend/src/app/(dashboard)/research/page.tsx",
+    "frontend/src/app/(dashboard)/sessions/page.tsx",
+    "frontend/src/app/(dashboard)/sessions/[id]/page.tsx",
+    "frontend/src/app/(dashboard)/settings/page.tsx",
+    "frontend/src/app/(dashboard)/skills/page.tsx",
+    "frontend/src/app/(marketing)/page.tsx",
+    "frontend/src/app/about/page.tsx",
+    "frontend/src/app/api-docs/page.tsx",
+    "frontend/src/app/architecture/page.tsx",
+    "frontend/src/app/changelog/page.tsx",
+    "frontend/src/app/contact/page.tsx",
+    "frontend/src/app/documentation/page.tsx",
+    "frontend/src/app/platform/page.tsx",
+    "frontend/src/app/pricing/page.tsx",
+    "frontend/src/app/privacy/page.tsx",
+    "frontend/src/app/roadmap/page.tsx",
+    "frontend/src/app/terms/page.tsx"
+  ],
+  "components": [
+    "frontend/src/components/ApprovalPanel.tsx",
+    "frontend/src/components/MonacoDiffViewer.tsx",
+    "frontend/src/components/TerminalEmulator.tsx",
+    "frontend/src/components/auth/auth-skeleton.tsx",
+    "frontend/src/components/auth/guest-route.tsx",
+    "frontend/src/components/auth/login-skeleton.tsx",
+    "frontend/src/components/auth/protected-route.tsx",
+    "frontend/src/components/auth/routes.test.tsx",
+    "frontend/src/components/auth/turnstile.tsx",
+    "frontend/src/components/dashboard/dashboard-shell.tsx",
+    "frontend/src/components/dashboard/dashboard-skeleton.tsx",
+    "frontend/src/components/dashboard/email-verification-banner.tsx",
+    "frontend/src/components/dashboard/enterprise-admin-dashboard.tsx",
+    "frontend/src/components/dashboard/header.tsx",
+    "frontend/src/components/dashboard/sidebar.test.tsx",
+    "frontend/src/components/dashboard/sidebar.tsx",
+    "frontend/src/components/dashboard/governance/approval-card.test.tsx",
+    "frontend/src/components/dashboard/governance/approval-card.tsx",
+    "frontend/src/components/dashboard/governance/approval-status-badge.tsx",
+    "frontend/src/components/dashboard/governance/audit-card.test.tsx",
+    "frontend/src/components/dashboard/governance/audit-card.tsx",
+    "frontend/src/components/dashboard/governance/audit-table.tsx",
+    "frontend/src/components/dashboard/governance/governance-filter-bar.tsx",
+    "frontend/src/components/dashboard/governance/policy-card.tsx",
+    "frontend/src/components/dashboard/governance/policy-table.tsx",
+    "frontend/src/components/dashboard/governance/risk-badge.tsx",
+    "frontend/src/components/dashboard/knowledge/knowledge-card.tsx",
+    "frontend/src/components/dashboard/memory/memory-card.test.tsx",
+    "frontend/src/components/dashboard/memory/memory-card.tsx",
+    "frontend/src/components/dashboard/overview/agent-status-card.tsx",
+    "frontend/src/components/dashboard/overview/health-badge.tsx",
+    "frontend/src/components/dashboard/overview/metric-card.tsx",
+    "frontend/src/components/dashboard/overview/queue-card.tsx",
+    "frontend/src/components/dashboard/overview/system-overview-card.test.tsx",
+    "frontend/src/components/dashboard/overview/system-overview-card.tsx",
+    "frontend/src/components/dashboard/sessions/ai-chat.tsx",
+    "frontend/src/components/dashboard/sessions/session-card.tsx",
+    "frontend/src/components/dashboard/sessions/session-status-badge.tsx",
+    "frontend/src/components/dashboard/shared/search-toolbar.tsx",
+    "frontend/src/components/icons/GitHubIcon.tsx",
+    "frontend/src/components/landing/architecture.tsx",
+    "frontend/src/components/landing/contact-form.tsx",
+    "frontend/src/components/landing/cta-section.tsx",
+    "frontend/src/components/landing/faq.tsx",
+    "frontend/src/components/landing/features.tsx",
+    "frontend/src/components/landing/footer.tsx",
+    "frontend/src/components/landing/hero-product-demo.tsx",
+    "frontend/src/components/landing/hero-section.tsx",
+    "frontend/src/components/landing/integrations.tsx",
+    "frontend/src/components/landing/navbar.tsx",
+    "frontend/src/components/landing/product-preview.tsx",
+    "frontend/src/components/landing/social-proof.tsx",
+    "frontend/src/components/layout/app-layout.tsx",
+    "frontend/src/components/layout/index.tsx",
+    "frontend/src/components/monetization/upgrade-modal.tsx",
+    "frontend/src/components/payments/razorpay-checkout.tsx",
+    "frontend/src/components/playground/center-workspace-ux.test.tsx",
+    "frontend/src/components/playground/CenterWorkspace.tsx",
+    "frontend/src/components/playground/ChatHistorySheet.tsx",
+    "frontend/src/components/playground/CreateProjectModal.tsx",
+    "frontend/src/components/playground/CreateWorkspaceModal.tsx",
+    "frontend/src/components/playground/ExplorationCard.tsx",
+    "frontend/src/components/playground/explore-feed.test.tsx",
+    "frontend/src/components/playground/ExplorePanel.tsx",
+    "frontend/src/components/playground/LeftPanel.tsx",
+    "frontend/src/components/playground/PlaygroundTerminal.tsx",
+    "frontend/src/components/playground/RightPanel.tsx",
+    "frontend/src/components/playground/TopBar.tsx",
+    "frontend/src/components/playground/WorkflowVisualizer.tsx",
+    "frontend/src/components/playground/workspace-chat-history.test.tsx",
+    "frontend/src/components/ui/animated-beam.tsx",
+    "frontend/src/components/ui/animated-card.tsx",
+    "frontend/src/components/ui/animated-modal.tsx",
+    "frontend/src/components/ui/aurora-background.tsx",
+    "frontend/src/components/ui/avatar.tsx",
+    "frontend/src/components/ui/badge.tsx",
+    "frontend/src/components/ui/bento-grid.tsx",
+    "frontend/src/components/ui/button.test.tsx",
+    "frontend/src/components/ui/button.tsx",
+    "frontend/src/components/ui/card.tsx",
+    "frontend/src/components/ui/checkbox.tsx",
+    "frontend/src/components/ui/dialog.tsx",
+    "frontend/src/components/ui/dropdown-menu.tsx",
+    "frontend/src/components/ui/empty-state.tsx",
+    "frontend/src/components/ui/form.tsx",
+    "frontend/src/components/ui/globe.tsx",
+    "frontend/src/components/ui/infinite-moving-cards.tsx",
+    "frontend/src/components/ui/input.tsx",
+    "frontend/src/components/ui/label.tsx",
+    "frontend/src/components/ui/line-shadow-text.tsx",
+    "frontend/src/components/ui/marquee.tsx",
+    "frontend/src/components/ui/metric-card.tsx",
+    "frontend/src/components/ui/neural-network-viz.tsx",
+    "frontend/src/components/ui/pricing-card.tsx",
+    "frontend/src/components/ui/progress.tsx",
+    "frontend/src/components/ui/radio-group.tsx",
+    "frontend/src/components/ui/resizable.tsx",
+    "frontend/src/components/ui/scroll-area.tsx",
+    "frontend/src/components/ui/select.tsx",
+    "frontend/src/components/ui/separator.tsx",
+    "frontend/src/components/ui/sheet.tsx",
+    "frontend/src/components/ui/skeleton.tsx",
+    "frontend/src/components/ui/slider.tsx",
+    "frontend/src/components/ui/spotlight.tsx",
+    "frontend/src/components/ui/switch.tsx",
+    "frontend/src/components/ui/tabs.tsx",
+    "frontend/src/components/ui/textarea.tsx",
+    "frontend/src/components/ui/theme-toggle.test.tsx",
+    "frontend/src/components/ui/theme-toggle.tsx",
+    "frontend/src/components/ui/timeline.tsx",
+    "frontend/src/components/ui/tooltip.tsx",
+    "frontend/src/components/ui/tracing-beam.tsx"
+  ],
+  "todos": [
+    {
+      "file": "backend/src/main.py",
+      "line": 6,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend/src/agents/checkpoint.py",
+      "line": 7,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend/src/agents/checkpoint.py",
+      "line": 25,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend/src/agents/checkpoint.py",
+      "line": 38,
+      "text": "TODO (Phase 0.2): return AsyncPostgresSaver instance."
+    },
+    {
+      "file": "backend/src/agents/registry.py",
+      "line": 11,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend/src/agents/registry.py",
+      "line": 42,
+      "text": "TODO (Phase 0.2): Validate agent interface compliance on registration."
+    },
+    {
+      "file": "backend/src/agents/supervisor.py",
+      "line": 11,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend/src/agents/supervisor.py",
+      "line": 30,
+      "text": "# TODO (Phase 0.2): \"code_writer\""
+    },
+    {
+      "file": "backend/src/agents/supervisor.py",
+      "line": 31,
+      "text": "# TODO (Phase 0.2): \"code_reviewer\""
+    },
+    {
+      "file": "backend/src/agents/supervisor.py",
+      "line": 32,
+      "text": "# TODO (Phase 0.2): \"test_runner\""
+    },
+    {
+      "file": "backend/src/agents/supervisor.py",
+      "line": 33,
+      "text": "# TODO (Phase 0.2): \"file_system\""
+    },
+    {
+      "file": "backend/src/agents/supervisor.py",
+      "line": 34,
+      "text": "# TODO (Phase 0.2): \"web_search\""
+    },
+    {
+      "file": "backend/src/agents/supervisor.py",
+      "line": 35,
+      "text": "# TODO (Phase 0.2): \"memory_retriever\""
+    },
+    {
+      "file": "backend/src/api/app.py",
+      "line": 11,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend/src/config/settings.py",
+      "line": 12,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend/src/db/neo4j.py",
+      "line": 11,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend/src/db/postgres.py",
+      "line": 130,
+      "text": "TODO (Phase 0.3):"
+    },
+    {
+      "file": "backend/src/db/qdrant.py",
+      "line": 9,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend/src/db/redis.py",
+      "line": 10,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend/src/db/services/__init__.py",
+      "line": 4,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend/src/governance/service.py",
+      "line": 12,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend/src/governance/service.py",
+      "line": 31,
+      "text": "TODO (Phase 0.2): implement policy engine and audit logger."
+    },
+    {
+      "file": "backend/src/governance/service.py",
+      "line": 45,
+      "text": "# TODO (Phase 0.2): evaluate against PolicyEngine rules"
+    },
+    {
+      "file": "backend/src/governance/service.py",
+      "line": 54,
+      "text": "# TODO (Phase 0.2): persist to PostgreSQL audit_log table"
+    },
+    {
+      "file": "backend/src/knowledge/service.py",
+      "line": 9,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend/src/knowledge/service.py",
+      "line": 26,
+      "text": "TODO (Phase 0.2): implement code graph ingestion pipeline."
+    },
+    {
+      "file": "backend/src/knowledge/service.py",
+      "line": 36,
+      "text": "# TODO (Phase 0.2): parse AST, extract entities, push to Neo4j + Qdrant"
+    },
+    {
+      "file": "backend/src/memory/service.py",
+      "line": 13,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend/src/memory/service.py",
+      "line": 31,
+      "text": "TODO (Phase 0.2): implement using Qdrant + Redis + PostgreSQL."
+    },
+    {
+      "file": "backend/src/memory/service.py",
+      "line": 37,
+      "text": "# TODO (Phase 0.2): embed value and upsert into Qdrant"
+    },
+    {
+      "file": "backend/src/memory/service.py",
+      "line": 42,
+      "text": "# TODO (Phase 0.2): embed query, search Qdrant, return top_k results"
+    },
+    {
+      "file": "backend/src/multi_agent/governance_agent.py",
+      "line": 46,
+      "text": "restricted = [\"hack\", \"bypass\", \"exploit\", \"rootkit\"]"
+    },
+    {
+      "file": "backend/src/replay/__init__.py",
+      "line": 4,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend/src/runtime/nodes.py",
+      "line": 1684,
+      "text": "elif any(k in goal.lower() for k in (\"todo\", \"to-do\", \"rest api\", \"crud\", \"endpoint\", \"api\")):"
+    },
+    {
+      "file": "backend/src/utils/logging.py",
+      "line": 7,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend/tests/unit/test_implement_node.py",
+      "line": 15,
+      "text": "\"run_id\": \"test-todo-fallback\","
+    },
+    {
+      "file": "backend/tests/unit/test_implement_node.py",
+      "line": 120,
+      "text": "\"goal\": \"build a simple REST API for a todo app\","
+    },
+    {
+      "file": "backend/tests/unit/test_implement_node.py",
+      "line": 123,
+      "text": "\"run_id\": \"test-todo-timeout\","
+    },
+    {
+      "file": "backend/tests/unit/test_implement_node.py",
+      "line": 155,
+      "text": "\"goal\": \"build a todo api\","
+    },
+    {
+      "file": "backend/tests/unit/test_implement_node.py",
+      "line": 192,
+      "text": "await extract_and_store_durable_memories(\"run-timeout\", uuid.uuid4(), \"User: build todo app\")"
+    },
+    {
+      "file": "benchmarks/__init__.py",
+      "line": 6,
+      "text": "TODO (Phase 0.3):"
+    },
+    {
+      "file": "benchmarks/__init__.py",
+      "line": 13,
+      "text": "# TODO (Phase 0.3): implement with pytest-benchmark or locust"
+    },
+    {
+      "file": "frontend/next.config.ts",
+      "line": 7,
+      "text": "* TODO (Phase 0.2):"
+    }
+  ]
+}

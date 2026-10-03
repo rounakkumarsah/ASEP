@@ -1,0 +1,386 @@
+{
+  "todos_sample": [
+    {
+      "type": "TODO",
+      "file": "backend/src/main.py",
+      "line": 6,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "type": "TODO",
+      "file": "backend/src/agents/checkpoint.py",
+      "line": 7,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "type": "TODO",
+      "file": "backend/src/agents/checkpoint.py",
+      "line": 25,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "type": "TODO",
+      "file": "backend/src/agents/checkpoint.py",
+      "line": 38,
+      "text": "TODO (Phase 0.2): return AsyncPostgresSaver instance."
+    },
+    {
+      "type": "TODO",
+      "file": "backend/src/agents/registry.py",
+      "line": 11,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "type": "TODO",
+      "file": "backend/src/agents/registry.py",
+      "line": 42,
+      "text": "TODO (Phase 0.2): Validate agent interface compliance on registration."
+    },
+    {
+      "type": "TODO",
+      "file": "backend/src/agents/supervisor.py",
+      "line": 11,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "type": "TODO",
+      "file": "backend/src/agents/supervisor.py",
+      "line": 30,
+      "text": "# TODO (Phase 0.2): \"code_writer\""
+    },
+    {
+      "type": "TODO",
+      "file": "backend/src/agents/supervisor.py",
+      "line": 31,
+      "text": "# TODO (Phase 0.2): \"code_reviewer\""
+    },
+    {
+      "type": "TODO",
+      "file": "backend/src/agents/supervisor.py",
+      "line": 32,
+      "text": "# TODO (Phase 0.2): \"test_runner\""
+    },
+    {
+      "type": "TODO",
+      "file": "backend/src/agents/supervisor.py",
+      "line": 33,
+      "text": "# TODO (Phase 0.2): \"file_system\""
+    },
+    {
+      "type": "TODO",
+      "file": "backend/src/agents/supervisor.py",
+      "line": 34,
+      "text": "# TODO (Phase 0.2): \"web_search\""
+    },
+    {
+      "type": "TODO",
+      "file": "backend/src/agents/supervisor.py",
+      "line": 35,
+      "text": "# TODO (Phase 0.2): \"memory_retriever\""
+    },
+    {
+      "type": "TODO",
+      "file": "backend/src/api/app.py",
+      "line": 11,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "type": "TODO",
+      "file": "backend/src/config/settings.py",
+      "line": 12,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "type": "TODO",
+      "file": "backend/src/db/neo4j.py",
+      "line": 11,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "type": "TODO",
+      "file": "backend/src/db/postgres.py",
+      "line": 130,
+      "text": "TODO (Phase 0.3):"
+    },
+    {
+      "type": "TODO",
+      "file": "backend/src/db/qdrant.py",
+      "line": 9,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "type": "TODO",
+      "file": "backend/src/db/redis.py",
+      "line": 10,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "type": "TODO",
+      "file": "backend/src/db/services/__init__.py",
+      "line": 4,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "type": "TODO",
+      "file": "backend/src/governance/service.py",
+      "line": 12,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "type": "TODO",
+      "file": "backend/src/governance/service.py",
+      "line": 31,
+      "text": "TODO (Phase 0.2): implement policy engine and audit logger."
+    },
+    {
+      "type": "TODO",
+      "file": "backend/src/governance/service.py",
+      "line": 45,
+      "text": "# TODO (Phase 0.2): evaluate against PolicyEngine rules"
+    },
+    {
+      "type": "TODO",
+      "file": "backend/src/governance/service.py",
+      "line": 54,
+      "text": "# TODO (Phase 0.2): persist to PostgreSQL audit_log table"
+    },
+    {
+      "type": "TODO",
+      "file": "backend/src/knowledge/service.py",
+      "line": 9,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "type": "TODO",
+      "file": "backend/src/knowledge/service.py",
+      "line": 26,
+      "text": "TODO (Phase 0.2): implement code graph ingestion pipeline."
+    },
+    {
+      "type": "TODO",
+      "file": "backend/src/knowledge/service.py",
+      "line": 36,
+      "text": "# TODO (Phase 0.2): parse AST, extract entities, push to Neo4j + Qdrant"
+    },
+    {
+      "type": "TODO",
+      "file": "backend/src/memory/service.py",
+      "line": 13,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "type": "TODO",
+      "file": "backend/src/memory/service.py",
+      "line": 31,
+      "text": "TODO (Phase 0.2): implement using Qdrant + Redis + PostgreSQL."
+    },
+    {
+      "type": "TODO",
+      "file": "backend/src/memory/service.py",
+      "line": 37,
+      "text": "# TODO (Phase 0.2): embed value and upsert into Qdrant"
+    }
+  ],
+  "mocks_sample": [
+    {
+      "type": "FALLBACK_MOCK",
+      "file": "fix_registry.py",
+      "line": 6,
+      "text": "# Always fallback to mock if everything else is broken"
+    },
+    {
+      "type": "FALLBACK_MOCK",
+      "file": "fix_registry.py",
+      "line": 7,
+      "text": "if \\\"mock\\\" in self.providers and self.providers[\\\"mock\\\"] not in chain:"
+    },
+    {
+      "type": "FALLBACK_MOCK",
+      "file": "fix_registry.py",
+      "line": 8,
+      "text": "chain.append(self.providers[\\\"mock\\\"])"
+    },
+    {
+      "type": "FALLBACK_MOCK",
+      "file": "api/index.py",
+      "line": 60,
+      "text": "# Create a diagnostic fallback FastAPI app to report the exact stack trace"
+    },
+    {
+      "type": "FALLBACK_MOCK",
+      "file": "api/index.py",
+      "line": 70,
+      "text": "async def fallback_diagnostics(full_path: str):"
+    },
+    {
+      "type": "FALLBACK_MOCK",
+      "file": "backend/fix_orch.py",
+      "line": 43,
+      "text": "\"- NEVER hardcode fake data in final artifacts.\\\\n\""
+    },
+    {
+      "type": "FALLBACK_MOCK",
+      "file": "backend/fix_orch.py",
+      "line": 45,
+      "text": "\"- Ship partial-but-real over complete-but-fake.\""
+    },
+    {
+      "type": "FALLBACK_MOCK",
+      "file": "backend/fix_orch2.py",
+      "line": 45,
+      "text": "\"- NEVER hardcode fake data in final artifacts.\\\\n\""
+    },
+    {
+      "type": "FALLBACK_MOCK",
+      "file": "backend/fix_orch2.py",
+      "line": 47,
+      "text": "\"- Ship partial-but-real over complete-but-fake.\""
+    },
+    {
+      "type": "FALLBACK_MOCK",
+      "file": "backend/modify.py",
+      "line": 45,
+      "text": "\"- NEVER hardcode fake data in final artifacts.\\\\n\""
+    },
+    {
+      "type": "FALLBACK_MOCK",
+      "file": "backend/modify.py",
+      "line": 47,
+      "text": "\"- Ship partial-but-real over complete-but-fake.\""
+    },
+    {
+      "type": "FALLBACK_MOCK",
+      "file": "backend/replace_orchestrator.py",
+      "line": 44,
+      "text": "\"- NEVER hardcode fake data in final artifacts.\\\\n\""
+    },
+    {
+      "type": "FALLBACK_MOCK",
+      "file": "backend/replace_orchestrator.py",
+      "line": 46,
+      "text": "\"- Ship partial-but-real over complete-but-fake.\""
+    },
+    {
+      "type": "FALLBACK_MOCK",
+      "file": "backend/xxhash.py",
+      "line": 1,
+      "text": "# Mock xxhash to bypass AppLocker/Application Control DLL blocking"
+    },
+    {
+      "type": "FALLBACK_MOCK",
+      "file": "backend/xxhash.py",
+      "line": 2,
+      "text": "class MockXxhash:"
+    },
+    {
+      "type": "FALLBACK_MOCK",
+      "file": "backend/xxhash.py",
+      "line": 15,
+      "text": "return MockXxhash(*args, **kwargs)"
+    },
+    {
+      "type": "FALLBACK_MOCK",
+      "file": "backend/xxhash.py",
+      "line": 18,
+      "text": "return MockXxhash(*args, **kwargs)"
+    },
+    {
+      "type": "FALLBACK_MOCK",
+      "file": "backend/xxhash.py",
+      "line": 21,
+      "text": "return MockXxhash(*args, **kwargs)"
+    },
+    {
+      "type": "FALLBACK_MOCK",
+      "file": "backend/scripts/migrate_kb.py",
+      "line": 24,
+      "text": "print(\"Neo4j init failed, running in fallback mode:\", e)"
+    },
+    {
+      "type": "FALLBACK_MOCK",
+      "file": "backend/scripts/migrate_kb.py",
+      "line": 25,
+      "text": "class MockGraph:"
+    },
+    {
+      "type": "FALLBACK_MOCK",
+      "file": "backend/scripts/migrate_kb.py",
+      "line": 28,
+      "text": "graph_svc = MockGraph()"
+    },
+    {
+      "type": "FALLBACK_MOCK",
+      "file": "backend/scripts/migrate_kb.py",
+      "line": 43,
+      "text": "class FallbackEmbedder(EmbeddingProvider):"
+    },
+    {
+      "type": "FALLBACK_MOCK",
+      "file": "backend/scripts/migrate_kb.py",
+      "line": 48,
+      "text": "embedder = FallbackEmbedder()"
+    },
+    {
+      "type": "FALLBACK_MOCK",
+      "file": "backend/scripts/simulate_single_step_run.py",
+      "line": 12,
+      "text": "from unittest.mock import AsyncMock, MagicMock"
+    },
+    {
+      "type": "FALLBACK_MOCK",
+      "file": "backend/scripts/simulate_single_step_run.py",
+      "line": 19,
+      "text": "os.environ[\"AI_PROVIDER_PRIORITY\"] = \"mock\""
+    },
+    {
+      "type": "FALLBACK_MOCK",
+      "file": "backend/scripts/simulate_single_step_run.py",
+      "line": 29,
+      "text": "mock_mem = MagicMock()"
+    },
+    {
+      "type": "FALLBACK_MOCK",
+      "file": "backend/scripts/simulate_single_step_run.py",
+      "line": 30,
+      "text": "mock_mem.working.set_state = AsyncMock()"
+    },
+    {
+      "type": "FALLBACK_MOCK",
+      "file": "backend/scripts/simulate_single_step_run.py",
+      "line": 31,
+      "text": "mock_mem.working.get_state = AsyncMock(return_value=None)"
+    },
+    {
+      "type": "FALLBACK_MOCK",
+      "file": "backend/scripts/simulate_single_step_run.py",
+      "line": 32,
+      "text": "runtime = LangGraphRuntime(mock_mem)"
+    },
+    {
+      "type": "FALLBACK_MOCK",
+      "file": "backend/src/agents/checkpoint.py",
+      "line": 2,
+      "text": "ASEP \u2014 LangGraph Checkpoint Manager (Placeholder)"
+    }
+  ],
+  "sec_sample": [
+    {
+      "type": "SECURITY_RISK",
+      "file": "frontend/e2e/auth.setup.ts",
+      "line": 7,
+      "text": "const E2E_PASSWORD = 'Playwright$Test123!';"
+    },
+    {
+      "type": "SECURITY_RISK",
+      "file": "frontend/e2e/auth.spec.ts",
+      "line": 10,
+      "text": "const E2E_PASSWORD = 'Playwright$Test123!';"
+    },
+    {
+      "type": "SECURITY_RISK",
+      "file": "scripts/prod_readiness.py",
+      "line": 297,
+      "text": "password     = \"SmokeTest@1234\""
+    }
+  ]
+}

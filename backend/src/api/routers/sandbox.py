@@ -1,7 +1,7 @@
 import asyncio
 import json
 import logging
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Any
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -88,8 +88,6 @@ async def stream_python_execution(request: SandboxRunRequest) -> StreamingRespon
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
-
-from typing import Any
 
 class TerminalRequest(BaseModel):
     command: str

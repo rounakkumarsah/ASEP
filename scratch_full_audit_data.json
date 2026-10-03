@@ -1,0 +1,2020 @@
+{
+  "endpoints_count": 151,
+  "endpoints": [
+    {
+      "method": "POST",
+      "path": "/",
+      "func": "unknown",
+      "file": "backend/src/api/routers/agent_runs.py",
+      "line": 24
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "func": "unknown",
+      "file": "backend/src/api/routers/agent_runs.py",
+      "line": 38
+    },
+    {
+      "method": "GET",
+      "path": "/{run_id}",
+      "func": "unknown",
+      "file": "backend/src/api/routers/agent_runs.py",
+      "line": 59
+    },
+    {
+      "method": "POST",
+      "path": "/{run_id}/tasks",
+      "func": "unknown",
+      "file": "backend/src/api/routers/agent_runs.py",
+      "line": 72
+    },
+    {
+      "method": "GET",
+      "path": "/{run_id}/tasks",
+      "func": "unknown",
+      "file": "backend/src/api/routers/agent_runs.py",
+      "line": 86
+    },
+    {
+      "method": "GET",
+      "path": "/ai/health",
+      "func": "unknown",
+      "file": "backend/src/api/routers/ai_runtime.py",
+      "line": 15
+    },
+    {
+      "method": "GET",
+      "path": "/ai/capabilities",
+      "func": "unknown",
+      "file": "backend/src/api/routers/ai_runtime.py",
+      "line": 20
+    },
+    {
+      "method": "POST",
+      "path": "/ai-runtime/chat/completions",
+      "func": "unknown",
+      "file": "backend/src/api/routers/ai_runtime.py",
+      "line": 28
+    },
+    {
+      "method": "POST",
+      "path": "",
+      "func": "unknown",
+      "file": "backend/src/api/routers/api_keys.py",
+      "line": 89
+    },
+    {
+      "method": "GET",
+      "path": "",
+      "func": "unknown",
+      "file": "backend/src/api/routers/api_keys.py",
+      "line": 133
+    },
+    {
+      "method": "DELETE",
+      "path": "/{key_id}",
+      "func": "unknown",
+      "file": "backend/src/api/routers/api_keys.py",
+      "line": 163
+    },
+    {
+      "method": "PATCH",
+      "path": "/{key_id}",
+      "func": "unknown",
+      "file": "backend/src/api/routers/api_keys.py",
+      "line": 182
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "func": "unknown",
+      "file": "backend/src/api/routers/audit.py",
+      "line": 18
+    },
+    {
+      "method": "GET",
+      "path": "/critical",
+      "func": "unknown",
+      "file": "backend/src/api/routers/audit.py",
+      "line": 55
+    },
+    {
+      "method": "GET",
+      "path": "/check-username",
+      "func": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 48
+    },
+    {
+      "method": "POST",
+      "path": "/signup",
+      "func": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 108
+    },
+    {
+      "method": "POST",
+      "path": "/login",
+      "func": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 186
+    },
+    {
+      "method": "POST",
+      "path": "/mfa/setup",
+      "func": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 259
+    },
+    {
+      "method": "POST",
+      "path": "/mfa/enable",
+      "func": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 273
+    },
+    {
+      "method": "POST",
+      "path": "/mfa/disable",
+      "func": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 287
+    },
+    {
+      "method": "POST",
+      "path": "/logout",
+      "func": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 301
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "func": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 338
+    },
+    {
+      "method": "POST",
+      "path": "/refresh",
+      "func": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 344
+    },
+    {
+      "method": "POST",
+      "path": "/verify-email",
+      "func": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 393
+    },
+    {
+      "method": "POST",
+      "path": "/resend-verification",
+      "func": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 444
+    },
+    {
+      "method": "POST",
+      "path": "/forgot-password",
+      "func": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 491
+    },
+    {
+      "method": "POST",
+      "path": "/reset-password",
+      "func": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 530
+    },
+    {
+      "method": "PUT",
+      "path": "/profile",
+      "func": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 569
+    },
+    {
+      "method": "PATCH",
+      "path": "/profile",
+      "func": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 570
+    },
+    {
+      "method": "GET",
+      "path": "/check-username",
+      "func": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 593
+    },
+    {
+      "method": "GET",
+      "path": "/oauth/github",
+      "func": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 603
+    },
+    {
+      "method": "GET",
+      "path": "/oauth/github/callback",
+      "func": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 631
+    },
+    {
+      "method": "GET",
+      "path": "/oauth/google",
+      "func": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 673
+    },
+    {
+      "method": "GET",
+      "path": "/oauth/google/callback",
+      "func": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 700
+    },
+    {
+      "method": "POST",
+      "path": "/change-password",
+      "func": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 745
+    },
+    {
+      "method": "GET",
+      "path": "/sessions",
+      "func": "unknown",
+      "file": "backend/src/api/routers/auth.py",
+      "line": 764
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/run",
+      "func": "unknown",
+      "file": "backend/src/api/routers/conversations.py",
+      "line": 132
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/run/{run_id}/step",
+      "func": "unknown",
+      "file": "backend/src/api/routers/conversations.py",
+      "line": 203
+    },
+    {
+      "method": "GET",
+      "path": "/diagnostics",
+      "func": "unknown",
+      "file": "backend/src/api/routers/diagnostics.py",
+      "line": 21
+    },
+    {
+      "method": "GET",
+      "path": "/sentry-debug",
+      "func": "unknown",
+      "file": "backend/src/api/routers/diagnostics.py",
+      "line": 38
+    },
+    {
+      "method": "GET",
+      "path": "",
+      "func": "unknown",
+      "file": "backend/src/api/routers/evaluation.py",
+      "line": 26
+    },
+    {
+      "method": "GET",
+      "path": "/history",
+      "func": "unknown",
+      "file": "backend/src/api/routers/evaluation.py",
+      "line": 34
+    },
+    {
+      "method": "GET",
+      "path": "/{dataset_name}",
+      "func": "unknown",
+      "file": "backend/src/api/routers/evaluation.py",
+      "line": 50
+    },
+    {
+      "method": "POST",
+      "path": "/run",
+      "func": "unknown",
+      "file": "backend/src/api/routers/evaluation.py",
+      "line": 60
+    },
+    {
+      "method": "GET",
+      "path": "/report/{dataset_name}",
+      "func": "unknown",
+      "file": "backend/src/api/routers/evaluation.py",
+      "line": 117
+    },
+    {
+      "method": "GET",
+      "path": "/queue",
+      "func": "unknown",
+      "file": "backend/src/api/routers/hitl.py",
+      "line": 36
+    },
+    {
+      "method": "GET",
+      "path": "/statistics",
+      "func": "unknown",
+      "file": "backend/src/api/routers/hitl.py",
+      "line": 43
+    },
+    {
+      "method": "POST",
+      "path": "/review",
+      "func": "unknown",
+      "file": "backend/src/api/routers/hitl.py",
+      "line": 50
+    },
+    {
+      "method": "POST",
+      "path": "/connect",
+      "func": "unknown",
+      "file": "backend/src/api/routers/integrations_github.py",
+      "line": 99
+    },
+    {
+      "method": "GET",
+      "path": "/status",
+      "func": "unknown",
+      "file": "backend/src/api/routers/integrations_github.py",
+      "line": 136
+    },
+    {
+      "method": "POST",
+      "path": "/disconnect",
+      "func": "unknown",
+      "file": "backend/src/api/routers/integrations_github.py",
+      "line": 171
+    },
+    {
+      "method": "GET",
+      "path": "/repos",
+      "func": "unknown",
+      "file": "backend/src/api/routers/integrations_github.py",
+      "line": 181
+    },
+    {
+      "method": "POST",
+      "path": "/push",
+      "func": "unknown",
+      "file": "backend/src/api/routers/integrations_github.py",
+      "line": 197
+    },
+    {
+      "method": "POST",
+      "path": "/sync",
+      "func": "unknown",
+      "file": "backend/src/api/routers/integrations_github.py",
+      "line": 300
+    },
+    {
+      "method": "POST",
+      "path": "/pull-request",
+      "func": "unknown",
+      "file": "backend/src/api/routers/integrations_github.py",
+      "line": 348
+    },
+    {
+      "method": "POST",
+      "path": "/research/topic",
+      "func": "unknown",
+      "file": "backend/src/api/routers/knowledge.py",
+      "line": 51
+    },
+    {
+      "method": "POST",
+      "path": "/upload/document",
+      "func": "unknown",
+      "file": "backend/src/api/routers/knowledge.py",
+      "line": 82
+    },
+    {
+      "method": "POST",
+      "path": "/knowledge",
+      "func": "unknown",
+      "file": "backend/src/api/routers/knowledge.py",
+      "line": 203
+    },
+    {
+      "method": "POST",
+      "path": "/knowledge/documents",
+      "func": "unknown",
+      "file": "backend/src/api/routers/knowledge.py",
+      "line": 204
+    },
+    {
+      "method": "POST",
+      "path": "/chat/teacher",
+      "func": "unknown",
+      "file": "backend/src/api/routers/knowledge.py",
+      "line": 245
+    },
+    {
+      "method": "GET",
+      "path": "/sources",
+      "func": "unknown",
+      "file": "backend/src/api/routers/knowledge_sync.py",
+      "line": 35
+    },
+    {
+      "method": "POST",
+      "path": "/sources",
+      "func": "unknown",
+      "file": "backend/src/api/routers/knowledge_sync.py",
+      "line": 43
+    },
+    {
+      "method": "POST",
+      "path": "/sync",
+      "func": "unknown",
+      "file": "backend/src/api/routers/knowledge_sync.py",
+      "line": 65
+    },
+    {
+      "method": "GET",
+      "path": "/sync/history",
+      "func": "unknown",
+      "file": "backend/src/api/routers/knowledge_sync.py",
+      "line": 83
+    },
+    {
+      "method": "GET",
+      "path": "/documents",
+      "func": "unknown",
+      "file": "backend/src/api/routers/knowledge_sync.py",
+      "line": 90
+    },
+    {
+      "method": "GET",
+      "path": "/servers",
+      "func": "unknown",
+      "file": "backend/src/api/routers/mcp.py",
+      "line": 56
+    },
+    {
+      "method": "POST",
+      "path": "/servers",
+      "func": "unknown",
+      "file": "backend/src/api/routers/mcp.py",
+      "line": 67
+    },
+    {
+      "method": "POST",
+      "path": "/servers/test",
+      "func": "unknown",
+      "file": "backend/src/api/routers/mcp.py",
+      "line": 89
+    },
+    {
+      "method": "PATCH",
+      "path": "/servers/{server_id}",
+      "func": "unknown",
+      "file": "backend/src/api/routers/mcp.py",
+      "line": 105
+    },
+    {
+      "method": "DELETE",
+      "path": "/servers/{server_id}",
+      "func": "unknown",
+      "file": "backend/src/api/routers/mcp.py",
+      "line": 127
+    },
+    {
+      "method": "POST",
+      "path": "/servers/{server_id}/reconnect",
+      "func": "unknown",
+      "file": "backend/src/api/routers/mcp.py",
+      "line": 139
+    },
+    {
+      "method": "GET",
+      "path": "/tools",
+      "func": "unknown",
+      "file": "backend/src/api/routers/mcp.py",
+      "line": 157
+    },
+    {
+      "method": "POST",
+      "path": "/tools/execute",
+      "func": "unknown",
+      "file": "backend/src/api/routers/mcp.py",
+      "line": 167
+    },
+    {
+      "method": "POST",
+      "path": "/tools/approve",
+      "func": "unknown",
+      "file": "backend/src/api/routers/mcp.py",
+      "line": 196
+    },
+    {
+      "method": "POST",
+      "path": "",
+      "func": "unknown",
+      "file": "backend/src/api/routers/memory.py",
+      "line": 25
+    },
+    {
+      "method": "GET",
+      "path": "",
+      "func": "unknown",
+      "file": "backend/src/api/routers/memory.py",
+      "line": 45
+    },
+    {
+      "method": "GET",
+      "path": "/metrics",
+      "func": "unknown",
+      "file": "backend/src/api/routers/metrics.py",
+      "line": 12
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "func": "unknown",
+      "file": "backend/src/api/routers/monitoring.py",
+      "line": 35
+    },
+    {
+      "method": "GET",
+      "path": "/metrics/prometheus",
+      "func": "unknown",
+      "file": "backend/src/api/routers/monitoring.py",
+      "line": 85
+    },
+    {
+      "method": "POST",
+      "path": "",
+      "func": "unknown",
+      "file": "backend/src/api/routers/organizations.py",
+      "line": 61
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "func": "unknown",
+      "file": "backend/src/api/routers/organizations.py",
+      "line": 110
+    },
+    {
+      "method": "PATCH",
+      "path": "/me",
+      "func": "unknown",
+      "file": "backend/src/api/routers/organizations.py",
+      "line": 147
+    },
+    {
+      "method": "GET",
+      "path": "/members",
+      "func": "unknown",
+      "file": "backend/src/api/routers/organizations.py",
+      "line": 202
+    },
+    {
+      "method": "POST",
+      "path": "/invites",
+      "func": "unknown",
+      "file": "backend/src/api/routers/organizations.py",
+      "line": 226
+    },
+    {
+      "method": "GET",
+      "path": "/invites",
+      "func": "unknown",
+      "file": "backend/src/api/routers/organizations.py",
+      "line": 263
+    },
+    {
+      "method": "DELETE",
+      "path": "/invites/{invite_id}",
+      "func": "unknown",
+      "file": "backend/src/api/routers/organizations.py",
+      "line": 287
+    },
+    {
+      "method": "DELETE",
+      "path": "/members/{member_id}",
+      "func": "unknown",
+      "file": "backend/src/api/routers/organizations.py",
+      "line": 305
+    },
+    {
+      "method": "PATCH",
+      "path": "/members/{member_id}/role",
+      "func": "unknown",
+      "file": "backend/src/api/routers/organizations.py",
+      "line": 336
+    },
+    {
+      "method": "POST",
+      "path": "/transfer-ownership",
+      "func": "unknown",
+      "file": "backend/src/api/routers/organizations.py",
+      "line": 366
+    },
+    {
+      "method": "POST",
+      "path": "",
+      "func": "unknown",
+      "file": "backend/src/api/routers/projects.py",
+      "line": 55
+    },
+    {
+      "method": "GET",
+      "path": "",
+      "func": "unknown",
+      "file": "backend/src/api/routers/projects.py",
+      "line": 123
+    },
+    {
+      "method": "GET",
+      "path": "/{project_id}",
+      "func": "unknown",
+      "file": "backend/src/api/routers/projects.py",
+      "line": 142
+    },
+    {
+      "method": "PATCH",
+      "path": "/{project_id}",
+      "func": "unknown",
+      "file": "backend/src/api/routers/projects.py",
+      "line": 150
+    },
+    {
+      "method": "DELETE",
+      "path": "/{project_id}",
+      "func": "unknown",
+      "file": "backend/src/api/routers/projects.py",
+      "line": 166
+    },
+    {
+      "method": "POST",
+      "path": "/rag/search",
+      "func": "unknown",
+      "file": "backend/src/api/routers/rag.py",
+      "line": 62
+    },
+    {
+      "method": "GET",
+      "path": "/rag/diagnostics",
+      "func": "unknown",
+      "file": "backend/src/api/routers/rag.py",
+      "line": 124
+    },
+    {
+      "method": "POST",
+      "path": "/python/stream",
+      "func": "unknown",
+      "file": "backend/src/api/routers/sandbox.py",
+      "line": 19
+    },
+    {
+      "method": "GET",
+      "path": "",
+      "func": "unknown",
+      "file": "backend/src/api/routers/skills.py",
+      "line": 61
+    },
+    {
+      "method": "GET",
+      "path": "/{name}",
+      "func": "unknown",
+      "file": "backend/src/api/routers/skills.py",
+      "line": 72
+    },
+    {
+      "method": "POST",
+      "path": "",
+      "func": "unknown",
+      "file": "backend/src/api/routers/skills.py",
+      "line": 81
+    },
+    {
+      "method": "PUT",
+      "path": "/{name}",
+      "func": "unknown",
+      "file": "backend/src/api/routers/skills.py",
+      "line": 91
+    },
+    {
+      "method": "DELETE",
+      "path": "/{name}",
+      "func": "unknown",
+      "file": "backend/src/api/routers/skills.py",
+      "line": 106
+    },
+    {
+      "method": "POST",
+      "path": "/{name}/toggle",
+      "func": "unknown",
+      "file": "backend/src/api/routers/skills.py",
+      "line": 118
+    },
+    {
+      "method": "POST",
+      "path": "/{name}/duplicate",
+      "func": "unknown",
+      "file": "backend/src/api/routers/skills.py",
+      "line": 128
+    },
+    {
+      "method": "GET",
+      "path": "/{name}/export",
+      "func": "unknown",
+      "file": "backend/src/api/routers/skills.py",
+      "line": 138
+    },
+    {
+      "method": "POST",
+      "path": "/import",
+      "func": "unknown",
+      "file": "backend/src/api/routers/skills.py",
+      "line": 156
+    },
+    {
+      "method": "POST",
+      "path": "/{name}/test",
+      "func": "unknown",
+      "file": "backend/src/api/routers/skills.py",
+      "line": 173
+    },
+    {
+      "method": "POST",
+      "path": "/{name}/attachments",
+      "func": "unknown",
+      "file": "backend/src/api/routers/skills.py",
+      "line": 182
+    },
+    {
+      "method": "DELETE",
+      "path": "/{name}/attachments/{filename}",
+      "func": "unknown",
+      "file": "backend/src/api/routers/skills.py",
+      "line": 198
+    },
+    {
+      "method": "POST",
+      "path": "/{name}/restore-version",
+      "func": "unknown",
+      "file": "backend/src/api/routers/skills.py",
+      "line": 207
+    },
+    {
+      "method": "GET",
+      "path": "/{task_id}",
+      "func": "unknown",
+      "file": "backend/src/api/routers/tasks.py",
+      "line": 26
+    },
+    {
+      "method": "PATCH",
+      "path": "/{task_id}",
+      "func": "unknown",
+      "file": "backend/src/api/routers/tasks.py",
+      "line": 35
+    },
+    {
+      "method": "DELETE",
+      "path": "/{task_id}",
+      "func": "unknown",
+      "file": "backend/src/api/routers/tasks.py",
+      "line": 51
+    },
+    {
+      "method": "POST",
+      "path": "/{task_id}/start",
+      "func": "unknown",
+      "file": "backend/src/api/routers/tasks.py",
+      "line": 64
+    },
+    {
+      "method": "POST",
+      "path": "/{task_id}/retry",
+      "func": "unknown",
+      "file": "backend/src/api/routers/tasks.py",
+      "line": 73
+    },
+    {
+      "method": "POST",
+      "path": "/{task_id}/cancel",
+      "func": "unknown",
+      "file": "backend/src/api/routers/tasks.py",
+      "line": 82
+    },
+    {
+      "method": "PATCH",
+      "path": "/profile",
+      "func": "unknown",
+      "file": "backend/src/api/routers/users.py",
+      "line": 27
+    },
+    {
+      "method": "GET",
+      "path": "/quota",
+      "func": "unknown",
+      "file": "backend/src/api/routers/users.py",
+      "line": 50
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "func": "unknown",
+      "file": "backend/src/api/routers/users.py",
+      "line": 79
+    },
+    {
+      "method": "POST",
+      "path": "/transcribe",
+      "func": "unknown",
+      "file": "backend/src/api/routers/voice.py",
+      "line": 44
+    },
+    {
+      "method": "GET",
+      "path": "",
+      "func": "unknown",
+      "file": "backend/src/api/routers/workflows.py",
+      "line": 29
+    },
+    {
+      "method": "GET",
+      "path": "/history",
+      "func": "unknown",
+      "file": "backend/src/api/routers/workflows.py",
+      "line": 36
+    },
+    {
+      "method": "GET",
+      "path": "/{workflow_id}",
+      "func": "unknown",
+      "file": "backend/src/api/routers/workflows.py",
+      "line": 43
+    },
+    {
+      "method": "POST",
+      "path": "/start",
+      "func": "unknown",
+      "file": "backend/src/api/routers/workflows.py",
+      "line": 53
+    },
+    {
+      "method": "POST",
+      "path": "/pause",
+      "func": "unknown",
+      "file": "backend/src/api/routers/workflows.py",
+      "line": 81
+    },
+    {
+      "method": "POST",
+      "path": "/resume",
+      "func": "unknown",
+      "file": "backend/src/api/routers/workflows.py",
+      "line": 89
+    },
+    {
+      "method": "POST",
+      "path": "/cancel",
+      "func": "unknown",
+      "file": "backend/src/api/routers/workflows.py",
+      "line": 97
+    },
+    {
+      "method": "POST",
+      "path": "/sync",
+      "func": "unknown",
+      "file": "backend/src/api/routers/workspace.py",
+      "line": 49
+    },
+    {
+      "method": "GET",
+      "path": "/info",
+      "func": "unknown",
+      "file": "backend/src/api/routers/workspace.py",
+      "line": 76
+    },
+    {
+      "method": "GET",
+      "path": "/files",
+      "func": "unknown",
+      "file": "backend/src/api/routers/workspace.py",
+      "line": 82
+    },
+    {
+      "method": "GET",
+      "path": "/graph",
+      "func": "unknown",
+      "file": "backend/src/db/neo4j.py",
+      "line": 50
+    },
+    {
+      "method": "GET",
+      "path": "/users",
+      "func": "unknown",
+      "file": "backend/src/db/postgres.py",
+      "line": 148
+    },
+    {
+      "method": "POST",
+      "path": "/embed",
+      "func": "unknown",
+      "file": "backend/src/db/qdrant.py",
+      "line": 54
+    },
+    {
+      "method": "GET",
+      "path": "/cache",
+      "func": "unknown",
+      "file": "backend/src/db/redis.py",
+      "line": 63
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/resource",
+      "func": "unknown",
+      "file": "backend/src/runtime/nodes.py",
+      "line": 1612
+    },
+    {
+      "method": "GET",
+      "path": "/todos",
+      "func": "unknown",
+      "file": "backend/src/runtime/nodes.py",
+      "line": 1697
+    },
+    {
+      "method": "POST",
+      "path": "/todos",
+      "func": "unknown",
+      "file": "backend/src/runtime/nodes.py",
+      "line": 1700
+    },
+    {
+      "method": "GET",
+      "path": "/todos/{todo_id}",
+      "func": "unknown",
+      "file": "backend/src/runtime/nodes.py",
+      "line": 1707
+    },
+    {
+      "method": "PUT",
+      "path": "/todos/{todo_id}",
+      "func": "unknown",
+      "file": "backend/src/runtime/nodes.py",
+      "line": 1712
+    },
+    {
+      "method": "DELETE",
+      "path": "/todos/{todo_id}",
+      "func": "unknown",
+      "file": "backend/src/runtime/nodes.py",
+      "line": 1719
+    },
+    {
+      "method": "GET",
+      "path": "/items/{item_id}",
+      "func": "unknown",
+      "file": "backend/src/utils/doc_crawler.py",
+      "line": 539
+    },
+    {
+      "method": "POST",
+      "path": "/items/",
+      "func": "unknown",
+      "file": "backend/src/utils/doc_crawler.py",
+      "line": 551
+    },
+    {
+      "method": "GET",
+      "path": "/{user_id}",
+      "func": "unknown",
+      "file": "backend/src/utils/doc_crawler.py",
+      "line": 559
+    },
+    {
+      "method": "GET",
+      "path": "/protected",
+      "func": "unknown",
+      "file": "backend/src/utils/doc_crawler.py",
+      "line": 583
+    },
+    {
+      "method": "GET",
+      "path": "/items/{item_id}",
+      "func": "unknown",
+      "file": "backend/src/utils/doc_crawler.py",
+      "line": 676
+    },
+    {
+      "method": "POST",
+      "path": "/items/",
+      "func": "unknown",
+      "file": "backend/src/utils/doc_crawler.py",
+      "line": 687
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "func": "unknown",
+      "file": "backend/src/utils/doc_crawler.py",
+      "line": 695
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "func": "unknown",
+      "file": "backend/src/utils/doc_crawler.py",
+      "line": 699
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "func": "unknown",
+      "file": "backend/tests/unit/test_host_manager.py",
+      "line": 52
+    },
+    {
+      "method": "GET",
+      "path": "/items/{item_id}",
+      "func": "unknown",
+      "file": "backend/tests/unit/test_host_manager.py",
+      "line": 56
+    },
+    {
+      "method": "POST",
+      "path": "/items/",
+      "func": "unknown",
+      "file": "backend/tests/unit/test_host_manager.py",
+      "line": 60
+    }
+  ],
+  "nodes_count": 4,
+  "nodes": [
+    {
+      "name": "planner",
+      "handler": "planner_node",
+      "file": "backend/src/agents/supervisor.py",
+      "line": 91
+    },
+    {
+      "name": "supervisor",
+      "handler": "supervisor_node",
+      "file": "backend/src/agents/supervisor.py",
+      "line": 92
+    },
+    {
+      "name": "executor",
+      "handler": "executor_node",
+      "file": "backend/src/agents/supervisor.py",
+      "line": 93
+    },
+    {
+      "name": "agent",
+      "handler": "call_agent",
+      "file": "backend/src/utils/doc_crawler.py",
+      "line": 722
+    }
+  ],
+  "tabs": {
+    "Config": [],
+    "Chat": [
+      "frontend/src/components/dashboard/sessions/ai-chat.tsx",
+      "frontend/src/components/playground/ChatHistorySheet.tsx",
+      "frontend/src/components/playground/workspace-chat-history.test.tsx",
+      "frontend/src/lib/stores/chatHistoryStore.ts"
+    ],
+    "Visual Workflow": [
+      "frontend/src/components/playground/WorkflowVisualizer.tsx"
+    ],
+    "Artifacts": [],
+    "Diff Viewer": [
+      "frontend/src/components/MonacoDiffViewer.tsx"
+    ],
+    "Terminal": [
+      "frontend/src/components/TerminalEmulator.tsx",
+      "frontend/src/components/playground/PlaygroundTerminal.tsx"
+    ],
+    "Token Metrics": [
+      "frontend/src/components/dashboard/overview/metric-card.tsx",
+      "frontend/src/components/ui/metric-card.tsx",
+      "frontend/src/lib/api/services/metrics.ts"
+    ]
+  },
+  "todos_count": 150,
+  "todos": [
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1242,
+      "text": "\"text\": \"TODO (Phase 0.2):\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1247,
+      "text": "\"text\": \"TODO (Phase 0.2):\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1252,
+      "text": "\"text\": \"TODO (Phase 0.2):\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1257,
+      "text": "\"text\": \"TODO (Phase 0.2): return AsyncPostgresSaver instance.\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1262,
+      "text": "\"text\": \"TODO (Phase 0.2):\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1267,
+      "text": "\"text\": \"TODO (Phase 0.2): Validate agent interface compliance on registration.\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1272,
+      "text": "\"text\": \"TODO (Phase 0.2):\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1277,
+      "text": "\"text\": \"# TODO (Phase 0.2): \\\"code_writer\\\"\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1282,
+      "text": "\"text\": \"# TODO (Phase 0.2): \\\"code_reviewer\\\"\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1287,
+      "text": "\"text\": \"# TODO (Phase 0.2): \\\"test_runner\\\"\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1292,
+      "text": "\"text\": \"# TODO (Phase 0.2): \\\"file_system\\\"\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1297,
+      "text": "\"text\": \"# TODO (Phase 0.2): \\\"web_search\\\"\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1302,
+      "text": "\"text\": \"# TODO (Phase 0.2): \\\"memory_retriever\\\"\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1307,
+      "text": "\"text\": \"TODO (Phase 0.2):\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1312,
+      "text": "\"text\": \"TODO (Phase 0.2):\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1317,
+      "text": "\"text\": \"TODO (Phase 0.2):\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1322,
+      "text": "\"text\": \"TODO (Phase 0.3):\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1327,
+      "text": "\"text\": \"TODO (Phase 0.2):\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1332,
+      "text": "\"text\": \"TODO (Phase 0.2):\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1337,
+      "text": "\"text\": \"TODO (Phase 0.2):\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1342,
+      "text": "\"text\": \"TODO (Phase 0.2):\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1347,
+      "text": "\"text\": \"TODO (Phase 0.2): implement policy engine and audit logger.\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1352,
+      "text": "\"text\": \"# TODO (Phase 0.2): evaluate against PolicyEngine rules\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1357,
+      "text": "\"text\": \"# TODO (Phase 0.2): persist to PostgreSQL audit_log table\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1362,
+      "text": "\"text\": \"TODO (Phase 0.2):\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1367,
+      "text": "\"text\": \"TODO (Phase 0.2): implement code graph ingestion pipeline.\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1372,
+      "text": "\"text\": \"# TODO (Phase 0.2): parse AST, extract entities, push to Neo4j + Qdrant\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1377,
+      "text": "\"text\": \"TODO (Phase 0.2):\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1382,
+      "text": "\"text\": \"TODO (Phase 0.2): implement using Qdrant + Redis + PostgreSQL.\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1387,
+      "text": "\"text\": \"# TODO (Phase 0.2): embed value and upsert into Qdrant\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1392,
+      "text": "\"text\": \"# TODO (Phase 0.2): embed query, search Qdrant, return top_k results\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1397,
+      "text": "\"text\": \"restricted = [\\\"hack\\\", \\\"bypass\\\", \\\"exploit\\\", \\\"rootkit\\\"]\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1402,
+      "text": "\"text\": \"TODO (Phase 0.2):\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1407,
+      "text": "\"text\": \"elif any(k in goal.lower() for k in (\\\"todo\\\", \\\"to-do\\\", \\\"rest api\\\", \\\"crud\\\", \\\"endpoint\\\", \\\"api\\\")):\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1412,
+      "text": "\"text\": \"TODO (Phase 0.2):\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1417,
+      "text": "\"text\": \"\\\"run_id\\\": \\\"test-todo-fallback\\\",\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1422,
+      "text": "\"text\": \"\\\"goal\\\": \\\"build a simple REST API for a todo app\\\",\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1427,
+      "text": "\"text\": \"\\\"run_id\\\": \\\"test-todo-timeout\\\",\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1432,
+      "text": "\"text\": \"\\\"goal\\\": \\\"build a todo api\\\",\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1437,
+      "text": "\"text\": \"await extract_and_store_durable_memories(\\\"run-timeout\\\", uuid.uuid4(), \\\"User: build todo app\\\")\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1442,
+      "text": "\"text\": \"TODO (Phase 0.3):\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1447,
+      "text": "\"text\": \"# TODO (Phase 0.3): implement with pytest-benchmark or locust\""
+    },
+    {
+      "file": "deep_audit_summary.json",
+      "line": 1452,
+      "text": "\"text\": \"* TODO (Phase 0.2):\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 18,
+      "text": "\"text\": \"- **LangGraph Agent State & Memory Pipeline**: Resolved critical Phase 0.2 `TODO` comments. Refactored the `AgentState` schema from an immutable `pydantic.BaseModel` to an official LangGraph `TypedDict`, fully implementing the `MemoryContext`, `CostTracker`, and `ToolCall` reducers.\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 23,
+      "text": "\"text\": \"4. TODO: Start Redis\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 28,
+      "text": "\"text\": \"5. TODO: Start Neo4j\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 33,
+      "text": "\"text\": \"6. TODO: Start Qdrant\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 38,
+      "text": "\"text\": \"7. TODO: Initialize LangGraph supervisor\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 43,
+      "text": "\"text\": \"2. TODO: Close Redis\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 48,
+      "text": "\"text\": \"3. TODO: Close Neo4j\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 53,
+      "text": "\"text\": \"4. TODO: Close Qdrant\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 58,
+      "text": "\"text\": \"5. TODO: Shutdown supervisor\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 63,
+      "text": "\"text\": \"TODO (Phase 0.2):\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 68,
+      "text": "\"text\": \"TODO (Phase 0.2):\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 73,
+      "text": "\"text\": \"TODO (Phase 0.2):\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 78,
+      "text": "\"text\": \"TODO (Phase 0.2): return AsyncPostgresSaver instance.\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 83,
+      "text": "\"text\": \"TODO (Phase 0.2):\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 88,
+      "text": "\"text\": \"TODO (Phase 0.2): Validate agent interface compliance on registration.\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 93,
+      "text": "\"text\": \"TODO (Phase 0.2):\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 98,
+      "text": "\"text\": \"# TODO (Phase 0.2): \\\"code_writer\\\"\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 103,
+      "text": "\"text\": \"# TODO (Phase 0.2): \\\"code_reviewer\\\"\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 108,
+      "text": "\"text\": \"# TODO (Phase 0.2): \\\"test_runner\\\"\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 113,
+      "text": "\"text\": \"# TODO (Phase 0.2): \\\"file_system\\\"\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 118,
+      "text": "\"text\": \"# TODO (Phase 0.2): \\\"web_search\\\"\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 123,
+      "text": "\"text\": \"# TODO (Phase 0.2): \\\"memory_retriever\\\"\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 128,
+      "text": "\"text\": \"TODO (Phase 0.2):\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 133,
+      "text": "\"text\": \"TODO (Phase 0.2):\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 138,
+      "text": "\"text\": \"TODO (Phase 0.2):\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 143,
+      "text": "\"text\": \"TODO (Phase 0.3):\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 148,
+      "text": "\"text\": \"TODO (Phase 0.2):\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 153,
+      "text": "\"text\": \"TODO (Phase 0.2):\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 158,
+      "text": "\"text\": \"TODO (Phase 0.2):\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 163,
+      "text": "\"text\": \"TODO (Phase 0.2):\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 168,
+      "text": "\"text\": \"TODO (Phase 0.2): implement policy engine and audit logger.\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 173,
+      "text": "\"text\": \"# TODO (Phase 0.2): evaluate against PolicyEngine rules\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 178,
+      "text": "\"text\": \"# TODO (Phase 0.2): persist to PostgreSQL audit_log table\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 183,
+      "text": "\"text\": \"TODO (Phase 0.2):\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 188,
+      "text": "\"text\": \"TODO (Phase 0.2): implement code graph ingestion pipeline.\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 193,
+      "text": "\"text\": \"# TODO (Phase 0.2): parse AST, extract entities, push to Neo4j + Qdrant\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 198,
+      "text": "\"text\": \"TODO (Phase 0.2):\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 203,
+      "text": "\"text\": \"TODO (Phase 0.2): implement using Qdrant + Redis + PostgreSQL.\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 208,
+      "text": "\"text\": \"# TODO (Phase 0.2): embed value and upsert into Qdrant\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 213,
+      "text": "\"text\": \"# TODO (Phase 0.2): embed query, search Qdrant, return top_k results\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 218,
+      "text": "\"text\": \"restricted = [\\\"hack\\\", \\\"bypass\\\", \\\"exploit\\\", \\\"rootkit\\\"]\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 223,
+      "text": "\"text\": \"TODO (Phase 0.2):\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 228,
+      "text": "\"text\": \"elif any(k in goal.lower() for k in (\\\"todo\\\", \\\"to-do\\\", \\\"rest api\\\", \\\"crud\\\", \\\"endpoint\\\", \\\"api\\\")):\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 233,
+      "text": "\"text\": \"TODO (Phase 0.2):\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 238,
+      "text": "\"text\": \"\\\"run_id\\\": \\\"test-todo-fallback\\\",\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 243,
+      "text": "\"text\": \"\\\"goal\\\": \\\"build a simple REST API for a todo app\\\",\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 248,
+      "text": "\"text\": \"\\\"run_id\\\": \\\"test-todo-timeout\\\",\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 253,
+      "text": "\"text\": \"\\\"goal\\\": \\\"build a todo api\\\",\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 258,
+      "text": "\"text\": \"await extract_and_store_durable_memories(\\\"run-timeout\\\", uuid.uuid4(), \\\"User: build todo app\\\")\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 263,
+      "text": "\"text\": \"TODO (Phase 0.3):\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 268,
+      "text": "\"text\": \"# TODO (Phase 0.3): implement with pytest-benchmark or locust\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 273,
+      "text": "\"text\": \"-- TODO (Phase 0.2): Create schemas, tables, and indices\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 278,
+      "text": "\"text\": \"DATABASE_URL=postgresql+asyncpg://user:password@ep-xxx.neon.tech/neondb?sslmode=require\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 283,
+      "text": "\"text\": \"REDIS_URL=rediss://:password@xxx.upstash.io:6380/0\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 288,
+      "text": "\"text\": \"- Every new module must include `TODO` markers for future implementation\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 293,
+      "text": "\"text\": \"\\u2502   \\u2502   \\u2502   \\u251c\\u2500\\u2500 models/         \\u2190 SQLAlchemy ORM model definitions (TODO)\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 298,
+      "text": "\"text\": \"\\u2502   \\u2502   \\u2502   \\u2514\\u2500\\u2500 services/       \\u2190 DB-layer service classes (TODO)\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 303,
+      "text": "\"text\": \"\\u2502   \\u2502   \\u251c\\u2500\\u2500 tools/              \\u2190 Agent tool definitions (TODO)\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 308,
+      "text": "\"text\": \"\\u2502   \\u2502   \\u251c\\u2500\\u2500 evaluation/         \\u2190 Eval harness (TODO)\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 313,
+      "text": "\"text\": \"\\u2502   \\u2502   \\u251c\\u2500\\u2500 replay/             \\u2190 Trace replay engine (TODO)\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 318,
+      "text": "\"text\": \"| **TODO Comments in main.py** | \\ud83d\\udfe1 LOW | Lines 6-10 contain `TODO (Phase 0.2)` about LangGraph supervisor, agent registry, OpenTelemetry | Remove TODOs before listing |\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 323,
+      "text": "\"text\": \"- [ ] **Day 1 (30 min):** Remove all TODO comments from `backend/src/main.py` lines 6\\u201310\""
+    },
+    {
+      "file": "scratch_audit_data.json",
+      "line": 328,
+      "text": "\"text\": \"* TODO (Phase 0.2):\""
+    },
+    {
+      "file": "backend/src/main.py",
+      "line": 6,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend/src/agents/checkpoint.py",
+      "line": 7,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend/src/agents/checkpoint.py",
+      "line": 25,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend/src/agents/checkpoint.py",
+      "line": 38,
+      "text": "TODO (Phase 0.2): return AsyncPostgresSaver instance."
+    },
+    {
+      "file": "backend/src/agents/registry.py",
+      "line": 11,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend/src/agents/registry.py",
+      "line": 42,
+      "text": "TODO (Phase 0.2): Validate agent interface compliance on registration."
+    },
+    {
+      "file": "backend/src/agents/supervisor.py",
+      "line": 11,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend/src/agents/supervisor.py",
+      "line": 30,
+      "text": "# TODO (Phase 0.2): \"code_writer\""
+    },
+    {
+      "file": "backend/src/agents/supervisor.py",
+      "line": 31,
+      "text": "# TODO (Phase 0.2): \"code_reviewer\""
+    },
+    {
+      "file": "backend/src/agents/supervisor.py",
+      "line": 32,
+      "text": "# TODO (Phase 0.2): \"test_runner\""
+    },
+    {
+      "file": "backend/src/agents/supervisor.py",
+      "line": 33,
+      "text": "# TODO (Phase 0.2): \"file_system\""
+    },
+    {
+      "file": "backend/src/agents/supervisor.py",
+      "line": 34,
+      "text": "# TODO (Phase 0.2): \"web_search\""
+    },
+    {
+      "file": "backend/src/agents/supervisor.py",
+      "line": 35,
+      "text": "# TODO (Phase 0.2): \"memory_retriever\""
+    },
+    {
+      "file": "backend/src/api/app.py",
+      "line": 11,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend/src/config/settings.py",
+      "line": 12,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend/src/db/neo4j.py",
+      "line": 11,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend/src/db/postgres.py",
+      "line": 130,
+      "text": "TODO (Phase 0.3):"
+    },
+    {
+      "file": "backend/src/db/qdrant.py",
+      "line": 9,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend/src/db/redis.py",
+      "line": 10,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend/src/db/services/__init__.py",
+      "line": 4,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend/src/governance/service.py",
+      "line": 12,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend/src/governance/service.py",
+      "line": 31,
+      "text": "TODO (Phase 0.2): implement policy engine and audit logger."
+    },
+    {
+      "file": "backend/src/governance/service.py",
+      "line": 45,
+      "text": "# TODO (Phase 0.2): evaluate against PolicyEngine rules"
+    },
+    {
+      "file": "backend/src/governance/service.py",
+      "line": 54,
+      "text": "# TODO (Phase 0.2): persist to PostgreSQL audit_log table"
+    },
+    {
+      "file": "backend/src/knowledge/service.py",
+      "line": 9,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend/src/knowledge/service.py",
+      "line": 26,
+      "text": "TODO (Phase 0.2): implement code graph ingestion pipeline."
+    },
+    {
+      "file": "backend/src/knowledge/service.py",
+      "line": 36,
+      "text": "# TODO (Phase 0.2): parse AST, extract entities, push to Neo4j + Qdrant"
+    },
+    {
+      "file": "backend/src/memory/service.py",
+      "line": 13,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend/src/memory/service.py",
+      "line": 31,
+      "text": "TODO (Phase 0.2): implement using Qdrant + Redis + PostgreSQL."
+    },
+    {
+      "file": "backend/src/memory/service.py",
+      "line": 37,
+      "text": "# TODO (Phase 0.2): embed value and upsert into Qdrant"
+    },
+    {
+      "file": "backend/src/memory/service.py",
+      "line": 42,
+      "text": "# TODO (Phase 0.2): embed query, search Qdrant, return top_k results"
+    },
+    {
+      "file": "backend/src/multi_agent/governance_agent.py",
+      "line": 46,
+      "text": "restricted = [\"hack\", \"bypass\", \"exploit\", \"rootkit\"]"
+    },
+    {
+      "file": "backend/src/replay/__init__.py",
+      "line": 4,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend/src/runtime/nodes.py",
+      "line": 1684,
+      "text": "elif any(k in goal.lower() for k in (\"todo\", \"to-do\", \"rest api\", \"crud\", \"endpoint\", \"api\")):"
+    },
+    {
+      "file": "backend/src/utils/logging.py",
+      "line": 7,
+      "text": "TODO (Phase 0.2):"
+    },
+    {
+      "file": "backend/tests/unit/test_implement_node.py",
+      "line": 15,
+      "text": "\"run_id\": \"test-todo-fallback\","
+    },
+    {
+      "file": "backend/tests/unit/test_implement_node.py",
+      "line": 120,
+      "text": "\"goal\": \"build a simple REST API for a todo app\","
+    },
+    {
+      "file": "backend/tests/unit/test_implement_node.py",
+      "line": 123,
+      "text": "\"run_id\": \"test-todo-timeout\","
+    },
+    {
+      "file": "backend/tests/unit/test_implement_node.py",
+      "line": 155,
+      "text": "\"goal\": \"build a todo api\","
+    },
+    {
+      "file": "backend/tests/unit/test_implement_node.py",
+      "line": 192,
+      "text": "await extract_and_store_durable_memories(\"run-timeout\", uuid.uuid4(), \"User: build todo app\")"
+    },
+    {
+      "file": "benchmarks/__init__.py",
+      "line": 6,
+      "text": "TODO (Phase 0.3):"
+    },
+    {
+      "file": "benchmarks/__init__.py",
+      "line": 13,
+      "text": "# TODO (Phase 0.3): implement with pytest-benchmark or locust"
+    },
+    {
+      "file": "docker/postgres/init.sql",
+      "line": 10,
+      "text": "-- TODO (Phase 0.2): Create schemas, tables, and indices"
+    },
+    {
+      "file": "frontend/next.config.ts",
+      "line": 7,
+      "text": "* TODO (Phase 0.2):"
+    }
+  ],
+  "stubs_count": 30,
+  "stubs": [
+    {
+      "file": "backend/xxhash.py",
+      "line": 1,
+      "text": "# Mock xxhash to bypass AppLocker/Application Control DLL blocking"
+    },
+    {
+      "file": "backend/src/agents/checkpoint.py",
+      "line": 40,
+      "text": "raise NotImplementedError(\"Checkpointer not yet implemented \u2014 Phase 0.2\")"
+    },
+    {
+      "file": "backend/src/api/routers/agent_runs.py",
+      "line": 33,
+      "text": "created_by=\"api_user\"  # Placeholder until auth is implemented"
+    },
+    {
+      "file": "backend/src/api/routers/agent_runs.py",
+      "line": 50,
+      "text": "# Mock total count for pagination schema"
+    },
+    {
+      "file": "backend/src/api/routers/audit.py",
+      "line": 49,
+      "text": "total=len(logs),  # Mock total as count is not implemented for all filters"
+    },
+    {
+      "file": "backend/src/api/routers/evaluation.py",
+      "line": 18,
+      "text": "# Mock history data to populate /history endpoint"
+    },
+    {
+      "file": "backend/src/documents/ingestion.py",
+      "line": 114,
+      "text": "# Placeholder space to insert once computed"
+    },
+    {
+      "file": "backend/src/documents/ocr.py",
+      "line": 64,
+      "text": "# Mock Fallback for local runtime environments lacking system-level OCR bindings"
+    },
+    {
+      "file": "backend/src/governance/policy_engine.py",
+      "line": 17,
+      "text": "# Hardcoded example policy rules for Phase 2.2"
+    },
+    {
+      "file": "backend/src/multi_agent/review_agent.py",
+      "line": 43,
+      "text": "if \"hardcoded_secret\" in code.lower():"
+    },
+    {
+      "file": "backend/src/multi_agent/review_agent.py",
+      "line": 44,
+      "text": "issues.append({\"category\": \"security\", \"severity\": \"CRITICAL\", \"message\": \"Potential hardcoded credential.\"})"
+    },
+    {
+      "file": "backend/src/production/cloudinary_service.py",
+      "line": 6,
+      "text": "via environment variables without hardcoded credentials."
+    },
+    {
+      "file": "backend/src/production/cloudinary_service.py",
+      "line": 76,
+      "text": "strictly via os.getenv without hardcoded values."
+    },
+    {
+      "file": "backend/src/production/recovery.py",
+      "line": 26,
+      "text": "# Mock recovery logic: register it as paused"
+    },
+    {
+      "file": "backend/src/repositories/audit_log.py",
+      "line": 100,
+      "text": "raise NotImplementedError("
+    },
+    {
+      "file": "backend/src/repositories/audit_log.py",
+      "line": 118,
+      "text": "raise NotImplementedError("
+    },
+    {
+      "file": "backend/src/runtime/nodes.py",
+      "line": 2138,
+      "text": "- Hardcoded secrets and credentials"
+    },
+    {
+      "file": "backend/src/tools/impl.py",
+      "line": 249,
+      "text": "# Mock implementation returning placeholder data for testing"
+    },
+    {
+      "file": "backend/src/tools/impl.py",
+      "line": 277,
+      "text": "# Mock or run subprocess if docker command exists"
+    },
+    {
+      "file": "backend/src/tools/impl.py",
+      "line": 471,
+      "text": "# Mock/Ping or execute logic (mocked here for base suite safety)"
+    },
+    {
+      "file": "backend/src/utils/doc_crawler.py",
+      "line": 513,
+      "text": "\"\"\"Return hardcoded pattern hints as chunks when all HTTP fetches fail.\"\"\""
+    },
+    {
+      "file": "backend/src/utils/security_scanner.py",
+      "line": 7,
+      "text": "2. Hardcoded Secrets & Credentials"
+    },
+    {
+      "file": "backend/src/utils/security_scanner.py",
+      "line": 32,
+      "text": "category: str  # \"SQL Injection\", \"Command Injection\", \"Template Injection\", \"Hardcoded Secret\", \"Debug Flag\", \"Missing Auth\", \"Vulnerable Dependency\""
+    },
+    {
+      "file": "backend/src/utils/security_scanner.py",
+      "line": 246,
+      "text": "# --- D. HARDCODED SECRETS (HIGH / CRITICAL) ---"
+    },
+    {
+      "file": "backend/src/utils/security_scanner.py",
+      "line": 251,
+      "text": "category=\"Hardcoded Secret\","
+    },
+    {
+      "file": "backend/src/utils/security_scanner.py",
+      "line": 265,
+      "text": "category=\"Hardcoded Secret\","
+    },
+    {
+      "file": "backend/src/utils/security_scanner.py",
+      "line": 268,
+      "text": "description=\"Hardcoded Secret: Sensitive credential, password, or API token detected in code.\","
+    },
+    {
+      "file": "backend/uuid_utils/compat.py",
+      "line": 1,
+      "text": "# Mock compat module for uuid_utils"
+    },
+    {
+      "file": "backend/uuid_utils/__init__.py",
+      "line": 1,
+      "text": "# Mock uuid_utils to bypass DLL block"
+    },
+    {
+      "file": "frontend/src/components/playground/CenterWorkspace.tsx",
+      "line": 2138,
+      "text": "<p className=\"text-sm text-muted-foreground mt-1\">Review critical vulnerabilities and hardcoded secrets found in the generated code.</p>"
+    }
+  ]
+}

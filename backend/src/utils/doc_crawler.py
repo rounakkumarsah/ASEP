@@ -149,7 +149,6 @@ class _HTMLTextExtractor(HTMLParser):
     def handle_starttag(self, tag: str, attrs: list) -> None:
         tag_lower = tag.lower()
         if tag_lower in self.SKIP_TAGS:
-            # Don't increment for void elements — they never get an end tag
             if tag_lower not in self.VOID_ELEMENTS:
                 self._skip_depth += 1
 
@@ -157,7 +156,7 @@ class _HTMLTextExtractor(HTMLParser):
         if tag.lower() in self.SKIP_TAGS:
             self._skip_depth = max(0, self._skip_depth - 1)
 
-    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+    def handle_startendtag(self, tag: str, attrs: list) -> None:
         """Handle explicitly self-closed tags (e.g., <br/>). Do not touch skip_depth."""
         pass
 
