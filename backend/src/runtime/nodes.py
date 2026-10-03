@@ -451,17 +451,7 @@ async def human_validation_node_default(state: AgentState) -> dict[str, Any]:
     }
 
 
-async def end_node_default(state: AgentState) -> dict[str, Any]:
-    logger.info("End node executed for run %s", state.get("run_id"))
-    return {
-        "status": "completed",
-        "messages": [
-            {
-                "role": "system",
-                "content": "LangGraph multi-agent execution pipeline finished successfully.",
-            }
-        ],
-    }
+
 def execute_phase_token_guard(
     phase: str,
     state: AgentState,
@@ -1667,7 +1657,7 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
                 temperature=0.2,
                 max_tokens=2048,
             )
-            res = await asyncio.wait_for(runtime.complete(req), timeout=5.0)
+            res = await asyncio.wait_for(runtime.complete(req), timeout=120.0)
             text = (res.text or "").strip()
             match = re.search(r"```(?:[a-zA-Z0-9_\-\.\+]*)[^\S\r\n]*\r?\n([\s\S]*?)```", text)
             if match:
@@ -1812,8 +1802,42 @@ async def critic_node(state: AgentState) -> dict[str, Any]:
     ) or code_stripped.startswith("# ") and "\n" not in code_stripped.strip("\n")
 
     if is_serverless or is_non_python or is_placeholder:
+        # On serverless with real Python code: still validate via RestrictedPython
+        if is_serverless and not is_non_python and not is_placeholder:
+            try:
+                from src.config.sandbox_config import RestrictedExecutor
+                executor = RestrictedExecutor()
+                result = executor.execute(code, timeout=10)
+                if result.exit_code == 0:
+                    logger.info("Critic: RestrictedPython validation passed on serverless")
+                    return {
+                        "status": "verified",
+                        "current_phase": "critic",
+                        "critic_result": {"exit_code": 0, "stdout": result.stdout, "passed": True},
+                        "messages": [{
+                            "role": "system",
+                            "content": f"Critic Phase Complete: Code validated via RestrictedPython.\nOutput: {(result.stdout or '')[:500]}",
+                        }],
+                    }
+                else:
+                    logger.warning("Critic: RestrictedPython validation failed: %s", (result.stderr or '')[:200])
+                    return {
+                        "status": "failed",
+                        "current_phase": "critic",
+                        "heal_cycle_count": heal_count + 1,
+                        "critic_result": {"exit_code": result.exit_code, "stderr": result.stderr, "passed": False},
+                        "messages": [{
+                            "role": "system",
+                            "content": f"Critic Phase: Code validation FAILED.\nError: {(result.stderr or '')[:500]}",
+                        }],
+                    }
+            except Exception as e:
+                logger.warning("Critic: RestrictedPython execution error: %s", e)
+                # Fall through to skip
+        
+        # Skip for non-Python code, placeholder code, or if RestrictedPython failed
         skip_reason = (
-            "serverless environment (no sandbox available)" if is_serverless
+            "serverless environment (RestrictedPython unavailable)" if is_serverless
             else "non-Python code detected" if is_non_python
             else "placeholder code (no real code to validate)"
         )
