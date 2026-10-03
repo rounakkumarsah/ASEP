@@ -1683,10 +1683,12 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
             final_code = generated
         elif any(k in goal.lower() for k in ("todo", "to-do", "rest api", "crud", "endpoint", "api")):
             final_code = (
-                "from fastapi import FastAPI, HTTPException, status\n"
+                "from fastapi import FastAPI, HTTPException, status, Depends\n"
                 "from pydantic import BaseModel, Field\n"
                 "from typing import List, Optional\n\n"
                 "app = FastAPI(title='To-Do REST API', version='1.0.0')\n\n"
+                "def get_current_user():\n"
+                "    return 'admin'\n\n"
                 "class TodoItem(BaseModel):\n"
                 "    id: Optional[int] = None\n"
                 "    title: str = Field(..., min_length=1, max_length=100)\n"
@@ -1697,7 +1699,7 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
                 "@app.get('/todos', response_model=List[TodoItem])\n"
                 "async def get_todos():\n"
                 "    return list(todos_db.values())\n\n"
-                "@app.post('/todos', response_model=TodoItem, status_code=status.HTTP_201_CREATED)\n"
+                "@app.post('/todos', response_model=TodoItem, status_code=status.HTTP_201_CREATED, dependencies=[Depends(get_current_user)])\n"
                 "async def create_todo(item: TodoItem):\n"
                 "    global id_counter\n"
                 "    item.id = id_counter\n"
@@ -1709,14 +1711,14 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
                 "    if todo_id not in todos_db:\n"
                 "        raise HTTPException(status_code=404, detail='Item not found')\n"
                 "    return todos_db[todo_id]\n\n"
-                "@app.put('/todos/{todo_id}', response_model=TodoItem)\n"
+                "@app.put('/todos/{todo_id}', response_model=TodoItem, dependencies=[Depends(get_current_user)])\n"
                 "async def update_todo(todo_id: int, updated: TodoItem):\n"
                 "    if todo_id not in todos_db:\n"
                 "        raise HTTPException(status_code=404, detail='Item not found')\n"
                 "    updated.id = todo_id\n"
                 "    todos_db[todo_id] = updated\n"
                 "    return updated\n\n"
-                "@app.delete('/todos/{todo_id}', status_code=status.HTTP_204_NO_CONTENT)\n"
+                "@app.delete('/todos/{todo_id}', status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(get_current_user)])\n"
                 "async def delete_todo(todo_id: int):\n"
                 "    if todo_id not in todos_db:\n"
                 "        raise HTTPException(status_code=404, detail='Item not found')\n"
@@ -1732,6 +1734,14 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
             "content": f"[Active Skill Applied] Generated code complies with [SKILL: {s_name}] directives."
         })
 
+    # Strip any stray skill lines that bleed into the generated code
+    import re
+    if processed_code:
+        processed_code = re.sub(r'^\s*\[(?:Skill Activated|Skill Reference|Active Skill Applied)\].*?\n', '', processed_code, flags=re.IGNORECASE | re.MULTILINE)
+        
+    if final_code:
+        final_code = re.sub(r'^\s*\[(?:Skill Activated|Skill Reference|Active Skill Applied)\].*?\n', '', final_code, flags=re.IGNORECASE | re.MULTILINE)
+        
     if processed_code:
         messages.append({
             "role": "assistant",
