@@ -73,14 +73,24 @@ try:
     from sentry_sdk.integrations.fastapi import FastApiIntegration
     from sentry_sdk.integrations.logging import LoggingIntegration
 
-    sentry_sdk.init(
-        dsn="https://5c21de97f08fe501ade2875fc00e3678@o4511818217226240.ingest.us.sentry.io/4511818269065216",
-        send_default_pii=True,
-        traces_sample_rate=0.1,
-        integrations=[FastApiIntegration(), LoggingIntegration()],
-        default_integrations=False,
+    import os
+    is_serverless = bool(
+        os.environ.get("VERCEL")
+        or os.environ.get("SERVERLESS")
+        or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")
     )
-    logger.info("Sentry SDK initialized with optimized FastAPI integration.")
+    
+    if not is_serverless:
+        sentry_sdk.init(
+            dsn="https://5c21de97f08fe501ade2875fc00e3678@o4511818217226240.ingest.us.sentry.io/4511818269065216",
+            send_default_pii=True,
+            traces_sample_rate=0.1,
+            integrations=[FastApiIntegration(), LoggingIntegration()],
+            default_integrations=False,
+        )
+        logger.info("Sentry SDK initialized with optimized FastAPI integration.")
+    else:
+        logger.info("Sentry SDK disabled on serverless to prevent background thread blocking.")
 except Exception as exc:
     logger.warning("Failed to initialize Sentry SDK: %s", exc)
 
