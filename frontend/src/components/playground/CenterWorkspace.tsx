@@ -1362,7 +1362,7 @@ export function CenterWorkspace() {
         const MAX_STEP_RETRIES = 2;
         while (retries <= MAX_STEP_RETRIES) {
           try {
-            stepRes = await apiClient.post<{ status: string; events?: any[] }>(
+            stepRes = await apiClient.post<{ status: string; events?: any[]; error?: string }>(
               `/api/v1/conversations/run/${runId}/step`,
               { thread_id: newThreadId, goal: currentInput },
               { timeout: 120000 }
