@@ -1387,6 +1387,9 @@ export function CenterWorkspace() {
 
         if (!stepRes) break;
         const stepData = stepRes.data;
+        if (stepData.status === "error") {
+          throw new Error(stepData.error || "Agent execution failed during step iteration.");
+        }
         if (stepData.events) {
           for (const ev of stepData.events) {
             try {
