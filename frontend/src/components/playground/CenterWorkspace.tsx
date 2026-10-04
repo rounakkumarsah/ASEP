@@ -1426,12 +1426,12 @@ export function CenterWorkspace() {
       const activeTab = usePlaygroundStore.getState().activeCenterTab;
       const findings = securityFindingsRef.current;
       const findingsCount = Array.isArray(findings) ? findings.length : securityFindings.length;
-      if (activeTab === "security" && findingsCount === 0) {
-        if (currentArtifactCode || artifactCode) {
-          setActiveCenterTab("artifacts");
-        } else {
-          setActiveCenterTab("chat");
-        }
+      const generatedCode = currentArtifactCode || artifactCode;
+
+      if (generatedCode && findingsCount === 0) {
+        setActiveCenterTab("artifacts");
+      } else if (activeTab === "security" && findingsCount === 0) {
+        setActiveCenterTab("chat");
       }
 
       const finalAnswer = aiResponse && !isStatusContent(aiResponse) ? aiResponse.trim() : "";

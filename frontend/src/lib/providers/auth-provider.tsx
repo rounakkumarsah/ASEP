@@ -75,6 +75,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const parsedUser = JSON.parse(stored);
           setUser(parsedUser);
           setIsLoading(false);
+          const hasToken =
+            localStorage.getItem("asep_auth_token") ||
+            sessionStorage.getItem("asep_auth_token");
+          if (!hasToken) {
+            refreshAccessToken().catch(() => {});
+          }
           return;
         } catch {
           localStorage.removeItem("asep_user_session");

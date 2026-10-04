@@ -184,6 +184,20 @@ apiClient.interceptors.request.use(async (config) => {
       } catch {
         // If proactive refresh fails, fall back to current token and let response interceptor handle 401
       }
+    } else if (!token && !isAuthEndpoint) {
+      const hasStoredSession =
+        localStorage.getItem("asep_user_session") ||
+        sessionStorage.getItem("asep_user_session");
+      if (hasStoredSession) {
+        try {
+          const refreshedToken = await refreshAccessToken();
+          if (refreshedToken) {
+            token = refreshedToken;
+          }
+        } catch {
+          // If refresh fails, fall through and let backend handle authentication
+        }
+      }
     }
 
     if (!hasAuthHeader && token) {
