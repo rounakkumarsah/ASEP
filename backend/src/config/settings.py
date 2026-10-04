@@ -438,10 +438,8 @@ class Settings(Settings):
             if not secret_key or any(fb in secret_key for fb in secret_fallbacks):
                 log.warning("Production Warning: SECRET_KEY should be set to a secure 256-bit random value.")
 
-            # 4. Validate ANTHROPIC_API_KEY
+            # 4. Remove ANTHROPIC_API_KEY log
             anthropic_key = getattr(self, "ANTHROPIC_API_KEY", "") or os.getenv("ANTHROPIC_API_KEY", "")
-            if not anthropic_key:
-                log.info("Production Info: ANTHROPIC_API_KEY is not configured; other available providers will be used.")
 
         return self
 
