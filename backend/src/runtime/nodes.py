@@ -1738,8 +1738,6 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
             "content": f"[Active Skill Applied] Generated code complies with [SKILL: {s_name}] directives."
         })
 
-    # Strip any stray skill lines that bleed into the generated code
-    import re
     if processed_code:
         processed_code = re.sub(r'^\s*\[(?:Skill Activated|Skill Reference|Active Skill Applied)\].*?\n', '', processed_code, flags=re.IGNORECASE | re.MULTILINE)
         
