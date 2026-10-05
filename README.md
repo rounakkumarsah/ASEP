@@ -313,7 +313,6 @@ In **staging** or **production** (`APP_ENV=staging` or `APP_ENV=production`), a 
 * `DATABASE_URL` (rejects `localhost`, `postgres:5432`, `changeme`, or `asep:changeme`)
 * `REDIS_URL` (rejects `localhost`, `redis:6379`, or `127.0.0.1`)
 * `SECRET_KEY` (rejects `change-this-to-a-random-256-bit-secret` or `change_me_in_production`)
-* `ANTHROPIC_API_KEY` (must not be empty/null)
 
 ---
 

@@ -98,7 +98,7 @@ class Settings(BaseSettings):
     # -----------------------------------------------------------------------
     ANTHROPIC_API_KEY: str | None = Field(
         default=None,
-        description="API Key for Anthropic Claude LLM provider."
+        description="Optional API Key for Anthropic Claude LLM provider."
     )
 
     # -----------------------------------------------------------------------
@@ -437,9 +437,6 @@ class Settings(Settings):
             secret_fallbacks = ["change-this-to-a-random-256-bit-secret", "change_me_in_production"]
             if not secret_key or any(fb in secret_key for fb in secret_fallbacks):
                 log.warning("Production Warning: SECRET_KEY should be set to a secure 256-bit random value.")
-
-            # 4. Remove ANTHROPIC_API_KEY log
-            anthropic_key = getattr(self, "ANTHROPIC_API_KEY", "") or os.getenv("ANTHROPIC_API_KEY", "")
 
         return self
 
