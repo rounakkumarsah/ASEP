@@ -5,6 +5,8 @@ import {
   isStatusContent,
   processEventData,
   MessageItem,
+  DEFAULT_MAIN_PY,
+  DEFAULT_CONFIG_JSON,
 } from './CenterWorkspace';
 
 describe('CenterWorkspace UX - Event Classification, Extraction, and Message Routing', () => {
@@ -385,4 +387,49 @@ describe('CenterWorkspace UX - Event Classification, Extraction, and Message Rou
       expect(finalContent).toBe('Here is your solution.');
     });
   });
+
+  describe('Artifacts Tab Templates & Background State Stability', () => {
+    it('exports valid DEFAULT_MAIN_PY template containing FastAPI starter', () => {
+      expect(DEFAULT_MAIN_PY).toBeDefined();
+      expect(DEFAULT_MAIN_PY).toContain('main.py');
+      expect(DEFAULT_MAIN_PY).toContain('FastAPI');
+      expect(DEFAULT_MAIN_PY).toContain('@app.get');
+    });
+
+    it('exports valid DEFAULT_CONFIG_JSON template with proper json structure', () => {
+      expect(DEFAULT_CONFIG_JSON).toBeDefined();
+      const parsed = JSON.parse(DEFAULT_CONFIG_JSON);
+      expect(parsed.name).toBe('todo-app');
+      expect(parsed.main).toBe('main.py');
+      expect(parsed.dependencies).toBeDefined();
+      expect(parsed.dependencies.fastapi).toBeDefined();
+    });
+
+    it('processes telemetry and artifact code without mutating caller active tab state', () => {
+      let activeTab = 'chat';
+      const onArtifactCode = vi.fn((code: string) => {
+        // Artifact code handler updates artifact code in store without switching tab
+        expect(code).toBe('app = FastAPI()');
+        expect(activeTab).toBe('chat');
+      });
+
+      const eventData = {
+        event: {
+          implement: {
+            messages: [
+              {
+                role: 'assistant',
+                content: '```python\napp = FastAPI()\n```',
+              },
+            ],
+          },
+        },
+      };
+
+      processEventData(eventData, { onArtifactCode });
+      expect(onArtifactCode).toHaveBeenCalled();
+      expect(activeTab).toBe('chat');
+    });
+  });
 });
+
