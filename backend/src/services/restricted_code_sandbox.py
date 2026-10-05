@@ -35,6 +35,45 @@ from src.config.sandbox_config import (
 logger = logging.getLogger(__name__)
 
 
+class RestrictedSandboxResult(dict):
+    """
+    Dual-interface execution result supporting both dictionary indexing:
+        result["success"], result["stdout"], result["error"], result["result"]
+    and attribute access:
+        result.exit_code, result.stdout, result.stderr, result.success
+    """
+
+    def __init__(self, data: dict[str, Any]):
+        super().__init__(data)
+        self["exit_code"] = 0 if data.get("success") else 1
+        self["stderr"] = str(data.get("error") or "")
+        self.__dict__.update(self)
+
+    @property
+    def exit_code(self) -> int:
+        return 0 if self.get("success") else 1
+
+    @property
+    def stdout(self) -> str:
+        return str(self.get("stdout") or "")
+
+    @property
+    def stderr(self) -> str:
+        return str(self.get("error") or "")
+
+    @property
+    def success(self) -> bool:
+        return bool(self.get("success", False))
+
+    @property
+    def tests_passed(self) -> bool:
+        return bool(self.get("success", False))
+
+    @property
+    def warnings(self) -> list[str]:
+        return []
+
+
 class RestrictedExecutor:
     """
     Lightweight, Docker-free execution sandbox for untrusted Python code.
@@ -42,6 +81,17 @@ class RestrictedExecutor:
     """
 
     DEFAULT_TIMEOUT: float = DEFAULT_SANDBOX_TIMEOUT_SECONDS
+
+    def __init__(self) -> None:
+        pass
+
+    def run(
+        self,
+        code: str,
+        test_code: str | None = None,
+        timeout: float = DEFAULT_SANDBOX_TIMEOUT_SECONDS,
+    ) -> RestrictedSandboxResult:
+        return self.execute_sync(code, test_code=test_code, timeout=timeout)
 
     @classmethod
     def validate_syntax(cls, code: str) -> tuple[bool, str | None]:
@@ -257,7 +307,7 @@ class RestrictedExecutor:
         code: str,
         test_code: str | None = None,
         timeout: float = DEFAULT_SANDBOX_TIMEOUT_SECONDS,
-    ) -> dict[str, Any]:
+    ) -> RestrictedSandboxResult:
         """
         Synchronously executes code in the restricted sandbox with timeout enforcement.
         """
@@ -265,11 +315,11 @@ class RestrictedExecutor:
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
             future = executor.submit(cls._execute_code_internal, code, test_code)
             try:
-                return future.result(timeout=timeout)
+                return RestrictedSandboxResult(future.result(timeout=timeout))
             except concurrent.futures.TimeoutError:
                 elapsed_ms = (time.perf_counter() - start_time) * 1000
                 logger.warning("RestrictedExecutor execution timed out after %.2fs", timeout)
-                return {
+                return RestrictedSandboxResult({
                     "success": False,
                     "stdout": "",
                     "result": None,
@@ -277,7 +327,7 @@ class RestrictedExecutor:
                     "execution_time_ms": elapsed_ms,
                     "security_violation": False,
                     "timed_out": True,
-                }
+                })
 
     @classmethod
     async def execute(
@@ -285,7 +335,7 @@ class RestrictedExecutor:
         code: str,
         test_code: str | None = None,
         timeout: float = DEFAULT_SANDBOX_TIMEOUT_SECONDS,
-    ) -> dict[str, Any]:
+    ) -> RestrictedSandboxResult:
         """
         Asynchronously executes code in the restricted sandbox with timeout enforcement.
 
@@ -295,7 +345,7 @@ class RestrictedExecutor:
             timeout: Maximum allowed execution duration in seconds (default: 30.0s).
 
         Returns:
-            Structured execution dictionary.
+            Structured execution dictionary and attribute-accessible result.
         """
         start_time = time.perf_counter()
         try:
@@ -303,11 +353,11 @@ class RestrictedExecutor:
                 asyncio.to_thread(cls._execute_code_internal, code, test_code),
                 timeout=timeout,
             )
-            return result
+            return RestrictedSandboxResult(result)
         except asyncio.TimeoutError:
             elapsed_ms = (time.perf_counter() - start_time) * 1000
             logger.warning("RestrictedExecutor async execution timed out after %.2fs", timeout)
-            return {
+            return RestrictedSandboxResult({
                 "success": False,
                 "stdout": "",
                 "result": None,
@@ -315,10 +365,10 @@ class RestrictedExecutor:
                 "execution_time_ms": elapsed_ms,
                 "security_violation": False,
                 "timed_out": True,
-            }
+            })
         except Exception as exc:
             elapsed_ms = (time.perf_counter() - start_time) * 1000
-            return {
+            return RestrictedSandboxResult({
                 "success": False,
                 "stdout": "",
                 "result": None,
@@ -326,4 +376,4 @@ class RestrictedExecutor:
                 "execution_time_ms": elapsed_ms,
                 "security_violation": False,
                 "timed_out": False,
-            }
+            })
