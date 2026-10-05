@@ -23,8 +23,12 @@ class AnthropicProvider(BaseAIProvider):
     to the official anthropic SDK API endpoints.
     """
     def __init__(self, api_key: str | None = None) -> None:
-        settings = get_settings()
-        self.api_key = api_key or getattr(settings, "ANTHROPIC_API_KEY", None) or os.environ.get("ANTHROPIC_API_KEY", "")
+        if api_key is not None:
+            self.api_key = api_key.strip()
+        else:
+            settings = get_settings()
+            raw_key = getattr(settings, "ANTHROPIC_API_KEY", None) or os.environ.get("ANTHROPIC_API_KEY", "")
+            self.api_key = (raw_key or "").strip()
         self._client = None
 
     @property

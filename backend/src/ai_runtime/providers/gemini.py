@@ -133,6 +133,8 @@ class GeminiProvider(BaseAIProvider):
             return "antigravity-preview-05-2026"
         if model_clean in ("computer-use", "gemini-2.5-computer-use-preview-10-2025"):
             return "gemini-2.5-computer-use-preview-10-2025"
+        if "claude" in model_clean.lower() or "anthropic" in model_clean.lower():
+            return "gemini-3.6-flash"
 
         return model_clean
 

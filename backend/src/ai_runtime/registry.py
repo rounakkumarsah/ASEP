@@ -113,7 +113,7 @@ class ProviderRegistry:
             return "gemini"
         elif "gpt-" in model_lower:
             return "openai"
-        elif "claude" in model_lower:
+        elif "claude" in model_lower or "anthropic" in model_lower:
             if self.is_key_present("anthropic"):
                 return "anthropic"
             return self.get_default_provider_name()

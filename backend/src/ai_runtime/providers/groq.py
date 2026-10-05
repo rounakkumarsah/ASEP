@@ -93,6 +93,8 @@ class GroqProvider(BaseAIProvider):
             if remainder.startswith("qwen3"):
                 return f"qwen/{remainder}"
             return remainder
+        if "claude" in model.lower() or "anthropic" in model.lower():
+            return "llama-3.3-70b-versatile"
         return model
 
     async def complete(self, request: CompletionRequest) -> CompletionResponse:
