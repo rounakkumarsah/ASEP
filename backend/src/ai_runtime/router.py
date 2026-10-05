@@ -101,12 +101,30 @@ class ModelRegistry:
         # Clean up degraded models
         now = time.time()
         self.degraded_models = {k: v for k, v in self.degraded_models.items() if v > now}
-        
+
+        def _is_anthropic_available() -> bool:
+            import os
+            key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+            if not key:
+                try:
+                    from src.config.settings import get_settings
+                    key = (getattr(get_settings(), "ANTHROPIC_API_KEY", "") or "").strip()
+                except Exception:
+                    pass
+            return bool(key)
+
+        has_anthropic = _is_anthropic_available()
+
         # Filter available models
-        available = [m for m in self.models.values() if m["id"] not in self.degraded_models]
+        available = [
+            m for m in self.models.values()
+            if m["id"] not in self.degraded_models
+            and (has_anthropic or "claude" not in m["id"].lower())
+        ]
         if not available:
-            # If all degraded, just pick the best premium
-            available = list(self.models.values())
+            # If all degraded, fallback excluding claude if no key
+            fallback = [m for m in self.models.values() if has_anthropic or "claude" not in m["id"].lower()]
+            available = fallback if fallback else list(self.models.values())
             
         # 1. Filter by context window
         capable = [m for m in available if m["context"] >= tokens + 1000]

@@ -48,7 +48,6 @@ When `APP_ENV` is set to `staging` or `production`, the Settings class enforces 
 | `DATABASE_URL` | Rejects `localhost` or default neon strings | `postgresql+asyncpg://asep:changeme@localhost:5432/asep` |
 | `REDIS_URL` | Rejects `localhost`, `redis:6379`, or `127.0.0.1` | `redis://localhost:6379/0` |
 | `SECRET_KEY` | Rejects known boilerplate string secrets | `change-this-to-a-random-256-bit-secret` |
-| `ANTHROPIC_API_KEY` | Must be explicitly configured (non-null) | `None` |
 
 ---
 

@@ -78,6 +78,8 @@ class ProviderRegistry:
                 return name
         for name in self.priority:
             if name in self.providers:
+                if name == "anthropic" and not self.is_key_present("anthropic"):
+                    continue
                 return name
         return "gemini"
 
@@ -112,7 +114,9 @@ class ProviderRegistry:
         elif "gpt-" in model_lower:
             return "openai"
         elif "claude" in model_lower:
-            return "anthropic"
+            if self.is_key_present("anthropic"):
+                return "anthropic"
+            return self.get_default_provider_name()
         elif "vl" in model_lower or "vision" in model_lower or "qwen" in model_lower:
             return "vision"
         elif "deepseek" in model_lower or "openrouter" in model_lower:
@@ -121,7 +125,10 @@ class ProviderRegistry:
             return "mock"
         else:
             # Default to first configured priority provider if available, or ollama
-            return self.priority[0] if self.priority else "ollama"
+            for p in self.priority:
+                if p != "anthropic" or self.is_key_present("anthropic"):
+                    return p
+            return "ollama"
 
     def get_priority_chain(self, requested_model: str) -> list[BaseAIProvider]:
         """
@@ -132,15 +139,23 @@ class ProviderRegistry:
         primary_name = self.resolve_provider_for_model(requested_model)
 
         chain = []
-        # Place primary provider first if healthy
-        if True:
-            chain.append(self.providers[primary_name])
+        # Place primary provider first if healthy and configured
+        if primary_name in self.providers:
+            if primary_name != "anthropic" or self.is_key_present("anthropic"):
+                chain.append(self.providers[primary_name])
 
         # Append remaining healthy providers matching prioritised list
         for name in self.priority:
             if name == primary_name:
                 continue
+            if name == "anthropic" and not self.is_key_present("anthropic"):
+                continue
             if name in self.providers:
                 chain.append(self.providers[name])
+
+        if not chain:
+            fallback = self.get_default_provider_name()
+            if fallback in self.providers:
+                chain.append(self.providers[fallback])
 
         return chain

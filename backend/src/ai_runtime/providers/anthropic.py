@@ -34,7 +34,7 @@ class AnthropicProvider(BaseAIProvider):
     def _get_client(self):
         if not self._client:
             if not self.api_key:
-                raise ValueError("ANTHROPIC_API_KEY environment variable or settings parameter is not configured.")
+                raise ValueError("ANTHROPIC_API_KEY environment variable or settings parameter is not configured. Anthropic provider is gracefully disabled.")
             # Lazy import to keep startup times fast
             from anthropic import Anthropic
             self._client = Anthropic(api_key=self.api_key)
@@ -137,9 +137,9 @@ class AnthropicProvider(BaseAIProvider):
                 is_healthy=False,
                 active_model="none",
                 circuit_breaker_state="CLOSED",
-                error_count=1,
+                error_count=0,
                 latency_ms=0.0,
-                last_error="ANTHROPIC_API_KEY not configured"
+                last_error=None
             )
         return ProviderHealth(
             provider_name=self.name,
