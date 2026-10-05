@@ -123,3 +123,47 @@ def test_settings_production_validation_succeeds_without_anthropic_key():
             APP_ENV="production"
         )
         assert settings.ANTHROPIC_API_KEY is None
+
+
+def test_anthropic_provider_explicit_empty_key_overrides_env():
+    """Verify AnthropicProvider explicitly passed api_key="" disables the provider even if env has a key."""
+    with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-ant-some-key"}, clear=False):
+        provider = AnthropicProvider(api_key="")
+        assert provider.api_key == ""
+        assert not provider.api_key
+
+
+def test_registry_resolves_anthropic_prefix_to_default_without_key():
+    """Verify resolve_provider_for_model handles 'anthropic' and 'anthropic/...' model names safely."""
+    with patch.dict(os.environ, {}, clear=False):
+        os.environ.pop("ANTHROPIC_API_KEY", None)
+        registry = ProviderRegistry()
+
+        assert registry.resolve_provider_for_model("anthropic") == registry.get_default_provider_name()
+        assert registry.resolve_provider_for_model("anthropic/claude-3-5-sonnet") == registry.get_default_provider_name()
+
+
+def test_free_providers_safely_translate_claude_models():
+    """Verify Gemini and Groq providers safely translate Claude models rather than failing with invalid model errors."""
+    from src.ai_runtime.providers.gemini import GeminiProvider
+    from src.ai_runtime.providers.groq import GroqProvider
+
+    assert GeminiProvider._resolve_model("claude-3-5-sonnet-20241022") == "gemini-3.6-flash"
+    assert GeminiProvider._resolve_model("anthropic/claude-3-5-sonnet") == "gemini-3.6-flash"
+
+    assert GroqProvider._resolve_model("claude-3-5-sonnet-20241022") == "llama-3.3-70b-versatile"
+    assert GroqProvider._resolve_model("anthropic/claude-3-5-sonnet") == "llama-3.3-70b-versatile"
+
+
+def test_registry_priority_chain_only_anthropic_configured_graceful_fallback():
+    """Verify that when AI_PROVIDER_PRIORITY contains only 'anthropic', chain still falls back safely."""
+    with patch.dict(os.environ, {"AI_PROVIDER_PRIORITY": "anthropic"}, clear=False):
+        os.environ.pop("ANTHROPIC_API_KEY", None)
+        registry = ProviderRegistry()
+
+        chain = registry.get_priority_chain("default")
+        provider_names = [p.name for p in chain]
+        assert "anthropic" not in provider_names
+        assert len(chain) > 0
+        assert chain[0].name == "gemini"
+
