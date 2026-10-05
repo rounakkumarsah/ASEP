@@ -20,20 +20,62 @@ class SandboxRunRequest(BaseModel):
 async def stream_python_execution(request: SandboxRunRequest) -> StreamingResponse:
     """
     Execute Python code in a secure Docker sandbox and stream the stdout/stderr.
+    Gracefully falls back to RestrictedExecutor (RestrictedPython sandbox) when
+    Docker daemon is unreachable or in serverless environments.
     """
     async def event_generator() -> AsyncGenerator[str, None]:
-        import docker
-        import tempfile
-        import os
         import contextlib
-        
-        try:
-            client = docker.from_env()
-        except Exception as e:
-            yield f"data: {json.dumps({'type': 'error', 'text': f'Docker daemon unreachable: {e}'})}\n\n"
+        import json
+        import os
+        from src.services.restricted_code_sandbox import RestrictedExecutor
+
+        is_serverless = os.environ.get("VERCEL") == "1" or os.environ.get("SERVERLESS") == "1"
+        docker_client = None
+
+        if not is_serverless:
+            try:
+                import docker
+                client = docker.from_env()
+                client.ping()
+                docker_client = client
+            except Exception as e:
+                logger.info(
+                    "Docker daemon unreachable (%s), falling back to in-process RestrictedExecutor sandbox.",
+                    e,
+                )
+                docker_client = None
+
+        if docker_client is None:
+            # Fallback to RestrictedExecutor
+            yield f"data: {json.dumps({'type': 'system', 'text': 'Running in isolated RestrictedPython sandbox...'})}\n\n"
+            try:
+                res = await RestrictedExecutor.execute(request.code, timeout=30.0)
+                stdout = res.stdout if hasattr(res, "stdout") else str(res.get("stdout") or "")
+                error = res.stderr if hasattr(res, "stderr") else str(res.get("error") or "")
+                is_success = res.success if hasattr(res, "success") else bool(res.get("success", False))
+
+                if stdout:
+                    for line in stdout.splitlines(keepends=True):
+                        yield f"data: {json.dumps({'type': 'output', 'text': line})}\n\n"
+                        await asyncio.sleep(0.01)
+
+                if error:
+                    yield f"data: {json.dumps({'type': 'error', 'text': error})}\n\n"
+
+                exit_code = 0 if is_success else 1
+                if exit_code == 0:
+                    yield f"data: {json.dumps({'type': 'success', 'text': f'\\n[Process exited with code {exit_code}]'})}\n\n"
+                else:
+                    yield f"data: {json.dumps({'type': 'error', 'text': f'\\n[Process exited with code {exit_code}]'})}\n\n"
+            except Exception as e:
+                logger.exception("Restricted sandbox execution error")
+                yield f"data: {json.dumps({'type': 'error', 'text': f'\\nSandbox Error: {str(e)}'})}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'text': '\\n[Process exited with code 1]'})}\n\n"
+
             yield "data: [DONE]\n\n"
             return
 
+        import tempfile
         fd, temp_path = tempfile.mkstemp(suffix=".py", text=True)
         with os.fdopen(fd, "w") as f:
             f.write(request.code)
@@ -42,7 +84,7 @@ async def stream_python_execution(request: SandboxRunRequest) -> StreamingRespon
         try:
             yield f"data: {json.dumps({'type': 'system', 'text': 'Starting secure Python sandbox container...'})}\n\n"
             
-            container = client.containers.run(
+            container = docker_client.containers.run(
                 image="python:3.12-slim",
                 command=["python", "-u", "/workspace/code.py"],  # -u for unbuffered output
                 volumes={temp_path: {"bind": "/workspace/code.py", "mode": "ro"}},
@@ -75,8 +117,34 @@ async def stream_python_execution(request: SandboxRunRequest) -> StreamingRespon
                 yield f"data: {json.dumps({'type': 'error', 'text': f'\\n[Process exited with code {returncode}]'})}\n\n"
                 
         except Exception as e:
-            logger.exception("Sandbox streaming error")
-            yield f"data: {json.dumps({'type': 'error', 'text': f'\\nSandbox Error: {str(e)}'})}\n\n"
+            logger.exception("Docker sandbox error, falling back to RestrictedExecutor")
+            if container is None:
+                yield f"data: {json.dumps({'type': 'system', 'text': 'Docker container unavailable. Falling back to isolated RestrictedPython sandbox...'})}\n\n"
+                try:
+                    res = await RestrictedExecutor.execute(request.code, timeout=30.0)
+                    stdout = res.stdout if hasattr(res, "stdout") else str(res.get("stdout") or "")
+                    error = res.stderr if hasattr(res, "stderr") else str(res.get("error") or "")
+                    is_success = res.success if hasattr(res, "success") else bool(res.get("success", False))
+
+                    if stdout:
+                        for line in stdout.splitlines(keepends=True):
+                            yield f"data: {json.dumps({'type': 'output', 'text': line})}\n\n"
+                            await asyncio.sleep(0.01)
+
+                    if error:
+                        yield f"data: {json.dumps({'type': 'error', 'text': error})}\n\n"
+
+                    exit_code = 0 if is_success else 1
+                    if exit_code == 0:
+                        yield f"data: {json.dumps({'type': 'success', 'text': f'\\n[Process exited with code {exit_code}]'})}\n\n"
+                    else:
+                        yield f"data: {json.dumps({'type': 'error', 'text': f'\\n[Process exited with code {exit_code}]'})}\n\n"
+                except Exception as inner_e:
+                    logger.exception("Restricted sandbox fallback error")
+                    yield f"data: {json.dumps({'type': 'error', 'text': f'\\nSandbox Error: {str(inner_e)}'})}\n\n"
+                    yield f"data: {json.dumps({'type': 'error', 'text': '\\n[Process exited with code 1]'})}\n\n"
+            else:
+                yield f"data: {json.dumps({'type': 'error', 'text': f'\\nSandbox Error: {str(e)}'})}\n\n"
         finally:
             if container:
                 with contextlib.suppress(Exception):
@@ -104,23 +172,39 @@ async def terminal_execute(request: TerminalRequest) -> dict[str, Any]:
     is_serverless = os.environ.get("VERCEL") == "1" or os.environ.get("SERVERLESS") == "1"
     
     # Python code execution
-    if cmd.startswith("python ") or cmd.startswith("python3 "):
+    if cmd.startswith("python ") or cmd.startswith("python3 ") or cmd in ("python", "python3"):
         # Extract the code or filename
         parts = cmd.split(" ", 1)
         code_arg = parts[1].strip() if len(parts) > 1 else ""
         
         if code_arg.startswith("-c "):
             code = code_arg[3:].strip().strip('"').strip("'")
+        elif code_arg and os.path.isfile(code_arg):
+            try:
+                with open(code_arg, "r", encoding="utf-8", errors="replace") as f:
+                    code = f.read()
+            except Exception:
+                code = f"print('Would execute: {code_arg}')"
+        elif code_arg and request.cwd and os.path.isfile(os.path.join(request.cwd, code_arg)):
+            try:
+                with open(os.path.join(request.cwd, code_arg), "r", encoding="utf-8", errors="replace") as f:
+                    code = f.read()
+            except Exception:
+                code = f"print('Would execute: {code_arg}')"
+        elif code_arg:
+            if any(term in code_arg for term in ("print(", "def ", "import ", "=", "+", "-", "*", "/", "{", "}")):
+                code = code_arg
+            else:
+                code = f"print('Executing {code_arg}...')\n"
         else:
-            code = f"print('Would execute: {code_arg}')"  # File execution placeholder
+            code = "print('Python interactive mode not supported in terminal. Usage: python <code> or python -c <code>')"
         
         try:
-            from src.config.sandbox_config import RestrictedExecutor
-            executor = RestrictedExecutor()
-            result = executor.execute(code, timeout=10)
+            from src.services.restricted_code_sandbox import RestrictedExecutor
+            result = await RestrictedExecutor.execute(code, timeout=10)
             return {
-                "stdout": result.stdout or "",
-                "stderr": result.stderr or "",
+                "stdout": result.stdout,
+                "stderr": result.stderr,
                 "exit_code": result.exit_code,
             }
         except Exception as e:
@@ -177,12 +261,11 @@ async def execute_code(request: ExecuteRequest) -> dict[str, Any]:
     """Execute Python code via RestrictedPython. No Docker required.
     Used by the Critic node on serverless environments."""
     try:
-        from src.config.sandbox_config import RestrictedExecutor
-        executor = RestrictedExecutor()
-        result = executor.execute(request.code, timeout=min(request.timeout, 30))
+        from src.services.restricted_code_sandbox import RestrictedExecutor
+        result = await RestrictedExecutor.execute(request.code, timeout=min(request.timeout, 30))
         return {
-            "stdout": result.stdout or "",
-            "stderr": result.stderr or "",
+            "stdout": result.stdout,
+            "stderr": result.stderr,
             "exit_code": result.exit_code,
             "success": result.exit_code == 0,
         }

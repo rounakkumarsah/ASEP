@@ -1827,9 +1827,8 @@ async def critic_node(state: AgentState) -> dict[str, Any]:
         # On serverless with real Python code: still validate via RestrictedPython
         if is_serverless and not is_non_python and not is_placeholder:
             try:
-                from src.config.sandbox_config import RestrictedExecutor
-                executor = RestrictedExecutor()
-                result = executor.execute(code, timeout=10)
+                from src.services.restricted_code_sandbox import RestrictedExecutor
+                result = RestrictedExecutor.execute_sync(code, timeout=10)
                 if result.exit_code == 0:
                     logger.info("Critic: RestrictedPython validation passed on serverless")
                     return {

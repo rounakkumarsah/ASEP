@@ -33,26 +33,32 @@ class PythonSandboxTool(BaseTool):
         try:
             inputs = self.input_model.model_validate(arguments)
             
-            import docker
-            try:
-                client = docker.from_env()
-                client.ping()
-            except Exception as docker_exc:
-                logger.info(
-                    "Docker daemon unreachable (%s), falling back to in-process RestrictedExecutor sandbox.",
-                    docker_exc,
-                )
+            is_serverless = os.environ.get("VERCEL") == "1" or os.environ.get("SERVERLESS") == "1"
+            client = None
+            if not is_serverless:
+                try:
+                    import docker
+                    client = docker.from_env()
+                    client.ping()
+                except Exception as docker_exc:
+                    logger.info(
+                        "Docker daemon unreachable (%s), falling back to in-process RestrictedExecutor sandbox.",
+                        docker_exc,
+                    )
+                    client = None
+
+            if client is None:
                 from src.services.restricted_code_sandbox import RestrictedExecutor
 
                 res = await RestrictedExecutor.execute(inputs.code, timeout=30.0)
-                if res["success"]:
+                if res.get("success"):
                     return ToolExecutionOutput(
                         success=True,
-                        data={
-                            "output": res["stdout"],
-                            "result": res["result"],
+                        result={
+                            "output": res.get("stdout") or "",
+                            "result": res.get("result"),
                             "execution_mode": "restricted_python",
-                            "execution_time_ms": res["execution_time_ms"],
+                            "execution_time_ms": res.get("execution_time_ms"),
                         },
                     )
                 return ToolExecutionOutput(
@@ -71,23 +77,45 @@ class PythonSandboxTool(BaseTool):
             
             try:
                 # Docker sandbox execution
-                # Security limits: 5s timeout, 50MB RAM, network=none, readonly, etc.
-                container = client.containers.run(
-                    image="python:3.12-slim",
-                    command=["python", "/workspace/code.py"],
-                    volumes={temp_path: {"bind": "/workspace/code.py", "mode": "ro"}},
-                    working_dir="/workspace",
-                    network_mode="none",
-                    nano_cpus=500000000,  # 0.5 CPU
-                    mem_limit="50m",  # Limit to 50MB RAM
-                    detach=True,
-                    user="1000:1000",                  # Run as non-root user
-                    cap_drop=["ALL"],                  # Drop all Linux capabilities
-                    security_opt=["no-new-privileges:true"], # Prevent privilege escalation
-                    read_only=True,                    # Read-only root filesystem
-                    tmpfs={"/tmp": "size=10m,noexec,nosuid,nodev"}, # Secure scratch space
-                    pids_limit=50,                     # Fork bomb mitigation
-                )
+                try:
+                    container = client.containers.run(
+                        image="python:3.12-slim",
+                        command=["python", "/workspace/code.py"],
+                        volumes={temp_path: {"bind": "/workspace/code.py", "mode": "ro"}},
+                        working_dir="/workspace",
+                        network_mode="none",
+                        nano_cpus=500000000,  # 0.5 CPU
+                        mem_limit="50m",  # Limit to 50MB RAM
+                        detach=True,
+                        user="1000:1000",                  # Run as non-root user
+                        cap_drop=["ALL"],                  # Drop all Linux capabilities
+                        security_opt=["no-new-privileges:true"], # Prevent privilege escalation
+                        read_only=True,                    # Read-only root filesystem
+                        tmpfs={"/tmp": "size=10m,noexec,nosuid,nodev"}, # Secure scratch space
+                        pids_limit=50,                     # Fork bomb mitigation
+                    )
+                except Exception as run_exc:
+                    logger.info(
+                        "Docker container run failed (%s), falling back to RestrictedExecutor.",
+                        run_exc,
+                    )
+                    from src.services.restricted_code_sandbox import RestrictedExecutor
+
+                    res = await RestrictedExecutor.execute(inputs.code, timeout=30.0)
+                    if res.get("success"):
+                        return ToolExecutionOutput(
+                            success=True,
+                            result={
+                                "output": res.get("stdout") or "",
+                                "result": res.get("result"),
+                                "execution_mode": "restricted_python",
+                                "execution_time_ms": res.get("execution_time_ms"),
+                            },
+                        )
+                    return ToolExecutionOutput(
+                        success=False,
+                        error=res.get("error") or "Execution failed in sandbox",
+                    )
                 
                 try:
                     # Wait for container execution with a timeout of 5 seconds

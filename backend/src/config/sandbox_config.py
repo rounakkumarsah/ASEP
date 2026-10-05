@@ -225,3 +225,16 @@ def get_default_guards() -> dict[str, Any]:
         "_print_": PrintCollector,
         "math": math,
     }
+
+
+def __getattr__(name: str) -> Any:
+    if name in ("RestrictedExecutor", "RestrictedSandboxResult"):
+        from src.services.restricted_code_sandbox import (
+            RestrictedExecutor,
+            RestrictedSandboxResult,
+        )
+        if name == "RestrictedExecutor":
+            return RestrictedExecutor
+        return RestrictedSandboxResult
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
