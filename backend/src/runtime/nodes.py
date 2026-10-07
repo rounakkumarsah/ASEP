@@ -1778,8 +1778,13 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
                 "content": f"[Sandbox] Executing generated code in {mode_desc}...",
             })
 
+            stdout_lines = exec_res.stdout_lines or [l for l in (exec_res.stdout or "").splitlines() if l.strip()]
+            stderr_lines = exec_res.stderr_lines or [l for l in (exec_res.stderr or "").splitlines() if l.strip()]
+            if exec_res.error and not stderr_lines:
+                stderr_lines = [l for l in exec_res.error.splitlines() if l.strip()]
+
             # Emit real stdout lines
-            for line in exec_res.stdout_lines:
+            for line in stdout_lines:
                 messages.append({
                     "type": "output",
                     "role": "stdout",
@@ -1787,7 +1792,7 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
                 })
 
             # Emit real stderr lines
-            for line in exec_res.stderr_lines:
+            for line in stderr_lines:
                 messages.append({
                     "type": "error",
                     "role": "stderr",
