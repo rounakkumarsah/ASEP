@@ -113,6 +113,7 @@ def get_tool_registry() -> ToolRegistry:
         )
         from src.tools.python_sandbox import PythonSandboxTool
         from src.tools.github_repo import GithubRepoTool
+        from src.tools.web_search import WebSearchTool
         _global_tool_registry.register(FilesystemTool())
         _global_tool_registry.register(TerminalTool())
         _global_tool_registry.register(GitTool())
@@ -127,4 +128,5 @@ def get_tool_registry() -> ToolRegistry:
         _global_tool_registry.register(ConfigurationTool())
         _global_tool_registry.register(BrowserTool())
         _global_tool_registry.register(PythonSandboxTool())
+        _global_tool_registry.register(WebSearchTool())
     return _global_tool_registry

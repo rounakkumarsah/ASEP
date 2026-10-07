@@ -701,19 +701,19 @@ async def orchestrator_node(state: AgentState) -> dict[str, Any]:
         phase_map = ["research", "clarification_gate", "workflow_mapping", "trigger_action_design", "integration_points", "critic", "end_to_end_automation_tests", "error_handling_paths", "security_audit", "deploy_clarification_gate", "deploy", "host_manager"]
     elif "api" in goal_lower:
         product_type = "api"
-        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "critic", "test", "security_audit", "deploy_clarification_gate", "deploy", "host_manager"]
+        phase_map = ["research", "clarification_gate", "implement", "critic", "test", "security_audit", "deploy_clarification_gate", "deploy", "host_manager"]
     elif "bot" in goal_lower:
         product_type = "bot"
-        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "critic", "test", "security_audit", "deploy_clarification_gate", "deploy", "host_manager"]
+        phase_map = ["research", "clarification_gate", "implement", "critic", "test", "security_audit", "deploy_clarification_gate", "deploy", "host_manager"]
     elif "website" in goal_lower:
         product_type = "website"
-        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "critic", "test", "security_audit", "deploy_clarification_gate", "deploy", "host_manager"]
+        phase_map = ["research", "clarification_gate", "implement", "critic", "test", "security_audit", "deploy_clarification_gate", "deploy", "host_manager"]
     elif "app" in goal_lower:
         product_type = "app"
-        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "critic", "test", "security_audit", "deploy_clarification_gate", "deploy", "host_manager"]
+        phase_map = ["research", "clarification_gate", "implement", "critic", "test", "security_audit", "deploy_clarification_gate", "deploy", "host_manager"]
     else:
         product_type = "web-app"
-        phase_map = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "critic", "test", "security_audit", "deploy_clarification_gate", "deploy", "host_manager"]
+        phase_map = ["research", "clarification_gate", "implement", "critic", "test", "security_audit", "deploy_clarification_gate", "deploy", "host_manager"]
 
 
     # No Hallucination Rules constraints injected into system message
@@ -1407,20 +1407,15 @@ async def deploy_clarification_gate_node(state: AgentState) -> dict[str, Any]:
 async def blueprint_phase_node(state: AgentState) -> dict[str, Any]:
     guard_res = execute_phase_token_guard(phase="blueprint", state=state, base_tokens=300)
     messages = list(guard_res.get("telemetry_messages", []))
-    goal = state.get("goal", "")
-    explore_mgr = get_explore_manager()
-    explore_events, explore_summary = await explore_mgr.explore_phase("blueprint", goal, state)
-    for ev in explore_events:
-        messages.append({"role": "system", "content": f"[Explore Event] {json.dumps(ev)}"})
-    messages.append({"role": "system", "content": f"[Explore Summary] {json.dumps(explore_summary)}"})
+    existing_summary = state.get("exploration_summary") or (state.get("phase_explorations") or {}).get("research") or {}
     messages.append({"role": "system", "content": "Blueprint Phase Complete: System design approved."})
     return {
         "status": "verified",
         "current_phase": "blueprint",
-        "exploration_events": explore_events,
-        "exploration_summary": explore_summary,
-        "phase_explorations": {**(state.get("phase_explorations") or {}), "blueprint": explore_summary},
-        "explored_files": list(set((state.get("explored_files") or []) + explore_summary.get("relevant_files", []))),
+        "exploration_events": state.get("exploration_events") or [],
+        "exploration_summary": existing_summary,
+        "phase_explorations": state.get("phase_explorations") or {},
+        "explored_files": state.get("explored_files") or [],
         "token_usage_per_phase": guard_res["token_usage_per_phase"],
         "token_budget_per_phase": guard_res["token_budget_per_phase"],
         "token_savings": guard_res["token_savings"],
@@ -1433,20 +1428,15 @@ async def blueprint_phase_node(state: AgentState) -> dict[str, Any]:
 async def scaffold_phase_node(state: AgentState) -> dict[str, Any]:
     guard_res = execute_phase_token_guard(phase="scaffold", state=state, base_tokens=400)
     messages = list(guard_res.get("telemetry_messages", []))
-    goal = state.get("goal", "")
-    explore_mgr = get_explore_manager()
-    explore_events, explore_summary = await explore_mgr.explore_phase("scaffold", goal, state)
-    for ev in explore_events:
-        messages.append({"role": "system", "content": f"[Explore Event] {json.dumps(ev)}"})
-    messages.append({"role": "system", "content": f"[Explore Summary] {json.dumps(explore_summary)}"})
+    existing_summary = state.get("exploration_summary") or (state.get("phase_explorations") or {}).get("research") or {}
     messages.append({"role": "system", "content": "Scaffold Phase Complete: Boilerplate generated."})
     return {
         "status": "verified",
         "current_phase": "scaffold",
-        "exploration_events": explore_events,
-        "exploration_summary": explore_summary,
-        "phase_explorations": {**(state.get("phase_explorations") or {}), "scaffold": explore_summary},
-        "explored_files": list(set((state.get("explored_files") or []) + explore_summary.get("relevant_files", []))),
+        "exploration_events": state.get("exploration_events") or [],
+        "exploration_summary": existing_summary,
+        "phase_explorations": state.get("phase_explorations") or {},
+        "explored_files": state.get("explored_files") or [],
         "token_usage_per_phase": guard_res["token_usage_per_phase"],
         "token_budget_per_phase": guard_res["token_budget_per_phase"],
         "token_savings": guard_res["token_savings"],
@@ -1463,39 +1453,31 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
     run_id = state.get("run_id", "unknown")
 
     # -------------------------------------------------------------------------
-    # EXPLORE STEP: Run exploration before coding & cache exploration summary
+    # EXPLORE STEP: Reuse existing exploration context or run initial exploration
     # -------------------------------------------------------------------------
     explore_mgr = get_explore_manager()
     existing_summaries = state.get("phase_explorations") or {}
-    implement_summary = existing_summaries.get("implement")
+    implement_summary = (
+        existing_summaries.get("implement")
+        or existing_summaries.get("research")
+        or existing_summaries.get("explore")
+        or state.get("exploration_summary")
+    )
     explore_messages: list[dict[str, str]] = []
-    explore_events: list[dict[str, Any]] = []
+    explore_events: list[dict[str, Any]] = state.get("exploration_events") or []
 
     if not implement_summary:
-        explore_events, implement_summary = await explore_mgr.explore_phase("implement", goal, state)
-        for ev in explore_events:
-            explore_messages.append({
-                "role": "system",
-                "content": f"[Explore Event] {json.dumps(ev)}"
-            })
-        explore_messages.append({
-            "role": "system",
-            "content": f"[Explore Summary] {json.dumps(implement_summary)}"
-        })
-    else:
-        explore_messages.append({
-            "role": "system",
-            "content": f"[Explore Summary] {json.dumps(implement_summary)}"
-        })
+        explore_events, implement_summary = await explore_mgr.explore_phase("explore", goal, state)
 
     # Summary shown to coding agent so it never re-explores the same files (token saving, per-phase)
-    relevant_files = implement_summary.get("relevant_files", [])
+    relevant_files = implement_summary.get("relevant_files", []) if implement_summary else []
+    tokens_saved = implement_summary.get("tokens_saved", 0) if implement_summary else 0
     exploration_context = (
         f"[Exploration Summary — Phase 'implement']\n"
         f"Relevant files already explored ({len(relevant_files)}): {', '.join(relevant_files)}\n"
-        f"Architecture Understanding: {implement_summary.get('architecture_understanding', '')}\n"
-        f"Risks Identified: {'; '.join(implement_summary.get('risks_identified', []))}\n"
-        f"Token Savings: ~{implement_summary.get('tokens_saved', 3200)} tokens spared.\n"
+        f"Architecture Understanding: {implement_summary.get('architecture_understanding', '') if implement_summary else ''}\n"
+        f"Risks Identified: {'; '.join(implement_summary.get('risks_identified', [])) if implement_summary else ''}\n"
+        f"Token Savings: ~{tokens_saved} tokens spared.\n"
         f"Rule: DO NOT re-explore or duplicate file reads; implement directly using this cached context."
     )
     explore_messages.append({
