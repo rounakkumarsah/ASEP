@@ -237,7 +237,11 @@ export function isStatusContent(text?: unknown): boolean {
     trimmed.startsWith("[Explore Summary]") ||
     trimmed.startsWith("[Active Skill Applied]") ||
     trimmed.startsWith("[Skill Activated]") ||
-    trimmed.startsWith("[Skill Reference]")
+    trimmed.startsWith("[Skill Reference]") ||
+    lower.startsWith("[sandbox") ||
+    lower.startsWith("[execution") ||
+    lower.includes("sandbox execution") ||
+    lower.includes("sandbox exit")
   ) {
     return true;
   }
@@ -252,6 +256,16 @@ export function classifyEvent(item: MessageItem): EventClassification {
 
   const role = (item.role || "").toLowerCase();
   const type = (item.type || "").toLowerCase();
+
+  // Execution stdout and stderr streams are always STATUS
+  if (
+    type === "output" ||
+    type === "error" ||
+    role === "stdout" ||
+    role === "stderr"
+  ) {
+    return "STATUS";
+  }
 
   // System, telemetry, or tool messages are always STATUS
   if (
@@ -1028,6 +1042,33 @@ export function CenterWorkspace() {
 
   const handleStatusEvent = (messageItem: MessageItem) => {
     const c = extractMessageContent(messageItem.content);
+    const itemType = (messageItem.type || "").toLowerCase();
+    const itemRole = (messageItem.role || "").toLowerCase();
+
+    // 1. Direct stdout / stderr message objects from sandbox execution
+    if (itemType === "output" || itemRole === "stdout") {
+      setActiveCenterTab("terminal");
+      if (c) {
+        for (const line of c.split("\n")) {
+          if (line.length > 0) {
+            addTerminalLog("output", line);
+          }
+        }
+      }
+      return;
+    }
+
+    if (itemType === "error" || itemRole === "stderr") {
+      setActiveCenterTab("terminal");
+      if (c) {
+        for (const line of c.split("\n")) {
+          if (line.length > 0) {
+            addTerminalLog("error", line);
+          }
+        }
+      }
+      return;
+    }
 
     if (
       messageItem.type === "tool" &&
@@ -1059,6 +1100,35 @@ export function CenterWorkspace() {
     }
 
     if (!c) return;
+
+    if (c.startsWith("[Sandbox Output]") || c.startsWith("[Execution Output]")) {
+      setActiveCenterTab("terminal");
+      const text = c.replace(/^\[(?:Sandbox Output|Execution Output)\]\s*/, "");
+      for (const line of text.split("\n")) {
+        if (line.length > 0) {
+          addTerminalLog("output", line);
+        }
+      }
+      return;
+    } else if (c.startsWith("[Sandbox Error]") || c.startsWith("[Execution Error]")) {
+      setActiveCenterTab("terminal");
+      const text = c.replace(/^\[(?:Sandbox Error|Execution Error)\]\s*/, "");
+      for (const line of text.split("\n")) {
+        if (line.length > 0) {
+          addTerminalLog("error", line);
+        }
+      }
+      return;
+    } else if (c.startsWith("[Sandbox Exit]") || c.startsWith("[Sandbox Exit Code")) {
+      setActiveCenterTab("terminal");
+      const isSuccess = c.includes("code 0") || c.includes("Code: 0") || c.includes("Code 0");
+      addTerminalLog(isSuccess ? "success" : "error", c);
+      return;
+    } else if (c.startsWith("[Sandbox]")) {
+      setActiveCenterTab("terminal");
+      addTerminalLog("system", c);
+      return;
+    }
 
     if (c.includes("[Auto Router Toast]")) {
       setToastMessage(c.replace("[Auto Router Toast]", "").trim());
