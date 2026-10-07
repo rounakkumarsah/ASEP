@@ -34,8 +34,16 @@ logger = logging.getLogger("opensep.conversations")
 
 router = APIRouter(prefix="/conversations", tags=["Conversations"])
 
+import os
+import time
+
 # Strong references to background run tasks (prevents GC before completion)
 _background_run_tasks: set = set()
+_run_step_counters: dict[str, int] = {}
+_run_start_times: dict[str, float] = {}
+
+MAX_STEPS = int(os.environ.get("MAX_STEPS", "40"))
+MAX_RUN_DURATION_SECONDS = float(os.environ.get("MAX_RUN_DURATION_SECONDS", "480"))  # 8 minutes
 
 
 # ---------------------------------------------------------------------------
@@ -73,6 +81,7 @@ class RunRequest(BaseModel):
 class StepRequest(BaseModel):
     thread_id: str = Field(..., description="The LangGraph thread ID associated with the run")
     goal: str | None = Field(default=None, description="Optional goal description fallback")
+    step_index: int | None = Field(default=None, description="Step index counter")
 
 class ResumeRequest(BaseModel):
     """Payload for resuming a paused (interrupted) run."""
@@ -220,6 +229,55 @@ async def run_step(
     org_id = current_user.org_id or current_user.id
     thread_id = payload.thread_id
 
+    # 1. Server-side max_steps and max_duration guard
+    current_step = payload.step_index if payload.step_index is not None else (_run_step_counters.get(run_id, 0) + 1)
+    _run_step_counters[run_id] = current_step
+
+    if run_id not in _run_start_times:
+        _run_start_times[run_id] = time.time()
+    elapsed_duration = time.time() - _run_start_times[run_id]
+
+    hit_max_steps = current_step > MAX_STEPS
+    hit_max_duration = elapsed_duration > MAX_RUN_DURATION_SECONDS
+
+    if hit_max_steps or hit_max_duration:
+        reason_msg = (
+            f"Max steps exceeded ({current_step}/{MAX_STEPS})"
+            if hit_max_steps
+            else f"Max duration exceeded ({int(elapsed_duration)}s/{int(MAX_RUN_DURATION_SECONDS)}s)"
+        )
+        try:
+            from src.api.dependencies import get_uow_factory
+            from src.db.models.agent_run import RunStatus as DbRunStatus
+            async with get_uow_factory()() as uow:
+                await uow.agent_runs.update_status(uuid.UUID(run_id), DbRunStatus.MAX_STEPS_EXCEEDED)
+                run_record = await uow.agent_runs.get(uuid.UUID(run_id))
+                if run_record:
+                    run_record.error_message = "Task too large — try breaking it down"
+                await uow.commit()
+        except Exception as e:
+            logger.warning("Could not persist MAX_STEPS_EXCEEDED for run %s: %s", run_id, e)
+
+        logger.info(
+            "POST /run/%s/step observability: step_index=%s, active_node_name=%s, llm_provider_response_status=%s, tokens_used=%d, tool_calls_made=%s, finish_reason=%s",
+            run_id,
+            current_step,
+            "guard",
+            "none",
+            0,
+            [],
+            "max_steps_exceeded",
+        )
+
+        return {
+            "status": "max_steps_exceeded",
+            "events": [],
+            "error": "Task too large — try breaking it down",
+            "message": "Task too large — try breaking it down",
+            "reason": reason_msg,
+            "step_index": current_step,
+        }
+
     runtime = get_langgraph_runtime()
     config = RunnableConfig(configurable={"thread_id": thread_id})
 
@@ -247,6 +305,10 @@ async def run_step(
         except Exception as e:
             logger.warning("Could not load AgentRun %s: %s", run_id, e)
 
+    from src.ai_runtime.telemetry import StepTelemetry, set_current_step_telemetry
+    telemetry = StepTelemetry(step_index=current_step)
+    set_current_step_telemetry(telemetry)
+
     step_result = await runtime.execute_step(
         run_id=run_id,
         thread_id=thread_id,
@@ -255,6 +317,39 @@ async def run_step(
         environment_mode="local",
         org_id=org_id,
         is_first=is_initial,
+        step_index=current_step,
+    )
+
+    # Per-step observability metrics calculation
+    active_node_name = telemetry.active_node_name
+    if active_node_name == "none":
+        exec_nodes = step_result.get("nodes_executed", [])
+        if exec_nodes:
+            active_node_name = ", ".join(exec_nodes)
+        elif step_result.get("events"):
+            evt_keys = [k for ev in step_result["events"] if isinstance(ev, dict) for k in ev.keys()]
+            if evt_keys:
+                active_node_name = ", ".join(dict.fromkeys(evt_keys))
+
+    llm_status = telemetry.llm_provider_response_status
+    tokens_used = telemetry.tokens_used
+    tool_calls_made = telemetry.tool_calls_made
+    finish_reason = (
+        "completed"
+        if step_result.get("status") == "done"
+        else (step_result.get("status") or telemetry.finish_reason)
+    )
+
+    # Required observability log at INFO level
+    logger.info(
+        "POST /run/%s/step observability: step_index=%s, active_node_name=%s, llm_provider_response_status=%s, tokens_used=%d, tool_calls_made=%s, finish_reason=%s",
+        run_id,
+        current_step,
+        active_node_name,
+        llm_status,
+        tokens_used,
+        tool_calls_made,
+        finish_reason,
     )
 
     if step_result.get("status") == "done":
@@ -266,8 +361,57 @@ async def run_step(
                 await uow.commit()
         except Exception:
             pass
+    elif step_result.get("status") == "max_steps_exceeded":
+        try:
+            from src.api.dependencies import get_uow_factory
+            from src.db.models.agent_run import RunStatus as DbRunStatus
+            async with get_uow_factory()() as uow:
+                await uow.agent_runs.update_status(uuid.UUID(run_id), DbRunStatus.MAX_STEPS_EXCEEDED)
+                run_rec = await uow.agent_runs.get(uuid.UUID(run_id))
+                if run_rec:
+                    run_rec.error_message = "Task too large — try breaking it down"
+                await uow.commit()
+        except Exception:
+            pass
+    elif step_result.get("status") == "error":
+        try:
+            from src.api.dependencies import get_uow_factory
+            from src.db.models.agent_run import RunStatus as DbRunStatus
+            async with get_uow_factory()() as uow:
+                await uow.agent_runs.update_status(uuid.UUID(run_id), DbRunStatus.FAILED)
+                run_rec = await uow.agent_runs.get(uuid.UUID(run_id))
+                if run_rec:
+                    run_rec.error_message = step_result.get("error", "Error during step execution")
+                await uow.commit()
+        except Exception:
+            pass
 
     return step_result
+
+
+@router.get(
+    "/run/{run_id}/status",
+    summary="Get status of an agent run",
+)
+async def get_run_status(
+    run_id: str,
+    current_user: CurrentUser,
+) -> dict[str, Any]:
+    """Retrieve run status for polling on page refresh / reconnect."""
+    from src.api.dependencies import get_uow_factory
+    try:
+        async with get_uow_factory()() as uow:
+            run_record = await uow.agent_runs.get(uuid.UUID(run_id))
+            if run_record:
+                status_val = run_record.status.value if hasattr(run_record.status, "value") else str(run_record.status)
+                return {
+                    "run_id": run_id,
+                    "status": status_val,
+                    "error_message": getattr(run_record, "error_message", None),
+                }
+    except Exception as e:
+        logger.warning("Could not fetch status for run %s: %s", run_id, e)
+    return {"run_id": run_id, "status": "unknown"}
 
 
 @router.get(

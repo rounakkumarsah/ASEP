@@ -401,6 +401,8 @@ export const DEFAULT_CONFIG_JSON = JSON.stringify(
   2
 );
 
+const ACTIVE_RUN_STORAGE_KEY = "asep_active_run_state";
+
 export function CenterWorkspace() {
   const {
     messages,
@@ -1316,6 +1318,207 @@ export function CenterWorkspace() {
     }
   };
 
+  const pollActiveRun = async (
+    runId: string,
+    threadId: string,
+    currentInput: string,
+    initialPollCount = 0
+  ) => {
+    setIsThinking(true);
+    let aiResponse = "";
+    let currentArtifactCode = "";
+    let pollCount = initialPollCount;
+    const MAX_POLLS = 240; // 240 * 1.5 s = 6 minutes max
+
+    try {
+      try {
+        localStorage.setItem(
+          ACTIVE_RUN_STORAGE_KEY,
+          JSON.stringify({
+            runId,
+            threadId,
+            currentInput,
+            status: "running",
+            pollCount,
+          })
+        );
+      } catch {}
+
+      let currentStatus = "running";
+      while (currentStatus === "running" && pollCount < MAX_POLLS) {
+        pollCount++;
+        try {
+          localStorage.setItem(
+            ACTIVE_RUN_STORAGE_KEY,
+            JSON.stringify({
+              runId,
+              threadId,
+              currentInput,
+              status: "running",
+              pollCount,
+            })
+          );
+        } catch {}
+
+        let stepRes;
+        let retries = 0;
+        const MAX_STEP_RETRIES = 2;
+        while (retries <= MAX_STEP_RETRIES) {
+          try {
+            stepRes = await apiClient.post<{ status: string; events?: any[]; error?: string }>(
+              `/api/v1/conversations/run/${runId}/step`,
+              { thread_id: threadId, goal: currentInput, step_index: pollCount },
+              { timeout: 120000 }
+            );
+            break;
+          } catch (err: any) {
+            retries++;
+            const isTimeoutOrNetwork =
+              err?.code === "ECONNABORTED" ||
+              err?.message?.includes("timeout") ||
+              err?.status === 0 ||
+              err?.status === 504 ||
+              err?.status === 502;
+            if (retries <= MAX_STEP_RETRIES && isTimeoutOrNetwork) {
+              addTerminalLog("system", `[Warning] Step execution timed out, retrying step (${retries}/${MAX_STEP_RETRIES})...`);
+              await new Promise((r) => setTimeout(r, 1000));
+              continue;
+            }
+            throw err;
+          }
+        }
+
+        if (!stepRes) break;
+        const stepData = stepRes.data;
+        if (
+          stepData.status === "max_steps_exceeded" ||
+          stepData.error?.includes("max_steps_exceeded") ||
+          stepData.error?.includes("Task too large")
+        ) {
+          currentStatus = "max_steps_exceeded";
+          aiResponse = "Task too large — try breaking it down";
+          addTerminalLog("system", "[Warning] Task too large — try breaking it down");
+          break;
+        }
+
+        if (stepData.status === "error") {
+          throw new Error(stepData.error || "Agent execution failed during step iteration.");
+        }
+        if (stepData.events) {
+          for (const ev of stepData.events) {
+            try {
+              processEventData(
+                ev && typeof ev === "object" && "event" in ev
+                  ? (ev as Record<string, unknown>)
+                  : { event: ev },
+                {
+                  setActiveNode,
+                  addCompletedNode,
+                  onFinalAnswer: (ans) => {
+                    aiResponse = ans;
+                  },
+                  onStatusEvent: (item) => {
+                    handleStatusEvent(item);
+                  },
+                  onArtifactCode: (code) => {
+                    currentArtifactCode = code;
+                    setArtifactCode(code);
+                  },
+                }
+              );
+            } catch {}
+          }
+        }
+        currentStatus = stepData.status;
+      }
+
+      if (currentStatus === "max_steps_exceeded" || aiResponse.includes("Task too large")) {
+        addMessage({
+          role: "assistant",
+          content: "Task too large — try breaking it down",
+          timestamp: new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        });
+        return;
+      }
+
+      if (aiResponse) {
+        const codeMatch = aiResponse.match(/```(?:[a-zA-Z0-9_\-\.\+]*)[^\S\r\n]*\r?\n([\s\S]*?)```/);
+        if (codeMatch && codeMatch[1]) {
+          currentArtifactCode = codeMatch[1].trim();
+          setArtifactCode(currentArtifactCode);
+        }
+      }
+
+      const finalAnswer = aiResponse && !isStatusContent(aiResponse) ? aiResponse.trim() : "";
+      addMessage({
+        role: "assistant",
+        content:
+          finalAnswer || "The agent could not complete this task. Please try again.",
+        timestamp: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      });
+    } catch (error) {
+      console.error("LangGraph run execution error:", error);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const errObj = error as any;
+      const errMsg =
+        errObj?.response?.data?.detail ||
+        errObj?.response?.data?.message ||
+        (error instanceof Error ? error.message : "Backend unavailable");
+      const isMaxSteps = typeof errMsg === "string" && (
+        errMsg.includes("max_steps_exceeded") ||
+        errMsg.includes("Task too large")
+      );
+      if (isMaxSteps) {
+        addTerminalLog("system", "[Warning] Task too large — try breaking it down");
+        addMessage({
+          role: "assistant",
+          content: "Task too large — try breaking it down",
+          timestamp: new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        });
+      } else {
+        addTerminalLog("system", `[Error] ${errMsg}`);
+        addMessage({
+          role: "assistant",
+          content: "The agent could not complete this task. Please try again.",
+          timestamp: new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        });
+      }
+    } finally {
+      try {
+        localStorage.removeItem(ACTIVE_RUN_STORAGE_KEY);
+      } catch {}
+      setIsThinking(false);
+      setActiveNode(null);
+    }
+  };
+
+  React.useEffect(() => {
+    try {
+      const raw = localStorage.getItem(ACTIVE_RUN_STORAGE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (saved && saved.status === "running" && saved.runId && saved.threadId) {
+        addTerminalLog("system", `[System] Resuming in-progress run ${saved.runId}...`);
+        setClarificationThreadId(saved.threadId);
+        pollActiveRun(saved.runId, saved.threadId, saved.currentInput || "", saved.pollCount || 0);
+      }
+    } catch (e) {
+      console.warn("Failed to resume active run from localStorage", e);
+    }
+  }, []);
+
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedInput = input.trim();
@@ -1355,18 +1558,6 @@ export function CenterWorkspace() {
     setSecurityFindings([]);
     securityFindingsRef.current = [];
 
-    // ------------------------------------------------------------------
-    // Polling-based run execution
-    //
-    // POST /conversations/run  →  { run_id, thread_id, status: "queued" }
-    // GET  /conversations/run/{run_id}/status?cursor=N  every 1.5 s
-    //      →  { status, events: [...], cursor }
-    //
-    // This replaces the broken SSE pattern that Vercel serverless buffers
-    // entirely, causing fetch() to throw "Failed to fetch" before the agent
-    // completes (30 s function timeout).
-    // ------------------------------------------------------------------
-
     try {
       // 1. Submit the run — returns immediately with run_id
       const startRes = await apiClient.post<{ run_id: string; thread_id: string; status: string }>(
@@ -1384,95 +1575,7 @@ export function CenterWorkspace() {
       const runId = startData.run_id;
 
       // 2. Poll for events and status
-      let cursor = 0;
-      let aiResponse = "";
-      let currentArtifactCode = "";
-      let pollCount = 0;
-      const MAX_POLLS = 240; // 240 * 1.5 s = 6 minutes max
-
-      let currentStatus = "running";
-      while (currentStatus === "running" && pollCount < MAX_POLLS) {
-        pollCount++;
-        
-        let stepRes;
-        let retries = 0;
-        const MAX_STEP_RETRIES = 2;
-        while (retries <= MAX_STEP_RETRIES) {
-          try {
-            stepRes = await apiClient.post<{ status: string; events?: any[]; error?: string }>(
-              `/api/v1/conversations/run/${runId}/step`,
-              { thread_id: newThreadId, goal: currentInput },
-              { timeout: 120000 }
-            );
-            break;
-          } catch (err: any) {
-            retries++;
-            const isTimeoutOrNetwork =
-              err?.code === "ECONNABORTED" ||
-              err?.message?.includes("timeout") ||
-              err?.status === 0 ||
-              err?.status === 504 ||
-              err?.status === 502;
-            if (retries <= MAX_STEP_RETRIES && isTimeoutOrNetwork) {
-              addTerminalLog("system", `[Warning] Step execution timed out, retrying step (${retries}/${MAX_STEP_RETRIES})...`);
-              await new Promise((r) => setTimeout(r, 1000));
-              continue;
-            }
-            throw err;
-          }
-        }
-
-        if (!stepRes) break;
-        const stepData = stepRes.data;
-        if (stepData.status === "error") {
-          throw new Error(stepData.error || "Agent execution failed during step iteration.");
-        }
-        if (stepData.events) {
-          for (const ev of stepData.events) {
-            try {
-              processEventData(
-                ev && typeof ev === "object" && "event" in ev
-                  ? (ev as Record<string, unknown>)
-                  : { event: ev },
-                {
-                  setActiveNode,
-                  addCompletedNode,
-                  onFinalAnswer: (ans) => {
-                    aiResponse = ans;
-                  },
-                  onStatusEvent: (item) => {
-                    handleStatusEvent(item);
-                  },
-                  onArtifactCode: (code) => {
-                    currentArtifactCode = code;
-                    setArtifactCode(code);
-                  },
-                }
-              );
-            } catch {}
-          }
-        }
-        currentStatus = stepData.status;
-      }
-
-      if (aiResponse) {
-        const codeMatch = aiResponse.match(/```(?:[a-zA-Z0-9_\-\.\+]*)[^\S\r\n]*\r?\n([\s\S]*?)```/);
-        if (codeMatch && codeMatch[1]) {
-          currentArtifactCode = codeMatch[1].trim();
-          setArtifactCode(currentArtifactCode);
-        }
-      }
-
-      const finalAnswer = aiResponse && !isStatusContent(aiResponse) ? aiResponse.trim() : "";
-      addMessage({
-        role: "assistant",
-        content:
-          finalAnswer || "The agent could not complete this task. Please try again.",
-        timestamp: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-      });
+      await pollActiveRun(runId, newThreadId, currentInput, 0);
     } catch (error) {
       console.error("LangGraph run execution error:", error);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1481,15 +1584,31 @@ export function CenterWorkspace() {
         errObj?.response?.data?.detail ||
         errObj?.response?.data?.message ||
         (error instanceof Error ? error.message : "Backend unavailable");
-      addTerminalLog("system", `[Error] ${errMsg}`);
-      addMessage({
-        role: "assistant",
-        content: "The agent could not complete this task. Please try again.",
-        timestamp: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-      });
+      const isMaxSteps = typeof errMsg === "string" && (
+        errMsg.includes("max_steps_exceeded") ||
+        errMsg.includes("Task too large")
+      );
+      if (isMaxSteps) {
+        addTerminalLog("system", "[Warning] Task too large — try breaking it down");
+        addMessage({
+          role: "assistant",
+          content: "Task too large — try breaking it down",
+          timestamp: new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        });
+      } else {
+        addTerminalLog("system", `[Error] ${errMsg}`);
+        addMessage({
+          role: "assistant",
+          content: "The agent could not complete this task. Please try again.",
+          timestamp: new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        });
+      }
     } finally {
       setIsThinking(false);
       setActiveNode(null);

@@ -81,10 +81,17 @@ class AnthropicProvider(BaseAIProvider):
         else:
             kwargs["max_tokens"] = 4096
 
-        response = await loop.run_in_executor(
-            None,
-            lambda: client.messages.create(**kwargs)
-        )
+        try:
+            response = await loop.run_in_executor(
+                None,
+                lambda: client.messages.create(**kwargs)
+            )
+        except Exception as exc:
+            err_str = str(exc)
+            if "429" in err_str or "rate_limit" in err_str.lower() or "rate limit" in err_str.lower():
+                import logging
+                logging.getLogger(__name__).warning("Anthropic 429 Rate Limit response: %s", err_str)
+            raise
 
         latency_ms = (time.perf_counter() - start_time) * 1000.0
 

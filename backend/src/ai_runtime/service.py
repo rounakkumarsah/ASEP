@@ -13,7 +13,9 @@ from src.ai_runtime.contracts import (
     ProviderHealth,
     StreamChunk,
 )
+from src.ai_runtime.circuit_breaker import CircuitBreaker, CircuitBreakerError, get_run_circuit_breaker
 from src.ai_runtime.registry import ProviderRegistry
+from src.ai_runtime.telemetry import get_current_step_telemetry
 
 logger = structlog.get_logger(__name__)
 
@@ -21,6 +23,7 @@ class AIRuntimeService:
     def __init__(self, registry: ProviderRegistry | None = None) -> None:
         self.registry = registry or ProviderRegistry()
         self.context_manager = ConversationContextManager()
+        self._fallback_breaker = CircuitBreaker(failure_threshold=3, cooldown_seconds=60.0)
 
     async def complete(self, request: CompletionRequest) -> CompletionResponse:
         logger.info("RequestStarted", model=request.model, temperature=request.temperature)
@@ -35,6 +38,14 @@ class AIRuntimeService:
             request.model = decision["model"]
             router_reason = decision["reason"]
             logger.info("AutoRouterDecision", model=request.model, reason=router_reason)
+
+        run_id = (request.trace and request.trace.get("run_id")) or request.session_id or getattr(request, "run_id", None)
+        run_breaker = get_run_circuit_breaker(str(run_id)) if run_id else self._fallback_breaker
+
+        if run_breaker.is_open and not run_breaker.allow_request():
+            raise CircuitBreakerError(
+                f"Circuit breaker is OPEN after 3 consecutive LLM failures. Aborting run. Last error: {run_breaker.last_error}"
+            )
 
         last_error = None
         
@@ -110,6 +121,13 @@ class AIRuntimeService:
                                 
                             if breaker:
                                 breaker.record_success()
+                            run_breaker.record_success()
+                            get_current_step_telemetry().record_llm_success(
+                                provider=provider.name,
+                                tokens=res.usage.total_tokens,
+                                tool_calls=[tc.name for tc in (res.tool_calls or [])],
+                                finish_reason=res.finish_reason or "stop",
+                            )
                                 
                             if is_auto:
                                 auto_router.record_success(request.model)
@@ -127,6 +145,30 @@ class AIRuntimeService:
                                 res.router_reason = router_reason
                             return res
                     except Exception as exc:
+                        error_str = str(exc)
+                        resp_text = ""
+                        if hasattr(exc, "response") and hasattr(getattr(exc, "response"), "text"):
+                            resp_text = getattr(exc.response, "text", "")
+                        combined_err = f"{error_str} {resp_text}".strip()
+                        is_429 = (
+                            "429" in combined_err
+                            or "rate limit" in combined_err.lower()
+                            or "too many requests" in combined_err.lower()
+                            or "quota" in combined_err.lower()
+                            or "resource_exhausted" in combined_err.lower()
+                        )
+                        if is_429:
+                            import logging
+                            logging.getLogger("src.ai_runtime").warning(
+                                "LLM 429 Rate Limit error from provider '%s': %s",
+                                provider.name,
+                                resp_text or error_str,
+                            )
+                            logger.warning(
+                                "RateLimit429",
+                                provider=provider.name,
+                                error=resp_text or error_str,
+                            )
                         logger.warning(
                             "RetryAttempt",
                             provider=provider.name,
@@ -174,6 +216,17 @@ class AIRuntimeService:
         error_msg = str(last_error) if last_error else "Unknown error"
         if last_error and not str(last_error) and type(last_error).__name__ == "ReadTimeout":
             error_msg = "Connection timed out"
+
+        run_breaker.record_failure(last_error or error_msg)
+        get_current_step_telemetry().record_llm_failure(
+            provider="chain",
+            is_429=False,
+            error_msg=error_msg,
+        )
+        if run_breaker.consecutive_failures >= 3:
+            raise CircuitBreakerError(
+                f"Circuit breaker tripped after 3 consecutive LLM failures. Aborting run. Last error: {error_msg}"
+            ) from last_error
             
         raise RuntimeError(f"AI runtime failed to process request. All providers exhausted. Last error: {error_msg}") from last_error
 

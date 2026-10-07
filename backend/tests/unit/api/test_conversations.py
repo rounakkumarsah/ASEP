@@ -169,3 +169,109 @@ async def test_run_step_subsequent_step_sets_is_first_false(test_client: TestCli
         assert resp.status_code == 200
         runtime.execute_step.assert_called_once()
         assert runtime.execute_step.call_args.kwargs["is_first"] is False
+
+
+@pytest.mark.asyncio
+async def test_run_step_max_steps_guard(test_client: TestClient):
+    """POST /run/{run_id}/step with step_index > 40 should hit max_steps guard."""
+    run_id = str(uuid.uuid4())
+    thread_id = str(uuid.uuid4())
+
+    with patch("src.api.routers.conversations.get_langgraph_runtime") as mock_rt:
+        runtime = MagicMock()
+        mock_rt.return_value = runtime
+
+        resp = test_client.post(
+            f"/api/v1/conversations/run/{run_id}/step",
+            json={"thread_id": thread_id, "step_index": 41},
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "max_steps_exceeded"
+    assert "Task too large — try breaking it down" in data["error"]
+    runtime.execute_step.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_run_step_max_duration_guard(test_client: TestClient):
+    """POST /run/{run_id}/step exceeding max_duration should hit duration guard."""
+    run_id = str(uuid.uuid4())
+    thread_id = str(uuid.uuid4())
+
+    from src.api.routers.conversations import _run_start_times
+    import time
+    # Set run start time to 500 seconds ago (limit is 480s)
+    _run_start_times[run_id] = time.time() - 500.0
+
+    with patch("src.api.routers.conversations.get_langgraph_runtime") as mock_rt:
+        runtime = MagicMock()
+        mock_rt.return_value = runtime
+
+        resp = test_client.post(
+            f"/api/v1/conversations/run/{run_id}/step",
+            json={"thread_id": thread_id, "step_index": 1},
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "max_steps_exceeded"
+    assert "Task too large — try breaking it down" in data["error"]
+    runtime.execute_step.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_run_step_observability_logging(test_client: TestClient, caplog):
+    """POST /run/{run_id}/step logs step observability at INFO level."""
+    import logging
+    run_id = str(uuid.uuid4())
+    thread_id = str(uuid.uuid4())
+
+    with patch("src.api.routers.conversations.get_langgraph_runtime") as mock_rt, \
+         caplog.at_level(logging.INFO, logger="opensep.conversations"):
+        runtime = MagicMock()
+        runtime.graph.aget_state = AsyncMock(return_value=MagicMock(values={"messages": ["hi"]}))
+        runtime.execute_step = AsyncMock(
+            return_value={"status": "running", "events": [{"orchestrator": {}}], "nodes_executed": ["orchestrator"]}
+        )
+        mock_rt.return_value = runtime
+
+        resp = test_client.post(
+            f"/api/v1/conversations/run/{run_id}/step",
+            json={"thread_id": thread_id, "step_index": 2},
+        )
+
+    assert resp.status_code == 200
+    # Check that required observability keywords are logged at INFO level
+    log_text = caplog.text
+    assert f"POST /run/{run_id}/step observability" in log_text
+    assert "step_index=2" in log_text
+    assert "active_node_name=orchestrator" in log_text
+    assert "llm_provider_response_status=" in log_text
+    assert "tokens_used=" in log_text
+    assert "tool_calls_made=" in log_text
+    assert "finish_reason=" in log_text
+
+
+@pytest.mark.asyncio
+async def test_get_run_status_endpoint(test_client: TestClient):
+    """GET /run/{run_id}/status returns the run status."""
+    run_id = str(uuid.uuid4())
+
+    with patch("src.api.dependencies.get_uow_factory") as mock_uow_factory:
+        mock_uow = AsyncMock()
+        mock_run_record = MagicMock()
+        mock_run_record.status.value = "running"
+        mock_run_record.error_message = None
+        mock_uow.agent_runs.get = AsyncMock(return_value=mock_run_record)
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_uow
+        mock_context.__aexit__.return_value = None
+        mock_uow_factory.return_value = MagicMock(return_value=mock_context)
+
+        resp = test_client.get(f"/api/v1/conversations/run/{run_id}/status")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["run_id"] == run_id
+    assert data["status"] == "running"
