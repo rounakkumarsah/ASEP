@@ -1743,12 +1743,86 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
             "content": f"```python\n{final_code}\n```"
         })
 
+    # -------------------------------------------------------------------------
+    # E2B SANDBOX EXECUTION: Execute generated code in isolated sandbox (E2B / fallback)
+    # Stream real execution events (stdout, stderr, exit code) to Terminal tab
+    # -------------------------------------------------------------------------
+    code_to_execute = processed_code or final_code
+    execution_result: dict[str, Any] = {}
+
+    non_python_indicators = [
+        "import * as React", "import React", "export interface", "export const",
+        "export default", "export function", "export class", "from 'react'",
+        'from "react"', "</", "=>", "const "
+    ]
+    code_stripped = (code_to_execute or "").strip()
+    is_non_python = (
+        code_stripped.startswith("//")
+        or code_stripped.startswith("/*")
+        or any(ind in code_to_execute for ind in non_python_indicators)
+        or (filepath and filepath.endswith((".ts", ".tsx", ".js", ".jsx", ".html", ".css")))
+    )
+    is_placeholder = (
+        code_stripped in ("print('No code to evaluate')", "print('Implementation complete')")
+        or (code_stripped.startswith("# ") and "\n" not in code_stripped.strip("\n"))
+    )
+
+    if not is_non_python and not is_placeholder and code_stripped:
+        try:
+            from src.services.e2b_sandbox import execute_code_with_fallback
+            exec_res = await execute_code_with_fallback(code_to_execute, timeout=15.0)
+
+            mode_desc = "E2B cloud sandbox" if exec_res.execution_mode == "e2b" else "isolated sandbox"
+            messages.append({
+                "role": "system",
+                "content": f"[Sandbox] Executing generated code in {mode_desc}...",
+            })
+
+            # Emit real stdout lines
+            for line in exec_res.stdout_lines:
+                messages.append({
+                    "type": "output",
+                    "role": "stdout",
+                    "content": line,
+                })
+
+            # Emit real stderr lines
+            for line in exec_res.stderr_lines:
+                messages.append({
+                    "type": "error",
+                    "role": "stderr",
+                    "content": line,
+                })
+
+            # Emit exit status
+            exit_text = f"[Sandbox Exit] Process completed with exit code {exec_res.exit_code} ({exec_res.duration_ms:.1f}ms)"
+            messages.append({
+                "role": "system",
+                "content": exit_text,
+            })
+
+            execution_result = {
+                "exit_code": exec_res.exit_code,
+                "stdout": exec_res.stdout,
+                "stderr": exec_res.stderr,
+                "execution_mode": exec_res.execution_mode,
+                "duration_ms": exec_res.duration_ms,
+            }
+        except Exception as exc:
+            logger.warning("Sandbox execution error in implement phase: %s", exc)
+            messages.append({
+                "type": "error",
+                "role": "stderr",
+                "content": f"[Sandbox Error] Execution failed: {exc}",
+            })
+
     return {
         "status": "verified",
         "current_phase": "implement",
         "generated_code": final_code,
         "file_content": final_code,
         "code_context": final_code,
+        "execution_result": execution_result,
         "exploration_events": explore_events,
         "exploration_summary": implement_summary,
         "phase_explorations": {**(state.get("phase_explorations") or {}), "implement": implement_summary},
@@ -1780,9 +1854,10 @@ async def critic_node(state: AgentState) -> dict[str, Any]:
     heal_count = state.get("heal_cycle_count", 0)
 
     # -------------------------------------------------------------------------
-    # SERVERLESS / NON-PYTHON BYPASS: Skip sandbox on Vercel or for non-Python
+    # SERVERLESS / NON-PYTHON BYPASS: Skip sandbox on Vercel or for non-Python (unless E2B cloud sandbox is configured)
     # -------------------------------------------------------------------------
-    is_serverless = os.environ.get("VERCEL") == "1" or os.environ.get("SERVERLESS") == "1"
+    from src.services.e2b_sandbox import is_e2b_configured
+    is_serverless = (os.environ.get("VERCEL") == "1" or os.environ.get("SERVERLESS") == "1") and not is_e2b_configured()
     
     # Detect non-Python code that would crash subprocess.run([sys.executable, ...])
     non_python_indicators = [

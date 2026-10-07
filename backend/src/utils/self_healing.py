@@ -35,7 +35,8 @@ class SandboxRunResult:
     tests_passed: bool = True
     success: bool = True
     duration_ms: float = 0.0
-    execution_mode: str = "subprocess"  # "docker" or "subprocess"
+    execution_mode: str = "subprocess"  # "docker", "subprocess", "e2b", "restricted_python"
+    timed_out: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -92,6 +93,25 @@ class SandboxRunner:
     ) -> SandboxRunResult:
         """Execute code in the sandbox and capture execution telemetry."""
         start_time = time.perf_counter()
+
+        # 0. E2B cloud sandbox execution if configured
+        try:
+            from src.services.e2b_sandbox import is_e2b_configured, execute_e2b_sync
+            if is_e2b_configured():
+                e2b_res = execute_e2b_sync(code, timeout=timeout_seconds)
+                return SandboxRunResult(
+                    stdout=e2b_res.stdout,
+                    stderr=e2b_res.stderr,
+                    exit_code=e2b_res.exit_code,
+                    stack_trace=e2b_res.stderr if e2b_res.exit_code != 0 else "",
+                    duration_ms=e2b_res.duration_ms,
+                    timed_out=e2b_res.timed_out,
+                    tests_passed=(e2b_res.exit_code == 0),
+                    success=(e2b_res.exit_code == 0),
+                    execution_mode="e2b",
+                )
+        except Exception as exc:
+            logger.debug("E2B cloud sandbox execution skipped or failed: %s", exc)
 
         # 1. Check if Docker daemon is available
         docker_client = None
