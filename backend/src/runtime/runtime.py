@@ -250,9 +250,16 @@ class LangGraphRuntime:
 
 
     async def execute_step(
-        self, run_id: str, thread_id: str, goal: str = "", research_mode: str = "balanced", environment_mode: str = "local", org_id: str | None = None, is_first: bool = False
+        self, run_id: str, thread_id: str, goal: str = "", research_mode: str = "balanced", environment_mode: str = "local", org_id: str | None = None, is_first: bool = False, step_index: int | None = None
     ) -> dict:
         """Executes exactly one step (superstep) of the LangGraph workflow and returns events."""
+        if step_index is not None and step_index > 40:
+            return {
+                "status": "max_steps_exceeded",
+                "events": [],
+                "error": "Task too large — try breaking it down",
+                "nodes_executed": [],
+            }
         from langchain_core.runnables.config import RunnableConfig
         import uuid
         import logging
@@ -371,7 +378,12 @@ class LangGraphRuntime:
             import logging
             logger = logging.getLogger(__name__)
             logger.error(f"Execution step error: {e}", exc_info=True)
-            return {"status": "error", "events": events, "error": str(e)}
+            try:
+                from src.ai_runtime.telemetry import get_current_step_telemetry
+                get_current_step_telemetry().record_llm_failure(provider="runtime", error_msg=str(e))
+            except Exception:
+                pass
+            return {"status": "error", "events": events, "error": str(e), "nodes_executed": nodes_executed}
             
         elapsed_seconds = round(time.perf_counter() - start_time, 2)
         state = await self.graph.aget_state(config)
@@ -429,8 +441,20 @@ class LangGraphRuntime:
                     import logging
                     logger = logging.getLogger(__name__)
                     logger.error(f"Failed to trigger end-of-run memory hooks: {e}")
+
+        try:
+            from src.ai_runtime.telemetry import get_current_step_telemetry
+            t = get_current_step_telemetry()
+            if nodes_executed:
+                t.active_node_name = ", ".join(nodes_executed)
+            if is_done:
+                t.finish_reason = "completed"
+            elif t.finish_reason == "unknown":
+                t.finish_reason = "continue"
+        except Exception:
+            pass
                     
-        return {"status": "done" if is_done else "running", "events": events}
+        return {"status": "done" if is_done else "running", "events": events, "nodes_executed": nodes_executed}
 
     async def resume_run(
         self, thread_id: str, human_input: str

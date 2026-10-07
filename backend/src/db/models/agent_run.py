@@ -73,6 +73,7 @@ class RunStatus(enum.StrEnum):
             policy engine before completion.
         TIMED_OUT: Exceeded the configured wall-clock deadline without
             reaching a terminal state.
+        MAX_STEPS_EXCEEDED: Exceeded max allowed steps or duration guard.
     """
 
     PENDING = "pending"
@@ -81,6 +82,7 @@ class RunStatus(enum.StrEnum):
     FAILED = "failed"
     CANCELLED = "cancelled"
     TIMED_OUT = "timed_out"
+    MAX_STEPS_EXCEEDED = "max_steps_exceeded"
 
 
 # ---------------------------------------------------------------------------

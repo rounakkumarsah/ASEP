@@ -168,6 +168,10 @@ class GroqProvider(BaseAIProvider):
                     payload["temperature"] = max(payload.get("temperature", 0.7) - 0.2, 0.1)
                     response = await client.post("/chat/completions", headers=headers, json=payload)
                     response.raise_for_status()
+                elif e.response.status_code == 429 or "rate" in e.response.text.lower():
+                    import logging
+                    logging.getLogger(__name__).warning("Groq 429 Rate Limit response: %s", e.response.text)
+                    raise
                 else:
                     raise
 

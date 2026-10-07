@@ -194,6 +194,9 @@ class GeminiProvider(BaseAIProvider):
 
         async with httpx.AsyncClient(base_url=self.base_url, timeout=timeout) as client:
             response = await client.post(url, headers=headers, json=payload)
+            if response.status_code == 429 or "rate" in response.text.lower() or "quota" in response.text.lower() or "resource_exhausted" in response.text.lower():
+                import logging
+                logging.getLogger(__name__).warning("Gemini 429 Rate Limit response: %s", response.text)
             response.raise_for_status()
             data = response.json()
 
