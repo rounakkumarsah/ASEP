@@ -387,19 +387,20 @@ class ExploreManager:
         for gm in grep_matches[:5]:
             found_files_set.add(gm["file"])
 
-        # 5. Real Web Search Tool Invocation
-        web_query = f"{goal} architecture best practices"
-        web_res = await self.web_search(web_query, max_results=3)
-        searches_count += 1
-        emit(ExploreEvent(
-            phase=phase_name,
-            type="search",
-            detail=f"Web search for '{web_query}' ({web_res.get('engine', 'web')}) — {len(web_res.get('results', []))} results found",
-            match_count=len(web_res.get("results", [])),
-            duration_ms=web_res.get("duration_ms", 10),
-            status="completed",
-            tool_args={"query": web_query, "engine": web_res.get("engine"), "count": len(web_res.get("results", []))}
-        ))
+        # 5. Real Web Search Tool Invocation (wired for research phase)
+        if phase_name == "research":
+            web_query = f"{goal} architecture best practices"
+            web_res = await self.web_search(web_query, max_results=3)
+            searches_count += 1
+            emit(ExploreEvent(
+                phase=phase_name,
+                type="search",
+                detail=f"Web search for '{web_query}' ({web_res.get('engine', 'web')}) — {len(web_res.get('results', []))} results found",
+                match_count=len(web_res.get("results", [])),
+                duration_ms=web_res.get("duration_ms", 10),
+                status="completed",
+                tool_args={"query": web_query, "engine": web_res.get("engine"), "count": len(web_res.get("results", []))}
+            ))
 
         # 6. Analyze Action with real duration
         t_analyze = time.time()

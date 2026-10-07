@@ -135,3 +135,46 @@ async def test_explore_phase_real_metrics(test_workspace, caplog):
         if "Tool invocation: tool=" in r.message
     ]
     assert len(logged_tools) >= 3, f"Expected multiple tool invocation logs, got: {logged_tools}"
+
+
+@pytest.mark.asyncio
+async def test_web_search_serper_dispatch():
+    """Verify web search routes to Serper when SERPER_API_KEY is configured."""
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "organic": [
+            {"title": "Serper Result", "link": "https://example.com/serper", "snippet": "Serper organic result"}
+        ]
+    }
+
+    with patch.dict(os.environ, {"TAVILY_API_KEY": "", "SERPER_API_KEY": "test-serper-key"}), \
+         patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_resp):
+        res = await execute_web_search("serper test query", max_results=1)
+        assert res["engine"] == "serper"
+        assert len(res["results"]) == 1
+        assert res["results"][0]["title"] == "Serper Result"
+
+
+@pytest.mark.asyncio
+async def test_tool_logging_on_timeout(caplog):
+    """Verify tool invocations log at INFO level even when timing out."""
+    caplog.set_level(logging.INFO)
+    registry = ToolRegistry()
+    registry.register(WebSearchTool())
+    dispatcher = ToolDispatcher(registry)
+
+    with patch("src.tools.web_search.execute_web_search", new_callable=AsyncMock) as mock_search:
+        async def slow_search(*args, **kwargs):
+            await asyncio.sleep(0.5)
+            return {}
+        import asyncio
+        mock_search.side_effect = slow_search
+        await dispatcher.execute("web_search", {"query": "timeout test", "max_results": 1}, granted_permissions=["web_search"], timeout=0.05)
+
+    timeout_logs = [
+        r.message for r in caplog.records
+        if "Tool invocation: tool='web_search'" in r.message and "result_size=0" in r.message
+    ]
+    assert len(timeout_logs) >= 1, f"Expected tool invocation INFO log on timeout, got: {[r.message for r in caplog.records]}"
+
