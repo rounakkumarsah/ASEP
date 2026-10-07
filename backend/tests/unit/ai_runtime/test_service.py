@@ -98,6 +98,8 @@ def test_circuit_breaker_aborts_after_three_failures():
 
 def test_429_rate_limit_logged_loudly(caplog):
     import logging
+    from src.ai_runtime.telemetry import StepTelemetry, set_current_step_telemetry, get_current_step_telemetry
+    set_current_step_telemetry(StepTelemetry())
     service = AIRuntimeService()
 
     request = CompletionRequest(
@@ -119,3 +121,36 @@ def test_429_rate_limit_logged_loudly(caplog):
             asyncio.run(service.complete(request))
 
     assert any("429" in record.message and record.levelno >= logging.WARNING for record in caplog.records)
+    assert get_current_step_telemetry().llm_provider_response_status == "429"
+
+
+def test_circuit_breaker_shares_run_id_across_service_instances():
+    """Verify circuit breaker accumulates across distinct AIRuntimeService instances using telemetry run_id."""
+    from src.ai_runtime.circuit_breaker import CircuitBreakerError
+    from src.ai_runtime.telemetry import StepTelemetry, set_current_step_telemetry
+
+    run_id = "test-shared-run-abc"
+    set_current_step_telemetry(StepTelemetry(run_id=run_id))
+
+    # Request has no session_id or trace; run_id comes from StepTelemetry
+    request = CompletionRequest(
+        messages=[Message(role="user", content="Hello")],
+        model="gpt-4o",
+    )
+
+    import asyncio
+    for attempt in range(1, 4):
+        service = AIRuntimeService()  # New instance each time, like LangGraph nodes
+        mock_failing = AsyncMock()
+        mock_failing.name = "gemini"
+        mock_failing.get_capability_matrix = MagicMock(return_value=MagicMock(context_window=8192))
+        mock_failing.complete.side_effect = Exception("API error")
+        service.registry.get_priority_chain = MagicMock(return_value=[mock_failing])
+
+        if attempt < 3:
+            with pytest.raises(RuntimeError):
+                asyncio.run(service.complete(request))
+        else:
+            with pytest.raises(CircuitBreakerError) as exc_info:
+                asyncio.run(service.complete(request))
+            assert "Circuit breaker tripped after 3 consecutive LLM failures" in str(exc_info.value)

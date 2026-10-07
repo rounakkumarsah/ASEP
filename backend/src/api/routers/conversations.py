@@ -169,6 +169,8 @@ async def start_run(
 
     thread_id = payload.thread_id or str(uuid.uuid4())
     run_id = str(uuid.uuid4())
+    _run_start_times[run_id] = time.time()
+    _run_step_counters[run_id] = 0
 
     logger.info(
         "Initiating run run_id=%s thread_id=%s user=%s",
@@ -306,51 +308,60 @@ async def run_step(
             logger.warning("Could not load AgentRun %s: %s", run_id, e)
 
     from src.ai_runtime.telemetry import StepTelemetry, set_current_step_telemetry
-    telemetry = StepTelemetry(step_index=current_step)
+    telemetry = StepTelemetry(step_index=current_step, run_id=run_id)
     set_current_step_telemetry(telemetry)
 
-    step_result = await runtime.execute_step(
-        run_id=run_id,
-        thread_id=thread_id,
-        goal=goal,
-        research_mode="balanced",
-        environment_mode="local",
-        org_id=org_id,
-        is_first=is_initial,
-        step_index=current_step,
-    )
+    step_result: dict[str, Any] = {}
+    try:
+        step_result = await runtime.execute_step(
+            run_id=run_id,
+            thread_id=thread_id,
+            goal=goal,
+            research_mode="balanced",
+            environment_mode="local",
+            org_id=org_id,
+            is_first=is_initial,
+            step_index=current_step,
+        )
+    except Exception as exc:
+        step_result = {
+            "status": "error",
+            "events": [],
+            "error": str(exc),
+            "nodes_executed": [],
+        }
+    finally:
+        # Per-step observability metrics calculation
+        active_node_name = telemetry.active_node_name
+        if active_node_name == "none":
+            exec_nodes = step_result.get("nodes_executed", [])
+            if exec_nodes:
+                active_node_name = ", ".join(exec_nodes)
+            elif step_result.get("events"):
+                evt_keys = [k for ev in step_result["events"] if isinstance(ev, dict) for k in ev.keys()]
+                if evt_keys:
+                    active_node_name = ", ".join(dict.fromkeys(evt_keys))
 
-    # Per-step observability metrics calculation
-    active_node_name = telemetry.active_node_name
-    if active_node_name == "none":
-        exec_nodes = step_result.get("nodes_executed", [])
-        if exec_nodes:
-            active_node_name = ", ".join(exec_nodes)
-        elif step_result.get("events"):
-            evt_keys = [k for ev in step_result["events"] if isinstance(ev, dict) for k in ev.keys()]
-            if evt_keys:
-                active_node_name = ", ".join(dict.fromkeys(evt_keys))
+        llm_status = telemetry.llm_provider_response_status
+        tokens_used = telemetry.tokens_used
+        tool_calls_made = telemetry.tool_calls_made
+        finish_reason = (
+            "completed"
+            if step_result.get("status") == "done"
+            else (step_result.get("status") or telemetry.finish_reason)
+        )
 
-    llm_status = telemetry.llm_provider_response_status
-    tokens_used = telemetry.tokens_used
-    tool_calls_made = telemetry.tool_calls_made
-    finish_reason = (
-        "completed"
-        if step_result.get("status") == "done"
-        else (step_result.get("status") or telemetry.finish_reason)
-    )
-
-    # Required observability log at INFO level
-    logger.info(
-        "POST /run/%s/step observability: step_index=%s, active_node_name=%s, llm_provider_response_status=%s, tokens_used=%d, tool_calls_made=%s, finish_reason=%s",
-        run_id,
-        current_step,
-        active_node_name,
-        llm_status,
-        tokens_used,
-        tool_calls_made,
-        finish_reason,
-    )
+        # Required observability log at INFO level
+        logger.info(
+            "POST /run/%s/step observability: step_index=%s, active_node_name=%s, llm_provider_response_status=%s, tokens_used=%d, tool_calls_made=%s, finish_reason=%s",
+            run_id,
+            current_step,
+            active_node_name,
+            llm_status,
+            tokens_used,
+            tool_calls_made,
+            finish_reason,
+        )
 
     if step_result.get("status") == "done":
         try:
@@ -366,10 +377,11 @@ async def run_step(
             from src.api.dependencies import get_uow_factory
             from src.db.models.agent_run import RunStatus as DbRunStatus
             async with get_uow_factory()() as uow:
-                await uow.agent_runs.update_status(uuid.UUID(run_id), DbRunStatus.MAX_STEPS_EXCEEDED)
-                run_rec = await uow.agent_runs.get(uuid.UUID(run_id))
-                if run_rec:
-                    run_rec.error_message = "Task too large — try breaking it down"
+                await uow.agent_runs.update_status(
+                    uuid.UUID(run_id),
+                    DbRunStatus.MAX_STEPS_EXCEEDED,
+                    error_message="Task too large — try breaking it down",
+                )
                 await uow.commit()
         except Exception:
             pass
@@ -378,10 +390,11 @@ async def run_step(
             from src.api.dependencies import get_uow_factory
             from src.db.models.agent_run import RunStatus as DbRunStatus
             async with get_uow_factory()() as uow:
-                await uow.agent_runs.update_status(uuid.UUID(run_id), DbRunStatus.FAILED)
-                run_rec = await uow.agent_runs.get(uuid.UUID(run_id))
-                if run_rec:
-                    run_rec.error_message = step_result.get("error", "Error during step execution")
+                await uow.agent_runs.update_status(
+                    uuid.UUID(run_id),
+                    DbRunStatus.FAILED,
+                    error_message=step_result.get("error", "Error during step execution"),
+                )
                 await uow.commit()
         except Exception:
             pass

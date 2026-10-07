@@ -275,3 +275,32 @@ async def test_get_run_status_endpoint(test_client: TestClient):
     data = resp.json()
     assert data["run_id"] == run_id
     assert data["status"] == "running"
+
+
+@pytest.mark.asyncio
+async def test_run_step_observability_logged_on_exception(test_client: TestClient, caplog):
+    """POST /run/{run_id}/step logs observability even if execute_step raises an exception."""
+    import logging
+    run_id = str(uuid.uuid4())
+    thread_id = str(uuid.uuid4())
+
+    with patch("src.api.routers.conversations.get_langgraph_runtime") as mock_rt, \
+         caplog.at_level(logging.INFO, logger="opensep.conversations"):
+        runtime = MagicMock()
+        runtime.graph.aget_state = AsyncMock(return_value=MagicMock(values={"messages": ["hi"]}))
+        runtime.execute_step = AsyncMock(side_effect=RuntimeError("Subsystem crashed"))
+        mock_rt.return_value = runtime
+
+        resp = test_client.post(
+            f"/api/v1/conversations/run/{run_id}/step",
+            json={"thread_id": thread_id, "step_index": 3},
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "error"
+    assert "Subsystem crashed" in data["error"]
+    log_text = caplog.text
+    assert f"POST /run/{run_id}/step observability" in log_text
+    assert "step_index=3" in log_text
+    assert "finish_reason=error" in log_text

@@ -15,6 +15,7 @@ class StepTelemetry:
     finish_reason: str = "unknown"
     provider_name: str | None = None
     error_message: str | None = None
+    run_id: str | None = None
 
     def record_llm_success(
         self,

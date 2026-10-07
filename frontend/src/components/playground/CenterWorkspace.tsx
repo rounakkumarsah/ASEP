@@ -1344,6 +1344,46 @@ export function CenterWorkspace() {
         );
       } catch {}
 
+      // Check current run status from server first if resuming an existing run
+      if (initialPollCount > 0) {
+        try {
+          const statusRes = await apiClient.get<{ run_id: string; status: string; error_message?: string }>(
+            `/api/v1/conversations/run/${runId}/status`
+          );
+          const serverStatus = statusRes.data?.status;
+          const serverErrMsg = statusRes.data?.error_message;
+          if (serverStatus === "max_steps_exceeded" || serverErrMsg?.includes("Task too large")) {
+            addTerminalLog("system", "[Warning] Task too large — try breaking it down");
+            addMessage({
+              role: "assistant",
+              content: "Task too large — try breaking it down",
+              timestamp: new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+            });
+            return;
+          } else if (serverStatus === "completed" || serverStatus === "done") {
+            addTerminalLog("system", "[System] In-progress run already completed.");
+            return;
+          } else if (serverStatus === "failed") {
+            const err = serverErrMsg || "Agent execution failed.";
+            addTerminalLog("system", `[Error] ${err}`);
+            addMessage({
+              role: "assistant",
+              content: "The agent could not complete this task. Please try again.",
+              timestamp: new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+            });
+            return;
+          }
+        } catch {
+          // If status endpoint check fails, continue with normal step polling
+        }
+      }
+
       let currentStatus = "running";
       while (currentStatus === "running" && pollCount < MAX_POLLS) {
         pollCount++;
