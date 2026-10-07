@@ -126,3 +126,94 @@ def test_sandbox_runner_wires_e2b():
             assert res.exit_code == 0
             assert res.execution_mode == "e2b"
             assert "E2B output line" in res.stdout
+
+
+@pytest.mark.asyncio
+async def test_execute_code_fallback_invokes_streaming_callbacks():
+    """Fallback execution properly calls on_stdout and on_stderr callbacks."""
+    out_lines = []
+    err_lines = []
+
+    with patch.dict(os.environ, {}, clear=True):
+        code = "print('line 1')\nprint('line 2')\n"
+        res = await execute_code_with_fallback(
+            code,
+            on_stdout=lambda l: out_lines.append(l),
+            on_stderr=lambda l: err_lines.append(l),
+        )
+        assert res.exit_code == 0
+        assert len(out_lines) >= 2
+        assert "line 1" in out_lines[0]
+        assert "line 2" in out_lines[1]
+
+
+@pytest.mark.asyncio
+async def test_execute_e2b_sync_captures_results():
+    """execute_e2b_sync captures expression return text from execution.results."""
+    from src.services.e2b_sandbox import execute_e2b_sync
+
+    mock_res_item = MagicMock()
+    mock_res_item.text = "42"
+
+    mock_execution = MagicMock()
+    mock_execution.logs.stdout = []
+    mock_execution.logs.stderr = []
+    mock_execution.results = [mock_res_item]
+    mock_execution.error = None
+
+    mock_sandbox = MagicMock()
+    mock_sandbox.run_code.return_value = mock_execution
+    mock_sandbox.__enter__.return_value = mock_sandbox
+    mock_sandbox.__exit__.return_value = None
+
+    captured = []
+    with patch.dict(os.environ, {"E2B_API_KEY": "e2b_key_results"}):
+        with patch("e2b_code_interpreter.Sandbox.create", return_value=mock_sandbox):
+            res = execute_e2b_sync("21 * 2", on_stdout=lambda l: captured.append(l))
+            assert res.exit_code == 0
+            assert "42" in res.stdout
+            assert "42" in captured
+
+
+@pytest.mark.asyncio
+async def test_terminal_execute_uses_e2b_sandbox():
+    """POST /api/v1/sandbox/terminal/execute routes python code via E2B when key is present."""
+    from src.api.routers.sandbox import terminal_execute, TerminalRequest
+
+    mock_e2b_res = SandboxExecutionResult(
+        exit_code=0,
+        stdout="Routed via E2B",
+        stderr="",
+        execution_mode="e2b",
+    )
+    with patch("src.services.e2b_sandbox.execute_code_with_fallback", return_value=mock_e2b_res):
+        req = TerminalRequest(command="python -c 'print(\"Routed via E2B\")'")
+        resp = await terminal_execute(req)
+        assert resp["exit_code"] == 0
+        assert resp["stdout"] == "Routed via E2B"
+
+
+@pytest.mark.asyncio
+async def test_stream_python_execution_with_e2b():
+    """POST /api/v1/sandbox/python/stream streams E2B events when E2B_API_KEY is configured."""
+    from src.api.routers.sandbox import stream_python_execution, SandboxRunRequest
+
+    mock_e2b_res = SandboxExecutionResult(
+        exit_code=0,
+        stdout="Hello stream line 1\nHello stream line 2",
+        stderr="",
+        execution_mode="e2b",
+    )
+    with patch.dict(os.environ, {"E2B_API_KEY": "e2b_stream_key"}):
+        with patch("src.services.e2b_sandbox.execute_e2b_sync", return_value=mock_e2b_res):
+            req = SandboxRunRequest(code="print('Hello stream')")
+            resp = await stream_python_execution(req)
+            body_chunks = []
+            async for chunk in resp.body_iterator:
+                body_chunks.append(chunk)
+
+            full_body = "".join(body_chunks)
+            assert "Executing code in E2B cloud sandbox" in full_body
+            assert "Hello stream line 1" in full_body
+            assert "[Process exited with code 0]" in full_body
+            assert "[DONE]" in full_body

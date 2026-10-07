@@ -362,7 +362,20 @@ export function processEventData(
         }
       }
 
-      // 4. answer / output / result fallback fields
+      // 4. execution_result fallback handling
+      if (updateObj.execution_result && typeof updateObj.execution_result === "object") {
+        const er = updateObj.execution_result as Record<string, unknown>;
+        const hasStdout = itemsToProcess.some((m) => m.role === "stdout" || m.type === "output");
+        if (!hasStdout && typeof er.stdout === "string" && er.stdout.trim()) {
+          itemsToProcess.push({ role: "stdout", type: "output", content: er.stdout });
+        }
+        const hasStderr = itemsToProcess.some((m) => m.role === "stderr" || m.type === "error");
+        if (!hasStderr && typeof er.stderr === "string" && er.stderr.trim()) {
+          itemsToProcess.push({ role: "stderr", type: "error", content: er.stderr });
+        }
+      }
+
+      // 5. answer / output / result fallback fields
       if (!updateObj.messages && !updateObj.message && !updateObj.content) {
         const altText = updateObj.answer || updateObj.output || updateObj.result;
         if (typeof altText === "string") {
@@ -1041,17 +1054,21 @@ export function CenterWorkspace() {
 
 
   const handleStatusEvent = (messageItem: MessageItem) => {
-    const c = extractMessageContent(messageItem.content);
+    const rawContent = extractMessageContent(messageItem.content) || (typeof (messageItem as any).text === "string" ? (messageItem as any).text : "");
+    const c = typeof rawContent === "string" ? rawContent : "";
     const itemType = (messageItem.type || "").toLowerCase();
     const itemRole = (messageItem.role || "").toLowerCase();
+
+    const cleanLine = (str: string) => str.replace(/\r$/, "").replace(/\x1b\[[0-9;]*[a-zA-Z]/g, "");
 
     // 1. Direct stdout / stderr message objects from sandbox execution
     if (itemType === "output" || itemRole === "stdout") {
       setActiveCenterTab("terminal");
       if (c) {
         for (const line of c.split("\n")) {
-          if (line.length > 0) {
-            addTerminalLog("output", line);
+          const cl = cleanLine(line);
+          if (cl.length > 0) {
+            addTerminalLog("output", cl);
           }
         }
       }
@@ -1062,8 +1079,9 @@ export function CenterWorkspace() {
       setActiveCenterTab("terminal");
       if (c) {
         for (const line of c.split("\n")) {
-          if (line.length > 0) {
-            addTerminalLog("error", line);
+          const cl = cleanLine(line);
+          if (cl.length > 0) {
+            addTerminalLog("error", cl);
           }
         }
       }
@@ -1105,8 +1123,9 @@ export function CenterWorkspace() {
       setActiveCenterTab("terminal");
       const text = c.replace(/^\[(?:Sandbox Output|Execution Output)\]\s*/, "");
       for (const line of text.split("\n")) {
-        if (line.length > 0) {
-          addTerminalLog("output", line);
+        const cl = cleanLine(line);
+        if (cl.length > 0) {
+          addTerminalLog("output", cl);
         }
       }
       return;
@@ -1114,19 +1133,20 @@ export function CenterWorkspace() {
       setActiveCenterTab("terminal");
       const text = c.replace(/^\[(?:Sandbox Error|Execution Error)\]\s*/, "");
       for (const line of text.split("\n")) {
-        if (line.length > 0) {
-          addTerminalLog("error", line);
+        const cl = cleanLine(line);
+        if (cl.length > 0) {
+          addTerminalLog("error", cl);
         }
       }
       return;
-    } else if (c.startsWith("[Sandbox Exit]") || c.startsWith("[Sandbox Exit Code")) {
+    } else if (c.startsWith("[Sandbox Exit]") || c.startsWith("[Sandbox Exit Code") || c.startsWith("[Execution Exit]") || c.includes("[Process exited with code")) {
       setActiveCenterTab("terminal");
       const isSuccess = c.includes("code 0") || c.includes("Code: 0") || c.includes("Code 0");
-      addTerminalLog(isSuccess ? "success" : "error", c);
+      addTerminalLog(isSuccess ? "success" : "error", cleanLine(c));
       return;
     } else if (c.startsWith("[Sandbox]")) {
       setActiveCenterTab("terminal");
-      addTerminalLog("system", c);
+      addTerminalLog("system", cleanLine(c));
       return;
     }
 

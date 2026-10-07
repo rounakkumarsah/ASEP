@@ -126,6 +126,20 @@ def execute_e2b_sync(
                 if l not in stderr_lines:
                     stderr_lines.append(l)
 
+        # Ensure return expressions or output text from execution.results are included
+        if hasattr(execution, "results") and execution.results:
+            for r in execution.results:
+                text_val = getattr(r, "text", None)
+                if text_val:
+                    for line in str(text_val).splitlines():
+                        if line and line not in stdout_lines:
+                            stdout_lines.append(line)
+                            if on_stdout:
+                                try:
+                                    on_stdout(line)
+                                except Exception:
+                                    pass
+
         exit_code = 0
         error_msg = None
         if hasattr(execution, "error") and execution.error:
@@ -166,11 +180,23 @@ async def execute_code_with_fallback(
     2. If E2B_API_KEY is not set or fails, seamlessly fall back to RestrictedExecutor
        or safe local sandbox.
     """
+    import re
+
+    # Normalize code: strip markdown backtick fences if present
+    clean_code = code
+    if "```" in clean_code:
+        m = re.search(r"```(?:[a-zA-Z0-9_\-\.\+]*)[^\S\r\n]*\r?\n([\s\S]*?)```", clean_code)
+        if m:
+            clean_code = m.group(1).strip()
+        else:
+            clean_code = re.sub(r"^```[a-zA-Z0-9_\-\.\+]*\r?\n", "", clean_code)
+            clean_code = re.sub(r"\r?\n```$", "", clean_code).strip()
+
     # 1. Try E2B Cloud Sandbox if configured
     if is_e2b_configured():
         try:
             logger.info("Executing code in E2B cloud sandbox...")
-            return await asyncio.to_thread(execute_e2b_sync, code, timeout, on_stdout, on_stderr)
+            return await asyncio.to_thread(execute_e2b_sync, clean_code, timeout, on_stdout, on_stderr)
         except Exception as exc:
             logger.warning("E2B sandbox execution encountered error: %s. Falling back to local sandbox.", exc)
 
@@ -181,7 +207,7 @@ async def execute_code_with_fallback(
     try:
         from src.services.restricted_code_sandbox import RestrictedExecutor
 
-        res = await RestrictedExecutor.execute(code, timeout=timeout)
+        res = await RestrictedExecutor.execute(clean_code, timeout=timeout)
         raw_stdout = getattr(res, "stdout", "") or (res.get("stdout") if isinstance(res, dict) else "") or ""
         raw_stderr = getattr(res, "stderr", "") or (res.get("error") if isinstance(res, dict) else "") or ""
         is_success = getattr(res, "success", False) if hasattr(res, "success") else (res.get("success", False) if isinstance(res, dict) else False)
@@ -195,19 +221,48 @@ async def execute_code_with_fallback(
             is_serverless = os.environ.get("VERCEL") == "1" or os.environ.get("SERVERLESS") == "1"
             if not is_serverless:
                 from src.utils.self_healing import SandboxRunner
-                sub_res = await asyncio.to_thread(SandboxRunner.run_code, code, "main.py", None, timeout)
+                sub_res = await asyncio.to_thread(SandboxRunner.run_code, clean_code, "main.py", None, timeout)
                 sub_stdout = sub_res.stdout or ""
                 sub_stderr = sub_res.stderr or sub_res.stack_trace or ""
+                sub_stdout_lines = [l for l in sub_stdout.splitlines() if l.strip()]
+                sub_stderr_lines = [l for l in sub_stderr.splitlines() if l.strip()]
+
+                if on_stdout:
+                    for line in sub_stdout_lines:
+                        try:
+                            on_stdout(line)
+                        except Exception:
+                            pass
+                if on_stderr:
+                    for line in sub_stderr_lines:
+                        try:
+                            on_stderr(line)
+                        except Exception:
+                            pass
+
                 return SandboxExecutionResult(
                     exit_code=sub_res.exit_code,
                     stdout=sub_stdout,
                     stderr=sub_stderr,
-                    stdout_lines=[l for l in sub_stdout.splitlines() if l.strip()],
-                    stderr_lines=[l for l in sub_stderr.splitlines() if l.strip()],
+                    stdout_lines=sub_stdout_lines,
+                    stderr_lines=sub_stderr_lines,
                     execution_mode="subprocess",
                     duration_ms=sub_res.duration_ms,
                     timed_out=sub_res.timed_out,
                 )
+
+        if on_stdout:
+            for line in stdout_lines:
+                try:
+                    on_stdout(line)
+                except Exception:
+                    pass
+        if on_stderr:
+            for line in stderr_lines:
+                try:
+                    on_stderr(line)
+                except Exception:
+                    pass
 
         duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
         return SandboxExecutionResult(
@@ -224,6 +279,11 @@ async def execute_code_with_fallback(
     except Exception as exc:
         logger.exception("Fallback sandbox execution error: %s", exc)
         duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
+        if on_stderr:
+            try:
+                on_stderr(str(exc))
+            except Exception:
+                pass
         return SandboxExecutionResult(
             exit_code=1,
             stdout="",

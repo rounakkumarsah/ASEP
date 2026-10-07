@@ -46,6 +46,32 @@ async def stream_python_execution(request: SandboxRunRequest) -> StreamingRespon
                 docker_client = None
 
         if docker_client is None:
+            # If E2B is configured, run in E2B cloud sandbox and stream stdout/stderr
+            from src.services.e2b_sandbox import is_e2b_configured, execute_e2b_sync
+            if is_e2b_configured():
+                yield f"data: {json.dumps({'type': 'system', 'text': 'Executing code in E2B cloud sandbox...'})}\n\n"
+                try:
+                    res = await asyncio.to_thread(execute_e2b_sync, request.code, 30.0)
+                    if res.stdout:
+                        for line in res.stdout.splitlines(keepends=True):
+                            yield f"data: {json.dumps({'type': 'output', 'text': line})}\n\n"
+                            await asyncio.sleep(0.01)
+
+                    if res.stderr:
+                        yield f"data: {json.dumps({'type': 'error', 'text': res.stderr})}\n\n"
+                    elif res.error:
+                        yield f"data: {json.dumps({'type': 'error', 'text': res.error})}\n\n"
+
+                    exit_code = res.exit_code
+                    if exit_code == 0:
+                        yield f"data: {json.dumps({'type': 'success', 'text': f'\\n[Process exited with code {exit_code}]'})}\n\n"
+                    else:
+                        yield f"data: {json.dumps({'type': 'error', 'text': f'\\n[Process exited with code {exit_code}]'})}\n\n"
+                    yield "data: [DONE]\n\n"
+                    return
+                except Exception as exc:
+                    logger.warning("E2B cloud sandbox stream execution error: %s. Falling back to RestrictedExecutor.", exc)
+
             # Fallback to RestrictedExecutor
             yield f"data: {json.dumps({'type': 'system', 'text': 'Running in isolated RestrictedPython sandbox...'})}\n\n"
             try:
@@ -200,11 +226,11 @@ async def terminal_execute(request: TerminalRequest) -> dict[str, Any]:
             code = "print('Python interactive mode not supported in terminal. Usage: python <code> or python -c <code>')"
         
         try:
-            from src.services.restricted_code_sandbox import RestrictedExecutor
-            result = await RestrictedExecutor.execute(code, timeout=10)
+            from src.services.e2b_sandbox import execute_code_with_fallback
+            result = await execute_code_with_fallback(code, timeout=15.0)
             return {
                 "stdout": result.stdout,
-                "stderr": result.stderr,
+                "stderr": result.stderr or (result.error if result.exit_code != 0 else ""),
                 "exit_code": result.exit_code,
             }
         except Exception as e:
