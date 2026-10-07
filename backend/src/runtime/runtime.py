@@ -253,7 +253,8 @@ class LangGraphRuntime:
         self, run_id: str, thread_id: str, goal: str = "", research_mode: str = "balanced", environment_mode: str = "local", org_id: str | None = None, is_first: bool = False, step_index: int | None = None
     ) -> dict:
         """Executes exactly one step (superstep) of the LangGraph workflow and returns events."""
-        if step_index is not None and step_index > 40:
+        max_steps_limit = int(os.environ.get("MAX_STEPS", "40"))
+        if step_index is not None and step_index > max_steps_limit:
             return {
                 "status": "max_steps_exceeded",
                 "events": [],

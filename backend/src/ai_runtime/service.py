@@ -39,7 +39,13 @@ class AIRuntimeService:
             router_reason = decision["reason"]
             logger.info("AutoRouterDecision", model=request.model, reason=router_reason)
 
-        run_id = (request.trace and request.trace.get("run_id")) or request.session_id or getattr(request, "run_id", None)
+        current_telemetry = get_current_step_telemetry()
+        run_id = (
+            (request.trace and request.trace.get("run_id"))
+            or request.session_id
+            or getattr(request, "run_id", None)
+            or current_telemetry.run_id
+        )
         run_breaker = get_run_circuit_breaker(str(run_id)) if run_id else self._fallback_breaker
 
         if run_breaker.is_open and not run_breaker.allow_request():
@@ -48,6 +54,7 @@ class AIRuntimeService:
             )
 
         last_error = None
+        last_is_429 = False
         
         while True:
             chain = self.registry.get_priority_chain(request.model)
@@ -158,6 +165,12 @@ class AIRuntimeService:
                             or "resource_exhausted" in combined_err.lower()
                         )
                         if is_429:
+                            last_is_429 = True
+                            current_telemetry.record_llm_failure(
+                                provider=provider.name,
+                                is_429=True,
+                                error_msg=resp_text or error_str,
+                            )
                             import logging
                             logging.getLogger("src.ai_runtime").warning(
                                 "LLM 429 Rate Limit error from provider '%s': %s",
@@ -218,9 +231,9 @@ class AIRuntimeService:
             error_msg = "Connection timed out"
 
         run_breaker.record_failure(last_error or error_msg)
-        get_current_step_telemetry().record_llm_failure(
+        current_telemetry.record_llm_failure(
             provider="chain",
-            is_429=False,
+            is_429=last_is_429,
             error_msg=error_msg,
         )
         if run_breaker.consecutive_failures >= 3:

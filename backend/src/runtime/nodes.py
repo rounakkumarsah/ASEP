@@ -158,6 +158,8 @@ async def planner_node(state: AgentState) -> dict[str, Any]:
         if match:
             plan = json.loads(match.group(0))
     except Exception as exc:
+        if type(exc).__name__ == "CircuitBreakerError" or "CircuitBreakerError" in [b.__name__ for b in type(exc).__mro__]:
+            raise
         logger.warning(
             "LLM planning fallback triggered: exception_type=%s, message=%s",
             type(exc).__name__,
@@ -339,6 +341,8 @@ async def coding_node(state: AgentState) -> dict[str, Any]:
         res = await asyncio.wait_for(runtime.complete(req), timeout=5.0)
         answer = res.text
     except Exception as exc:
+        if type(exc).__name__ == "CircuitBreakerError" or "CircuitBreakerError" in [b.__name__ for b in type(exc).__mro__]:
+            raise
         logger.warning(
             "AIRuntime coding generation fallback triggered: exception_type=%s, message=%s",
             type(exc).__name__,
@@ -680,6 +684,8 @@ async def orchestrator_node(state: AgentState) -> dict[str, Any]:
                 ],
             }
         except Exception as e:
+            if type(e).__name__ == "CircuitBreakerError" or "CircuitBreakerError" in [b.__name__ for b in type(e).__mro__]:
+                raise
             logger.warning("LLM direct call failed for conversational query: %s", e)
             # Fall through to normal pipeline
 
