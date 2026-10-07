@@ -21,6 +21,7 @@ from src.tools.impl import (
 )
 from src.tools.python_sandbox import PythonSandboxTool
 from src.tools.github_repo import GithubRepoTool
+from src.tools.web_search import WebSearchTool
 from src.tools.mcp_client import MCPClient, ToolClient
 from src.tools.metadata import ToolCategory, ToolMetadata, ToolType
 from src.tools.permissions import ToolPermission, verify_tool_permissions
@@ -59,5 +60,6 @@ __all__ = [
     "EnvironmentTool",
     "ConfigurationTool",
     "BrowserTool",
-    "PythonSandboxTool"
+    "PythonSandboxTool",
+    "WebSearchTool",
 ]

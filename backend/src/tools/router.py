@@ -128,6 +128,23 @@ class ToolDispatcher:
                 latency = time.time() - start_time
                 self._update_metrics(tool_name, latency, output.success)
 
+                result_size = 0
+                if output.result is not None:
+                    if isinstance(output.result, (str, bytes)):
+                        result_size = len(output.result)
+                    elif isinstance(output.result, (list, tuple, dict)):
+                        result_size = len(output.result)
+                    else:
+                        result_size = len(str(output.result))
+
+                logger.info(
+                    "Tool invocation: tool='%s', args=%s, duration=%.4fs, result_size=%d",
+                    tool_name,
+                    validated_args,
+                    latency,
+                    result_size,
+                )
+
                 if output.success:
                     logger.info(f"ToolCompleted: '{tool_name}' executed successfully in {latency:.4f}s.")
                     return output
