@@ -155,12 +155,24 @@ class ToolDispatcher:
             except TimeoutError:
                 latency = time.time() - start_time
                 self._update_metrics(tool_name, latency, success=False, is_timeout=True)
+                logger.info(
+                    "Tool invocation: tool='%s', args=%s, duration=%.4fs, result_size=0",
+                    tool_name,
+                    validated_args,
+                    latency,
+                )
                 logger.error(f"ToolTimeout: '{tool_name}' timed out after {timeout}s.")
                 if attempt == retries:
                     return ToolExecutionOutput(success=False, error=ToolErrorCode.TOOL_TIMEOUT)
             except Exception as e:
                 latency = time.time() - start_time
                 self._update_metrics(tool_name, latency, success=False)
+                logger.info(
+                    "Tool invocation: tool='%s', args=%s, duration=%.4fs, result_size=0",
+                    tool_name,
+                    validated_args,
+                    latency,
+                )
                 logger.error(f"ToolFailed: Internal error during '{tool_name}' execution: {e}")
                 if attempt == retries:
                     return ToolExecutionOutput(success=False, error=f"{ToolErrorCode.INTERNAL_TOOL_ERROR}: {e}")

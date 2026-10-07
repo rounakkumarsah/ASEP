@@ -106,29 +106,29 @@ async def execute_web_search(query: str, max_results: int = 5) -> Dict[str, Any]
         else:
             logger.info("WebSearch query: '%s' using engine '%s'", query, engine)
 
-        # 1. Try DuckDuckGo HTML endpoint
+        # 1. Try DuckDuckGo HTML endpoint with fast timeout
         try:
             encoded_query = urllib.parse.quote_plus(query)
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             }
-            async with httpx.AsyncClient(timeout=8.0, follow_redirects=True, headers=headers) as client:
+            ddg_timeout = httpx.Timeout(1.5, connect=1.0)
+            async with httpx.AsyncClient(timeout=ddg_timeout, follow_redirects=True, headers=headers) as client:
                 resp = await client.get(f"https://html.duckduckgo.com/html/?q={encoded_query}")
                 if resp.status_code == 200:
                     html = resp.text
                     # Extract snippets and titles
                     raw_snippets = re.findall(r'<a[^>]+class="result__snippet"[^>]*>(.*?)</a>', html, re.DOTALL)
-                    raw_titles = re.findall(r'<a[^>]+class="result__url"[^>]*href="([^"]+)"[^>]*>(.*?)</a>', html, re.DOTALL)
+                    raw_links = re.findall(r'<a[^>]+class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>', html, re.DOTALL)
 
-                    for idx in range(min(len(raw_snippets), len(raw_titles), max_results)):
+                    for idx in range(min(len(raw_snippets), len(raw_links), max_results)):
                         clean_snippet = re.sub(r"<[^>]+>", "", raw_snippets[idx]).strip()
-                        raw_url = raw_titles[idx][0].strip()
+                        raw_url = raw_links[idx][0].strip()
                         if "uddg=" in raw_url:
-                            # Decode DuckDuckGo redirect uddg parameter
                             m = re.search(r"uddg=([^&]+)", raw_url)
                             if m:
                                 raw_url = urllib.parse.unquote(m.group(1))
-                        clean_title = re.sub(r"<[^>]+>", "", raw_titles[idx][1]).strip()
+                        clean_title = re.sub(r"<[^>]+>", "", raw_links[idx][1]).strip()
                         results.append({
                             "title": clean_title or f"Result {idx + 1}",
                             "url": raw_url,
@@ -141,7 +141,8 @@ async def execute_web_search(query: str, max_results: int = 5) -> Dict[str, Any]
         if not results:
             try:
                 encoded_query = urllib.parse.quote_plus(query)
-                async with httpx.AsyncClient(timeout=8.0) as client:
+                ddg_api_timeout = httpx.Timeout(1.5, connect=1.0)
+                async with httpx.AsyncClient(timeout=ddg_api_timeout) as client:
                     resp = await client.get(
                         f"https://api.duckduckgo.com/?q={encoded_query}&format=json&no_html=1&skip_disambig=1"
                     )
@@ -167,7 +168,31 @@ async def execute_web_search(query: str, max_results: int = 5) -> Dict[str, Any]
             except Exception as e:
                 logger.debug("DuckDuckGo Instant Answer API error: %s", e)
 
-        # 3. Direct knowledge fallback if completely offline
+        # 3. Open Knowledge Search API fallback (Wikipedia search)
+        if not results:
+            try:
+                encoded_query = urllib.parse.quote_plus(query)
+                headers = {"User-Agent": "ASEP/1.0 (info@asep.dev)"}
+                async with httpx.AsyncClient(timeout=3.0, headers=headers) as client:
+                    resp = await client.get(
+                        f"https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch={encoded_query}&utf8=&format=json&srlimit={max_results}"
+                    )
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        search_items = data.get("query", {}).get("search", [])
+                        for item in search_items[:max_results]:
+                            clean_snippet = re.sub(r"<[^>]+>", "", item.get("snippet", "")).strip()
+                            clean_title = item.get("title", "")
+                            page_url = f"https://en.wikipedia.org/wiki/{urllib.parse.quote(clean_title.replace(' ', '_'))}"
+                            results.append({
+                                "title": clean_title,
+                                "url": page_url,
+                                "snippet": clean_snippet,
+                            })
+            except Exception as e:
+                logger.debug("Open knowledge fallback error: %s", e)
+
+        # 4. Direct knowledge fallback if completely offline
         if not results:
             results.append({
                 "title": f"Web search reference for '{query}'",
