@@ -109,4 +109,38 @@ class AgentState(TypedDict, total=False):
     exploration_summary: dict[str, Any]
     phase_explorations: dict[str, dict[str, Any]]
     explored_files: list[str]
+    relevant_memories: str
+
+
+def extract_clean_goal(raw_goal: str) -> str:
+    """Extract clean user goal by stripping any injected memory prefixes or past memory sections."""
+    if not raw_goal:
+        return ""
+    text = str(raw_goal).strip()
+    if "Relevant Past Memories:" in text:
+        parts = text.split("Relevant Past Memories:", 1)[1]
+        lines = parts.split("\n")
+        goal_lines = []
+        in_memories = True
+        for line in lines:
+            line_str = line.strip()
+            if in_memories:
+                if (
+                    line_str.startswith("- [")
+                    or line_str.startswith("Response:")
+                    or line_str.startswith("Tools:")
+                    or line_str.startswith("Status:")
+                    or not line_str
+                ):
+                    continue
+                else:
+                    in_memories = False
+                    goal_lines.append(line)
+            else:
+                goal_lines.append(line)
+        cleaned = "\n".join(goal_lines).strip()
+        if cleaned:
+            return cleaned
+    return text
+
 

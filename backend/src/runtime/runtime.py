@@ -128,7 +128,9 @@ class LangGraphRuntime:
         self, run_id: str, thread_id: str, goal: str = "", research_mode: str = "balanced", environment_mode: str = "local", org_id: str | None = None
     ) -> AsyncGenerator[dict[str, Any], None]:
         """Initiates a new run and streams step-by-step workflow updates."""
-        logger.info(f"Initiating run '{run_id}' under thread: '{thread_id}' with goal: '{goal}'")
+        from src.runtime.state import extract_clean_goal
+        clean_goal = extract_clean_goal(goal)
+        logger.info(f"Initiating run '{run_id}' under thread: '{thread_id}' with goal: '{clean_goal}'")
 
         # Kill any existing hosted app from previous runs on this thread/session
         from src.utils.host_manager import host_manager
@@ -142,9 +144,10 @@ class LangGraphRuntime:
         from langchain_core.runnables.config import RunnableConfig
         config = RunnableConfig(configurable={"thread_id": thread_id})
         
-        # Retrieval Injection: Top K memories
+        # Retrieval Injection: Top K memories filtered by genuine relevance to current clean_goal
         injected_memories_text = ""
         import uuid
+        import re
         from src.runtime.memory_hooks import is_memory_enabled, store_working_memory, store_episodic_memory, extract_and_store_durable_memories
         if org_id and is_memory_enabled():
             try:
@@ -154,29 +157,45 @@ class LangGraphRuntime:
                 memory_service = MemoryService(get_uow_factory())
                 org_uuid = uuid.UUID(str(org_id))
                 
-                # Retrieve Semantic, Procedural, Episodic
+                goal_words = set(re.findall(r'\b[a-zA-Z]{3,}\b', clean_goal.lower()))
+                stopwords = {"the", "and", "for", "with", "this", "that", "build", "create", "make", "app", "application", "write", "code"}
+                keywords = goal_words - stopwords
+
                 top_memories = []
                 for mtype in [MemoryType.SEMANTIC, MemoryType.PROCEDURAL, MemoryType.EPISODIC]:
-                    mems = await memory_service.get_top_memories(namespace="default", memory_type=mtype, org_id=org_uuid, limit=2)
+                    mems = await memory_service.get_top_memories(namespace="default", memory_type=mtype, org_id=org_uuid, limit=3)
                     top_memories.extend(mems)
                     
-                # Sort by importance and take top 5
-                top_memories.sort(key=lambda x: x.importance_score, reverse=True)
-                top_memories = top_memories[:5]
+                relevant_memories = []
+                for m in top_memories:
+                    content_lower = m.content.lower()
+                    if "goal specified in the transcript" in content_lower:
+                        continue
+                    if keywords and any(kw in content_lower for kw in keywords):
+                        relevant_memories.append(m)
+
+                relevant_memories.sort(key=lambda x: x.importance_score, reverse=True)
+                relevant_memories = relevant_memories[:3]
                 
-                if top_memories:
-                    injected_memories_text = "Relevant Past Memories:\n" + "\n".join(f"- [{m.memory_type}] {m.content}" for m in top_memories) + "\n\n"
+                if relevant_memories:
+                    injected_memories_text = "Relevant Past Memories:\n" + "\n".join(f"- [{m.memory_type}] {m.content}" for m in relevant_memories) + "\n\n"
                     
                 # Hook: Store Working Memory (Start)
-                await store_working_memory(run_id, org_uuid, f"Goal: {goal}")
+                await store_working_memory(run_id, org_uuid, f"Goal: {clean_goal}")
             except Exception as e:
                 logger.error(f"Failed to retrieve or store initial memories: {e}")
 
-        augmented_goal = injected_memories_text + goal
+        # CRITICAL: Keep state['goal'] strictly clean so downstream nodes generate the real objective!
+        initial_messages = []
+        if injected_memories_text:
+            initial_messages.append({"role": "system", "content": f"[Past Context]\n{injected_memories_text}"})
+        if clean_goal:
+            initial_messages.append({"role": "user", "content": clean_goal})
         
         initial_state: dict[str, Any] = {
-            "goal": augmented_goal,
-            "messages": [{"role": "user", "content": augmented_goal}] if goal else [],
+            "goal": clean_goal,
+            "messages": initial_messages,
+            "relevant_memories": injected_memories_text,
             "environment_mode": environment_mode,
             "credentials_status": {},
             "local_secrets": [],
@@ -190,7 +209,7 @@ class LangGraphRuntime:
         }
 
         # Track data for Episodic memory
-        transcript_builder = [f"Goal: {goal}"]
+        transcript_builder = [f"Goal: {clean_goal}"]
         tools_used = set()
         final_response = ""
         success = False
@@ -281,7 +300,9 @@ class LangGraphRuntime:
         
         input_data = None
         if is_first:
-            logger.info(f"Initiating step-by-step run '{run_id}' under thread: '{thread_id}' with goal: '{goal}'")
+            from src.runtime.state import extract_clean_goal
+            clean_goal = extract_clean_goal(goal)
+            logger.info(f"Initiating step-by-step run '{run_id}' under thread: '{thread_id}' with goal: '{clean_goal}'")
             from src.utils.host_manager import host_manager
             host_manager.stop_session(thread_id)
             if run_id != thread_id:
@@ -297,28 +318,48 @@ class LangGraphRuntime:
                     from src.services.memory_service import MemoryService
                     from src.api.dependencies import get_uow_factory
                     from src.db.models.memory_entry import MemoryType
+                    import re
                     memory_service = MemoryService(get_uow_factory())
                     org_uuid = uuid.UUID(str(org_id))
                     
+                    goal_words = set(re.findall(r'\b[a-zA-Z]{3,}\b', clean_goal.lower()))
+                    stopwords = {"the", "and", "for", "with", "this", "that", "build", "create", "make", "app", "application", "write", "code"}
+                    keywords = goal_words - stopwords
+
                     top_memories = []
                     for mtype in [MemoryType.SEMANTIC, MemoryType.PROCEDURAL, MemoryType.EPISODIC]:
-                        mems = await memory_service.get_top_memories(namespace="default", memory_type=mtype, org_id=org_uuid, limit=2)
+                        mems = await memory_service.get_top_memories(namespace="default", memory_type=mtype, org_id=org_uuid, limit=3)
                         top_memories.extend(mems)
                         
-                    top_memories.sort(key=lambda x: x.importance_score, reverse=True)
-                    top_memories = top_memories[:5]
+                    relevant_memories = []
+                    for m in top_memories:
+                        content_lower = m.content.lower()
+                        if "goal specified in the transcript" in content_lower:
+                            continue
+                        if keywords and any(kw in content_lower for kw in keywords):
+                            relevant_memories.append(m)
+
+                    relevant_memories.sort(key=lambda x: x.importance_score, reverse=True)
+                    relevant_memories = relevant_memories[:3]
                     
-                    if top_memories:
-                        injected_memories_text = "Relevant Past Memories:\n" + "\n".join(f"- [{m.memory_type}] {m.content}" for m in top_memories) + "\n\n"
+                    if relevant_memories:
+                        injected_memories_text = "Relevant Past Memories:\n" + "\n".join(f"- [{m.memory_type}] {m.content}" for m in relevant_memories) + "\n\n"
                         
-                    await store_working_memory(run_id, org_uuid, f"Goal: {goal}")
+                    await store_working_memory(run_id, org_uuid, f"Goal: {clean_goal}")
                 except Exception as e:
                     logger.error(f"Failed to retrieve or store initial memories: {e}")
 
-            augmented_goal = injected_memories_text + goal
+            # CRITICAL: Keep state['goal'] strictly clean so downstream nodes generate the real objective!
+            step_messages = []
+            if injected_memories_text:
+                step_messages.append({"role": "system", "content": f"[Past Context]\n{injected_memories_text}"})
+            if clean_goal:
+                step_messages.append({"role": "user", "content": clean_goal})
+
             input_data = {
-                "goal": augmented_goal,
-                "messages": [{"role": "user", "content": augmented_goal}] if goal else [],
+                "goal": clean_goal,
+                "messages": step_messages,
+                "relevant_memories": injected_memories_text,
                 "environment_mode": environment_mode,
                 "credentials_status": {},
                 "local_secrets": [],
