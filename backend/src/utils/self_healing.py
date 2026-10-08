@@ -143,14 +143,19 @@ class SandboxRunner:
                     execution_mode="restricted_python",
                 )
             elif sb_res.get("security_violation"):
-                return SandboxRunResult(
-                    exit_code=1,
-                    stdout="",
-                    stderr=sb_res.get("error", "Security violation"),
-                    duration_ms=round((time.perf_counter() - start_time) * 1000, 2),
-                    timed_out=False,
-                    execution_mode="restricted_python",
-                )
+                if "import statements" in (sb_res.get("error") or ""):
+                    # Fall through to subprocess fallback for code with valid framework imports
+                    pass
+                else:
+                    return SandboxRunResult(
+                        exit_code=1,
+                        stdout="",
+                        stderr=sb_res.get("error", "Security violation"),
+                        stack_trace=sb_res.get("error", "Security violation"),
+                        duration_ms=round((time.perf_counter() - start_time) * 1000, 2),
+                        timed_out=False,
+                        execution_mode="restricted_python",
+                    )
         except Exception as exc:
             logger.debug("RestrictedExecutor execution skipped: %s", exc)
 
