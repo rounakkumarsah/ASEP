@@ -181,6 +181,10 @@ async def start_run(
 
     org_id = current_user.org_id or current_user.id
 
+    from src.runtime.state import extract_clean_goal
+    clean_goal = extract_clean_goal(payload.goal)
+    payload.goal = clean_goal
+
     # Persist initial AgentRun record
     try:
         from src.api.dependencies import get_uow_factory
@@ -195,7 +199,7 @@ async def start_run(
             run_record = AgentRun(
                 id=uuid.UUID(run_id),
                 org_id=parsed_org_uuid,
-                goal=payload.goal,
+                goal=clean_goal,
                 status=DbRunStatus.RUNNING,
             )
             await uow.agent_runs.create(run_record)
@@ -296,14 +300,15 @@ async def run_step(
         logger.warning("Could not inspect graph state for thread %s: %s", thread_id, e)
         is_initial = True
 
-    goal = payload.goal or ""
+    from src.runtime.state import extract_clean_goal
+    goal = extract_clean_goal(payload.goal or "")
     if not goal:
         try:
             from src.api.dependencies import get_uow_factory
             async with get_uow_factory()() as uow:
                 run_record = await uow.agent_runs.get(uuid.UUID(run_id))
                 if run_record and run_record.goal:
-                    goal = run_record.goal
+                    goal = extract_clean_goal(run_record.goal)
         except Exception as e:
             logger.warning("Could not load AgentRun %s: %s", run_id, e)
 

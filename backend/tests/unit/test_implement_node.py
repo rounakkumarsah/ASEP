@@ -195,3 +195,125 @@ async def test_durable_memories_timeout_resilience():
     assert elapsed < 7.0
 
 
+def test_extract_clean_goal_utility():
+    """Verify extract_clean_goal correctly strips memory headers and past memories."""
+    from src.runtime.state import extract_clean_goal
+
+    # Clean goal passes through
+    assert extract_clean_goal("Build a normal AI chat bot") == "Build a normal AI chat bot"
+
+    # Injected memories block stripped cleanly
+    polluted_goal = (
+        "Relevant Past Memories:\n"
+        "- [semantic] The primary goal specified in the transcript is to build a simple REST API for a todo application.\n"
+        "- [episodic] Goal: Explain how you would refactor an e-commerce backend.\n"
+        "Response: \n"
+        "Tools: \n"
+        "Status: Failed\n"
+        "- [procedural] To define validation schemas, import BaseModel.\n\n"
+        "Build a normal AI chat bot"
+    )
+    cleaned = extract_clean_goal(polluted_goal)
+    assert cleaned == "Build a normal AI chat bot"
+    assert "Relevant Past Memories" not in cleaned
+    assert "todo" not in cleaned.lower()
+
+
+@pytest.mark.asyncio
+async def test_implement_phase_node_chatbot_fallback_not_todo():
+    """When building an AI chatbot and LLM provider fails, generate an AI chatbot service, NOT a Todo app."""
+    state = {
+        "goal": "Build a normal AI chat bot",
+        "product_type": "api",
+        "status": "verified",
+        "run_id": "test-chatbot-not-todo",
+        "token_usage_per_phase": {},
+        "token_budget_per_phase": {},
+        "token_savings": {},
+        "file_history": {},
+        "budget_approvals": [],
+        "active_skills": [],
+        "skill_instructions": [],
+        "skill_citations": [],
+    }
+
+    with patch("src.ai_runtime.service.AIRuntimeService.complete", side_effect=RuntimeError("LLM unavailable")):
+        result = await implement_phase_node(state)
+
+    code = result.get("generated_code", "")
+    assert "FastAPI" in code
+    assert "/chat" in code
+    assert "ChatMessage" in code
+    # Critical: Must NOT be a Todo app!
+    assert "/todos" not in code
+    assert "TodoItem" not in code
+    assert "todos_db" not in code
+
+
+@pytest.mark.asyncio
+async def test_implement_phase_node_ecommerce_fallback_not_todo():
+    """When building an E-Commerce website and LLM provider fails, generate an E-Commerce store API, NOT a Todo app."""
+    state = {
+        "goal": "Build a E-Commerce website",
+        "product_type": "api",
+        "status": "verified",
+        "run_id": "test-ecommerce-not-todo",
+        "token_usage_per_phase": {},
+        "token_budget_per_phase": {},
+        "token_savings": {},
+        "file_history": {},
+        "budget_approvals": [],
+        "active_skills": [],
+        "skill_instructions": [],
+        "skill_citations": [],
+    }
+
+    with patch("src.ai_runtime.service.AIRuntimeService.complete", side_effect=RuntimeError("LLM unavailable")):
+        result = await implement_phase_node(state)
+
+    code = result.get("generated_code", "")
+    assert "FastAPI" in code
+    assert "/products" in code
+    assert "Product" in code
+    assert "/orders" in code
+    # Critical: Must NOT be a Todo app!
+    assert "/todos" not in code
+    assert "TodoItem" not in code
+
+
+@pytest.mark.asyncio
+async def test_implement_phase_node_sanitizes_polluted_memory_goal():
+    """When memory-polluted goal with old Todo memories is passed, implement_phase_node sanitizes it and produces the real objective."""
+    state = {
+        "goal": (
+            "Relevant Past Memories:\n"
+            "- [semantic] The primary goal specified in the transcript is to build a simple REST API for a todo application.\n"
+            "- [episodic] Goal: Explain in 3 short bullet points how you would refactor a monolithic e-commerce backend into microservices.\n"
+            "Status: Failed\n\n"
+            "Build a normal AI chat bot"
+        ),
+        "product_type": "api",
+        "status": "verified",
+        "run_id": "test-polluted-sanitization",
+        "token_usage_per_phase": {},
+        "token_budget_per_phase": {},
+        "token_savings": {},
+        "file_history": {},
+        "budget_approvals": [],
+        "active_skills": [],
+        "skill_instructions": [],
+        "skill_citations": [],
+    }
+
+    with patch("src.ai_runtime.service.AIRuntimeService.complete", side_effect=RuntimeError("LLM unavailable")):
+        result = await implement_phase_node(state)
+
+    code = result.get("generated_code", "")
+    assert "/chat" in code
+    assert "ChatMessage" in code
+    # Critical: Must NOT be hijacked by the old Todo memory!
+    assert "/todos" not in code
+    assert "TodoItem" not in code
+
+
+
