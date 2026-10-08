@@ -15,6 +15,7 @@ import { useSidebarStore } from "@/lib/stores/sidebarStore";
 import { useVoiceTyping } from "@/hooks/useVoiceTyping";
 const Editor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { ExplorationCard } from "./ExplorationCard";
 import { apiClient } from "@/lib/api/client";
 
@@ -326,7 +327,13 @@ export function processEventData(
       const updateObj = updateVal as Record<string, unknown>;
 
       // Direct code fields on node output
-      const directCode = updateObj.generated_code || updateObj.file_content || updateObj.code_context;
+      let directCode = updateObj.generated_code || updateObj.file_content || updateObj.code_context;
+      if (!directCode && updateObj.artifacts && typeof updateObj.artifacts === "object") {
+        const artFiles = Object.values(updateObj.artifacts as Record<string, unknown>);
+        if (artFiles.length > 0 && typeof artFiles[0] === "string") {
+          directCode = artFiles[0];
+        }
+      }
       if (typeof directCode === "string" && directCode.trim() && handlers.onArtifactCode) {
         handlers.onArtifactCode(directCode.trim());
       }
@@ -928,7 +935,6 @@ export function CenterWorkspace() {
   };
 
   const handleRunArtifact = async () => {
-    setActiveCenterTab("terminal");
     clearTerminalLogs();
     addTerminalLog("input", "Running main.py in isolated sandbox...");
     
@@ -1063,7 +1069,6 @@ export function CenterWorkspace() {
 
     // 1. Direct stdout / stderr message objects from sandbox execution
     if (itemType === "output" || itemRole === "stdout") {
-      setActiveCenterTab("terminal");
       if (c) {
         for (const line of c.split("\n")) {
           const cl = cleanLine(line);
@@ -1076,7 +1081,6 @@ export function CenterWorkspace() {
     }
 
     if (itemType === "error" || itemRole === "stderr") {
-      setActiveCenterTab("terminal");
       if (c) {
         for (const line of c.split("\n")) {
           const cl = cleanLine(line);
@@ -1120,7 +1124,6 @@ export function CenterWorkspace() {
     if (!c) return;
 
     if (c.startsWith("[Sandbox Output]") || c.startsWith("[Execution Output]")) {
-      setActiveCenterTab("terminal");
       const text = c.replace(/^\[(?:Sandbox Output|Execution Output)\]\s*/, "");
       for (const line of text.split("\n")) {
         const cl = cleanLine(line);
@@ -1130,7 +1133,6 @@ export function CenterWorkspace() {
       }
       return;
     } else if (c.startsWith("[Sandbox Error]") || c.startsWith("[Execution Error]")) {
-      setActiveCenterTab("terminal");
       const text = c.replace(/^\[(?:Sandbox Error|Execution Error)\]\s*/, "");
       for (const line of text.split("\n")) {
         const cl = cleanLine(line);
@@ -1140,12 +1142,10 @@ export function CenterWorkspace() {
       }
       return;
     } else if (c.startsWith("[Sandbox Exit]") || c.startsWith("[Sandbox Exit Code") || c.startsWith("[Execution Exit]") || c.includes("[Process exited with code")) {
-      setActiveCenterTab("terminal");
       const isSuccess = c.includes("code 0") || c.includes("Code: 0") || c.includes("Code 0");
       addTerminalLog(isSuccess ? "success" : "error", cleanLine(c));
       return;
     } else if (c.startsWith("[Sandbox]")) {
-      setActiveCenterTab("terminal");
       addTerminalLog("system", cleanLine(c));
       return;
     }
@@ -1943,7 +1943,40 @@ export function CenterWorkspace() {
                               </div>
                             )}
                             <div className="prose prose-sm dark:prose-invert max-w-none">
-                              <ReactMarkdown>
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                  code({ className, children, ...props }: React.HTMLAttributes<HTMLElement>) {
+                                    const match = /language-(\w+)/.exec(className || "");
+                                    const codeText = String(children).replace(/\n$/, "");
+                                    return match ? (
+                                      <div className="relative my-3 rounded-lg overflow-hidden border border-border/60 bg-[#0d1117] dark:bg-[#090d16]">
+                                        <div className="flex items-center justify-between px-3 py-1.5 bg-muted/40 border-b border-border/40 text-[11px] font-mono text-muted-foreground">
+                                          <span className="uppercase font-semibold text-primary/80">{match[1]}</span>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleCopyMessage(codeText)}
+                                            className="hover:text-foreground hover:bg-muted/50 px-2 py-0.5 rounded transition-colors flex items-center gap-1.5 text-[11px]"
+                                            title="Copy code"
+                                          >
+                                            <Copy className="h-3 w-3" />
+                                            <span>Copy</span>
+                                          </button>
+                                        </div>
+                                        <pre className="p-3.5 overflow-x-auto text-xs font-mono bg-transparent m-0 leading-relaxed text-[#e6edf3]">
+                                          <code className={className} {...props}>
+                                            {children}
+                                          </code>
+                                        </pre>
+                                      </div>
+                                    ) : (
+                                      <code className="px-1.5 py-0.5 rounded bg-muted/60 font-mono text-xs text-primary" {...props}>
+                                        {children}
+                                      </code>
+                                    );
+                                  },
+                                }}
+                              >
                                 {msg.content}
                               </ReactMarkdown>
                             </div>

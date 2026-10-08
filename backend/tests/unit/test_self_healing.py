@@ -22,7 +22,7 @@ from src.utils.self_healing import (
     UnifiedDiffPatcher,
     FailingFunctionInfo,
 )
-from src.runtime.nodes import critic_node, debugger_node, implement_phase_node
+from src.runtime.nodes import critic_node, debugger_node, implement_phase_node, end_node_default
 from src.runtime.state import AgentState
 
 
@@ -356,3 +356,82 @@ class TestSelfHealingLoop:
         assert critic_res_2["critic_result"]["tests_passed"] is True
         assert len(critic_res_2["critic_result"]["warnings"]) == 0
         assert "App setup completed" in critic_res_2["critic_result"]["stdout"]
+
+    @pytest.mark.asyncio
+    async def test_critic_serverless_static_ast_validation_with_framework_imports(self):
+        """Verify that on serverless, realistic framework code with third-party imports
+        passes validation via static AST syntax validation without RestrictedExecutor security violations.
+        """
+        import os
+        framework_code = (
+            "from fastapi import FastAPI, Depends, HTTPException, status\n"
+            "from pydantic import BaseModel\n\n"
+            "app = FastAPI(title='E-Commerce API')\n\n"
+            "class Product(BaseModel):\n"
+            "    id: int\n"
+            "    name: str\n"
+            "    price: float\n\n"
+            "@app.get('/products')\n"
+            "def get_products():\n"
+            "    return [{'id': 1, 'name': 'Item', 'price': 9.99}]\n"
+        )
+        state: AgentState = {
+            "generated_code": framework_code,
+            "filepath": "main.py",
+            "heal_cycle_count": 0,
+        }
+
+        with patch.dict(os.environ, {"SERVERLESS": "1"}):
+            res = await critic_node(state)
+            assert res["status"] == "verified"
+            assert res["critic_result"]["passed"] is True
+            assert any("AST syntax" in m["content"] for m in res["messages"])
+
+    @pytest.mark.asyncio
+    async def test_critic_hard_cap_heal_cycles_at_two(self):
+        """Verify that critic hard-caps heal cycles when heal_cycle_count >= 2 and escalates instead of looping."""
+        stubborn_code = "raise RuntimeError('Broken')\n"
+        state: AgentState = {
+            "generated_code": stubborn_code,
+            "filepath": "main.py",
+            "heal_cycle_count": 2,  # At hard-cap of 2
+            "heal_history": [{"cycle": 1}, {"cycle": 2}],
+            "heal_logs": [],
+            "variables": {},
+        }
+        res = await critic_node(state)
+        assert res["status"] == "escalated"
+        assert "escalation_info" in res
+        assert res["escalation_info"]["error_type"] == "RuntimeError"
+
+    @pytest.mark.asyncio
+    async def test_implement_and_end_node_artifact_delivery(self):
+        """Verify implement_phase_node saves to artifacts and end_node_default delivers ready-made code cleanly."""
+        state: AgentState = {
+            "goal": "Build a E-Commerce website",
+            "filepath": "main.py",
+            "active_skills": [],
+            "artifacts": {},
+        }
+        # Run implement phase node
+        impl_res = await implement_phase_node(state)
+        assert impl_res["status"] == "verified"
+        assert "artifacts" in impl_res
+        assert "main.py" in impl_res["artifacts"]
+        assert impl_res["artifacts"]["main.py"] == impl_res["generated_code"]
+
+        # Run end node default
+        end_state: AgentState = {
+            **state,
+            **impl_res,
+        }
+        end_res = await end_node_default(end_state)
+        assert end_res["status"] == "completed"
+        assert "artifacts" in end_res
+        assert "main.py" in end_res["artifacts"]
+        assert end_res["generated_code"] == impl_res["generated_code"]
+        # Assistant message must contain the full code block with python syntax highlighting
+        assistant_msgs = [m for m in end_res["messages"] if m.get("role") == "assistant"]
+        assert len(assistant_msgs) >= 1
+        assert "```python" in assistant_msgs[-1]["content"]
+        assert impl_res["generated_code"] in assistant_msgs[-1]["content"]
