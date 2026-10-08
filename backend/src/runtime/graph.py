@@ -53,7 +53,7 @@ class StateGraphWrapper:
             if current == "critic":
                 if status == "healing":
                     return "debugger"
-                if status in ("escalated", "failed"):
+                if status != "verified":
                     return "end"
             elif current == "debugger":
                 return "critic"
