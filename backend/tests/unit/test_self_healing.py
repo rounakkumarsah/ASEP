@@ -435,3 +435,97 @@ class TestSelfHealingLoop:
         assert len(assistant_msgs) >= 1
         assert "```python" in assistant_msgs[-1]["content"]
         assert impl_res["generated_code"] in assistant_msgs[-1]["content"]
+
+    @pytest.mark.asyncio
+    async def test_critic_framework_imports_without_docker_passes_ast_validation(self):
+        """Verify that in local dev without Docker, code importing third-party frameworks
+        and starting a server loop passes validation via static AST parsing without blocking or failing."""
+        realistic_code = (
+            "from fastapi import FastAPI\n"
+            "import uvicorn\n"
+            "app = FastAPI()\n"
+            "@app.get('/store')\n"
+            "def store():\n"
+            "    return {'status': 'open'}\n"
+            "if __name__ == '__main__':\n"
+            "    uvicorn.run(app, host='0.0.0.0', port=8000)\n"
+        )
+        state: AgentState = {
+            "goal": "Build an E-Commerce backend",
+            "filepath": "main.py",
+            "generated_code": realistic_code,
+            "heal_cycle_count": 0,
+            "variables": {},
+        }
+        res = await critic_node(state)
+        assert res["status"] == "verified"
+        assert res["critic_result"]["passed"] is True
+        assert res["critic_result"]["exit_code"] == 0
+        assert any("AST syntax" in m["content"] for m in res["messages"])
+
+    @pytest.mark.asyncio
+    async def test_critic_syntax_error_escalation_includes_escalation_info(self):
+        """Verify that when syntax error reaches max heal cycles, complete escalation_info is returned."""
+        broken_syntax_code = "def invalid_syntax(:\n    pass\n"
+        state: AgentState = {
+            "generated_code": broken_syntax_code,
+            "filepath": "main.py",
+            "heal_cycle_count": 2,
+            "variables": {},
+        }
+        res = await critic_node(state)
+        assert res["status"] == "escalated"
+        assert "escalation_info" in res
+        assert res["escalation_info"]["error_type"] == "SyntaxError"
+        assert "invalid syntax" in res["escalation_info"]["error_message"].lower()
+        assert res["escalation_info"]["failing_file"] == "main.py"
+
+    def test_critic_phase_router_never_loops_on_non_verified(self):
+        """Verify that in graph.py phase_router, any status on critic other than healing or verified routes to end."""
+        from src.runtime.graph import StateGraphWrapper
+        from src.runtime.nodes import NodeRegistry
+        from src.runtime.edges import EdgeRegistry
+        node_registry = NodeRegistry()
+        node_registry.register("critic", critic_node)
+        wrapper = StateGraphWrapper(node_registry, EdgeRegistry(), MagicMock())
+        wrapper.assemble_default_flow()
+
+        # Compile/build workflow to inspect phase_router behavior
+        state_healing: AgentState = {
+            "current_phase": "critic",
+            "status": "healing",
+            "phase_map": ["implement", "critic", "test"],
+        }
+        state_failed: AgentState = {
+            "current_phase": "critic",
+            "status": "failed",
+            "phase_map": ["implement", "critic", "test"],
+        }
+        state_escalated: AgentState = {
+            "current_phase": "critic",
+            "status": "escalated",
+            "phase_map": ["implement", "critic", "test"],
+        }
+        state_unknown: AgentState = {
+            "current_phase": "critic",
+            "status": "some_random_status",
+            "phase_map": ["implement", "critic", "test"],
+        }
+        state_verified: AgentState = {
+            "current_phase": "critic",
+            "status": "verified",
+            "phase_map": ["implement", "critic", "test"],
+        }
+        # Directly invoke phase_router logic via builder workflow edges
+        # We test the routing function logic registered on workflow
+        router_func = None
+        for edge_tuple in wrapper.workflow.branches.get("critic", {}).values():
+            if hasattr(edge_tuple, "path"):
+                router_func = edge_tuple.path
+                break
+        assert router_func is not None
+        assert router_func.invoke(state_healing) == "debugger"
+        assert router_func.invoke(state_failed) == "end"
+        assert router_func.invoke(state_escalated) == "end"
+        assert router_func.invoke(state_unknown) == "end"
+        assert router_func.invoke(state_verified) == "test"
