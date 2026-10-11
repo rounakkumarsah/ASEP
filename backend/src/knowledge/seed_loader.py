@@ -48,7 +48,7 @@ async def seed_skills(skills_dir: Path) -> None:
                 continue
 
             raw_name = data.get("name") or yaml_file.stem
-            name = str(raw_name).strip()
+            name = str(raw_name).strip().lower()
             if not name:
                 continue
 
@@ -76,6 +76,11 @@ async def seed_skills(skills_dir: Path) -> None:
                 is_builtin=True,
                 version=1,
             )
+
+            # Preserve extra metadata fields from YAML
+            for attr in ("author", "tags", "risk_level", "required_permissions", "schema", "prompt_template"):
+                if attr in data:
+                    setattr(skill, attr, data[attr])
 
             # Register in SkillManager cache
             skill_mgr._skills_cache[name] = skill
@@ -121,10 +126,14 @@ async def seed_knowledge(seed_dir: Path) -> None:
             if not isinstance(data, dict):
                 continue
 
-            chunk_id = data.get("chunk_id") or json_file.stem
-            document_id = data.get("document_id", "")
-            content = data.get("content", "")
-            metadata = data.get("metadata", {})
+            chunk_id = str(data.get("chunk_id") or json_file.stem).strip()
+            if not chunk_id:
+                continue
+
+            document_id = str(data.get("document_id") or "")
+            content = str(data.get("content") or "")
+            raw_metadata = data.get("metadata")
+            metadata = raw_metadata if isinstance(raw_metadata, dict) else {}
 
             # Deterministic UUID for Qdrant point
             point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, chunk_id))
@@ -139,7 +148,12 @@ async def seed_knowledge(seed_dir: Path) -> None:
 
             # Generate embeddings using existing embedding service
             embedding = data.get("embedding")
-            if not embedding or not isinstance(embedding, list):
+            if (
+                not embedding
+                or not isinstance(embedding, list)
+                or len(embedding) != vector_size
+                or not all(isinstance(x, (int, float)) for x in embedding)
+            ):
                 try:
                     generated = await embedder.embed_documents([content])
                     embedding = generated[0] if generated else [0.0] * vector_size
@@ -171,11 +185,18 @@ async def seed_knowledge(seed_dir: Path) -> None:
             logger.error("Failed to seed knowledge chunk", file=str(json_file), error=str(exc))
 
 
-async def seed_builtin_data() -> None:
+async def seed_builtin_data(
+    skills_dir: Path | None = None,
+    knowledge_dir: Path | None = None,
+) -> None:
     """Orchestrates seeding of both builtin skills and knowledge chunks."""
-    base_dir = Path(__file__).parent
-    skills_dir = base_dir.parent / "skills" / "builtins"
-    knowledge_dir = base_dir / "seed"
+    try:
+        base_dir = Path(__file__).parent
+        s_dir = skills_dir if skills_dir is not None else (base_dir.parent / "skills" / "builtins")
+        k_dir = knowledge_dir if knowledge_dir is not None else (base_dir / "seed")
 
-    await seed_skills(skills_dir)
-    await seed_knowledge(knowledge_dir)
+        await seed_skills(s_dir)
+        await seed_knowledge(k_dir)
+    except Exception as exc:
+        logger.error("Failed to seed builtin data during startup", error=str(exc))
+
