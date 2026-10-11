@@ -1,0 +1,14 @@
+{
+  "chunk_id": "kc_web_stack_001",
+  "document_id": "doc_web_stack",
+  "content": "Modern Web Stack: Frontend Next.js 15 (App Router), React 19, Tailwind CSS, shadcn/ui. Backend Node.js (Express/Fastify) or Python (FastAPI). Database PostgreSQL + Prisma/Drizzle ORM. Auth Clerk, NextAuth, Supabase Auth. Rule: Always use Server Components by default. Use Client Components only when interactivity is needed. Always use Zod for input validation.",
+  "embedding": null,
+  "metadata": {
+    "source_url": "internal://asep/knowledge/web_stack",
+    "stack": "nextjs,fastapi,postgres",
+    "section": "Architecture",
+    "version": "1.0.0",
+    "recommended_patterns": ["Server Components", "Prisma ORM", "Zod Validation"],
+    "anti_patterns": ["Client Components everywhere", "Hardcoded secrets", "No input validation"]
+  }
+}

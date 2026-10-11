@@ -1,0 +1,14 @@
+{
+  "chunk_id": "kc_auto_n8n_001",
+  "document_id": "doc_automation",
+  "content": "Automation & Workflows: n8n is self-hosted, node-based, best for complex dev logic. Zapier/Make are best for simple no-code business workflows. Playwright/Selenium for web scraping and UI testing. BPMN 2.0 is standard for business process modeling. Rule: Prefer API integration over RPA. RPA is brittle.",
+  "embedding": null,
+  "metadata": {
+    "source_url": "internal://asep/knowledge/automation",
+    "stack": "n8n,automation",
+    "section": "Workflows",
+    "version": "1.0.0",
+    "recommended_patterns": ["API integration", "n8n for complex logic"],
+    "anti_patterns": ["RPA for API-available systems", "No error handling in n8n"]
+  }
+}

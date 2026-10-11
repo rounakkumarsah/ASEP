@@ -1,0 +1,23 @@
+name: "web-saas-scaffold"
+version: "1.0.0"
+description: "Scaffold a full-stack SaaS application with Next.js, Prisma, and Stripe."
+author: "ASEP Core"
+triggers: ["build saas", "create saas", "saas dashboard", "multi-tenant app"]
+tags: ["web", "saas", "nextjs", "stripe"]
+risk_level: "medium"
+required_permissions: ["WORKSPACE_WRITE", "SYSTEM_EXECUTE"]
+instructions: |
+  1. Run `npx create-next-app@latest {name} --typescript --tailwind --app`
+  2. Run `npm i @clerk/nextjs prisma @prisma/client stripe zod`
+  3. Run `npx prisma init`
+  4. Create schema.prisma with User, Org, Subscription models.
+  5. Add middleware.ts for Clerk auth.
+  6. Create /api/stripe/checkout route with Zod validation.
+  7. Validate: `npm run build` exits 0.
+schema:
+  type: "object"
+  properties:
+    name:
+      type: "string"
+      description: "Name of the SaaS application"
+prompt_template: "You are a senior full-stack engineer. Scaffold a SaaS app named {name} using Next.js, Prisma, and Stripe. Ensure multi-tenancy with org_id."

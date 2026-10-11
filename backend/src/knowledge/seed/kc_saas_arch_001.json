@@ -1,0 +1,14 @@
+{
+  "chunk_id": "kc_saas_arch_001",
+  "document_id": "doc_saas_architecture",
+  "content": "SaaS Architecture: Multi-Tenancy via shared DB with tenant_id column (easiest) or separate schemas/DBs (hardest). Auth: RBAC with Org/Team models. JWT in httpOnly cookies. Billing: Stripe Checkout + Webhooks. Customer portal for management. Rate Limiting: Redis-based rate limiter on auth and API endpoints. Admin Panel: Separate route protected by admin role.",
+  "embedding": null,
+  "metadata": {
+    "source_url": "internal://asep/knowledge/saas_arch",
+    "stack": "saas,stripe,postgres",
+    "section": "Architecture",
+    "version": "1.0.0",
+    "recommended_patterns": ["tenant_id", "Stripe Webhooks", "Redis Rate Limiting"],
+    "anti_patterns": ["No tenant isolation", "Hardcoded Stripe keys"]
+  }
+}

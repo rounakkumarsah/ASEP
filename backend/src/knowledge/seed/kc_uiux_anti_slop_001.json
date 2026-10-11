@@ -1,0 +1,14 @@
+{
+  "chunk_id": "kc_uiux_anti_slop_001",
+  "document_id": "doc_uiux_rules",
+  "content": "Anti-AI-Slop UI/UX Rules: NEVER generate generic AI UI (no purple gradients, no lorem ipsum). ALWAYS use shadcn/ui or Radix UI for accessibility. Spacing: Use 4px/8px grid (p-4, gap-2, space-y-4). Typography: Max 2 fonts (Inter or Geist). States: Every component MUST have Loading, Empty, and Error states. Accessibility: aria-labels, focus-visible rings, contrast > 4.5:1. Responsive: Mobile-first (flex-col, md:flex-row). Micro-interactions: hover:scale-105, transition-all, active:scale-95.",
+  "embedding": null,
+  "metadata": {
+    "source_url": "internal://asep/knowledge/uiux_rules",
+    "stack": "react,tailwind",
+    "section": "Design System",
+    "version": "1.0.0",
+    "recommended_patterns": ["shadcn/ui", "Mobile-first", "Loading/Error states"],
+    "anti_patterns": ["Purple gradients", "Lorem ipsum", "Missing focus states"]
+  }
+}

@@ -1,0 +1,24 @@
+name: "mcp-server-scaffold"
+version: "1.0.0"
+description: "Scaffold an MCP server to expose tools and resources to AI."
+author: "ASEP Core"
+triggers: ["mcp server", "model context protocol", "ai tools"]
+tags: ["mcp", "ai", "protocol"]
+risk_level: "medium"
+required_permissions: ["WORKSPACE_WRITE", "SYSTEM_EXECUTE"]
+instructions: |
+  1. pip install mcp (Python) or npm i @modelcontextprotocol/sdk (Node).
+  2. Create server.py. Initialize Server("{name}").
+  3. For each tool, add @server.tool() decorator with typed arguments.
+  4. Add docstrings (tool description for AI).
+  5. Implement tools/list and tools/call handlers.
+  6. Test with npx @modelcontextprotocol/inspector.
+schema:
+  type: "object"
+  properties:
+    name:
+      type: "string"
+    language:
+      type: "string"
+      enum: ["python", "node"]
+prompt_template: "You are an MCP expert. Scaffold an MCP server named {name} in {language}. Expose tools with proper schemas and error handling."

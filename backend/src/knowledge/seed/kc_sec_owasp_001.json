@@ -1,0 +1,14 @@
+{
+  "chunk_id": "kc_sec_owasp_001",
+  "document_id": "doc_security_owasp",
+  "content": "Security First (OWASP Top 10): NEVER hardcode secrets (API keys, DB URLs). Use .env. ALWAYS validate inputs with Zod or Pydantic. SQL Injection: Use ORMs or parameterized queries. Never string-concat SQL. Auth: Use httpOnly, secure, sameSite=strict cookies. Rate Limiting: Max 5 login attempts per 15 mins. CORS: Restrict to specific origins. Never use wildcard (*) in production. Dependencies: Run npm audit or pip-audit regularly.",
+  "embedding": null,
+  "metadata": {
+    "source_url": "internal://asep/knowledge/security_owasp",
+    "stack": "security,backend",
+    "section": "Security",
+    "version": "1.0.0",
+    "recommended_patterns": ["httpOnly cookies", "Parameterized queries", "Rate limiting"],
+    "anti_patterns": ["Hardcoded secrets", "CORS wildcard", "String-concat SQL"]
+  }
+}

@@ -1,0 +1,21 @@
+name: "sec-audit-owasp"
+version: "1.0.0"
+description: "Security audit for generated code against OWASP Top 10."
+author: "ASEP Core"
+triggers: ["security audit", "check security", "owasp", "vulnerability scan"]
+tags: ["security", "owasp", "audit"]
+risk_level: "low"
+required_permissions: ["READ_ONLY"]
+instructions: |
+  1. Scan for hardcoded secrets via grep -r "sk_live" .
+  2. Check DB queries for string concatenation (SQLi risk).
+  3. Check auth middleware on all protected routes.
+  4. Check input validation (Zod/Pydantic).
+  5. Check CORS settings (restricted origins only).
+  6. Check dependencies: npm audit or pip-audit.
+schema:
+  type: "object"
+  properties:
+    codebase_path:
+      type: "string"
+prompt_template: "You are a security engineer. Audit the code at {codebase_path} against OWASP Top 10. Report severity and remediation."

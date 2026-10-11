@@ -1,0 +1,25 @@
+name: "app-mobile-scaffold"
+version: "1.0.0"
+description: "Scaffold a cross-platform mobile app using Flutter or React Native."
+author: "ASEP Core"
+triggers: ["build mobile app", "create app", "flutter app", "react native app"]
+tags: ["mobile", "flutter", "react-native"]
+risk_level: "medium"
+required_permissions: ["WORKSPACE_WRITE", "SYSTEM_EXECUTE"]
+instructions: |
+  1. If Flutter: `flutter create {name}`. If RN: `npx create-expo-app {name}`
+  2. Setup navigation: GoRouter (Flutter), Expo Router (RN).
+  3. Setup state management: Riverpod (Flutter), Zustand (RN).
+  4. Create screens: Splash, Login, Home, Profile.
+  5. Setup API client: Dio (Flutter), Axios (RN).
+  6. Setup push notifications: FCM.
+  7. Validate: `flutter analyze` or `npx expo-doctor` returns 0 errors.
+schema:
+  type: "object"
+  properties:
+    name:
+      type: "string"
+    framework:
+      type: "string"
+      enum: ["flutter", "react-native"]
+prompt_template: "You are a mobile app expert. Scaffold a {framework} app named {name} with proper navigation and state management."

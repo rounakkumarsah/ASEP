@@ -1,0 +1,21 @@
+name: "uiux-design-review"
+version: "1.0.0"
+description: "Review UI code for accessibility, responsiveness, and anti-slop rules."
+author: "ASEP Core"
+triggers: ["review ui", "check design", "ui audit", "anti-slop"]
+tags: ["ui", "ux", "design", "review"]
+risk_level: "low"
+required_permissions: ["READ_ONLY"]
+instructions: |
+  1. Check responsive design: mobile (sm), tablet (md), desktop (lg).
+  2. Check spacing: consistent Tailwind (p-4, gap-4).
+  3. Check contrast: WCAG AA (4.5:1).
+  4. Check states: Loading, Empty, Error implemented.
+  5. Check accessibility: aria-labels, focus states visible.
+  6. Flag generic AI UI: purple gradients, lorem ipsum, missing hover states.
+schema:
+  type: "object"
+  properties:
+    code:
+      type: "string"
+prompt_template: "You are a UI/UX expert. Review this code for anti-slop rules, accessibility, and responsiveness. Suggest concrete fixes: {code}"

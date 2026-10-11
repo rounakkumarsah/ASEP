@@ -1,0 +1,14 @@
+{
+  "chunk_id": "kc_bot_discord_001",
+  "document_id": "doc_bot_development",
+  "content": "Bot Development: Discord (discord.py/discord.js) for slash commands. Telegram (python-telegram-bot/Telegraf) for inline keyboards. Slack (Bolt) for modals. WhatsApp (Twilio/Meta Cloud API). AI Integration: LangChain, OpenAI API, Vercel AI SDK. Rule: Always use Webhooks instead of polling. Handle rate limits gracefully.",
+  "embedding": null,
+  "metadata": {
+    "source_url": "internal://asep/knowledge/bot_dev",
+    "stack": "discord,telegram,slack",
+    "section": "Bots",
+    "version": "1.0.0",
+    "recommended_patterns": ["Webhooks", "Rate limit handling"],
+    "anti_patterns": ["Polling instead of webhooks", "Hardcoded tokens"]
+  }
+}

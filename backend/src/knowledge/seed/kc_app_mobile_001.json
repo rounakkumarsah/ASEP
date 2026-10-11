@@ -1,0 +1,14 @@
+{
+  "chunk_id": "kc_app_mobile_001",
+  "document_id": "doc_app_development",
+  "content": "Mobile App Development: Cross-platform via Flutter (Dart) or React Native (Expo). Native iOS via Swift/SwiftUI. Native Android via Kotlin/Jetpack Compose. State Management: Riverpod/Bloc (Flutter), Zustand/Redux (RN). Navigation: GoRouter (Flutter), Expo Router (RN). Local Storage: Hive (Flutter), AsyncStorage (RN). Push Notifications: Firebase Cloud Messaging (FCM).",
+  "embedding": null,
+  "metadata": {
+    "source_url": "internal://asep/knowledge/app_dev",
+    "stack": "flutter,react-native,swift,kotlin",
+    "section": "Mobile",
+    "version": "1.0.0",
+    "recommended_patterns": ["Riverpod", "Expo Router", "FCM"],
+    "anti_patterns": ["Ignoring platform-specific guidelines", "No state management"]
+  }
+}

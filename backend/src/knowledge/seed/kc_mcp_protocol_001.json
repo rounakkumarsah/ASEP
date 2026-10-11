@@ -1,0 +1,14 @@
+{
+  "chunk_id": "kc_mcp_protocol_001",
+  "document_id": "doc_mcp_protocol",
+  "content": "Model Context Protocol (MCP): MCP is a standard for AI to connect to tools/data. Server exposes Resources (data), Tools (functions), Prompts (templates). Client is AI app that connects to Server. Transport: stdio (local) or HTTP+SSE (remote). SDKs: Python (mcp), Node (@modelcontextprotocol/sdk). Best Practice: Always use input schemas and error handling in MCP servers.",
+  "embedding": null,
+  "metadata": {
+    "source_url": "internal://asep/knowledge/mcp_protocol",
+    "stack": "mcp,ai",
+    "section": "Protocols",
+    "version": "1.0.0",
+    "recommended_patterns": ["Input schemas", "Error handling", "stdio transport"],
+    "anti_patterns": ["No auth on remote servers", "Missing error handling"]
+  }
+}

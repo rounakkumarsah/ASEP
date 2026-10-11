@@ -63,6 +63,7 @@ from src.routes.billing import router as billing_router
 from src.cache.redis import close_redis, init_redis
 from src.config.settings import get_settings
 from src.db.postgres import close_db, init_db
+from src.knowledge.seed_loader import seed_builtin_data
 from src.utils.logging import configure_logging
 
 logger = logging.getLogger(__name__)
@@ -202,6 +203,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             await tq.recover_pending_jobs()
         except Exception as tq_exc:
             logger.warning("BackgroundTaskQueue initialization failed: %s", tq_exc)
+
+        await seed_builtin_data()
 
     yield
 
