@@ -81,12 +81,18 @@ def test_license_activation(dev_token: str):
 @pytest.mark.asyncio
 async def test_require_license_dependency(dev_token: str):
     lm = get_license_manager()
-    lm.activate(dev_token)
-    # Should not raise
-    await require_license()
-
-    # Now invalidate
-    lm._is_licensed = False
-    with pytest.raises(HTTPException) as exc_info:
+    try:
+        lm.activate(dev_token)
+        # Should not raise
         await require_license()
-    assert exc_info.value.status_code == 402
+
+        # Now invalidate
+        lm._is_licensed = False
+        with pytest.raises(HTTPException) as exc_info:
+            await require_license()
+        assert exc_info.value.status_code == 402
+    finally:
+        lm.activate(dev_token)
+        if hasattr(lm, "_last_attempted_key"):
+            lm._last_attempted_key = None
+
