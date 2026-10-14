@@ -59,9 +59,12 @@ class LicenseManager:
             logger.critical("license_public_key_invalid", error=str(exc))
             return None
 
-    def _load_and_verify(self) -> None:
-        license_key = os.getenv("ASEP_LICENSE_KEY")
-        if not license_key and "PYTEST_CURRENT_TEST" not in os.environ:
+    def _load_and_verify(self, explicit_key: str | None = None) -> None:
+        if explicit_key is not None:
+            license_key = explicit_key
+        elif "ASEP_LICENSE_KEY" in os.environ:
+            license_key = os.environ.get("ASEP_LICENSE_KEY")
+        else:
             # Fallback: attempt reading from .env file if environment variable not yet loaded
             try:
                 from dotenv import load_dotenv
@@ -70,7 +73,7 @@ class LicenseManager:
                     load_dotenv(backend_env)
                 else:
                     load_dotenv()
-                license_key = os.getenv("ASEP_LICENSE_KEY")
+                license_key = os.environ.get("ASEP_LICENSE_KEY")
             except Exception:
                 pass
 

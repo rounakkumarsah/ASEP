@@ -34,14 +34,17 @@ def test_license_system_verification(dev_token: str):
 
 
 def test_invalid_license_missing():
-    old = os.environ.pop("ASEP_LICENSE_KEY", None)
+    old = os.environ.get("ASEP_LICENSE_KEY")
     try:
+        os.environ["ASEP_LICENSE_KEY"] = ""
         lm = LicenseManager()
         assert lm.is_licensed() is False
         assert lm.get_license_info() == {}
     finally:
         if old is not None:
             os.environ["ASEP_LICENSE_KEY"] = old
+        else:
+            os.environ.pop("ASEP_LICENSE_KEY", None)
 
 
 def test_invalid_license_corrupted(dev_token: str):
