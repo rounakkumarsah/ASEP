@@ -22,6 +22,9 @@ from src.licensing.license_manager import get_license_manager
 
 logger = structlog.get_logger(__name__)
 
+import posixpath
+from urllib.parse import unquote
+
 # Explicitly exempt paths and pattern matchers
 WHITELIST_EXACT = {
     "/",
@@ -34,6 +37,7 @@ WHITELIST_EXACT = {
     "/api/v1/health",
     "/api/v1/health/ready",
     "/health",
+    "/health/ready",
     "/ready",
     "/metrics",
 }
@@ -67,18 +71,29 @@ STATIC_EXTENSIONS = (
 )
 
 
+def normalize_path(path: str) -> str:
+    """Normalize URL-encoded characters and resolve dot/traversal segments."""
+    decoded = unquote(path)
+    normalized = posixpath.normpath(decoded)
+    if not normalized.startswith("/"):
+        normalized = "/" + normalized
+    return normalized
+
+
 def is_path_exempt(path: str) -> bool:
     """Return True if request path does not require a license."""
-    norm_path = path.rstrip("/") if len(path) > 1 else path
+    norm_path = normalize_path(path)
 
     if norm_path in WHITELIST_EXACT:
         return True
 
-    if norm_path.endswith(STATIC_EXTENSIONS):
-        return True
-
     for prefix in WHITELIST_PREFIXES:
         if norm_path == prefix or norm_path.startswith(prefix + "/"):
+            return True
+
+    # Static file extensions apply only to non-API routes (e.g. root static files or assets)
+    if not norm_path.startswith("/api/"):
+        if norm_path.endswith(STATIC_EXTENSIONS):
             return True
 
     return False
@@ -117,9 +132,11 @@ class LicenseGuardMiddleware(BaseHTTPMiddleware):
         # Check license validity
         lm = get_license_manager()
         if not lm.is_licensed():
-            # Retry load in case env was populated after initial instantiation
-            if os.getenv("ASEP_LICENSE_KEY"):
+            # If env key is present, retry verification if not already attempted for this key
+            current_key = os.getenv("ASEP_LICENSE_KEY")
+            if current_key and getattr(lm, "_last_attempted_key", None) != current_key:
                 lm._load_and_verify()
+                lm._last_attempted_key = current_key
 
         if not lm.is_licensed():
             logger.warning(

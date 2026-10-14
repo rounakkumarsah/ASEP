@@ -70,6 +70,11 @@ async def check_readiness(response: Response) -> dict[str, Any]:
             license_ok = True
         else:
             lm = get_license_manager()
+            if not lm.is_licensed():
+                current_key = os.getenv("ASEP_LICENSE_KEY")
+                if current_key and getattr(lm, "_last_attempted_key", None) != current_key:
+                    lm._load_and_verify()
+                    lm._last_attempted_key = current_key
             license_ok = bool(lm.is_licensed())
     except Exception as exc:
         logger.warning("License readiness check failed: %s", exc)

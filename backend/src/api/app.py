@@ -58,7 +58,10 @@ from src.api.routers.mcp import router as mcp_router
 from src.api.routers.host import router as host_router
 from src.api.routers.integrations_github import router as integrations_github_router
 from src.api.routers.skills import router as skills_router
-from src.api.routers.user_keys import router as user_keys_router
+try:
+    from src.api.routers.user_keys import router as user_keys_router
+except ImportError:
+    user_keys_router = None
 from src.api.routers.voice import router as voice_router
 from src.api.routers.prompts import router as prompts_router
 from src.routes.agents import router as agents_router
@@ -365,7 +368,8 @@ def create_app() -> FastAPI:
     app.include_router(host_router, prefix="/api/v1")
     app.include_router(integrations_github_router, prefix="/api/v1")
     app.include_router(skills_router)
-    app.include_router(user_keys_router)
+    if user_keys_router is not None:
+        app.include_router(user_keys_router)
     app.include_router(voice_router, prefix="/api/v1")
     app.include_router(prompts_router, prefix="/api/v1")
     app.include_router(agents_router)
