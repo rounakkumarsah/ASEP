@@ -56,11 +56,13 @@ class Settings(BaseSettings):
     # Security / Authentication
     # -----------------------------------------------------------------------
     SECRET_KEY: str = "change-this-to-a-random-256-bit-secret"
+    ASEP_KEY_VAULT_SECRET: str | None = None
     JWT_SECRET_KEY: str = "change_me_in_production"
     JWT_REFRESH_SECRET_KEY: str = "change_me_in_production_refresh"
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_EXPIRE_MINUTES: int = 120
     JWT_REFRESH_EXPIRE_DAYS: int = 7
+    ENABLE_LICENSE_MIDDLEWARE: bool = True
 
     # -----------------------------------------------------------------------
     # Redis
@@ -212,6 +214,17 @@ class Settings(BaseSettings):
     QDRANT_PORT: int = Field(default=6333, ge=1, le=65535)
     # Note: QDRANT_URL and QDRANT_API_KEY are defined above in the primary Qdrant block.
     # QDRANT_HOST / QDRANT_PORT are retained for Docker-internal routing compatibility.
+
+    # -----------------------------------------------------------------------
+    # Neural Reranker
+    # -----------------------------------------------------------------------
+    ENABLE_RERANKER: bool = True
+    RERANKER_MODEL: str = "BAAI/bge-reranker-base"
+
+    # -----------------------------------------------------------------------
+    # Prompt Injection Classifier
+    # -----------------------------------------------------------------------
+    ENABLE_INJECTION_CLASSIFIER: bool = True
 
     # -----------------------------------------------------------------------
     # Ollama

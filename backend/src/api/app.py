@@ -26,6 +26,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.exceptions import register_exception_handlers
+from src.api.middleware.license_guard import LicenseGuardMiddleware
 from src.api.middleware.logging import StructuredLoggingMiddleware
 from src.api.routers.agent_runs import router as agent_runs_router
 from src.api.routers.ai_runtime import router as ai_runtime_router
@@ -36,6 +37,7 @@ from src.api.routers.conversations import router as conversations_router
 from src.api.routers.diagnostics import router as diagnostics_router
 from src.api.routers.evaluation import router as evaluation_router
 from src.api.routers.health import router as health_router
+from src.api.routers.health_ready import router as health_ready_router
 from src.api.routers.hitl import router as hitl_router
 from src.api.routers.knowledge import router as knowledge_router
 from src.api.routers.knowledge_sync import router as knowledge_sync_router
@@ -56,6 +58,7 @@ from src.api.routers.mcp import router as mcp_router
 from src.api.routers.host import router as host_router
 from src.api.routers.integrations_github import router as integrations_github_router
 from src.api.routers.skills import router as skills_router
+from src.api.routers.user_keys import router as user_keys_router
 from src.api.routers.voice import router as voice_router
 from src.api.routers.prompts import router as prompts_router
 from src.routes.agents import router as agents_router
@@ -288,6 +291,8 @@ def create_app() -> FastAPI:
     from src.middleware.quota_middleware import QuotaEnforcementMiddleware
     app.add_middleware(QuotaEnforcementMiddleware)
 
+    app.add_middleware(LicenseGuardMiddleware)
+
     from collections.abc import Awaitable, Callable
 
     from fastapi import Request, Response
@@ -328,6 +333,8 @@ def create_app() -> FastAPI:
     app.include_router(health_router, prefix="/api", tags=["Observability"])
     app.include_router(health_router, prefix="/v1", tags=["Observability"])
     app.include_router(health_router, prefix="/api/v1", tags=["Observability"])
+    app.include_router(health_ready_router, prefix="/api/v1", tags=["Observability"])
+    app.include_router(health_ready_router, tags=["Observability"])
     app.include_router(metrics_router, tags=["Observability"])
     app.include_router(metrics_router, prefix="/api/v1", tags=["Observability"])
     app.include_router(diagnostics_router, tags=["Observability"])
@@ -358,6 +365,7 @@ def create_app() -> FastAPI:
     app.include_router(host_router, prefix="/api/v1")
     app.include_router(integrations_github_router, prefix="/api/v1")
     app.include_router(skills_router)
+    app.include_router(user_keys_router)
     app.include_router(voice_router, prefix="/api/v1")
     app.include_router(prompts_router, prefix="/api/v1")
     app.include_router(agents_router)

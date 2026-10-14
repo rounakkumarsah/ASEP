@@ -305,8 +305,19 @@ npm run dev
 | `OPENAI_API_KEY` | Backend | OpenAI GPT-4o API key | `""` (Fallback to Ollama) |
 | `OLLAMA_BASE_URL`| Backend | Local Ollama endpoint | `http://localhost:11434` |
 | `JWT_SECRET_KEY` | Backend | Cryptographic secret for auth tokens | Auto-generated in production |
+| `ASEP_KEY_VAULT_SECRET` | Backend | Fernet master encryption key for BYOK user vault | Deterministic fallback from `SECRET_KEY` |
 | `NEXT_PUBLIC_API_URL` | Frontend | Backend API endpoint | `http://localhost:8000` |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Frontend | Cloudflare Turnstile Captcha key | `1x00000000000000000000AA` (Test) |
+
+### 🔑 Bring Your Own Key (BYOK) & LLM Credentials
+
+ASEP supports flexible **BYOK (Bring Your Own Key)** for individual developers and multi-tenant teams:
+- **User-Scoped Custom Keys:** Authenticated users can configure, validate, update, and delete their own API keys for **Groq**, **Gemini**, **OpenRouter**, **OpenAI**, and **Anthropic** via **Settings → LLM Providers** (or `/api/v1/user-keys`). When set, the user's personal key is used for all their agent sessions and requests.
+- **Platform Fallback:** If a user has not configured a custom key (or for background jobs without user context), ASEP seamlessly falls back to the platform environment keys (`GEMINI_API_KEY`, `GROQ_API_KEY`, `OPENROUTER_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`).
+- **Encryption at Rest:** All user credentials are encrypted with `Fernet` symmetric encryption before being persisted to PostgreSQL. Master vault key is configured with `ASEP_KEY_VAULT_SECRET`:
+  ```bash
+  python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+  ```
 
 ### 🔒 Fail-Fast Production Guardrails
 In **staging** or **production** (`APP_ENV=staging` or `APP_ENV=production`), a Pydantic `model_validator` executes on startup to verify that no local fallback values exist. The backend service will refuse to boot and raise a validation error if any of the following variables are missing or set to defaults:
@@ -357,3 +368,29 @@ pre-commit run --all-files
 
 - **Author**: Rounak Kumar Sah ([@rounakkumarsah](https://github.com/rounakkumarsah))
 - **License**: [MIT License](LICENSE) — Free for open-source research, developer tooling, and enterprise modification.
+
+---
+
+## Startup & Readiness
+
+ASEP takes 30-40 seconds to become fully ready on cold start (Neo4j + Qdrant + Postgres initialization).
+
+- **Health check (liveness):** GET /api/v1/health — returns 200 as soon as the process is up (does NOT wait for DBs).
+- **Readiness check:** GET /api/v1/health/ready — returns 200 only after all dependencies are reachable.
+
+**For CI/CD and automated tests:** poll `/api/v1/health/ready` instead of using fixed `sleep` durations.
+
+Example wait loop (bash):
+    until curl -sf http://localhost:8000/api/v1/health/ready > /dev/null; do
+      echo "waiting for ASEP to be ready..."
+      sleep 2
+    done
+
+Example wait loop (PowerShell):
+    while (-not (Invoke-WebRequest -Uri "http://localhost:8000/api/v1/health/ready" -UseBasicParsing -ErrorAction SilentlyContinue)) {
+      Write-Host "waiting for ASEP to be ready..."
+      Start-Sleep -Seconds 2
+    }
+
+**Buyer note:** First cold start after `git clone` downloads the BGE embedding model (~130 MB). This is a one-time download cached in `~/.cache/huggingface/`. Subsequent starts are fast.
+
