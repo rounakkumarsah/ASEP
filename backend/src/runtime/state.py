@@ -113,10 +113,21 @@ class AgentState(TypedDict, total=False):
 
 
 def extract_clean_goal(raw_goal: str) -> str:
-    """Extract clean user goal by stripping any injected memory prefixes or past memory sections."""
+    """Extract clean user goal by stripping any injected memory prefixes, past context, or thread titles."""
     if not raw_goal:
         return ""
+    import re
     text = str(raw_goal).strip()
+
+    # Strip thread title / conversation header prefixes if present
+    text = re.sub(r"^(?:Thread|Conversation|Session):\s*[^\n]+\r?\n+", "", text, flags=re.IGNORECASE)
+
+    # Strip [Past Context] prefix if present
+    if "[Past Context]" in text:
+        parts = text.split("[Past Context]", 1)
+        after_ctx = parts[1]
+        text = re.sub(r"^[\s\S]*?(?:\r?\n\r?\n|$)", "", after_ctx).strip() or parts[0].strip()
+
     if "Relevant Past Memories:" in text:
         parts = text.split("Relevant Past Memories:", 1)[1]
         lines = parts.split("\n")
@@ -141,6 +152,6 @@ def extract_clean_goal(raw_goal: str) -> str:
         cleaned = "\n".join(goal_lines).strip()
         if cleaned:
             return cleaned
-    return text
+    return text.strip()
 
 

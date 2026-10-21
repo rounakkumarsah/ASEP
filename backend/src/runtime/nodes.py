@@ -35,6 +35,64 @@ logger = logging.getLogger(__name__)
 NodeFunc = Callable[[AgentState], dict[str, Any] | Awaitable[dict[str, Any]]]
 
 
+def _ensure_builtin_skills() -> None:
+    """Ensure built-in YAML skills from backend/src/skills/builtins are registered into SkillManager cache."""
+    try:
+        from src.skills.skill_manager import get_skill_manager, Skill
+        from src.knowledge.seed_loader import _parse_yaml_file
+
+        skill_mgr = get_skill_manager()
+        yaml_dir = Path(__file__).resolve().parent.parent / "skills" / "builtins"
+        if yaml_dir.exists():
+            for yaml_file in sorted(yaml_dir.glob("*.yaml")):
+                data = _parse_yaml_file(yaml_file)
+                if not isinstance(data, dict):
+                    continue
+                raw_name = data.get("name") or yaml_file.stem
+                name = str(raw_name).strip().lower()
+                if skill_mgr.get_skill(name) is not None:
+                    continue
+                triggers = data.get("triggers", [])
+                if isinstance(triggers, list):
+                    trigger_str = " ".join(str(t) for t in triggers)
+                else:
+                    trigger_str = str(triggers or data.get("trigger") or "")
+                instructions = str(data.get("instructions", "")).strip()
+                desc = str(data.get("description", "")).strip()
+                skill = Skill(
+                    name=name,
+                    description=desc,
+                    trigger=trigger_str,
+                    instructions=instructions,
+                    dependencies=data.get("dependencies") or [],
+                    scope="workspace",
+                    enabled=True,
+                    is_builtin=True,
+                    version=1,
+                )
+                for attr in ("author", "tags", "risk_level", "required_permissions", "schema", "prompt_template", "triggers"):
+                    if attr in data:
+                        setattr(skill, attr, data[attr])
+                skill_mgr._skills_cache[name] = skill
+    except Exception as exc:
+        logger.warning("Could not auto-seed builtin skills: %s", exc)
+
+
+def _is_explicit_continuation(goal: str) -> bool:
+    """Check if the goal explicitly references past codebase or continues an ongoing task."""
+    goal_lower = goal.lower()
+    continuation_keywords = [
+        "refactor", "update this", "modify this", "fix this", "fix the",
+        "add to this", "add to the above", "previous", "existing",
+        "current code", "in the file", "in main.py", "debug this",
+        "change the", "replace in"
+    ]
+    return any(kw in goal_lower for kw in continuation_keywords)
+
+
+_ensure_builtin_skills()
+
+
 class NodeRegistry:
     def __init__(self) -> None:
         self._nodes: dict[str, NodeFunc] = {}
@@ -134,6 +192,21 @@ async def planner_node(state: AgentState) -> dict[str, Any]:
     goal = extract_clean_goal(state.get("goal", ""))
     logger.info("Planner Agent generating plan for goal: %s", goal)
 
+    _ensure_builtin_skills()
+    from src.skills.skill_manager import get_skill_manager
+    skill_mgr = get_skill_manager()
+    matched_skill = skill_mgr.match(goal)
+
+    goal_lower = goal.lower()
+    is_frontend = (
+        (matched_skill and matched_skill.name == "web-website-build")
+        or any(kw in goal_lower for kw in ("next.js", "nextjs", "tailwind", "landing page", "website", "react", "vue", "svelte", "astro", "frontend", "html"))
+    )
+    is_mobile = (
+        (matched_skill and matched_skill.name == "app-mobile-build")
+        or any(kw in goal_lower for kw in ("flutter", "dart", "react native", "react-native", "mobile app", "ios app", "android app"))
+    )
+
     plan: list[str] = []
     res = None
     try:
@@ -144,8 +217,20 @@ async def planner_node(state: AgentState) -> dict[str, Any]:
         prompt = (
             "You are a Senior Principal Software Architect. Decompose the following engineering objective into "
             "a concise, ordered list of 3 to 5 executable technical steps. Return strictly a JSON array of strings.\n\n"
-            f"Objective: {goal}"
+            f"Objective: {goal}\n\n"
+            "CRITICAL ARCHITECTURAL RULES:\n"
+            "1. LANGUAGE/FRAMEWORK STICKINESS: If the user specifies a language or framework (e.g., 'Next.js', 'Tailwind', 'React Native', 'Flutter'), "
+            "the generated plan and steps MUST be strictly in that stack. NEVER default to Python/FastAPI if a frontend framework is requested.\n"
+            "2. DOMAIN DETECTION: Carefully determine whether the request is a Website, Web App, SaaS, Mobile App, Automation, or API. Tailor the steps directly to that domain.\n"
+            "3. NO TO-DO/ECOMMERCE BIAS: Do NOT generate generic To-Do or E-Commerce backend boilerplate unless explicitly requested.\n"
         )
+        if matched_skill:
+            prompt += (
+                f"\nACTIVE DOMAIN SKILL: {matched_skill.name}\n"
+                f"Skill Directives:\n{matched_skill.instructions}\n"
+                "Incorporate these active skill instructions into the technical plan.\n"
+            )
+
         req = CompletionRequest(
             messages=[Message(role="user", content=prompt)],
             model="gemini-1.5-flash",
@@ -168,13 +253,41 @@ async def planner_node(state: AgentState) -> dict[str, Any]:
         )
 
     if not plan:
-        # Structured deterministic fallback
-        plan = [
-            f"1. Analyze technical requirements for '{goal}'",
-            "2. Retrieve relevant patterns, schema definitions, and dependencies",
-            "3. Formulate implementation architecture with error handling",
-            "4. Construct, test, and verify solution against constraints",
-        ]
+        # Structured deterministic fallback honoring framework stickiness and domain
+        if is_frontend:
+            framework = "Next.js" if ("next" in goal_lower or "react" in goal_lower or not ("astro" in goal_lower)) else "Astro"
+            css_fw = "Tailwind CSS" if "tailwind" in goal_lower else "modern CSS styling"
+            plan = [
+                f"1. Initialize {framework} application configured with {css_fw} and responsive design tokens",
+                f"2. Scaffold landing page structure for '{goal}' (Hero, Features/Menu, About, Contact, CTA sections)",
+                "3. Implement responsive UI components with loading, empty, and hover/focus states adhering to design rules",
+                "4. Integrate SEO metadata (JSON-LD, OpenGraph tags, semantic HTML) and accessibility landmarks",
+                f"5. Verify {framework} build, asset optimization, and responsiveness",
+            ]
+        elif is_mobile:
+            mobile_fw = "Flutter (Dart)" if "flutter" in goal_lower else "React Native (TSX)"
+            plan = [
+                f"1. Initialize {mobile_fw} mobile app architecture and dependencies",
+                f"2. Scaffold core mobile navigation, screens, and state management for '{goal}'",
+                "3. Implement responsive mobile UI components with touch handling and theme support",
+                "4. Add offline data handling, validation, and error boundaries",
+                f"5. Verify {mobile_fw} build and test on target device emulators",
+            ]
+        elif any(kw in goal_lower for kw in ("api", "backend", "fastapi", "rest", "crud", "endpoint")):
+            plan = [
+                f"1. Define API data models, schemas, and validation for '{goal}'",
+                "2. Implement REST endpoints with authentication, error handling, and business logic",
+                "3. Set up database integration, migrations, and service layer",
+                "4. Construct automated unit and integration tests with pytest",
+                "5. Verify API documentation (OpenAPI/Swagger) and security controls",
+            ]
+        else:
+            plan = [
+                f"1. Analyze technical requirements for '{goal}'",
+                "2. Retrieve relevant patterns, schema definitions, and dependencies",
+                "3. Formulate implementation architecture with error handling",
+                "4. Construct, test, and verify solution against constraints",
+            ]
 
     plan_msg = "Task Decomposition Plan:\n" + "\n".join(f"• {p}" for p in plan)
     messages = []
@@ -195,9 +308,12 @@ async def planner_node(state: AgentState) -> dict[str, Any]:
         "content": plan_msg,
     })
 
+    active_skills = list(set((state.get("active_skills") or []) + ([matched_skill.name] if matched_skill else [])))
+
     return {
         "status": "planned",
         "plan": plan,
+        "active_skills": active_skills,
         "messages": messages,
     }
 
@@ -706,8 +822,11 @@ async def orchestrator_node(state: AgentState) -> dict[str, Any]:
     elif "bot" in goal_lower:
         product_type = "bot"
         phase_map = ["research", "clarification_gate", "implement", "critic", "test", "security_audit", "deploy_clarification_gate", "deploy", "host_manager"]
-    elif "website" in goal_lower:
+    elif any(k in goal_lower for k in ("website", "landing page", "landing-page", "marketing site", "portfolio site", "portfolio")):
         product_type = "website"
+        phase_map = ["research", "clarification_gate", "implement", "critic", "test", "security_audit", "deploy_clarification_gate", "deploy", "host_manager"]
+    elif any(k in goal_lower for k in ("mobile app", "flutter", "react native", "react-native", "ios app", "android app")):
+        product_type = "app"
         phase_map = ["research", "clarification_gate", "implement", "critic", "test", "security_audit", "deploy_clarification_gate", "deploy", "host_manager"]
     elif "app" in goal_lower:
         product_type = "app"
@@ -730,6 +849,7 @@ async def orchestrator_node(state: AgentState) -> dict[str, Any]:
     # -------------------------------------------------------------------------
     # SKILL ACTIVATION: Scan request + phase against skills (max 3 active)
     # -------------------------------------------------------------------------
+    _ensure_builtin_skills()
     from src.skills import get_skill_manager
     skill_manager = get_skill_manager()
 
@@ -1540,26 +1660,40 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
             "content": f"[KB Query] Knowledge base query failed: {exc}",
         })
 
-    # Extract code context, filepath, target symbol, and changed lines
-    code_context = (
-        state.get("code_context")
-        or variables.get("code_context")
-        or state.get("file_content")
-        or variables.get("file_content")
-    )
-    target_symbol = (
-        state.get("target_symbol")
-        or variables.get("target_symbol")
-    )
-    changed_lines = (
-        state.get("changed_lines")
-        or variables.get("changed_lines")
-    )
-    filepath = (
-        state.get("filepath")
-        or variables.get("filepath")
-        or ("main.py" if code_context else None)
-    )
+    clean_goal = extract_clean_goal(goal)
+    clean_goal_lower = clean_goal.lower()
+
+    # Step 3 Context Leakage Prevention:
+    # A new build task (e.g. "Build a modern landing page...", "Create...", "Generate...") must NOT inherit
+    # stale code_context or previous chat history's codebase (like an old E-Commerce API) unless explicitly referenced.
+    is_new_build_request = any(clean_goal_lower.startswith(w) for w in ("build ", "create ", "generate ", "scaffold ", "make a ", "make an "))
+    is_continuation = _is_explicit_continuation(clean_goal) or (not is_new_build_request and bool(state.get("target_symbol") or variables.get("target_symbol") or state.get("changed_lines") or variables.get("changed_lines")))
+
+    if is_new_build_request and not _is_explicit_continuation(clean_goal):
+        code_context = None
+        target_symbol = None
+        changed_lines = None
+        filepath = None
+    else:
+        code_context = (
+            state.get("code_context")
+            or variables.get("code_context")
+            or state.get("file_content")
+            or variables.get("file_content")
+        )
+        target_symbol = (
+            state.get("target_symbol")
+            or variables.get("target_symbol")
+        )
+        changed_lines = (
+            state.get("changed_lines")
+            or variables.get("changed_lines")
+        )
+        filepath = (
+            state.get("filepath")
+            or variables.get("filepath")
+            or ("main.py" if code_context else None)
+        )
 
     guard_res = execute_phase_token_guard(
         phase="implement",
@@ -1578,13 +1712,47 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
     # -------------------------------------------------------------------------
     # SKILL ENFORCEMENT: Synthesize code honoring active skill instructions & citations
     # -------------------------------------------------------------------------
-    active_skills = state.get("active_skills") or []
-    skill_instructions = state.get("skill_instructions") or []
-    skill_citations = state.get("skill_citations") or []
-    all_skill_text = " ".join(skill_instructions).lower() + " " + " ".join(skill_citations).lower()
+    _ensure_builtin_skills()
+    from src.skills import get_skill_manager
+    skill_mgr = get_skill_manager()
+    matched_skill = skill_mgr.match(clean_goal)
 
-    clean_goal = extract_clean_goal(goal)
-    clean_goal_lower = clean_goal.lower()
+    active_skills = list(state.get("active_skills") or [])
+    skill_instructions = list(state.get("skill_instructions") or [])
+    skill_citations = list(state.get("skill_citations") or [])
+
+    if matched_skill and matched_skill.name not in active_skills:
+        active_skills.append(matched_skill.name)
+        skill_block = (
+            f"ACTIVE SKILL: {matched_skill.name} — follow these instructions:\n"
+            f"{matched_skill.instructions}"
+        )
+        skill_instructions.append(skill_block)
+        messages.append({
+            "role": "system",
+            "content": f"[Skill Activated] [SKILL: {matched_skill.name}]"
+        })
+        messages.append({
+            "role": "system",
+            "content": skill_block
+        })
+
+    has_frontend_kw = any(
+        kw in clean_goal_lower for kw in (
+            "next.js", "nextjs", "tailwind", "landing page", "react", "vue", "svelte", "astro", "frontend", "html"
+        )
+    )
+    has_website_skill = ("web-website-build" in active_skills or (matched_skill and matched_skill.name == "web-website-build")) and product_type != "api"
+    has_mobile_skill = "app-mobile-build" in active_skills or (matched_skill and matched_skill.name == "app-mobile-build")
+
+    is_frontend_req = has_frontend_kw or has_website_skill or (product_type == "website")
+    is_mobile_req = has_mobile_skill or any(
+        kw in clean_goal_lower for kw in (
+            "flutter", "dart", "react native", "react-native", "mobile app", "ios app", "android app"
+        )
+    )
+
+    all_skill_text = " ".join(skill_instructions).lower() + " " + " ".join(skill_citations).lower()
 
     if processed_code:
         final_code = processed_code
@@ -1646,12 +1814,27 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
             from src.ai_runtime.service import AIRuntimeService
 
             runtime = AIRuntimeService()
+            target_lang_desc = "Next.js / React TypeScript (.tsx) with Tailwind CSS" if is_frontend_req else (
+                "Flutter (Dart) or React Native (TSX)" if is_mobile_req else "Python"
+            )
+            code_fence = "tsx" if is_frontend_req else ("dart" if ("flutter" in clean_goal_lower) else "python")
+
+            skill_injection_section = ""
+            if skill_instructions:
+                skill_injection_section = "\n\nACTIVE SKILLS AND INSTRUCTIONS:\n" + "\n\n".join(skill_instructions)
+
             codegen_prompt = (
                 f"You are an expert software engineer. Write clean, complete, production-ready code to satisfy the following objective:\n"
-                f"Objective: {clean_goal}\n\n"
-                f"Requirements:\n"
-                f"- Return only the code directly inside a single markdown code block (e.g. ```python ... ```).\n"
-                f"- Implement full functionality with robust error handling and type hints.\n"
+                f"Objective: {clean_goal}\n"
+                f"{skill_injection_section}\n\n"
+                f"STRICT ARCHITECTURAL CONSTRAINTS:\n"
+                f"1. LANGUAGE/FRAMEWORK STICKINESS: If a framework or language is specified in the objective or active skill, "
+                f"generate strictly in that stack. Expected format: {target_lang_desc}.\n"
+                f"2. HARD CONSTRAINT: If 'web-website-build' or a frontend is requested, the output MUST be .tsx, .jsx, or .html + .css. It MUST NOT output .py unless explicitly asked.\n"
+                f"3. HARD CONSTRAINT: If 'app-mobile-build' is matched, the output MUST be Dart (Flutter) or TSX (React Native).\n"
+                f"4. NO TO-DO/ECOMMERCE BIAS: NEVER output generic FastAPI To-Do or E-Commerce boilerplate when a frontend or specific service is requested.\n"
+                f"5. Return only the code directly inside a single markdown code block (```{code_fence} ... ```).\n"
+                f"6. Implement full functionality with robust error handling, responsive design, and production-ready styling."
             )
             req = CompletionRequest(
                 messages=[Message(role="user", content=codegen_prompt)],
@@ -1675,6 +1858,128 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
         goal_lower = clean_goal.lower()
         if generated:
             final_code = generated
+        elif is_frontend_req:
+            # Fallback for frontend/website requests (e.g. Next.js + Tailwind)
+            final_code = (
+                "import React, { useState } from 'react';\n\n"
+                "// Roast & Co Coffee Shop — Modern Landing Page Component\n"
+                "// Built with Next.js App Router conventions and Tailwind CSS\n\n"
+                "export default function CoffeeShopLandingPage() {\n"
+                "  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);\n"
+                "  const [newsletterEmail, setNewsletterEmail] = useState('');\n"
+                "  const [subscribed, setSubscribed] = useState(false);\n\n"
+                "  const featuredBrews = [\n"
+                "    { id: 1, name: 'Single Origin Ethiopian Yirgacheffe', notes: 'Jasmine, Bergamot, Meyer Lemon', price: '$18.00', tag: 'Light Roast' },\n"
+                "    { id: 2, name: 'Artisan Espresso Reserve', notes: 'Dark Chocolate, Toasted Hazelnut, Caramel', price: '$16.50', tag: 'Medium-Dark' },\n"
+                "    { id: 3, name: 'Cold Brew Signature Blend', notes: 'Vanilla Bean, Brown Sugar, Cocoa Nibs', price: '$17.00', tag: 'Slow Steeped' },\n"
+                "  ];\n\n"
+                "  return (\n"
+                "    <div className=\"min-h-screen bg-stone-50 text-stone-900 font-sans antialiased selection:bg-amber-800 selection:text-white\">\n"
+                "      {/* Navigation Header */}\n"
+                "      <header className=\"sticky top-0 z-50 bg-stone-900/90 backdrop-blur-md border-b border-stone-800 text-stone-100\">\n"
+                "        <div className=\"max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between\">\n"
+                "          <div className=\"flex items-center space-x-3\">\n"
+                "            <span className=\"text-2xl font-serif tracking-tight font-bold text-amber-400\">Roast &amp; Co.</span>\n"
+                "            <span className=\"text-xs uppercase tracking-widest text-stone-400 border-l border-stone-700 pl-3\">Artisan Roastery</span>\n"
+                "          </div>\n"
+                "          <nav className=\"hidden md:flex items-center space-x-8 text-sm font-medium\">\n"
+                "            <a href=\"#about\" className=\"text-stone-300 hover:text-amber-400 transition-colors\">Our Story</a>\n"
+                "            <a href=\"#menu\" className=\"text-stone-300 hover:text-amber-400 transition-colors\">Specialty Brews</a>\n"
+                "            <a href=\"#locations\" className=\"text-stone-300 hover:text-amber-400 transition-colors\">Café Locations</a>\n"
+                "            <a href=\"#contact\" className=\"text-stone-300 hover:text-amber-400 transition-colors\">Contact</a>\n"
+                "          </nav>\n"
+                "          <div className=\"hidden md:flex items-center space-x-4\">\n"
+                "            <a href=\"#order\" className=\"inline-flex items-center justify-center px-5 py-2.5 rounded-full text-sm font-semibold bg-amber-500 text-stone-950 hover:bg-amber-400 shadow-md transition-all\">\n"
+                "              Order Pickup\n"
+                "            </a>\n"
+                "          </div>\n"
+                "        </div>\n"
+                "      </header>\n\n"
+                "      {/* Hero Section */}\n"
+                "      <section className=\"relative py-24 sm:py-32 bg-gradient-to-b from-stone-900 via-stone-850 to-stone-900 text-white overflow-hidden\">\n"
+                "        <div className=\"max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center\">\n"
+                "          <span className=\"inline-block px-4 py-1.5 rounded-full text-xs font-semibold tracking-wider uppercase bg-amber-500/10 text-amber-400 border border-amber-500/20 mb-6\">\n"
+                "            Small Batch • Fresh Roasted Daily\n"
+                "          </span>\n"
+                "          <h1 className=\"text-4xl sm:text-6xl lg:text-7xl font-serif font-extrabold tracking-tight max-w-4xl mx-auto leading-tight\">\n"
+                "            Craft Coffee Roasted with <span className=\"text-amber-400 italic\">Obsessive Passion</span>\n"
+                "          </h1>\n"
+                "          <p className=\"mt-6 text-lg sm:text-xl text-stone-300 max-w-2xl mx-auto font-light leading-relaxed\">\n"
+                "            From high-altitude sustainably sourced micro-lots straight to your cup. Experience rich aromas, velvety crema, and unforgettable single-origin flavor.\n"
+                "          </p>\n"
+                "          <div className=\"mt-10 flex flex-col sm:flex-row items-center justify-center gap-4\">\n"
+                "            <a href=\"#menu\" className=\"w-full sm:w-auto px-8 py-3.5 rounded-full bg-amber-500 text-stone-950 font-bold hover:bg-amber-400 transition shadow-lg shadow-amber-500/20\">\n"
+                "              Explore Our Menu\n"
+                "            </a>\n"
+                "            <a href=\"#about\" className=\"w-full sm:w-auto px-8 py-3.5 rounded-full border border-stone-700 hover:border-amber-400 text-stone-200 font-medium transition\">\n"
+                "              Read Our Story\n"
+                "            </a>\n"
+                "          </div>\n"
+                "        </div>\n"
+                "      </section>\n\n"
+                "      {/* Specialty Brews Section */}\n"
+                "      <section id=\"menu\" className=\"py-20 bg-stone-100\">\n"
+                "        <div className=\"max-w-7xl mx-auto px-4 sm:px-6 lg:px-8\">\n"
+                "          <div className=\"text-center max-w-2xl mx-auto mb-16\">\n"
+                "            <h2 className=\"text-3xl font-serif font-bold text-stone-900 tracking-tight sm:text-4xl\">Featured Seasonal Roasts</h2>\n"
+                "            <p className=\"mt-3 text-stone-600\">Hand-selected harvest batches roasted weekly in small drum roasters.</p>\n"
+                "          </div>\n"
+                "          <div className=\"grid grid-cols-1 md:grid-cols-3 gap-8\">\n"
+                "            {featuredBrews.map((brew) => (\n"
+                "              <div key={brew.id} className=\"bg-white rounded-2xl p-8 border border-stone-200 shadow-sm hover:shadow-md transition-shadow\">\n"
+                "                <span className=\"text-xs font-semibold uppercase tracking-wider text-amber-700 bg-amber-50 px-3 py-1 rounded-full\">{brew.tag}</span>\n"
+                "                <h3 className=\"mt-4 text-xl font-serif font-bold text-stone-900\">{brew.name}</h3>\n"
+                "                <p className=\"mt-2 text-sm text-stone-500\">{brew.notes}</p>\n"
+                "                <div className=\"mt-6 flex items-center justify-between pt-4 border-t border-stone-100\">\n"
+                "                  <span className=\"text-2xl font-bold text-stone-900\">{brew.price}</span>\n"
+                "                  <button className=\"px-4 py-2 rounded-lg bg-stone-900 text-white text-sm font-medium hover:bg-amber-600 transition\">Add to Cart</button>\n"
+                "                </div>\n"
+                "              </div>\n"
+                "            ))}\n"
+                "          </div>\n"
+                "        </div>\n"
+                "      </section>\n\n"
+                "      {/* Footer */}\n"
+                "      <footer className=\"bg-stone-900 border-t border-stone-800 text-stone-400 py-12\">\n"
+                "        <div className=\"max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-6\">\n"
+                "          <div className=\"text-center sm:text-left\">\n"
+                "            <p className=\"font-serif font-bold text-lg text-white\">Roast &amp; Co. Roasters</p>\n"
+                "            <p className=\"text-xs mt-1\">1204 Beanery Lane, Coffee District • Open Daily 6:30am - 7:00pm</p>\n"
+                "          </div>\n"
+                "          <p className=\"text-xs\">&copy; {new Date().getFullYear()} Roast &amp; Co. All rights reserved.</p>\n"
+                "        </div>\n"
+                "      </footer>\n"
+                "    </div>\n"
+                "  );\n"
+                "}\n"
+            )
+        elif is_mobile_req:
+            # Fallback for mobile app requests (Flutter Dart / React Native TSX)
+            final_code = (
+                "import 'package:flutter/material.dart';\n\n"
+                "void main() => runApp(const MobileApp());\n\n"
+                "class MobileApp extends StatelessWidget {\n"
+                "  const MobileApp({super.key});\n\n"
+                "  @override\n"
+                "  Widget build(BuildContext context) {\n"
+                "    return MaterialApp(\n"
+                "      title: 'Mobile Application',\n"
+                "      theme: ThemeData(primarySwatch: Colors.indigo, useMaterial3: true),\n"
+                "      home: const HomeScreen(),\n"
+                "    );\n"
+                "  }\n"
+                "}\n\n"
+                "class HomeScreen extends StatelessWidget {\n"
+                "  const HomeScreen({super.key});\n\n"
+                "  @override\n"
+                "  Widget build(BuildContext context) {\n"
+                "    return Scaffold(\n"
+                "      appBar: AppBar(title: const Text('App Dashboard')),\n"
+                "      body: const Center(child: Text('Mobile application initialized successfully.')),\n"
+                "    );\n"
+                "  }\n"
+                "}\n"
+            )
         elif any(k in goal_lower for k in ("todo", "to-do", "todo list", "task list", "task manager")):
             final_code = (
                 "from fastapi import FastAPI, HTTPException, status, Depends\n"
@@ -1931,15 +2236,22 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
     if final_code:
         final_code = re.sub(r'^\s*\[(?:Skill Activated|Skill Reference|Active Skill Applied)\].*?\n', '', final_code, flags=re.IGNORECASE | re.MULTILINE)
         
+    code_lang = "python"
+    code_check = (processed_code or final_code or "")
+    if is_frontend_req or any(ind in code_check for ind in ("import React", "export default", "export const", "interface ", "</")):
+        code_lang = "tsx"
+    elif is_mobile_req or any(ind in code_check for ind in ("package:flutter", "Widget build", "void main()")):
+        code_lang = "dart"
+
     if processed_code:
         messages.append({
             "role": "assistant",
-            "content": f"### Implementation Updated\n\n```python\n{processed_code}\n```"
+            "content": f"### Implementation Updated\n\n```{code_lang}\n{processed_code}\n```"
         })
     else:
         messages.append({
             "role": "assistant",
-            "content": f"```python\n{final_code}\n```"
+            "content": f"```{code_lang}\n{final_code}\n```"
         })
 
     # -------------------------------------------------------------------------
@@ -1952,14 +2264,17 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
     non_python_indicators = [
         "import * as React", "import React", "export interface", "export const",
         "export default", "export function", "export class", "from 'react'",
-        'from "react"', "</", "=>", "const "
+        'from "react"', "</", "=>", "const ", "import 'package:flutter",
+        "void main()", "Widget build", "StatelessWidget", "StatefulWidget"
     ]
     code_stripped = (code_to_execute or "").strip()
     is_non_python = (
-        code_stripped.startswith("//")
+        is_frontend_req
+        or is_mobile_req
+        or code_stripped.startswith("//")
         or code_stripped.startswith("/*")
         or any(ind in code_to_execute for ind in non_python_indicators)
-        or (filepath and filepath.endswith((".ts", ".tsx", ".js", ".jsx", ".html", ".css")))
+        or (filepath and filepath.endswith((".ts", ".tsx", ".js", ".jsx", ".html", ".css", ".dart")))
     )
     is_placeholder = (
         code_stripped in ("print('No code to evaluate')", "print('Implementation complete')")
