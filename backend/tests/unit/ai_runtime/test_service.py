@@ -219,3 +219,144 @@ def test_failover_model_mapping_groq_to_openrouter():
     passed_request = mock_openrouter.complete.call_args[0][0]
     assert passed_request.model == "meta-llama/llama-3.1-8b-instruct"
 
+
+def test_failover_model_mapping_openrouter_to_groq():
+    service = AIRuntimeService()
+    mock_openrouter = MagicMock()
+    mock_openrouter.name = "openrouter"
+    mock_openrouter.get_capability_matrix.return_value = MagicMock(context_window=8192)
+    mock_openrouter.complete = AsyncMock(side_effect=Exception("OpenRouter error"))
+
+    mock_groq = MagicMock()
+    mock_groq.name = "groq"
+    mock_groq.get_capability_matrix.return_value = MagicMock(context_window=8192)
+    mock_groq.complete = AsyncMock(return_value=CompletionResponse(
+        text="Groq fallback",
+        usage=UsageInfo(prompt_tokens=10, completion_tokens=10, total_tokens=20),
+        provider="groq",
+        model="llama-3.1-8b-instant"
+    ))
+
+    service.registry.get_priority_chain = MagicMock(return_value=[mock_openrouter, mock_groq])
+
+    request = CompletionRequest(
+        messages=[Message(role="user", content="Test")],
+        model="meta-llama/llama-3.1-8b-instruct",
+        session_id="test-failover-openrouter-to-groq"
+    )
+
+    import asyncio
+    res = asyncio.run(service.complete(request))
+    assert res.provider == "groq"
+    passed_request = mock_groq.complete.call_args[0][0]
+    assert passed_request.model == "llama-3.1-8b-instant"
+
+
+def test_failover_model_mapping_deepseek_groq_to_openrouter():
+    service = AIRuntimeService()
+    mock_groq = MagicMock()
+    mock_groq.name = "groq"
+    mock_groq.get_capability_matrix.return_value = MagicMock(context_window=8192)
+    mock_groq.complete = AsyncMock(side_effect=Exception("Groq error"))
+
+    mock_openrouter = MagicMock()
+    mock_openrouter.name = "openrouter"
+    mock_openrouter.get_capability_matrix.return_value = MagicMock(context_window=8192)
+    mock_openrouter.complete = AsyncMock(return_value=CompletionResponse(
+        text="OpenRouter deepseek",
+        usage=UsageInfo(prompt_tokens=10, completion_tokens=10, total_tokens=20),
+        provider="openrouter",
+        model="deepseek/deepseek-r1"
+    ))
+
+    service.registry.get_priority_chain = MagicMock(return_value=[mock_groq, mock_openrouter])
+
+    request = CompletionRequest(
+        messages=[Message(role="user", content="Test deepseek")],
+        model="groq/deepseek-r1-distill-llama-70b",
+        session_id="test-deepseek-failover"
+    )
+
+    import asyncio
+    res = asyncio.run(service.complete(request))
+    assert res.provider == "openrouter"
+    passed_request = mock_openrouter.complete.call_args[0][0]
+    assert passed_request.model == "deepseek/deepseek-r1"
+
+
+@pytest.mark.asyncio
+async def test_failover_stream_model_mapping():
+    service = AIRuntimeService()
+    mock_groq = MagicMock()
+    mock_groq.name = "groq"
+    mock_groq.get_capability_matrix.return_value = MagicMock(context_window=8192)
+
+    async def groq_stream_fail(req):
+        raise Exception("Groq stream failed")
+        yield  # Make it an async generator
+
+    mock_groq.stream = groq_stream_fail
+
+    mock_gemini = MagicMock()
+    mock_gemini.name = "gemini"
+    mock_gemini.get_capability_matrix.return_value = MagicMock(context_window=8192)
+
+    gemini_requests = []
+
+    async def gemini_stream_ok(req):
+        from src.ai_runtime.contracts import StreamChunk
+        gemini_requests.append(req)
+        yield StreamChunk(text="Gemini streamed answer", finish_reason="stop")
+
+    mock_gemini.stream = gemini_stream_ok
+
+    service.registry.get_priority_chain = MagicMock(return_value=[mock_groq, mock_gemini])
+
+    request = CompletionRequest(
+        messages=[Message(role="user", content="Test stream failover")],
+        model="groq/llama-3.1-8b-instant",
+        session_id="test-stream-failover"
+    )
+
+    chunks = []
+    async for chunk in service.stream(request):
+        chunks.append(chunk)
+
+    assert len(chunks) == 1
+    assert chunks[0].text == "Gemini streamed answer"
+    assert len(gemini_requests) == 1
+    assert gemini_requests[0].model == "gemini-2.0-flash"
+
+
+@pytest.mark.asyncio
+async def test_failover_complete_structured_model_mapping():
+    service = AIRuntimeService()
+    mock_groq = MagicMock()
+    mock_groq.name = "groq"
+    mock_groq.get_capability_matrix.return_value = MagicMock(context_window=8192)
+    mock_groq.complete_structured = AsyncMock(side_effect=Exception("Groq structured fail"))
+
+    mock_gemini = MagicMock()
+    mock_gemini.name = "gemini"
+    mock_gemini.get_capability_matrix.return_value = MagicMock(context_window=8192)
+    mock_gemini.complete_structured = AsyncMock(return_value=CompletionResponse(
+        text='{"key": "value"}',
+        usage=UsageInfo(prompt_tokens=10, completion_tokens=10, total_tokens=20),
+        provider="gemini",
+        model="gemini-2.0-flash"
+    ))
+
+    service.registry.get_priority_chain = MagicMock(return_value=[mock_groq, mock_gemini])
+
+    request = CompletionRequest(
+        messages=[Message(role="user", content="Structured failover test")],
+        model="groq/llama-3.1-8b-instant",
+        session_id="test-structured-failover"
+    )
+
+    schema = {"type": "object", "properties": {"key": {"type": "string"}}}
+    res = await service.complete_structured(request, schema)
+    assert res.provider == "gemini"
+    passed_request = mock_gemini.complete_structured.call_args[0][0]
+    assert passed_request.model == "gemini-2.0-flash"
+
