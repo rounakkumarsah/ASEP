@@ -8,6 +8,7 @@ from pathlib import Path
 import re
 import secrets
 import time
+import uuid
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -208,16 +209,70 @@ def _sanitize_exploration_for_frontend(
 async def explore_node(state: AgentState) -> dict[str, Any]:
     """
     EXPLORE NODE:
-    Performs workspace exploration: search_files, list_directory, read_file, grep_pattern.
-    Emits structured events and outputs exploration_summary to state.
-    Enforces context isolation: if user asks for a new website/frontend, old Python backend files
-    and API schema preservation directives are NOT injected.
+    Performs workspace exploration isolated strictly to the specific project's sandbox directory:
+    `workspaces/<project_id>/`.
+    If the directory is empty (new project), the exploration phase MUST report:
+    "Empty workspace. Starting from scratch."
+    It strictly never reads ASEP's own backend/src directory when building user projects.
     """
-    explore_mgr = get_explore_manager()
     goal = extract_clean_goal(state.get("goal") or "Software Engineering Task")
     current_phase = state.get("current_phase") or "explore"
+    project_id = str(state.get("project_id") or state.get("workspace_id") or "default_project")
 
-    events, summary = await explore_mgr.explore_phase(current_phase, goal, state)
+    repo_root = Path(__file__).resolve().parent.parent.parent.parent
+    workspace_dir = repo_root / "workspaces" / project_id
+    workspace_dir.mkdir(parents=True, exist_ok=True)
+
+    # Check if the workspace directory is empty (ignoring hidden files)
+    project_files = [
+        p for p in workspace_dir.rglob("*")
+        if p.is_file() and not p.name.startswith(".")
+    ]
+
+    if not project_files:
+        empty_msg = "Empty workspace. Starting from scratch."
+        logger.info(
+            "explore_node: Workspace for project_id=%s is empty. %s",
+            project_id,
+            empty_msg,
+        )
+        empty_event = {
+            "id": str(uuid.uuid4()),
+            "phase": current_phase,
+            "type": "think",
+            "detail": empty_msg,
+            "duration_ms": 1,
+            "timestamp": time.strftime("%M:%S"),
+            "status": "completed",
+        }
+        empty_summary = {
+            "phase": current_phase,
+            "relevant_files": [],
+            "architecture_understanding": empty_msg,
+            "risks_identified": [],
+            "files_explored_count": 0,
+            "searches_count": 0,
+            "duration_ms": 1,
+            "tokens_saved": 0,
+        }
+        event_messages = [
+            {"role": "system", "content": f"[Explore Event] {json.dumps(empty_event)}"},
+            {"role": "system", "content": f"[Explore Summary] {json.dumps(empty_summary)}"},
+        ]
+        return {
+            "status": "explored",
+            "current_phase": current_phase,
+            "exploration_events": [empty_event],
+            "exploration_summary": empty_summary,
+            "phase_explorations": {**(state.get("phase_explorations") or {}), current_phase: empty_summary},
+            "explored_files": [],
+            "messages": event_messages,
+        }
+
+    # If directory has files, explore strictly inside workspace_dir
+    from src.runtime.explore_manager import ExploreManager
+    project_explore_mgr = ExploreManager(workspace_root=str(workspace_dir))
+    events, summary = await project_explore_mgr.explore_phase(current_phase, goal, state)
     events, summary = _sanitize_exploration_for_frontend(goal, events, summary)
 
     goal_lower = goal.lower()
@@ -1923,8 +1978,37 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
     explore_events: list[dict[str, Any]] = state.get("exploration_events") or []
 
     if not implement_summary:
-        explore_events, implement_summary = await explore_mgr.explore_phase("explore", goal, state)
-    explore_events, implement_summary = _sanitize_exploration_for_frontend(goal, explore_events, implement_summary)
+        project_id = str(state.get("project_id") or state.get("workspace_id") or "default_project")
+        repo_root = Path(__file__).resolve().parent.parent.parent.parent
+        workspace_dir = repo_root / "workspaces" / project_id
+        workspace_dir.mkdir(parents=True, exist_ok=True)
+        project_files = [p for p in workspace_dir.rglob("*") if p.is_file() and not p.name.startswith(".")]
+        if not project_files:
+            empty_msg = "Empty workspace. Starting from scratch."
+            implement_summary = {
+                "phase": "implement",
+                "relevant_files": [],
+                "architecture_understanding": empty_msg,
+                "risks_identified": [],
+                "files_explored_count": 0,
+                "searches_count": 0,
+                "duration_ms": 1,
+                "tokens_saved": 0,
+            }
+            explore_events = [{
+                "id": str(uuid.uuid4()),
+                "phase": "implement",
+                "type": "think",
+                "detail": empty_msg,
+                "duration_ms": 1,
+                "timestamp": time.strftime("%M:%S"),
+                "status": "completed",
+            }]
+        else:
+            from src.runtime.explore_manager import ExploreManager
+            project_explore_mgr = ExploreManager(workspace_root=str(workspace_dir))
+            explore_events, implement_summary = await project_explore_mgr.explore_phase("explore", goal, state)
+            explore_events, implement_summary = _sanitize_exploration_for_frontend(goal, explore_events, implement_summary)
 
     # Summary shown to coding agent so it never re-explores the same files (token saving, per-phase)
     relevant_files = implement_summary.get("relevant_files", []) if implement_summary else []
@@ -2052,6 +2136,10 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
 
     is_frontend_prompt = has_frontend_kw or any(
         kw in clean_goal_lower for kw in ("next.js", "nextjs", "react", "tailwind", "vue", "landing page")
+    )
+    is_frontend_domain_guard = any(
+        kw in clean_goal_lower
+        for kw in ("next.js", "nextjs", "react", "tailwind", "landing page")
     )
     is_python_prompt = (
         not is_frontend_prompt
@@ -2221,26 +2309,59 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
                     else:
                         candidate_code = ""
 
-                    if is_frontend_prompt and candidate_code:
-                        has_fastapi_violation = (
-                            "from fastapi import" in candidate_code
-                            or "app = FastAPI()" in candidate_code
-                            or "main.py" in candidate_code
+                    # Strict Domain Guard:
+                    # If the user goal contains "Next.js", "React", "Tailwind", or "landing page":
+                    # The output MUST contain .tsx, .jsx, or .html.
+                    # If the LLM tries to output main.py, from fastapi, or Python code, throw an exception
+                    # and retry the generation with an aggressive system prompt:
+                    # "You are a frontend developer. You ONLY write React/Next.js/Tailwind code. DO NOT write Python."
+                    domain_guard_system_prompt = "You are a frontend developer. You ONLY write React/Next.js/Tailwind code. DO NOT write Python."
+                    is_frontend_domain_guard = any(
+                        kw in clean_goal_lower
+                        for kw in ("next.js", "nextjs", "react", "tailwind", "landing page")
+                    )
+                    if is_frontend_domain_guard and candidate_code:
+                        c_lower = candidate_code.lower()
+                        is_py_violation = (
+                            "main.py" in candidate_code
+                            or "from fastapi" in c_lower
+                            or "app = fastapi" in c_lower
+                            or candidate_code.strip().startswith("from ")
+                            or (candidate_code.strip().startswith("import ") and "react" not in c_lower and "next" not in c_lower)
+                            or ("def " in candidate_code and "{" not in candidate_code)
+                            or not any(ext in candidate_code for ext in (".tsx", ".jsx", ".html"))
                         )
-                        if has_fastapi_violation:
+                        if is_py_violation:
                             logger.warning(
-                                "[Implement Node] Self-correction triggered (attempt %d/%d): LLM generated Python/FastAPI for frontend goal",
+                                "[Implement Node] Domain guard violation detected (attempt %d/%d): LLM generated Python/FastAPI code for frontend goal",
                                 attempt + 1, max_self_correction_attempts,
                             )
-                            current_prompt = (
-                                f"{current_prompt}\n\n"
-                                f"PREVIOUS ATTEMPT OUTPUT:\n{candidate_code[:500]}\n\n"
-                                f"{correction_error_msg}"
+                            raise RuntimeError(
+                                f"Domain Guard Violation: LLM generated Python/FastAPI code for a frontend goal. {domain_guard_system_prompt}"
                             )
-                            continue
 
                     generated = candidate_code
                     break
+                except RuntimeError as rerr:
+                    if "Domain Guard Violation" in str(rerr):
+                        aggressive_prompt = (
+                            "You are a frontend developer. You ONLY write React/Next.js/Tailwind code. DO NOT write Python.\n\n"
+                            f"Objective: {clean_goal}\n\n"
+                            "STRICT ENFORCEMENT:\n"
+                            "1. You are a frontend developer. You ONLY write React/Next.js/Tailwind code. DO NOT write Python.\n"
+                            "2. The output MUST contain .tsx, .jsx, or .html.\n"
+                            "3. DO NOT output main.py or from fastapi.\n"
+                            "Output format: Return single markdown code block ```tsx ... ```"
+                        )
+                        current_prompt = aggressive_prompt
+                        if attempt == max_self_correction_attempts - 1:
+                            logger.warning("[Implement Node] Domain guard retries exhausted; generating Next.js component fallback.")
+                            generated = _build_landing_page_component(clean_goal)
+                            break
+                        continue
+                    else:
+                        logger.warning("[Implement Node] LLM call attempt %d failed: %s", attempt + 1, rerr)
+                        break
                 except Exception as exc:
                     logger.warning("[Implement Node] LLM call attempt %d failed: %s", attempt + 1, exc)
                     break
@@ -2505,29 +2626,33 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
     # -------------------------------------------------------------------------
     # STEP 2: POST-GENERATION HARD CHECK & STRICT EXTENSION VALIDATION
     # -------------------------------------------------------------------------
-    if is_frontend_req or has_website_skill or is_frontend_prompt:
-        target_path = filepath if (filepath and filepath.endswith((".tsx", ".jsx", ".html", ".css", ".ts", ".js"))) else "page.tsx"
+    if is_frontend_domain_guard or is_frontend_req or has_website_skill or is_frontend_prompt:
+        target_path = filepath if (filepath and filepath.endswith((".tsx", ".jsx", ".html"))) else "page.tsx"
+        code_check = final_code or ""
+        c_lower = code_check.lower()
+        is_react_or_frontend = any(
+            marker in c_lower
+            for marker in ("react", "next", "export ", "const ", "interface ", "return (", "<div", "<button")
+        )
+        has_py_violation = (
+            not code_check
+            or "main.py" in code_check
+            or "from fastapi" in c_lower
+            or "app = fastapi" in c_lower
+            or ("def " in code_check and "{" not in code_check)
+            or (not is_react_or_frontend and ("import sys" in c_lower or code_check.strip().startswith("from ")))
+        )
+        if has_py_violation:
+            logger.warning("[Implement Node] Domain guard post-generation enforcement: replacing invalid code with Next.js page.tsx component.")
+            final_code = _build_landing_page_component(clean_goal)
+            target_path = "page.tsx"
+        elif not any(marker in (final_code or "") for marker in (".tsx", ".jsx", ".html")):
+            target_path = target_path if (target_path and target_path.endswith((".tsx", ".jsx", ".html"))) else "page.tsx"
+            final_code = f"// {target_path} (.tsx)\n" + (final_code or "")
     elif is_mobile_req or has_mobile_skill:
         target_path = filepath if (filepath and filepath.endswith((".dart", ".tsx", ".jsx"))) else ("main.dart" if "flutter" in clean_goal_lower else "App.tsx")
     else:
         target_path = filepath or "main.py"
-
-    if is_frontend_prompt:
-        has_fastapi_leak = (
-            "from fastapi import" in (final_code or "")
-            or "app = FastAPI()" in (final_code or "")
-            or "main.py" in (final_code or "")
-        )
-        if has_fastapi_leak:
-            logger.warning("[Implement Node] Post-generation hard check: rejected invalid FastAPI/Python code for frontend request. Replacing with Next.js page.tsx component.")
-            final_code = _build_landing_page_component(clean_goal)
-            target_path = "page.tsx"
-        elif not any(marker in (final_code or "") for marker in (".tsx", ".jsx", "page.tsx", "App.tsx")):
-            target_path = target_path if (target_path and target_path.endswith((".tsx", ".jsx"))) else "page.tsx"
-            final_code = f"// {target_path} (.tsx)\n" + (final_code or "")
-    elif is_python_prompt:
-        # If user explicitly requested FastAPI/Python/API, allow .py
-        pass
 
     # HARD CONSTRAINT ENFORCEMENT:
     # 1. If web-website-build or frontend is requested, the output MUST be .tsx, .jsx, or .html + .css. It MUST NOT output .py unless explicitly asked.
@@ -2542,9 +2667,10 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
             or ("def " in final_code and "{" not in final_code)
         )
     )
-    if (is_frontend_req or has_website_skill) and not user_explicitly_wants_python and (code_looks_like_py or not final_code):
+    if (is_frontend_domain_guard or is_frontend_req or has_website_skill) and not user_explicitly_wants_python and (code_looks_like_py or not final_code):
         logger.warning("[Implement Node] Enforcing hard constraint: replacing Python output with Next.js/Tailwind code.")
         final_code = _build_landing_page_component(clean_goal)
+        target_path = "page.tsx"
     elif (is_mobile_req or has_mobile_skill) and not user_explicitly_wants_python and (code_looks_like_py or not final_code):
         logger.warning("[Implement Node] Enforcing hard constraint: replacing Python output with Flutter/Dart code.")
         final_code = _build_mobile_component(clean_goal)

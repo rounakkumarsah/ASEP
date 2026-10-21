@@ -125,12 +125,12 @@ class LangGraphRuntime:
         self.graph = self.wrapper.compile()
 
     async def execute_run(
-        self, run_id: str, thread_id: str, goal: str = "", research_mode: str = "balanced", environment_mode: str = "local", org_id: str | None = None
+        self, run_id: str, thread_id: str, goal: str = "", research_mode: str = "balanced", environment_mode: str = "local", org_id: str | None = None, project_id: str | None = None
     ) -> AsyncGenerator[dict[str, Any], None]:
         """Initiates a new run and streams step-by-step workflow updates."""
         from src.runtime.state import extract_clean_goal
         clean_goal = extract_clean_goal(goal)
-        logger.info(f"Initiating run '{run_id}' under thread: '{thread_id}' with goal: '{clean_goal}'")
+        logger.info(f"Initiating run '{run_id}' under thread: '{thread_id}' with goal: '{clean_goal}', project_id: '{project_id}'")
 
         # Kill any existing hosted app from previous runs on this thread/session
         from src.utils.host_manager import host_manager
@@ -144,11 +144,12 @@ class LangGraphRuntime:
         from langchain_core.runnables.config import RunnableConfig
         config = RunnableConfig(configurable={"thread_id": thread_id})
         
-        # Retrieval Injection: Top K memories filtered by genuine relevance to current clean_goal
+        # Retrieval Injection: Top K memories filtered strictly by project_id / namespace
         injected_memories_text = ""
         import uuid
         import re
         from src.runtime.memory_hooks import is_memory_enabled, store_working_memory, store_episodic_memory, extract_and_store_durable_memories
+        project_namespace = f"project_{project_id}" if project_id else "default"
         if org_id and is_memory_enabled():
             try:
                 from src.services.memory_service import MemoryService
@@ -163,7 +164,7 @@ class LangGraphRuntime:
 
                 top_memories = []
                 for mtype in [MemoryType.SEMANTIC, MemoryType.PROCEDURAL, MemoryType.EPISODIC]:
-                    mems = await memory_service.get_top_memories(namespace="default", memory_type=mtype, org_id=org_uuid, limit=3)
+                    mems = await memory_service.get_top_memories(namespace=project_namespace, memory_type=mtype, org_id=org_uuid, limit=3)
                     top_memories.extend(mems)
                     
                 relevant_memories = []
@@ -181,7 +182,7 @@ class LangGraphRuntime:
                     injected_memories_text = "Relevant Past Memories:\n" + "\n".join(f"- [{m.memory_type}] {m.content}" for m in relevant_memories) + "\n\n"
                     
                 # Hook: Store Working Memory (Start)
-                await store_working_memory(run_id, org_uuid, f"Goal: {clean_goal}")
+                await store_working_memory(run_id, org_uuid, f"Goal: {clean_goal}", namespace=project_namespace)
             except Exception as e:
                 logger.error(f"Failed to retrieve or store initial memories: {e}")
 
@@ -194,6 +195,8 @@ class LangGraphRuntime:
         
         initial_state: dict[str, Any] = {
             "goal": clean_goal,
+            "project_id": project_id or "default_project",
+            "workspace_id": project_id or "default_project",
             "messages": initial_messages,
             "relevant_memories": injected_memories_text,
             "environment_mode": environment_mode,
@@ -233,12 +236,12 @@ class LangGraphRuntime:
                             tools_used.add(name or role)
                             transcript_builder.append(f"Tool {name or role} Output: {str(content)[:200]}...")
                             if org_id and is_memory_enabled():
-                                await store_working_memory(run_id, org_uuid, f"Tool {name or role} output: {content}", source=f"tool_{name or role}")
+                                await store_working_memory(run_id, org_uuid, f"Tool {name or role} output: {content}", source=f"tool_{name or role}", namespace=project_namespace)
                         elif role == "ai" or role == "assistant":
                             transcript_builder.append(f"AI: {str(content)[:200]}...")
                             final_response = str(content)
                             if org_id and is_memory_enabled():
-                                await store_working_memory(run_id, org_uuid, f"AI Thought: {content}", source="ai_step")
+                                await store_working_memory(run_id, org_uuid, f"AI Thought: {content}", source="ai_step", namespace=project_namespace)
                                 
                     if node_data.get("status") == "completed":
                         success = True
@@ -257,19 +260,19 @@ class LangGraphRuntime:
             if org_id and is_memory_enabled():
                 try:
                     transcript_str = "\n".join(transcript_builder)
-                    await store_episodic_memory(run_id, org_uuid, goal, final_response, list(tools_used), success)
+                    await store_episodic_memory(run_id, org_uuid, goal, final_response, list(tools_used), success, namespace=project_namespace)
                     
                     import os
                     if os.environ.get("VERCEL") == "1" or os.environ.get("SERVERLESS") == "1":
-                        await extract_and_store_durable_memories(run_id, org_uuid, transcript_str)
+                        await extract_and_store_durable_memories(run_id, org_uuid, transcript_str, namespace=project_namespace)
                     else:
-                        safe_fire_and_forget(extract_and_store_durable_memories(run_id, org_uuid, transcript_str))
+                        safe_fire_and_forget(extract_and_store_durable_memories(run_id, org_uuid, transcript_str, namespace=project_namespace))
                 except Exception as e:
                     logger.error(f"Failed to trigger end-of-run memory hooks: {e}")
 
 
     async def execute_step(
-        self, run_id: str, thread_id: str, goal: str = "", research_mode: str = "balanced", environment_mode: str = "local", org_id: str | None = None, is_first: bool = False, step_index: int | None = None
+        self, run_id: str, thread_id: str, goal: str = "", research_mode: str = "balanced", environment_mode: str = "local", org_id: str | None = None, is_first: bool = False, step_index: int | None = None, project_id: str | None = None
     ) -> dict:
         """Executes exactly one step (superstep) of the LangGraph workflow and returns events."""
         max_steps_limit = int(os.environ.get("MAX_STEPS", "40"))
@@ -299,10 +302,11 @@ class LangGraphRuntime:
             logger.warning(f"Could not log AI provider priority status: {_e}")
         
         input_data = None
+        project_namespace = f"project_{project_id}" if project_id else "default"
         if is_first:
             from src.runtime.state import extract_clean_goal
             clean_goal = extract_clean_goal(goal)
-            logger.info(f"Initiating step-by-step run '{run_id}' under thread: '{thread_id}' with goal: '{clean_goal}'")
+            logger.info(f"Initiating step-by-step run '{run_id}' under thread: '{thread_id}' with goal: '{clean_goal}', project_id: '{project_id}'")
             from src.utils.host_manager import host_manager
             host_manager.stop_session(thread_id)
             if run_id != thread_id:
@@ -328,7 +332,7 @@ class LangGraphRuntime:
 
                     top_memories = []
                     for mtype in [MemoryType.SEMANTIC, MemoryType.PROCEDURAL, MemoryType.EPISODIC]:
-                        mems = await memory_service.get_top_memories(namespace="default", memory_type=mtype, org_id=org_uuid, limit=3)
+                        mems = await memory_service.get_top_memories(namespace=project_namespace, memory_type=mtype, org_id=org_uuid, limit=3)
                         top_memories.extend(mems)
                         
                     relevant_memories = []
@@ -345,7 +349,7 @@ class LangGraphRuntime:
                     if relevant_memories:
                         injected_memories_text = "Relevant Past Memories:\n" + "\n".join(f"- [{m.memory_type}] {m.content}" for m in relevant_memories) + "\n\n"
                         
-                    await store_working_memory(run_id, org_uuid, f"Goal: {clean_goal}")
+                    await store_working_memory(run_id, org_uuid, f"Goal: {clean_goal}", namespace=project_namespace)
                 except Exception as e:
                     logger.error(f"Failed to retrieve or store initial memories: {e}")
 
@@ -358,6 +362,8 @@ class LangGraphRuntime:
 
             input_data = {
                 "goal": clean_goal,
+                "project_id": project_id or "default_project",
+                "workspace_id": project_id or "default_project",
                 "messages": step_messages,
                 "relevant_memories": injected_memories_text,
                 "environment_mode": environment_mode,
@@ -403,9 +409,9 @@ class LangGraphRuntime:
                                     role = getattr(last_msg, "type", "")
                                     name = getattr(last_msg, "name", "")
                                 if role == "tool" or name:
-                                    await store_working_memory(run_id, org_uuid, f"Tool {name or role} output: {content}", source=f"tool_{name or role}")
+                                    await store_working_memory(run_id, org_uuid, f"Tool {name or role} output: {content}", source=f"tool_{name or role}", namespace=project_namespace)
                                 elif role == "ai" or role == "assistant":
-                                    await store_working_memory(run_id, org_uuid, f"AI Thought: {content}", source="ai_step")
+                                    await store_working_memory(run_id, org_uuid, f"AI Thought: {content}", source="ai_step", namespace=project_namespace)
                     except Exception as e:
                         logger.error(f"Working memory step hook failed: {e}")
 
@@ -473,12 +479,12 @@ class LangGraphRuntime:
                         success = True
                         
                     transcript_str = "\n".join(transcript_builder)
-                    await store_episodic_memory(run_id, org_uuid, goal, final_response, list(tools_used), success)
+                    await store_episodic_memory(run_id, org_uuid, goal, final_response, list(tools_used), success, namespace=project_namespace)
                     
                     if os.environ.get("VERCEL") == "1" or os.environ.get("SERVERLESS") == "1":
-                        await extract_and_store_durable_memories(run_id, org_uuid, transcript_str)
+                        await extract_and_store_durable_memories(run_id, org_uuid, transcript_str, namespace=project_namespace)
                     else:
-                        safe_fire_and_forget(extract_and_store_durable_memories(run_id, org_uuid, transcript_str))
+                        safe_fire_and_forget(extract_and_store_durable_memories(run_id, org_uuid, transcript_str, namespace=project_namespace))
                 except Exception as e:
                     import logging
                     logger = logging.getLogger(__name__)

@@ -36,9 +36,10 @@ class MemoryRetrieval:
         session_id: str,
         run_id: uuid.UUID | None = None,
         limit: int = 5,
+        project_id: str | None = None,
     ) -> dict[str, Any]:
         """Query working memory, database episodes, and vector semantics to compile context."""
-        logger.info(f"Retrieving context for query: '{query}'")
+        logger.info(f"Retrieving context for query: '{query}' with project_id='{project_id}'")
 
         # 1. Fetch current run's short-term working context
         working_messages = await self.working.get_messages(session_id)
@@ -46,10 +47,16 @@ class MemoryRetrieval:
         # 2. Fetch past episodes for the current run (if run_id provided)
         episodic_entries = []
         if run_id:
-            episodic_entries = await self.episodic.get_episodes(run_id)
+            all_episodes = await self.episodic.get_episodes(run_id)
+            if project_id:
+                expected_ns = f"project_{project_id}"
+                episodic_entries = [e for e in all_episodes if getattr(e, "namespace", None) in (expected_ns, project_id)]
+            else:
+                episodic_entries = all_episodes
 
         # 3. Retrieve semantically similar facts from Qdrant
-        semantic_matches = await self.semantic.query_facts(query, limit=limit)
+        filters = {"project_id": project_id} if project_id else None
+        semantic_matches = await self.semantic.query_facts(query, limit=limit, payload_filters=filters)
 
         # 4. Hybrid Fusion and Memory Ranking / Scoring Engine
         # We combine episodic and semantic memories, scoring each based on relevancy, importance, and recency.

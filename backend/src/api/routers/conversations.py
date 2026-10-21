@@ -23,7 +23,7 @@ import logging
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -42,6 +42,8 @@ import time
 _background_run_tasks: set = set()
 _run_step_counters: dict[str, int] = {}
 _run_start_times: dict[str, float] = {}
+_run_project_ids: dict[str, str] = {}
+_thread_project_ids: dict[str, str] = {}
 
 MAX_STEPS = int(os.environ.get("MAX_STEPS", "40"))
 MAX_RUN_DURATION_SECONDS = float(os.environ.get("MAX_RUN_DURATION_SECONDS", "480"))  # 8 minutes
@@ -79,6 +81,14 @@ class RunRequest(BaseModel):
         default="local",
         description="Target environment: local or deploy."
     )
+    project_id: str | None = Field(
+        default=None,
+        description="Project ID to isolate execution workspace and memory."
+    )
+    workspace_id: str | None = Field(
+        default=None,
+        description="Workspace ID alias."
+    )
 
 
 
@@ -86,6 +96,14 @@ class StepRequest(BaseModel):
     thread_id: str = Field(..., description="The LangGraph thread ID associated with the run")
     goal: str | None = Field(default=None, description="Optional goal description fallback")
     step_index: int | None = Field(default=None, description="Step index counter")
+    project_id: str | None = Field(
+        default=None,
+        description="Project ID to isolate execution workspace and memory."
+    )
+    workspace_id: str | None = Field(
+        default=None,
+        description="Workspace ID alias."
+    )
 
 class ResumeRequest(BaseModel):
     """Payload for resuming a paused (interrupted) run."""
@@ -155,6 +173,7 @@ async def options_start_run():
 async def start_run(
     payload: RunRequest,
     current_user: CurrentUser,
+    request: Request,
 ) -> dict[str, Any]:
     """Start a new LangGraph execution thread.
 
@@ -192,11 +211,40 @@ async def start_run(
     _run_start_times[run_id] = time.time()
     _run_step_counters[run_id] = 0
 
+    headers = request.headers if request is not None else {}
+    resolved_project_id = (
+        payload.project_id
+        or payload.workspace_id
+        or headers.get("x-project-id")
+        or headers.get("x-workspace-id")
+    )
+    if not resolved_project_id and current_user.org_id:
+        try:
+            from sqlalchemy import select
+            from src.api.dependencies import get_uow_factory
+            from src.db.models.project import Project
+            async with get_uow_factory()() as uow:
+                stmt = select(Project).where(
+                    Project.org_id == current_user.org_id,
+                    Project.is_active == True,
+                ).order_by(Project.created_at.desc()).limit(1)
+                res = await uow.session.execute(stmt)
+                proj = res.scalar_one_or_none()
+                if proj:
+                    resolved_project_id = str(proj.id)
+        except Exception as e:
+            logger.warning("Could not query active project for user: %s", e)
+
+    resolved_project_id = resolved_project_id or "default_project"
+    _run_project_ids[run_id] = resolved_project_id
+    _thread_project_ids[thread_id] = resolved_project_id
+
     logger.info(
-        "Initiating run run_id=%s thread_id=%s user=%s",
+        "Initiating run run_id=%s thread_id=%s user=%s project_id=%s",
         run_id,
         thread_id,
         current_user.id,
+        resolved_project_id,
     )
 
     org_id = current_user.org_id or current_user.id
@@ -219,6 +267,7 @@ async def start_run(
             run_record = AgentRun(
                 id=uuid.UUID(run_id),
                 org_id=parsed_org_uuid,
+                session_id=resolved_project_id,
                 goal=clean_goal,
                 status=DbRunStatus.RUNNING,
             )
@@ -247,6 +296,7 @@ async def run_step(
     run_id: str,
     payload: StepRequest,
     current_user: CurrentUser,
+    request: Request,
 ) -> dict[str, Any]:
     """Execute the next node in the LangGraph workflow."""
     import inspect
@@ -254,6 +304,45 @@ async def run_step(
 
     org_id = current_user.org_id or current_user.id
     thread_id = payload.thread_id
+
+    # Resolve project_id for workspace isolation
+    headers = request.headers if request is not None else {}
+    project_id = (
+        payload.project_id
+        or payload.workspace_id
+        or _run_project_ids.get(run_id)
+        or _thread_project_ids.get(thread_id)
+        or headers.get("x-project-id")
+        or headers.get("x-workspace-id")
+    )
+    if not project_id:
+        try:
+            from src.api.dependencies import get_uow_factory
+            async with get_uow_factory()() as uow:
+                run_record = await uow.agent_runs.get(uuid.UUID(run_id))
+                if run_record and run_record.session_id:
+                    project_id = run_record.session_id
+        except Exception:
+            pass
+    if not project_id and current_user.org_id:
+        try:
+            from sqlalchemy import select
+            from src.api.dependencies import get_uow_factory
+            from src.db.models.project import Project
+            async with get_uow_factory()() as uow:
+                stmt = select(Project).where(
+                    Project.org_id == current_user.org_id,
+                    Project.is_active == True,
+                ).order_by(Project.created_at.desc()).limit(1)
+                res = await uow.session.execute(stmt)
+                proj = res.scalar_one_or_none()
+                if proj:
+                    project_id = str(proj.id)
+        except Exception:
+            pass
+    project_id = project_id or "default_project"
+    _run_project_ids[run_id] = project_id
+    _thread_project_ids[thread_id] = project_id
 
     # 1. Server-side max_steps and max_duration guard
     current_step = payload.step_index if payload.step_index is not None else (_run_step_counters.get(run_id, 0) + 1)
@@ -347,6 +436,7 @@ async def run_step(
             org_id=org_id,
             is_first=is_initial,
             step_index=current_step,
+            project_id=project_id,
         )
     except Exception as exc:
         step_result = {
