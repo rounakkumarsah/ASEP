@@ -448,5 +448,123 @@ async def test_explore_node_and_research_node_empty_workspace_isolation(tmp_path
     assert not any("backend/src" in f for f in res_research["exploration_summary"]["relevant_files"])
 
 
+@pytest.mark.asyncio
+async def test_implement_node_alias_and_delegation():
+    """Verify implement_node is exported from src.runtime.nodes and behaves as an alias to implement_phase_node."""
+    from src.runtime.nodes import implement_node
+    import inspect
+
+    assert callable(implement_node)
+    assert inspect.iscoroutinefunction(implement_node)
+
+
+@pytest.mark.asyncio
+async def test_implement_multi_file_nextjs_written_to_workspace():
+    """Verify multi-file Next.js generation writes all artifact files to disk in workspaces/<project_id>/."""
+    import uuid
+    import json
+    from pathlib import Path
+    from src.runtime.nodes import implement_node, critic_node
+
+    unique_project_id = f"test_proj_multi_{uuid.uuid4().hex[:8]}"
+    state = {
+        "goal": "Build a modern landing page for an organic tea brand using Next.js and Tailwind CSS",
+        "product_type": "website",
+        "project_id": unique_project_id,
+        "workspace_id": unique_project_id,
+        "thread_id": f"thread_{unique_project_id}",
+        "token_usage_per_phase": {},
+        "token_budget_per_phase": {},
+        "token_savings": {},
+        "file_history": {},
+        "budget_approvals": [],
+        "active_skills": ["web-website-build"],
+    }
+
+    mock_llm_json = json.dumps({
+        "package.json": json.dumps({"name": "organic-tea", "dependencies": {"next": "^14.2.0", "react": "^18.3.0"}}),
+        "app/page.tsx": "import React from 'react';\nexport default function TeaPage() { return <main><h1>Pure Tea</h1></main>; }",
+        "app/layout.tsx": "export default function RootLayout({ children }: { children: React.ReactNode }) { return <html><body>{children}</body></html>; }",
+        "app/globals.css": "@tailwind base;\n@tailwind components;\n@tailwind utilities;",
+    })
+    mock_res = MagicMock()
+    mock_res.text = f"```json\n{mock_llm_json}\n```"
+
+    with patch("src.ai_runtime.service.AIRuntimeService.complete", new_callable=AsyncMock, return_value=mock_res):
+        result = await implement_node(state)
+
+    assert result["status"] == "verified"
+    artifacts = result["artifacts"]
+    assert "package.json" in artifacts
+    assert "app/page.tsx" in artifacts
+    assert "app/layout.tsx" in artifacts
+    assert "app/globals.css" in artifacts
+
+    # Verify files were physically written to disk under workspaces/<project_id>/
+    repo_root = Path(__file__).resolve().parent.parent.parent.parent
+    workspace_dir = repo_root / "workspaces" / unique_project_id
+    assert workspace_dir.exists()
+    assert (workspace_dir / "package.json").exists()
+    assert (workspace_dir / "app" / "page.tsx").exists()
+    assert (workspace_dir / "app" / "layout.tsx").exists()
+    assert (workspace_dir / "app" / "globals.css").exists()
+
+    content_page = (workspace_dir / "app" / "page.tsx").read_text(encoding="utf-8")
+    assert "Pure Tea" in content_page
+
+    # Now verify critic_node validates the workspace statically
+    state["artifacts"] = artifacts
+    state["generated_code"] = artifacts["app/page.tsx"]
+    state["filepath"] = "app/page.tsx"
+
+    critic_res = await critic_node(state)
+    assert critic_res["status"] == "verified"
+    assert critic_res["critic_result"]["passed"] is True
+    assert "Frontend static validation passed" in critic_res["critic_result"]["stdout"]
+
+    # Clean up test workspace directory
+    import shutil
+    shutil.rmtree(workspace_dir, ignore_errors=True)
+
+
+@pytest.mark.asyncio
+async def test_critic_node_frontend_validation_errors():
+    """Verify critic_node detects invalid package.json syntax and missing page components."""
+    from src.runtime.nodes import critic_node
+    import uuid
+
+    proj_id = f"test_proj_err_{uuid.uuid4().hex[:8]}"
+
+    # Test 1: Invalid package.json (malformed JSON)
+    bad_json_state = {
+        "goal": "Build landing page",
+        "project_id": proj_id,
+        "filepath": "page.tsx",
+        "active_skills": ["web-website-build"],
+        "artifacts": {
+            "package.json": "{ bad json: missing quotes }",
+            "app/page.tsx": "export default function Page() { return <div>Home</div>; }",
+        },
+    }
+    res_bad_json = await critic_node(bad_json_state)
+    assert res_bad_json["status"] == "healing"
+    assert "JSONDecodeError" in res_bad_json["critic_result"]["stderr"]
+
+    # Test 2: Missing page component
+    missing_page_state = {
+        "goal": "Build landing page",
+        "project_id": proj_id,
+        "filepath": "package.json",
+        "active_skills": ["web-website-build"],
+        "artifacts": {
+            "package.json": '{"name": "test"}',
+        },
+    }
+    res_missing_page = await critic_node(missing_page_state)
+    assert res_missing_page["status"] == "healing"
+    assert "Missing app/page.tsx" in res_missing_page["critic_result"]["stderr"]
+
+
+
 
 

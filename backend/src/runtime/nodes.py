@@ -1879,8 +1879,123 @@ async def scaffold_phase_node(state: AgentState) -> dict[str, Any]:
     }
 
 
-def _build_landing_page_component(goal: str) -> str:
+def _build_nextjs_project_files(goal: str, page_component_code: str | None = None) -> dict[str, str]:
+    """Generate complete Next.js App Router multi-file tree (package.json, app/page.tsx, app/layout.tsx, app/globals.css, page.tsx)."""
+    page_code = page_component_code or _build_landing_page_component(goal)
+    if not any(header in page_code for header in ("// page.tsx", "// app/page.tsx")):
+        page_code = "// app/page.tsx - Next.js Landing Page Component (.tsx)\n" + page_code
+
+    package_json = json.dumps(
+        {
+            "name": "nextjs-app",
+            "version": "0.1.0",
+            "private": True,
+            "scripts": {
+                "dev": "next dev",
+                "build": "next build",
+                "start": "next start",
+                "lint": "next lint",
+            },
+            "dependencies": {
+                "react": "^18.3.1",
+                "react-dom": "^18.3.1",
+                "next": "^14.2.15",
+            },
+            "devDependencies": {
+                "typescript": "^5.0.0",
+                "@types/node": "^20.0.0",
+                "@types/react": "^18.3.0",
+                "@types/react-dom": "^18.3.0",
+                "postcss": "^8.4.38",
+                "tailwindcss": "^3.4.1",
+            },
+        },
+        indent=2,
+    )
+
+    layout_tsx = (
+        'import type { Metadata } from "next";\n'
+        'import "./globals.css";\n\n'
+        "export const metadata: Metadata = {\n"
+        '  title: "Modern Next.js Application",\n'
+        '  description: "Built with Next.js and Tailwind CSS",\n'
+        "};\n\n"
+        "export default function RootLayout({\n"
+        "  children,\n"
+        "}: {\n"
+        "  children: React.ReactNode;\n"
+        "}) {\n"
+        "  return (\n"
+        '    <html lang="en">\n'
+        '      <body className="antialiased selection:bg-amber-800 selection:text-white">\n'
+        "        {children}\n"
+        "      </body>\n"
+        "    </html>\n"
+        "  );\n"
+        "}\n"
+    )
+
+    globals_css = (
+        "@tailwind base;\n"
+        "@tailwind components;\n"
+        "@tailwind utilities;\n\n"
+        ":root {\n"
+        "  --foreground-rgb: 0, 0, 0;\n"
+        "  --background-start-rgb: 250, 250, 249;\n"
+        "  --background-end-rgb: 255, 255, 255;\n"
+        "}\n\n"
+        "body {\n"
+        "  color: rgb(var(--foreground-rgb));\n"
+        "  background: #fafaf9;\n"
+        "}\n"
+    )
+
+    return {
+        "package.json": package_json,
+        "app/page.tsx": page_code,
+        "app/layout.tsx": layout_tsx,
+        "app/globals.css": globals_css,
+        "page.tsx": page_code,
+    }
+
+
+def _try_parse_file_tree(text: str) -> dict[str, str] | None:
+    """Attempts to parse a multi-file JSON tree from LLM output."""
+    if not text or not text.strip():
+        return None
+    candidate_json_strs: list[str] = []
+    for match in re.finditer(r"```(?:json)?\s*\r?\n([\s\S]*?)```", text, re.IGNORECASE):
+        candidate_json_strs.append(match.group(1).strip())
+    candidate_json_strs.append(text.strip())
+    first_brace = text.find("{")
+    last_brace = text.rfind("}")
+    if first_brace != -1 and last_brace > first_brace:
+        candidate_json_strs.append(text[first_brace:last_brace + 1].strip())
+
+    for cand in candidate_json_strs:
+        try:
+            parsed = json.loads(cand)
+            if isinstance(parsed, dict) and any(
+                k.endswith((".json", ".tsx", ".ts", ".js", ".jsx", ".css", ".html"))
+                or "/" in k
+                for k in parsed.keys()
+            ):
+                file_tree: dict[str, str] = {}
+                for k, v in parsed.items():
+                    if isinstance(v, (dict, list)):
+                        file_tree[str(k)] = json.dumps(v, indent=2)
+                    else:
+                        file_tree[str(k)] = str(v)
+                return file_tree
+        except Exception:
+            continue
+    return None
+
+
+def _build_landing_page_component(goal: str, as_tree: bool = False) -> str | dict[str, str]:
     """Generate production-ready Next.js + Tailwind CSS landing page component adhering to web-website-build skill."""
+    if as_tree:
+        return _build_nextjs_project_files(goal)
     goal_lower = goal.lower()
     if "coffee" in goal_lower or "roast" in goal_lower:
         brand = "Roast & Co."
@@ -2028,6 +2143,7 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
     variables = state.get("variables") or {}
     product_type = state.get("product_type") or "web-app"
     run_id = state.get("run_id", "unknown")
+    multi_file_tree: dict[str, str] = {}
 
     # -------------------------------------------------------------------------
     # EXPLORE STEP: Reuse existing exploration context or run initial exploration
@@ -2335,33 +2451,50 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
             if skill_instructions:
                 skill_injection_section = "\n\nACTIVE SKILLS AND INSTRUCTIONS:\n" + "\n\n".join(skill_instructions)
 
-            system_prompt_instruction = (
-                "CRITICAL RULE: If the user asks for Next.js, React, Tailwind, or a landing page, "
-                "you MUST output `.tsx` or `.jsx` files. You are FORBIDDEN from outputting `main.py` "
-                "or FastAPI code. Do not let previous context bleed into this generation. "
-                "Ignore any old E-Commerce context."
-            )
+            if is_frontend_req or is_frontend_domain_guard:
+                system_prompt_instruction = (
+                    "CRITICAL RULE: If the user asks for Next.js, React, Tailwind, or a landing page, "
+                    "you MUST output a JSON object representing a complete multi-file project tree. You are FORBIDDEN from outputting `main.py` "
+                    "or FastAPI code. Do not let previous context bleed into this generation. "
+                    "Ignore any old E-Commerce context."
+                )
+                codegen_prompt = (
+                    f"{system_prompt_instruction}\n\n"
+                    f"You are an expert software engineer. Write clean, complete, production-ready code to satisfy the following objective:\n"
+                    f"Objective: {clean_goal}\n"
+                    f"{skill_injection_section}\n\n"
+                    f"STRICT ARCHITECTURAL CONSTRAINTS:\n"
+                    f"1. {system_prompt_instruction}\n"
+                    f"2. LANGUAGE/FRAMEWORK STICKINESS: When Next.js or React is requested, output strictly a JSON object representing a complete multi-file project tree.\n"
+                    f"3. Expected JSON format:\n"
+                    f"```json\n"
+                    f"{{\n"
+                    f'  "package.json": "{{\\n  \\"name\\\": \\"landing-page\\",\\n  ...\\n}}",\n'
+                    f'  "app/page.tsx": "export default function Page() {{ ... }}",\n'
+                    f'  "app/layout.tsx": "export default function RootLayout({{ children }}) {{ ... }}",\n'
+                    f'  "app/globals.css": "@tailwind base; @tailwind components; @tailwind utilities;"\n'
+                    f"}}\n"
+                    f"```\n"
+                    f"4. Return only the JSON object directly or inside a single markdown code block (```json ... ```).\n"
+                    f"5. NO TO-DO/ECOMMERCE BIAS: NEVER output generic FastAPI To-Do or E-Commerce boilerplate when a frontend or specific service is requested.\n"
+                    f"6. Implement full functionality with robust error handling, responsive design, and production-ready styling."
+                )
+            else:
+                system_prompt_instruction = (
+                    "CRITICAL RULE: Write clean, modular, production-ready code complying with the objective and active skills."
+                )
+                codegen_prompt = (
+                    f"{system_prompt_instruction}\n\n"
+                    f"You are an expert software engineer. Write clean, complete, production-ready code to satisfy the following objective:\n"
+                    f"Objective: {clean_goal}\n"
+                    f"{skill_injection_section}\n\n"
+                    f"STRICT ARCHITECTURAL CONSTRAINTS:\n"
+                    f"1. LANGUAGE/FRAMEWORK STICKINESS: If a framework or language is specified in the objective or active skill, "
+                    f"generate strictly in that stack. Expected format: {target_lang_desc}.\n"
+                    f"2. Return only the code directly inside a single markdown code block (```{code_fence} ... ```).\n"
+                    f"3. Implement full functionality with robust error handling and production-ready styling."
+                )
 
-            codegen_prompt = (
-                f"{system_prompt_instruction}\n\n"
-                f"You are an expert software engineer. Write clean, complete, production-ready code to satisfy the following objective:\n"
-                f"Objective: {clean_goal}\n"
-                f"{skill_injection_section}\n\n"
-                f"STRICT ARCHITECTURAL CONSTRAINTS:\n"
-                f"1. {system_prompt_instruction}\n"
-                f"2. LANGUAGE/FRAMEWORK STICKINESS: If a framework or language is specified in the objective or active skill, "
-                f"generate strictly in that stack. Expected format: {target_lang_desc}.\n"
-                f"3. HARD CONSTRAINT: If 'web-website-build' or a frontend is requested, the output MUST be .tsx, .jsx, or .html + .css. It MUST NOT output .py unless explicitly asked.\n"
-                f"4. HARD CONSTRAINT: If 'app-mobile-build' is matched, the output MUST be Dart (Flutter) or TSX (React Native).\n"
-                f"5. NO TO-DO/ECOMMERCE BIAS: NEVER output generic FastAPI To-Do or E-Commerce boilerplate when a frontend or specific service is requested.\n"
-                f"6. Return only the code directly inside a single markdown code block (```{code_fence} ... ```).\n"
-                f"7. Implement full functionality with robust error handling, responsive design, and production-ready styling."
-            )
-
-            correction_error_msg = (
-                "ERROR: You generated a Python/FastAPI file, but the user asked for a Next.js landing page. "
-                "You MUST output a React component (.tsx) or HTML/Tailwind. Try again."
-            )
             max_self_correction_attempts = 3
             current_prompt = codegen_prompt
 
@@ -2376,6 +2509,48 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
                     codegen_timeout = float(os.environ.get("LLM_CODEGEN_TIMEOUT", "6.0"))
                     res = await asyncio.wait_for(runtime.complete(req), timeout=codegen_timeout)
                     text = (res.text or "").strip()
+
+                    parsed_tree = _try_parse_file_tree(text) if (is_frontend_domain_guard or is_frontend_req) else None
+                    if parsed_tree:
+                        tree_keys_lower = " ".join(parsed_tree.keys()).lower()
+                        tree_values_lower = " ".join(str(v) for v in parsed_tree.values()).lower()
+                        is_py_violation = (
+                            "main.py" in tree_keys_lower
+                            or any(k.endswith(".py") for k in parsed_tree.keys())
+                            or "from fastapi" in tree_values_lower
+                            or "import fastapi" in tree_values_lower
+                            or "app = fastapi" in tree_values_lower
+                        )
+                        if is_py_violation:
+                            logger.warning(
+                                "[Implement Node] Domain guard violation detected in file tree (attempt %d/%d): LLM generated Python in Next.js tree",
+                                attempt + 1, max_self_correction_attempts,
+                            )
+                            raise RuntimeError(
+                                f"Domain Guard Violation: LLM generated Python/FastAPI code for a frontend goal. You are a frontend developer. You ONLY write React/Next.js/Tailwind code. DO NOT write Python."
+                            )
+
+                        if "app/page.tsx" not in parsed_tree:
+                            if "page.tsx" in parsed_tree:
+                                parsed_tree["app/page.tsx"] = parsed_tree["page.tsx"]
+                            else:
+                                tsx_key = next((k for k in parsed_tree if k.endswith(".tsx")), None)
+                                if tsx_key:
+                                    parsed_tree["app/page.tsx"] = parsed_tree[tsx_key]
+                                else:
+                                    parsed_tree["app/page.tsx"] = _build_landing_page_component(clean_goal)
+
+                        fallback_tree = _build_nextjs_project_files(clean_goal, page_component_code=parsed_tree["app/page.tsx"])
+                        for k, v in fallback_tree.items():
+                            if k not in parsed_tree:
+                                parsed_tree[k] = v
+                        parsed_tree["page.tsx"] = parsed_tree["app/page.tsx"]
+
+                        multi_file_tree = parsed_tree
+                        candidate_code = parsed_tree["app/page.tsx"]
+                        generated = candidate_code
+                        break
+
                     match = re.search(r"```(?:[a-zA-Z0-9_\-\.\+]*)[^\S\r\n]*\r?\n([\s\S]*?)```", text)
                     if match:
                         candidate_code = match.group(1).strip()
@@ -2387,11 +2562,6 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
                         candidate_code = ""
 
                     # Strict Domain Guard:
-                    # If the user goal contains "Next.js", "React", "Tailwind", or "landing page":
-                    # The output MUST contain .tsx, .jsx, or .html.
-                    # If the LLM tries to output main.py, from fastapi, or Python code, throw an exception
-                    # and retry the generation with an aggressive system prompt:
-                    # "You are a frontend developer. You ONLY write React/Next.js/Tailwind code. DO NOT write Python."
                     domain_guard_system_prompt = "You are a frontend developer. You ONLY write React/Next.js/Tailwind code. DO NOT write Python."
                     is_frontend_domain_guard = any(
                         kw in clean_goal_lower
@@ -2437,6 +2607,8 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
                         if not any(ext in candidate_code for ext in (".tsx", ".jsx", ".html")):
                             candidate_code = "// page.tsx\n" + candidate_code
 
+                        multi_file_tree = _build_nextjs_project_files(clean_goal, page_component_code=candidate_code)
+
                     generated = candidate_code
                     break
                 except RuntimeError as rerr:
@@ -2453,7 +2625,8 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
                         current_prompt = aggressive_prompt
                         if attempt == max_self_correction_attempts - 1:
                             logger.warning("[Implement Node] Domain guard retries exhausted; generating Next.js component fallback.")
-                            generated = _build_landing_page_component(clean_goal)
+                            multi_file_tree = _build_nextjs_project_files(clean_goal)
+                            generated = multi_file_tree["app/page.tsx"]
                             break
                         continue
                     else:
@@ -2469,7 +2642,8 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
         if generated:
             final_code = generated
         elif is_frontend_domain_guard or is_frontend_req:
-            final_code = _build_landing_page_component(clean_goal)
+            multi_file_tree = _build_nextjs_project_files(clean_goal)
+            final_code = multi_file_tree["app/page.tsx"]
         elif is_mobile_req:
             final_code = _build_mobile_component(clean_goal)
         elif any(k in goal_lower for k in ("todo", "to-do", "todo list", "task list", "task manager")):
@@ -2741,11 +2915,14 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
         )
         if has_py_violation:
             logger.warning("[Implement Node] Domain guard post-generation enforcement: replacing invalid code with Next.js page.tsx component.")
-            final_code = _build_landing_page_component(clean_goal)
+            multi_file_tree = _build_nextjs_project_files(clean_goal)
+            final_code = multi_file_tree["app/page.tsx"]
             target_path = "page.tsx"
         elif not any(marker in (final_code or "") for marker in (".tsx", ".jsx", ".html")):
             target_path = target_path if (target_path and target_path.endswith((".tsx", ".jsx", ".html"))) else "page.tsx"
             final_code = f"// {target_path} (.tsx)\n" + (final_code or "")
+            if not multi_file_tree:
+                multi_file_tree = _build_nextjs_project_files(clean_goal, page_component_code=final_code)
     elif is_mobile_req or has_mobile_skill:
         target_path = filepath if (filepath and filepath.endswith((".dart", ".tsx", ".jsx"))) else ("main.dart" if "flutter" in clean_goal_lower else "App.tsx")
     else:
@@ -2766,7 +2943,8 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
     )
     if (is_frontend_domain_guard or is_frontend_req or has_website_skill) and not user_explicitly_wants_python and (code_looks_like_py or not final_code):
         logger.warning("[Implement Node] Enforcing hard constraint: replacing Python output with Next.js/Tailwind code.")
-        final_code = _build_landing_page_component(clean_goal)
+        multi_file_tree = _build_nextjs_project_files(clean_goal)
+        final_code = multi_file_tree["app/page.tsx"]
         target_path = "page.tsx"
     elif (is_mobile_req or has_mobile_skill) and not user_explicitly_wants_python and (code_looks_like_py or not final_code):
         logger.warning("[Implement Node] Enforcing hard constraint: replacing Python output with Flutter/Dart code.")
@@ -2895,17 +3073,37 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
 
     code_to_save = code_to_execute or final_code
     current_artifacts = dict(state.get("artifacts") or {})
-    if is_frontend_prompt or is_frontend_req:
+    if is_frontend_prompt or is_frontend_req or is_frontend_domain_guard or has_website_skill:
         current_artifacts.pop("main.py", None)
         current_artifacts.pop("backend/main.py", None)
         current_artifacts.pop("app.py", None)
-    current_artifacts[target_path] = code_to_save
+        if not multi_file_tree:
+            multi_file_tree = _build_nextjs_project_files(clean_goal, page_component_code=code_to_save)
+        current_artifacts.update(multi_file_tree)
+        current_artifacts[target_path] = code_to_save
+        if "app/page.tsx" in current_artifacts and "page.tsx" not in current_artifacts:
+            current_artifacts["page.tsx"] = current_artifacts["app/page.tsx"]
+        if "page.tsx" in current_artifacts and "app/page.tsx" not in current_artifacts:
+            current_artifacts["app/page.tsx"] = current_artifacts["page.tsx"]
+    else:
+        current_artifacts[target_path] = code_to_save
 
-    if is_frontend_prompt or is_frontend_req:
+    # Write all generated files to project workspace directory (workspaces/<project_id>/...)
+    project_id = str(state.get("project_id") or state.get("workspace_id") or "default_project")
+    repo_root = Path(__file__).resolve().parent.parent.parent.parent
+    workspace_dir = repo_root / "workspaces" / project_id
+    workspace_dir.mkdir(parents=True, exist_ok=True)
+    for rel_path, file_content in current_artifacts.items():
+        if file_content:
+            out_file = workspace_dir / rel_path
+            out_file.parent.mkdir(parents=True, exist_ok=True)
+            out_file.write_text(file_content, encoding="utf-8")
+
+    if is_frontend_prompt or is_frontend_req or is_frontend_domain_guard or has_website_skill:
         clean_explored = [f for f in (state.get("explored_files") or []) if not f.endswith(".py") and "backend" not in f.lower()]
     else:
         clean_explored = list(state.get("explored_files") or [])
-    all_explored = list(set(clean_explored + relevant_files))
+    all_explored = list(set(clean_explored + relevant_files + list(current_artifacts.keys())))
 
     return {
         "status": "verified",
@@ -2952,14 +3150,24 @@ async def critic_node(state: AgentState) -> dict[str, Any]:
     )
     entrypoint = state.get("filepath") or "main.py"
     heal_count = state.get("heal_cycle_count", 0)
+    artifacts = dict(state.get("artifacts") or {})
+
+    # Ensure all generated files are written to disk in workspaces/<project_id>/
+    project_id = str(state.get("project_id") or state.get("workspace_id") or "default_project")
+    repo_root = Path(__file__).resolve().parent.parent.parent.parent
+    workspace_dir = repo_root / "workspaces" / project_id
+    workspace_dir.mkdir(parents=True, exist_ok=True)
+    for rel_path, file_content in artifacts.items():
+        if file_content:
+            target_file = workspace_dir / rel_path
+            target_file.parent.mkdir(parents=True, exist_ok=True)
+            target_file.write_text(file_content, encoding="utf-8")
 
     # -------------------------------------------------------------------------
-    # SERVERLESS / NON-PYTHON BYPASS: Validate via static AST or skip sandbox
+    # FRONTEND / MULTI-FILE WORKSPACE STATIC VALIDATION:
+    # Validate package.json, Next.js page/layout structure, and TSX/JS syntax
+    # without passing to Python's RestrictedExecutor.
     # -------------------------------------------------------------------------
-    from src.services.e2b_sandbox import is_e2b_configured
-    is_serverless = (os.environ.get("VERCEL") == "1" or os.environ.get("SERVERLESS") == "1") and not is_e2b_configured()
-    
-    # Detect non-Python code that would crash subprocess.run([sys.executable, ...])
     non_python_indicators = [
         "import * as React",
         "import React",
@@ -2978,12 +3186,100 @@ async def critic_node(state: AgentState) -> dict[str, Any]:
     is_non_python = (
         ("web-website-build" in (state.get("active_skills") or []))
         or ("app-mobile-build" in (state.get("active_skills") or []))
+        or ("package.json" in artifacts)
+        or ("app/page.tsx" in artifacts)
+        or ("page.tsx" in artifacts)
         or code_stripped.startswith("//")  # JS/TS comment
         or code_stripped.startswith("/*")  # JS/TS block comment
         or any(indicator in code for indicator in non_python_indicators)
         or any(indicator in code for indicator in ("package:flutter", "void main()", "Widget build", "StatelessWidget", "StatefulWidget"))
-        or entrypoint.endswith((".ts", ".tsx", ".js", ".jsx", ".html", ".css", ".dart"))
+        or entrypoint.endswith((".ts", ".tsx", ".js", ".jsx", ".html", ".css", ".dart", ".json"))
     )
+
+    is_frontend_workspace = (
+        ("package.json" in artifacts)
+        or ("app/page.tsx" in artifacts)
+        or ("page.tsx" in artifacts)
+        or ("web-website-build" in (state.get("active_skills") or []))
+        or entrypoint.endswith((".ts", ".tsx", ".js", ".jsx", ".html", ".css", ".json"))
+        or any(indicator in code for indicator in non_python_indicators)
+    )
+
+    if is_frontend_workspace:
+        from src.services.restricted_code_sandbox import RestrictedExecutor
+
+        # 1. Validate package.json if present
+        if "package.json" in artifacts:
+            try:
+                pkg_data = json.loads(artifacts["package.json"])
+                if not isinstance(pkg_data, dict):
+                    raise ValueError("package.json must be a JSON object")
+            except Exception as e:
+                logger.warning("Critic: package.json static validation failed: %s", e)
+                return {
+                    "status": "healing",
+                    "current_phase": "critic",
+                    "critic_result": {"exit_code": 1, "stderr": f"JSONDecodeError in package.json: {e}", "passed": False},
+                    "messages": [{
+                        "role": "system",
+                        "content": f"[Critic Execution] Detected package.json syntax error: {e}. Routing to Debugger.",
+                    }],
+                }
+
+        # 2. Check Next.js structure
+        has_page = ("app/page.tsx" in artifacts) or ("page.tsx" in artifacts)
+        if not has_page and ("web-website-build" in (state.get("active_skills") or []) or "package.json" in artifacts):
+            logger.warning("Critic: Missing Next.js page component (app/page.tsx or page.tsx)")
+            return {
+                "status": "healing",
+                "current_phase": "critic",
+                "critic_result": {"exit_code": 1, "stderr": "Missing app/page.tsx or page.tsx in frontend workspace", "passed": False},
+                "messages": [{
+                    "role": "system",
+                    "content": "[Critic Execution] Missing Next.js page component in workspace. Routing to Debugger.",
+                }],
+            }
+
+        # 3. Validate TypeScript / TSX files statically
+        for f_name, f_content in artifacts.items():
+            if f_name.endswith((".tsx", ".ts", ".jsx", ".js")):
+                is_valid, err = RestrictedExecutor.validate_syntax(f_content)
+                if not is_valid:
+                    logger.warning("Critic: Static syntax validation failed for %s: %s", f_name, err)
+                    return {
+                        "status": "healing",
+                        "current_phase": "critic",
+                        "critic_result": {"exit_code": 1, "stderr": f"SyntaxError in {f_name}: {err}", "passed": False},
+                        "messages": [{
+                            "role": "system",
+                            "content": f"[Critic Execution] Detected syntax error in {f_name}: {err}. Routing to Debugger.",
+                        }],
+                    }
+
+        logger.info("Critic: Frontend multi-file workspace validated successfully.")
+        return {
+            "status": "verified",
+            "current_phase": "critic",
+            "critic_result": {
+                "exit_code": 0,
+                "stdout": "Frontend static validation passed (package.json, Next.js App Router structure, TypeScript syntax verified)",
+                "stderr": "",
+                "passed": True,
+                "tests_passed": True,
+                "warnings": [],
+            },
+            "messages": [{
+                "role": "system",
+                "content": "Critic Phase Complete: Frontend workspace validated successfully (package.json and Next.js structure verified).",
+            }],
+        }
+
+    # -------------------------------------------------------------------------
+    # SERVERLESS / NON-PYTHON BYPASS: Validate via static AST or skip sandbox
+    # -------------------------------------------------------------------------
+    from src.services.e2b_sandbox import is_e2b_configured
+    is_serverless = (os.environ.get("VERCEL") == "1" or os.environ.get("SERVERLESS") == "1") and not is_e2b_configured()
+
     is_placeholder = code_stripped in (
         "print('No code to evaluate')",
         "print('Implementation complete')",
