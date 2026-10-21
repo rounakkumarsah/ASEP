@@ -23,11 +23,12 @@ import logging
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from src.auth.dependencies import CurrentUser
+from src.licensing.license_manager import require_license
 from src.runtime import get_langgraph_runtime
 
 logger = logging.getLogger("opensep.conversations")
@@ -55,10 +56,13 @@ class RunRequest(BaseModel):
     """Payload for starting a new conversation run."""
 
     goal: str = Field(
-        ...,
+        default="",
         description="Natural-language goal that the agent should accomplish.",
-        min_length=1,
         max_length=4096,
+    )
+    message: str | None = Field(
+        default=None,
+        description="Alias or message payload to accomplish.",
     )
     thread_id: str | None = Field(
         default=None,
@@ -146,6 +150,7 @@ async def options_start_run():
     "/run",
     summary="Start a new agent run — returns immediately; poll /run/{run_id}/status for updates",
     status_code=status.HTTP_202_ACCEPTED,
+    dependencies=[Depends(require_license)],
 )
 async def start_run(
     payload: RunRequest,
@@ -166,6 +171,21 @@ async def start_run(
     """
     import asyncio
     import uuid
+    import structlog
+    from src.governance.injection_classifier import classify_prompt
+
+    slog = structlog.get_logger(__name__)
+    prompts_to_check = []
+    if payload.goal:
+        prompts_to_check.append(payload.goal)
+    if hasattr(payload, "message") and payload.message:
+        prompts_to_check.append(payload.message)
+    raw_prompt = " ".join(prompts_to_check) if prompts_to_check else ""
+    is_safe, reason = await classify_prompt(raw_prompt)
+    if not is_safe:
+        slog.warning("injection_blocked", user_id=str(current_user.id), reason=reason, prompt_preview=raw_prompt[:80])
+        raise HTTPException(status_code=400, detail=f"Prompt blocked: {reason}")
+    slog.info("injection_check_passed", user_id=str(current_user.id))
 
     thread_id = payload.thread_id or str(uuid.uuid4())
     run_id = str(uuid.uuid4())

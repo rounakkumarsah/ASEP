@@ -44,5 +44,8 @@ __all__ = [
     "ReviewSession",
     "ApprovalSLA",
     "HITLEngine",
-    "get_hitl_engine"
+    "get_hitl_engine",
+    "classify_prompt",
 ]
+
+from src.governance.injection_classifier import classify_prompt
