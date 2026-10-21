@@ -212,11 +212,14 @@ async def start_run(
     _run_step_counters[run_id] = 0
 
     headers = request.headers if request is not None else {}
+    query_params = request.query_params if request is not None else {}
     resolved_project_id = (
         payload.project_id
         or payload.workspace_id
         or headers.get("x-project-id")
         or headers.get("x-workspace-id")
+        or query_params.get("project_id")
+        or query_params.get("workspace_id")
     )
     if not resolved_project_id and current_user.org_id:
         try:
@@ -307,6 +310,7 @@ async def run_step(
 
     # Resolve project_id for workspace isolation
     headers = request.headers if request is not None else {}
+    query_params = request.query_params if request is not None else {}
     project_id = (
         payload.project_id
         or payload.workspace_id
@@ -314,6 +318,8 @@ async def run_step(
         or _thread_project_ids.get(thread_id)
         or headers.get("x-project-id")
         or headers.get("x-workspace-id")
+        or query_params.get("project_id")
+        or query_params.get("workspace_id")
     )
     if not project_id:
         try:

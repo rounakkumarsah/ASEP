@@ -255,6 +255,17 @@ async def explore_node(state: AgentState) -> dict[str, Any]:
             "duration_ms": 1,
             "tokens_saved": 0,
         }
+        # Sync with global ExploreManager for SSE stream and explore endpoints
+        mgr = get_explore_manager()
+        thread_id = state.get("thread_id", "default-thread")
+        if thread_id not in mgr._thread_events:
+            mgr._thread_events[thread_id] = []
+        mgr._thread_events[thread_id].append(empty_event)
+        if thread_id not in mgr._thread_summaries:
+            mgr._thread_summaries[thread_id] = {}
+        mgr._thread_summaries[thread_id][current_phase] = empty_summary
+        mgr._thread_summaries[thread_id]["latest"] = empty_summary
+
         event_messages = [
             {"role": "system", "content": f"[Explore Event] {json.dumps(empty_event)}"},
             {"role": "system", "content": f"[Explore Summary] {json.dumps(empty_summary)}"},
@@ -274,6 +285,17 @@ async def explore_node(state: AgentState) -> dict[str, Any]:
     project_explore_mgr = ExploreManager(workspace_root=str(workspace_dir))
     events, summary = await project_explore_mgr.explore_phase(current_phase, goal, state)
     events, summary = _sanitize_exploration_for_frontend(goal, events, summary)
+
+    # Sync with global ExploreManager for SSE stream and explore endpoints
+    mgr = get_explore_manager()
+    thread_id = state.get("thread_id", "default-thread")
+    if thread_id not in mgr._thread_events:
+        mgr._thread_events[thread_id] = []
+    mgr._thread_events[thread_id].extend(events)
+    if thread_id not in mgr._thread_summaries:
+        mgr._thread_summaries[thread_id] = {}
+    mgr._thread_summaries[thread_id][current_phase] = summary
+    mgr._thread_summaries[thread_id]["latest"] = summary
 
     goal_lower = goal.lower()
     is_new_frontend = any(
@@ -1211,10 +1233,54 @@ async def research_phase_node(state: AgentState) -> dict[str, Any]:
 
     # -------------------------------------------------------------------------
     # EXPLORE STEP: Run exploration at the start of research phase
+    # Strictly isolated to project sandbox directory: workspaces/<project_id>/
     # -------------------------------------------------------------------------
+    project_id = str(state.get("project_id") or state.get("workspace_id") or "default_project")
+    repo_root = Path(__file__).resolve().parent.parent.parent.parent
+    workspace_dir = repo_root / "workspaces" / project_id
+    workspace_dir.mkdir(parents=True, exist_ok=True)
+    project_files = [p for p in workspace_dir.rglob("*") if p.is_file() and not p.name.startswith(".")]
+
+    if not project_files:
+        empty_msg = "Empty workspace. Starting from scratch."
+        logger.info("research_phase_node: Workspace for project_id=%s is empty. %s", project_id, empty_msg)
+        empty_event = {
+            "id": str(uuid.uuid4()),
+            "phase": "research",
+            "type": "think",
+            "detail": empty_msg,
+            "duration_ms": 1,
+            "timestamp": time.strftime("%M:%S"),
+            "status": "completed",
+        }
+        explore_events = [empty_event]
+        explore_summary = {
+            "phase": "research",
+            "relevant_files": [],
+            "architecture_understanding": empty_msg,
+            "risks_identified": [],
+            "files_explored_count": 0,
+            "searches_count": 0,
+            "duration_ms": 1,
+            "tokens_saved": 0,
+        }
+    else:
+        from src.runtime.explore_manager import ExploreManager
+        project_explore_mgr = ExploreManager(workspace_root=str(workspace_dir))
+        explore_events, explore_summary = await project_explore_mgr.explore_phase("research", goal, state)
+        explore_events, explore_summary = _sanitize_exploration_for_frontend(goal, explore_events, explore_summary)
+
+    # Sync with global ExploreManager for SSE stream and explore endpoints
     explore_mgr = get_explore_manager()
-    explore_events, explore_summary = await explore_mgr.explore_phase("research", goal, state)
-    explore_events, explore_summary = _sanitize_exploration_for_frontend(goal, explore_events, explore_summary)
+    thread_id = state.get("thread_id", "default-thread")
+    if thread_id not in explore_mgr._thread_events:
+        explore_mgr._thread_events[thread_id] = []
+    explore_mgr._thread_events[thread_id].extend(explore_events)
+    if thread_id not in explore_mgr._thread_summaries:
+        explore_mgr._thread_summaries[thread_id] = {}
+    explore_mgr._thread_summaries[thread_id]["research"] = explore_summary
+    explore_mgr._thread_summaries[thread_id]["latest"] = explore_summary
+
     for ev in explore_events:
         messages.append({
             "role": "system",
@@ -2010,6 +2076,17 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
             explore_events, implement_summary = await project_explore_mgr.explore_phase("explore", goal, state)
             explore_events, implement_summary = _sanitize_exploration_for_frontend(goal, explore_events, implement_summary)
 
+        # Sync with global ExploreManager for SSE stream and explore endpoints
+        mgr = get_explore_manager()
+        thread_id = state.get("thread_id", "default-thread")
+        if thread_id not in mgr._thread_events:
+            mgr._thread_events[thread_id] = []
+        mgr._thread_events[thread_id].extend(explore_events)
+        if thread_id not in mgr._thread_summaries:
+            mgr._thread_summaries[thread_id] = {}
+        mgr._thread_summaries[thread_id]["implement"] = implement_summary
+        mgr._thread_summaries[thread_id]["latest"] = implement_summary
+
     # Summary shown to coding agent so it never re-explores the same files (token saving, per-phase)
     relevant_files = implement_summary.get("relevant_files", []) if implement_summary else []
     tokens_saved = implement_summary.get("tokens_saved", 0) if implement_summary else 0
@@ -2325,12 +2402,20 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
                         is_py_violation = (
                             "main.py" in candidate_code
                             or "from fastapi" in c_lower
+                            or "import fastapi" in c_lower
                             or "app = fastapi" in c_lower
+                            or "app = FastAPI" in candidate_code
                             or candidate_code.strip().startswith("from ")
                             or (candidate_code.strip().startswith("import ") and "react" not in c_lower and "next" not in c_lower)
                             or ("def " in candidate_code and "{" not in candidate_code)
-                            or not any(ext in candidate_code for ext in (".tsx", ".jsx", ".html"))
+                            or ("class " in candidate_code and ":" in candidate_code and "{" not in candidate_code)
                         )
+                        has_frontend_ext = any(ext in f"{text}\n{candidate_code}".lower() for ext in (".tsx", ".jsx", ".html"))
+                        is_react_or_frontend = any(
+                            marker in c_lower
+                            for marker in ("react", "next", "export default", "export const", "export function", "<div", "<h1", "<main", "<section", "classname=")
+                        )
+
                         if is_py_violation:
                             logger.warning(
                                 "[Implement Node] Domain guard violation detected (attempt %d/%d): LLM generated Python/FastAPI code for frontend goal",
@@ -2339,6 +2424,18 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
                             raise RuntimeError(
                                 f"Domain Guard Violation: LLM generated Python/FastAPI code for a frontend goal. {domain_guard_system_prompt}"
                             )
+
+                        if not has_frontend_ext and not is_react_or_frontend:
+                            logger.warning(
+                                "[Implement Node] Domain guard violation detected (attempt %d/%d): Output does not contain .tsx, .jsx, or .html",
+                                attempt + 1, max_self_correction_attempts,
+                            )
+                            raise RuntimeError(
+                                f"Domain Guard Violation: The output MUST contain .tsx, .jsx, or .html. {domain_guard_system_prompt}"
+                            )
+
+                        if not any(ext in candidate_code for ext in (".tsx", ".jsx", ".html")):
+                            candidate_code = "// page.tsx\n" + candidate_code
 
                     generated = candidate_code
                     break
@@ -2349,7 +2446,7 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
                             f"Objective: {clean_goal}\n\n"
                             "STRICT ENFORCEMENT:\n"
                             "1. You are a frontend developer. You ONLY write React/Next.js/Tailwind code. DO NOT write Python.\n"
-                            "2. The output MUST contain .tsx, .jsx, or .html.\n"
+                            "2. The output MUST contain .tsx, .jsx, or .html (include file header `// page.tsx` or similar at the top).\n"
                             "3. DO NOT output main.py or from fastapi.\n"
                             "Output format: Return single markdown code block ```tsx ... ```"
                         )
@@ -2371,7 +2468,7 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
         goal_lower = clean_goal.lower()
         if generated:
             final_code = generated
-        elif is_frontend_req:
+        elif is_frontend_domain_guard or is_frontend_req:
             final_code = _build_landing_page_component(clean_goal)
         elif is_mobile_req:
             final_code = _build_mobile_component(clean_goal)
@@ -2608,7 +2705,7 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
                 "    del items_db[item_id]\n"
             )
         else:
-            if is_frontend_req:
+            if is_frontend_domain_guard or is_frontend_req:
                 final_code = _build_landing_page_component(clean_goal)
             elif is_mobile_req:
                 final_code = _build_mobile_component(clean_goal)

@@ -68,7 +68,7 @@ class StateGraphWrapper:
                 except ValueError:
                     return "end"
 
-            if status != "verified":
+            if status not in ("verified", "explored"):
                 # Strict enforcement: if status is not verified, it is a hard error.
                 # In real execution, we would log it and pause or retry.
                 # For this implementation, we loop back to current to retry.
