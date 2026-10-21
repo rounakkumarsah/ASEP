@@ -26,6 +26,7 @@ from src.vector.qdrant import (
     qdrant_dependency,
 )
 from src.vector.vector_service import VectorService
+from src.vector.reranker import Reranker, get_reranker
 
 __all__ = [
     "DEFAULT_COLLECTION",
@@ -46,4 +47,7 @@ __all__ = [
     "qdrant_dependency",
     # Service
     "VectorService",
+    # Reranker
+    "Reranker",
+    "get_reranker",
 ]

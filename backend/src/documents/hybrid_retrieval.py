@@ -184,6 +184,30 @@ class HybridRetrievalPipeline:
         # 3. Fuse dense and sparse results using Reciprocal Rank Fusion
         fused = ReciprocalRankFusion.fuse([vector_results, bm25_results], k=60)
 
+        # 4. Neural Reranker (Optional post-fusion step)
+        from src.config.settings import get_settings
+        from src.vector.reranker import get_reranker
+        settings = get_settings()
+
+        if getattr(settings, "ENABLE_RERANKER", True):
+            reranker = get_reranker(getattr(settings, "RERANKER_MODEL", "BAAI/bge-reranker-base"))
+            if reranker.is_available():
+                # Take top-20 candidates from hybrid search
+                candidates = []
+                for item in fused[:20]:
+                    candidates.append({
+                        "chunk_id": item.get("chunk_id"),
+                        "content": item.get("text") or item.get("content", ""),
+                        "raw_item": item,
+                    })
+                rerank_top_k = min(limit, 5) if limit < 5 else 5
+                reranked_docs = reranker.rerank(query=query, documents=candidates, top_k=rerank_top_k)
+                fused = []
+                for d in reranked_docs:
+                    raw = d["raw_item"]
+                    raw["rrf_score"] = d.get("rerank_score", raw.get("rrf_score", 0.0))
+                    fused.append(raw)
+
         # 5. Format HybridSearchResult list
         conn_map: dict[str, list[dict[str, Any]]] = {}
         for conn in graph_connections:

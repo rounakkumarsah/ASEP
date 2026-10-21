@@ -58,6 +58,9 @@ dependencies = [
     "docker>=7.1.0",
     "pg8000>=1.31.2",
     "langgraph>=0.2.0",
+    # Embeddings (Local default)
+    "sentence-transformers>=3.0.0",
+    "torch>=2.0.0",
 ]
 
 
