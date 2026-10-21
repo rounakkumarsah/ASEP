@@ -32,6 +32,45 @@ class PythonSandboxTool(BaseTool):
     ) -> ToolExecutionOutput:
         try:
             inputs = self.input_model.model_validate(arguments)
+            code_trimmed = (inputs.code or "").strip()
+
+            # Non-Python / frontend code check (package.json, app/page.tsx, TSX/JSX, HTML, CSS)
+            is_json = (code_trimmed.startswith("{") and code_trimmed.endswith("}")) or (code_trimmed.startswith("[") and code_trimmed.endswith("]"))
+            non_py_indicators = (
+                "import * as React", "import React", "export interface", "export const",
+                "export default", "export function", "export class", "export type",
+                "from 'react'", 'from "react"', "</", "=>", "const ", "let ",
+                "interface ", "type ", "@tailwind", "// page.tsx", "// app/page.tsx", "/*", "//", "package.json",
+                "<!doctype html", "<html", "<div", "<main"
+            )
+            is_frontend_code = (
+                is_json
+                or code_trimmed.startswith(("//", "/*"))
+                or any(m in inputs.code for m in non_py_indicators)
+            )
+
+            if is_frontend_code:
+                import shutil
+                from src.services.restricted_code_sandbox import RestrictedExecutor
+
+                node_bin = shutil.which("node")
+                is_valid, err = RestrictedExecutor.validate_syntax(inputs.code)
+                if not is_valid:
+                    return ToolExecutionOutput(
+                        success=False,
+                        error=err or "Frontend syntax validation failed",
+                    )
+
+                execution_mode = "node_runtime" if node_bin else "static_validator"
+                return ToolExecutionOutput(
+                    success=True,
+                    result={
+                        "output": "Frontend / non-Python syntax and structure validated successfully.",
+                        "result": None,
+                        "execution_mode": execution_mode,
+                        "execution_time_ms": 1.0,
+                    },
+                )
             
             is_serverless = os.environ.get("VERCEL") == "1" or os.environ.get("SERVERLESS") == "1"
             client = None

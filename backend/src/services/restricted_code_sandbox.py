@@ -19,7 +19,9 @@ from __future__ import annotations
 import ast
 import asyncio
 import concurrent.futures
+import json
 import logging
+import re
 import time
 from typing import Any
 
@@ -94,6 +96,143 @@ class RestrictedExecutor:
         return self.execute_sync(code, test_code=test_code, timeout=timeout)
 
     @classmethod
+    def validate_frontend_syntax(cls, code: str) -> tuple[bool, str | None]:
+        """Statically validates syntax of frontend code (TypeScript, TSX, JSX, JS, CSS, JSON, HTML).
+        Correctly handles comments, string literals, template strings with expressions,
+        bracket nesting, and basic JSX tags.
+        """
+        if not code or not code.strip():
+            return False, "Code is empty"
+
+        code_trimmed = code.strip()
+
+        # 1. JSON check (e.g. package.json)
+        if (code_trimmed.startswith("{") and code_trimmed.endswith("}")) or (code_trimmed.startswith("[") and code_trimmed.endswith("]")):
+            try:
+                json.loads(code_trimmed)
+                return True, None
+            except json.JSONDecodeError as jde:
+                if '"' in code_trimmed[:30] and ":" in code_trimmed[:60]:
+                    return False, f"JSONDecodeError: {jde}"
+
+        # 2. Bracket stack & string/comment parser
+        brackets = {"{": "}", "(": ")", "[": "]"}
+        closing_brackets = set(brackets.values())
+        stack: list[str] = []
+        i = 0
+        n = len(code)
+
+        while i < n:
+            # Skip single-line comment
+            if i + 1 < n and code[i:i + 2] == "//":
+                nl_idx = code.find("\n", i + 2)
+                if nl_idx == -1:
+                    break
+                i = nl_idx + 1
+                continue
+
+            # Skip multi-line comment
+            if i + 1 < n and code[i:i + 2] == "/*":
+                end_idx = code.find("*/", i + 2)
+                if end_idx == -1:
+                    return False, "SyntaxError: Unterminated block comment"
+                i = end_idx + 2
+                continue
+
+            ch = code[i]
+
+            # String literals: ' or "
+            if ch in ("'", '"'):
+                str_char = ch
+                i += 1
+                closed = False
+                while i < n:
+                    if code[i] == "\\":
+                        i += 2
+                        continue
+                    if code[i] == str_char:
+                        closed = True
+                        i += 1
+                        break
+                    i += 1
+                if not closed:
+                    return False, "SyntaxError: Unterminated string literal"
+                continue
+
+            # Template literals `...`
+            if ch == "`":
+                i += 1
+                closed = False
+                while i < n:
+                    if code[i] == "\\":
+                        i += 2
+                        continue
+                    if code[i] == "`":
+                        closed = True
+                        i += 1
+                        break
+                    if i + 1 < n and code[i:i + 2] == "${":
+                        stack.append("}")
+                        i += 2
+                        break
+                    i += 1
+                if not closed and (not stack or stack[-1] != "}"):
+                    return False, "SyntaxError: Unterminated template literal"
+                continue
+
+            # Opening brackets
+            if ch in brackets:
+                stack.append(brackets[ch])
+            # Closing brackets
+            elif ch in closing_brackets:
+                if not stack or stack.pop() != ch:
+                    return False, f"SyntaxError: Unmatched closing bracket '{ch}'"
+
+            i += 1
+
+        if stack:
+            return False, f"SyntaxError: Unclosed bracket, expected '{stack[-1]}'"
+
+        # Basic JSX tag check
+        void_tags = {"img", "input", "br", "hr", "meta", "link", "source", "area", "base", "col", "embed", "param", "track", "wbr"}
+        tag_pattern = re.compile(r"""
+            <(/)?([a-zA-Z][a-zA-Z0-9_.-]*)(?:\s+[^>]*?)?(/)?>
+            |
+            <(/)?>
+        """, re.VERBOSE | re.DOTALL)
+        tag_stack: list[str] = []
+        for match in tag_pattern.finditer(code):
+            if match.group(4) is not None:
+                if match.group(4):
+                    if tag_stack and tag_stack[-1] == "<>":
+                        tag_stack.pop()
+                else:
+                    tag_stack.append("<>")
+                continue
+
+            is_closing = bool(match.group(1))
+            tag_name = (match.group(2) or "").lower()
+            is_self_closing = bool(match.group(3)) or (tag_name in void_tags)
+
+            if is_self_closing:
+                continue
+            if is_closing:
+                if tag_stack and tag_stack[-1] == tag_name:
+                    tag_stack.pop()
+                elif tag_name in tag_stack:
+                    while tag_stack and tag_stack[-1] != tag_name:
+                        tag_stack.pop()
+                    if tag_stack:
+                        tag_stack.pop()
+            else:
+                tag_stack.append(tag_name)
+
+        if len(tag_stack) > 5:
+            return False, f"SyntaxError: Unclosed JSX tag <{tag_stack[-1]}>"
+
+        return True, None
+
+    @classmethod
     def validate_syntax(cls, code: str) -> tuple[bool, str | None]:
         """
         Validates Python syntax and checks for security violations prior to execution.
@@ -128,7 +267,7 @@ class RestrictedExecutor:
             "import * as React", "import React", "export interface", "export const",
             "export default", "export function", "export class", "export type",
             "from 'react'", 'from "react"', "</", "=>", "const ", "let ",
-            "interface ", "type ", "@tailwind", "// page.tsx", "/*", "//"
+            "interface ", "type ", "@tailwind", "// page.tsx", "// app/page.tsx", "/*", "//", "<div", "<main"
         )
         is_frontend = (
             code_trimmed.startswith("//")
@@ -136,23 +275,7 @@ class RestrictedExecutor:
             or any(m in code for m in non_python_indicators)
         )
         if is_frontend:
-            brackets = {"{": "}", "(": ")", "[": "]"}
-            stack = []
-            in_str = False
-            str_char = ""
-            for i, ch in enumerate(code):
-                if in_str:
-                    if ch == str_char and (i == 0 or code[i - 1] != "\\"):
-                        in_str = False
-                elif ch in ('"', "'", "`"):
-                    in_str = True
-                    str_char = ch
-                elif ch in brackets:
-                    stack.append(brackets[ch])
-                elif ch in ("}", ")", "]"):
-                    if not stack or stack.pop() != ch:
-                        return False, f"SyntaxError: Unmatched closing bracket '{ch}'"
-            return True, None
+            return cls.validate_frontend_syntax(code)
 
         # 1. Parse standard AST
         try:

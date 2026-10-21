@@ -2144,6 +2144,7 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
     product_type = state.get("product_type") or "web-app"
     run_id = state.get("run_id", "unknown")
     multi_file_tree: dict[str, str] = {}
+    parsed_tree: dict[str, str] | None = None
 
     # -------------------------------------------------------------------------
     # EXPLORE STEP: Reuse existing exploration context or run initial exploration
@@ -2880,7 +2881,8 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
             )
         else:
             if is_frontend_domain_guard or is_frontend_req:
-                final_code = _build_landing_page_component(clean_goal)
+                multi_file_tree = _build_nextjs_project_files(clean_goal)
+                final_code = multi_file_tree["app/page.tsx"]
             elif is_mobile_req:
                 final_code = _build_mobile_component(clean_goal)
             else:
@@ -2898,7 +2900,12 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
     # STEP 2: POST-GENERATION HARD CHECK & STRICT EXTENSION VALIDATION
     # -------------------------------------------------------------------------
     if is_frontend_domain_guard or is_frontend_req or has_website_skill or is_frontend_prompt:
-        target_path = filepath if (filepath and filepath.endswith((".tsx", ".jsx", ".html"))) else "page.tsx"
+        if parsed_tree and "app/page.tsx" in parsed_tree and state.get("filepath") != "page.tsx":
+            target_path = "app/page.tsx"
+        elif filepath and filepath.endswith((".tsx", ".jsx", ".html", ".css", ".ts", ".js", ".json")):
+            target_path = filepath
+        else:
+            target_path = "page.tsx"
         code_check = final_code or ""
         c_lower = code_check.lower()
         is_react_or_frontend = any(
@@ -2988,12 +2995,13 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
     code_to_execute = processed_code or final_code
     execution_result: dict[str, Any] = {}
 
-    if is_frontend_req or has_website_skill:
-        target_path = filepath if (filepath and filepath.endswith((".tsx", ".jsx", ".html", ".css", ".ts", ".js"))) else "page.tsx"
-    elif is_mobile_req or has_mobile_skill:
-        target_path = filepath if (filepath and filepath.endswith((".dart", ".tsx", ".jsx"))) else ("main.dart" if "flutter" in clean_goal_lower else "App.tsx")
-    else:
-        target_path = filepath or "main.py"
+    if not target_path:
+        if is_frontend_req or has_website_skill:
+            target_path = "app/page.tsx" if ("app/page.tsx" in multi_file_tree) else "page.tsx"
+        elif is_mobile_req or has_mobile_skill:
+            target_path = filepath if (filepath and filepath.endswith((".dart", ".tsx", ".jsx"))) else ("main.dart" if "flutter" in clean_goal_lower else "App.tsx")
+        else:
+            target_path = filepath or "main.py"
 
     non_python_indicators = [
         "import * as React", "import React", "export interface", "export const",
@@ -3081,9 +3089,13 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
             multi_file_tree = _build_nextjs_project_files(clean_goal, page_component_code=code_to_save)
         current_artifacts.update(multi_file_tree)
         current_artifacts[target_path] = code_to_save
-        if "app/page.tsx" in current_artifacts and "page.tsx" not in current_artifacts:
+        if target_path == "app/page.tsx":
+            current_artifacts["page.tsx"] = code_to_save
+        elif target_path == "page.tsx":
+            current_artifacts["app/page.tsx"] = code_to_save
+        elif "app/page.tsx" in current_artifacts:
             current_artifacts["page.tsx"] = current_artifacts["app/page.tsx"]
-        if "page.tsx" in current_artifacts and "app/page.tsx" not in current_artifacts:
+        elif "page.tsx" in current_artifacts:
             current_artifacts["app/page.tsx"] = current_artifacts["page.tsx"]
     else:
         current_artifacts[target_path] = code_to_save
@@ -3149,8 +3161,12 @@ async def critic_node(state: AgentState) -> dict[str, Any]:
         or "print('No code to evaluate')\n"
     )
     entrypoint = state.get("filepath") or "main.py"
-    heal_count = state.get("heal_cycle_count", 0)
     artifacts = dict(state.get("artifacts") or {})
+    if not artifacts and code and entrypoint:
+        artifacts[entrypoint] = code
+        if entrypoint in ("page.tsx", "app/page.tsx"):
+            artifacts["app/page.tsx"] = code
+            artifacts["page.tsx"] = code
 
     # Ensure all generated files are written to disk in workspaces/<project_id>/
     project_id = str(state.get("project_id") or state.get("workspace_id") or "default_project")
@@ -3730,7 +3746,8 @@ async def security_audit_phase_node(state: AgentState) -> dict[str, Any]:
     deps = variables.get("dependencies") or state.get("dependencies") or []
 
     # If artifacts contain code files, aggregate them
-    files_to_scan: dict[str, str] = {"main.py": code}
+    entrypoint = state.get("filepath") or ("app/page.tsx" if "app/page.tsx" in artifacts else "main.py")
+    files_to_scan: dict[str, str] = {entrypoint: code} if code else {}
     for art_name, art_val in artifacts.items():
         if isinstance(art_val, str) and (art_name.endswith((".py", ".js", ".ts", ".tsx", ".json", ".txt"))):
             files_to_scan[art_name] = art_val
