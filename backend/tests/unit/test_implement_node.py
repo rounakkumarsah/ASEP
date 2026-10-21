@@ -500,6 +500,10 @@ async def test_implement_multi_file_nextjs_written_to_workspace():
     assert "app/layout.tsx" in artifacts
     assert "app/globals.css" in artifacts
 
+    # Verify primary entrypoint filepath and generated_code
+    assert result["filepath"] == "app/page.tsx"
+    assert result["generated_code"] == artifacts["app/page.tsx"]
+
     # Verify files were physically written to disk under workspaces/<project_id>/
     repo_root = Path(__file__).resolve().parent.parent.parent.parent
     workspace_dir = repo_root / "workspaces" / unique_project_id
@@ -563,6 +567,61 @@ async def test_critic_node_frontend_validation_errors():
     res_missing_page = await critic_node(missing_page_state)
     assert res_missing_page["status"] == "healing"
     assert "Missing app/page.tsx" in res_missing_page["critic_result"]["stderr"]
+
+
+@pytest.mark.asyncio
+async def test_python_sandbox_tool_frontend_bypass():
+    """Verify PythonSandboxTool detects frontend code and validates statically without Python syntax errors."""
+    from src.tools.python_sandbox import PythonSandboxTool
+
+    tool = PythonSandboxTool()
+
+    # Next.js TSX code
+    tsx_code = (
+        "import React from 'react';\n"
+        "export default function Hero() {\n"
+        "  return <section><h1>Welcome</h1></section>;\n"
+        "}"
+    )
+    res_tsx = await tool.execute({"code": tsx_code})
+    assert res_tsx.success is True
+    assert "validated successfully" in res_tsx.result["output"].lower()
+
+    # Broken TSX code (unclosed brace)
+    bad_tsx = (
+        "import React from 'react';\n"
+        "export default function Hero() {\n"
+        "  return <section><h1>Welcome</h1></section>;\n"
+    )
+    res_bad = await tool.execute({"code": bad_tsx})
+    assert res_bad.success is False
+    assert "SyntaxError" in res_bad.error
+
+    # package.json
+    res_pkg = await tool.execute({"code": '{"name": "nextjs-demo", "version": "1.0.0"}'})
+    assert res_pkg.success is True
+
+
+@pytest.mark.asyncio
+async def test_restricted_executor_tsx_validation_edge_cases():
+    """Verify RestrictedExecutor catches unclosed brackets and handles apostrophes in comments."""
+    from src.services.restricted_code_sandbox import RestrictedExecutor
+
+    # 1. Unclosed brace
+    valid, err = RestrictedExecutor.validate_syntax("export default function Page() { return 1;")
+    assert valid is False
+    assert "Unclosed bracket" in err
+
+    # 2. Comment with apostrophe followed by extra closing bracket
+    valid, err = RestrictedExecutor.validate_syntax("// It's an awesome coffee shop\nexport default function Page() { return 1; } }")
+    assert valid is False
+    assert "Unmatched closing bracket" in err
+
+    # 3. Valid TSX with comment containing apostrophe
+    valid, err = RestrictedExecutor.validate_syntax("// It's an awesome coffee shop\nexport default function Page() { return 1; }")
+    assert valid is True
+    assert err is None
+
 
 
 
