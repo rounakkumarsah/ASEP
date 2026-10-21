@@ -316,4 +316,137 @@ async def test_implement_phase_node_sanitizes_polluted_memory_goal():
     assert "TodoItem" not in code
 
 
+@pytest.mark.asyncio
+async def test_implement_node_domain_guard_rejects_python_and_retries_with_aggressive_prompt():
+    """Domain guard triggers on Next.js/Tailwind prompt when LLM outputs Python/FastAPI, retrying with aggressive frontend prompt."""
+    from src.runtime.nodes import implement_node
+
+    state = {
+        "goal": "Build a modern landing page for a coffee shop using Next.js and Tailwind",
+        "product_type": "website",
+        "status": "verified",
+        "run_id": "test-domain-guard-retry",
+        "project_id": "test_coffee_shop_proj",
+        "token_usage_per_phase": {},
+        "token_budget_per_phase": {},
+        "token_savings": {},
+        "file_history": {},
+        "budget_approvals": [],
+        "active_skills": [],
+        "skill_instructions": [],
+        "skill_citations": [],
+    }
+
+    call_prompts = []
+
+    async def fake_complete(req):
+        nonlocal call_prompts
+        user_content = req.messages[0].content
+        call_prompts.append(user_content)
+        mock_res = MagicMock()
+        if len(call_prompts) == 1:
+            # First attempt: LLM outputs FastAPI main.py (violation)
+            mock_res.text = "```python\n# main.py\nfrom fastapi import FastAPI\napp = FastAPI()\n```"
+        else:
+            # Second attempt: LLM complies after aggressive system prompt
+            mock_res.text = "```tsx\n// page.tsx (.tsx)\nimport React from 'react';\nexport default function CoffeeShop() { return <div className='bg-amber-50'>Artisan Coffee</div>; }\n```"
+        return mock_res
+
+    with patch("src.ai_runtime.service.AIRuntimeService.complete", side_effect=fake_complete):
+        result = await implement_node(state)
+
+    # Must have triggered retry with the aggressive prompt
+    assert len(call_prompts) >= 2
+    assert "You are a frontend developer. You ONLY write React/Next.js/Tailwind code. DO NOT write Python." in call_prompts[1]
+
+    # Result must be page.tsx and contain .tsx
+    assert result["filepath"] == "page.tsx"
+    assert ".tsx" in result["generated_code"]
+    assert "from fastapi" not in result["generated_code"]
+    assert "main.py" not in result["generated_code"]
+    assert "Artisan Coffee" in result["generated_code"]
+
+
+@pytest.mark.asyncio
+async def test_implement_node_coffee_shop_landing_page_fallback_is_tsx():
+    """Fallback when LLM is offline produces Next.js component (.tsx), NOT FastAPI E-Commerce even with 'shop' in goal."""
+    from src.runtime.nodes import implement_node
+
+    state = {
+        "goal": "Build a modern landing page for a coffee shop using Next.js and Tailwind",
+        "product_type": "website",
+        "status": "verified",
+        "run_id": "test-coffee-shop-fallback",
+        "project_id": "coffee_shop_new_proj",
+        "token_usage_per_phase": {},
+        "token_budget_per_phase": {},
+        "token_savings": {},
+        "file_history": {},
+        "budget_approvals": [],
+        "active_skills": [],
+        "skill_instructions": [],
+        "skill_citations": [],
+    }
+
+    with patch("src.ai_runtime.service.AIRuntimeService.complete", side_effect=RuntimeError("LLM unavailable")):
+        result = await implement_node(state)
+
+    assert result["filepath"] == "page.tsx"
+    assert ".tsx" in result["generated_code"]
+    assert "from fastapi" not in result["generated_code"]
+    assert "main.py" not in result["generated_code"]
+    assert "artisan coffee" in result["generated_code"].lower() or "coffee" in result["generated_code"].lower()
+
+
+@pytest.mark.asyncio
+async def test_explore_node_and_research_node_empty_workspace_isolation(tmp_path):
+    """Empty workspace reports 'Empty workspace. Starting from scratch.' and never reads ASEP root backend/src."""
+    from src.runtime.nodes import explore_node, research_phase_node
+    from src.runtime.explore_manager import get_explore_manager
+    import uuid
+
+    unique_project_id = f"isolated_test_proj_{uuid.uuid4().hex[:8]}"
+
+    state = {
+        "goal": "Build a modern landing page for a coffee shop using Next.js and Tailwind",
+        "current_phase": "explore",
+        "project_id": unique_project_id,
+        "workspace_id": unique_project_id,
+        "thread_id": f"thread_{unique_project_id}",
+    }
+
+    res_explore = await explore_node(state)
+    assert res_explore["status"] == "explored"
+    assert res_explore["exploration_summary"]["architecture_understanding"] == "Empty workspace. Starting from scratch."
+    assert res_explore["exploration_summary"]["relevant_files"] == []
+    assert any("Empty workspace. Starting from scratch." in ev.get("detail", "") for ev in res_explore["exploration_events"])
+
+    # Check global explore manager received it
+    mgr = get_explore_manager()
+    summary = mgr.get_summary(f"thread_{unique_project_id}", "explore")
+    assert summary is not None
+    assert summary["architecture_understanding"] == "Empty workspace. Starting from scratch."
+
+    # Now test research_phase_node with empty workspace
+    state_research = {
+        "goal": "Build a modern landing page for a coffee shop using Next.js and Tailwind",
+        "current_phase": "research",
+        "project_id": unique_project_id,
+        "workspace_id": unique_project_id,
+        "thread_id": f"thread_{unique_project_id}",
+        "token_usage_per_phase": {},
+        "token_budget_per_phase": {},
+        "token_savings": {},
+        "file_history": {},
+        "budget_approvals": [],
+    }
+
+    res_research = await research_phase_node(state_research)
+    assert res_research["status"] == "verified"
+    assert res_research["exploration_summary"]["architecture_understanding"] == "Empty workspace. Starting from scratch."
+    assert res_research["exploration_summary"]["relevant_files"] == []
+    assert not any("backend/src" in f for f in res_research["exploration_summary"]["relevant_files"])
+
+
+
 
