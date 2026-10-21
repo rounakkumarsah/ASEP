@@ -122,17 +122,126 @@ async def start_node_default(state: AgentState) -> dict[str, Any]:
     }
 
 
+def _sanitize_exploration_for_frontend(
+    goal: str,
+    events: list[dict[str, Any]],
+    summary: dict[str, Any] | Any,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Sanitizes exploration events and summary to prevent old backend context bleeding into frontend tasks.
+    
+    If the user asks to build a new website, landing page, or frontend:
+    - Filters out old Python backend files from relevant_files and explored_files.
+    - Omit 'Preserve existing API schemas' and backend-centric risks from the summary.
+    - Filters out backend file exploration events.
+    """
+    goal_lower = (goal or "").lower()
+    is_new_frontend = any(
+        kw in goal_lower
+        for kw in (
+            "build a modern landing page",
+            "create a website",
+            "build a website",
+            "landing page",
+            "next.js",
+            "nextjs",
+            "create a landing page",
+            "react",
+            "tailwind",
+            "vue",
+            "frontend",
+        )
+    )
+    if not is_new_frontend:
+        summary_dict = summary.to_dict() if hasattr(summary, "to_dict") else dict(summary or {})
+        return events or [], summary_dict
+
+    summary_dict = summary.to_dict() if hasattr(summary, "to_dict") else dict(summary or {})
+    frontend_exts = (".tsx", ".jsx", ".html", ".css", ".vue", ".svelte", ".ts", ".js", ".json")
+    raw_files = summary_dict.get("relevant_files", []) or []
+    clean_files = [
+        f for f in raw_files
+        if any(f.endswith(ext) for ext in frontend_exts)
+        and not f.endswith(".py")
+        and "backend" not in f.lower()
+    ]
+    summary_dict["relevant_files"] = clean_files
+    summary_dict["files_explored_count"] = len(clean_files)
+
+    risks = summary_dict.get("risks_identified", []) or []
+    clean_risks = [
+        r for r in risks
+        if "preserve existing api" not in r.lower()
+        and "api response schema" not in r.lower()
+        and "serialization contract" not in r.lower()
+        and "fastapi" not in r.lower()
+    ]
+    if not clean_risks:
+        clean_risks = [
+            "Ensure responsive UI layout across mobile, tablet, and desktop viewports",
+            "Verify component accessibility, semantic HTML, and design token consistency",
+        ]
+    summary_dict["risks_identified"] = clean_risks
+
+    arch = summary_dict.get("architecture_understanding", "")
+    if any(kw in arch.lower() for kw in ("preserve existing api", "api", "backend", "contracts")):
+        summary_dict["architecture_understanding"] = (
+            "Targeting modern frontend component architecture with responsive layout, "
+            "semantic markup, and clean UI state management."
+        )
+
+    clean_events = []
+    for ev in (events or []):
+        file_val = str(ev.get("file") or "")
+        detail_val = str(ev.get("detail") or "")
+        tool_args_str = str(ev.get("tool_args") or "")
+        if file_val.endswith(".py") or "backend" in file_val.lower():
+            continue
+        if any(bad in detail_val.lower() for bad in ("preserve existing api", "fastapi", "main.py")):
+            continue
+        if any(bad in tool_args_str.lower() for bad in ("preserve existing api", "fastapi", "main.py")):
+            continue
+        clean_events.append(ev)
+
+    return clean_events, summary_dict
+
+
 async def explore_node(state: AgentState) -> dict[str, Any]:
     """
     EXPLORE NODE:
     Performs workspace exploration: search_files, list_directory, read_file, grep_pattern.
     Emits structured events and outputs exploration_summary to state.
+    Enforces context isolation: if user asks for a new website/frontend, old Python backend files
+    and API schema preservation directives are NOT injected.
     """
     explore_mgr = get_explore_manager()
     goal = extract_clean_goal(state.get("goal") or "Software Engineering Task")
     current_phase = state.get("current_phase") or "explore"
 
     events, summary = await explore_mgr.explore_phase(current_phase, goal, state)
+    events, summary = _sanitize_exploration_for_frontend(goal, events, summary)
+
+    goal_lower = goal.lower()
+    is_new_frontend = any(
+        kw in goal_lower
+        for kw in (
+            "build a modern landing page",
+            "create a website",
+            "build a website",
+            "landing page",
+            "next.js",
+            "nextjs",
+            "create a landing page",
+            "react",
+            "tailwind",
+            "vue",
+            "frontend",
+        )
+    )
+    if is_new_frontend:
+        existing_files = [f for f in (state.get("explored_files") or []) if not f.endswith(".py") and "backend" not in f.lower()]
+    else:
+        existing_files = list(state.get("explored_files") or [])
+    all_explored = list(set(existing_files + summary.get("relevant_files", [])))
 
     event_messages = []
     for ev in events:
@@ -151,7 +260,7 @@ async def explore_node(state: AgentState) -> dict[str, Any]:
         "exploration_events": events,
         "exploration_summary": summary,
         "phase_explorations": {**(state.get("phase_explorations") or {}), current_phase: summary},
-        "explored_files": list(set((state.get("explored_files") or []) + summary.get("relevant_files", []))),
+        "explored_files": all_explored,
         "messages": event_messages,
     }
 
@@ -1050,6 +1159,7 @@ async def research_phase_node(state: AgentState) -> dict[str, Any]:
     # -------------------------------------------------------------------------
     explore_mgr = get_explore_manager()
     explore_events, explore_summary = await explore_mgr.explore_phase("research", goal, state)
+    explore_events, explore_summary = _sanitize_exploration_for_frontend(goal, explore_events, explore_summary)
     for ev in explore_events:
         messages.append({
             "role": "system",
@@ -1668,6 +1778,7 @@ def _build_landing_page_component(goal: str) -> str:
         hero_desc = f"Engineered for high performance, accessibility, and modern aesthetics. Built to deliver an unforgettable digital experience."
 
     return (
+        "// page.tsx - Next.js Landing Page Component (.tsx)\n"
         "import React, { useState } from 'react';\n\n"
         f"// {brand} — Modern Landing Page Component\n"
         "// Built with Next.js App Router conventions and Tailwind CSS\n\n"
@@ -1813,6 +1924,7 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
 
     if not implement_summary:
         explore_events, implement_summary = await explore_mgr.explore_phase("explore", goal, state)
+    explore_events, implement_summary = _sanitize_exploration_for_frontend(goal, explore_events, implement_summary)
 
     # Summary shown to coding agent so it never re-explores the same files (token saving, per-phase)
     relevant_files = implement_summary.get("relevant_files", []) if implement_summary else []
@@ -1891,6 +2003,12 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
     from src.skills import get_skill_manager
     skill_mgr = get_skill_manager()
     matched_skill = skill_mgr.match(clean_goal)
+    state_matched_skill = state.get("matched_skill")
+    if state_matched_skill:
+        if isinstance(state_matched_skill, str):
+            matched_skill = skill_mgr.get_skill(state_matched_skill) or matched_skill
+        else:
+            matched_skill = state_matched_skill
 
     active_skills = list(state.get("active_skills") or [])
     skill_instructions = list(state.get("skill_instructions") or [])
@@ -1932,6 +2050,14 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
         )
     )
 
+    is_frontend_prompt = has_frontend_kw or any(
+        kw in clean_goal_lower for kw in ("next.js", "nextjs", "react", "tailwind", "vue", "landing page")
+    )
+    is_python_prompt = (
+        not is_frontend_prompt
+        and any(kw in clean_goal_lower for kw in ("fastapi", "python", "api"))
+    )
+
     # Step 3 Context Leakage Prevention:
     # A new task must NOT inherit stale code_context or previous chat history's codebase (like an old E-Commerce API)
     # unless explicitly referenced as a continuation.
@@ -1944,7 +2070,7 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
     )
     code_is_python = bool(raw_code_context and any(kw in raw_code_context for kw in ("from fastapi", "import fastapi", "FastAPI", "def execute_task", "def get_current_user")))
 
-    if not is_continuation or ((is_frontend_req or is_mobile_req) and code_is_python):
+    if not is_continuation or ((is_frontend_req or is_mobile_req or is_frontend_prompt) and code_is_python):
         code_context = None
         target_symbol = None
         changed_lines = None
@@ -1954,6 +2080,10 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
         target_symbol = state.get("target_symbol") or variables.get("target_symbol")
         changed_lines = state.get("changed_lines") or variables.get("changed_lines")
         filepath = state.get("filepath") or variables.get("filepath")
+
+    if is_frontend_prompt or is_frontend_req or has_website_skill:
+        if not filepath or not filepath.endswith((".tsx", ".jsx", ".html", ".css", ".ts", ".js")):
+            filepath = "page.tsx"
 
     guard_res = execute_phase_token_guard(
         phase="implement",
@@ -2040,35 +2170,80 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
             if skill_instructions:
                 skill_injection_section = "\n\nACTIVE SKILLS AND INSTRUCTIONS:\n" + "\n\n".join(skill_instructions)
 
+            system_prompt_instruction = (
+                "CRITICAL RULE: If the user asks for Next.js, React, Tailwind, or a landing page, "
+                "you MUST output `.tsx` or `.jsx` files. You are FORBIDDEN from outputting `main.py` "
+                "or FastAPI code. Do not let previous context bleed into this generation. "
+                "Ignore any old E-Commerce context."
+            )
+
             codegen_prompt = (
+                f"{system_prompt_instruction}\n\n"
                 f"You are an expert software engineer. Write clean, complete, production-ready code to satisfy the following objective:\n"
                 f"Objective: {clean_goal}\n"
                 f"{skill_injection_section}\n\n"
                 f"STRICT ARCHITECTURAL CONSTRAINTS:\n"
-                f"1. LANGUAGE/FRAMEWORK STICKINESS: If a framework or language is specified in the objective or active skill, "
+                f"1. {system_prompt_instruction}\n"
+                f"2. LANGUAGE/FRAMEWORK STICKINESS: If a framework or language is specified in the objective or active skill, "
                 f"generate strictly in that stack. Expected format: {target_lang_desc}.\n"
-                f"2. HARD CONSTRAINT: If 'web-website-build' or a frontend is requested, the output MUST be .tsx, .jsx, or .html + .css. It MUST NOT output .py unless explicitly asked.\n"
-                f"3. HARD CONSTRAINT: If 'app-mobile-build' is matched, the output MUST be Dart (Flutter) or TSX (React Native).\n"
-                f"4. NO TO-DO/ECOMMERCE BIAS: NEVER output generic FastAPI To-Do or E-Commerce boilerplate when a frontend or specific service is requested.\n"
-                f"5. Return only the code directly inside a single markdown code block (```{code_fence} ... ```).\n"
-                f"6. Implement full functionality with robust error handling, responsive design, and production-ready styling."
+                f"3. HARD CONSTRAINT: If 'web-website-build' or a frontend is requested, the output MUST be .tsx, .jsx, or .html + .css. It MUST NOT output .py unless explicitly asked.\n"
+                f"4. HARD CONSTRAINT: If 'app-mobile-build' is matched, the output MUST be Dart (Flutter) or TSX (React Native).\n"
+                f"5. NO TO-DO/ECOMMERCE BIAS: NEVER output generic FastAPI To-Do or E-Commerce boilerplate when a frontend or specific service is requested.\n"
+                f"6. Return only the code directly inside a single markdown code block (```{code_fence} ... ```).\n"
+                f"7. Implement full functionality with robust error handling, responsive design, and production-ready styling."
             )
-            req = CompletionRequest(
-                messages=[Message(role="user", content=codegen_prompt)],
-                model=model_to_use,
-                temperature=0.2,
-                max_tokens=2048,
+
+            correction_error_msg = (
+                "ERROR: You generated a Python/FastAPI file, but the user asked for a Next.js landing page. "
+                "You MUST output a React component (.tsx) or HTML/Tailwind. Try again."
             )
-            codegen_timeout = float(os.environ.get("LLM_CODEGEN_TIMEOUT", "6.0"))
-            res = await asyncio.wait_for(runtime.complete(req), timeout=codegen_timeout)
-            text = (res.text or "").strip()
-            match = re.search(r"```(?:[a-zA-Z0-9_\-\.\+]*)[^\S\r\n]*\r?\n([\s\S]*?)```", text)
-            if match:
-                generated = match.group(1).strip()
-            elif text:
-                cleaned = re.sub(r"^```(?:[a-zA-Z0-9_\-\.\+]*)[^\S\r\n]*\r?\n", "", text)
-                cleaned = re.sub(r"\r?\n```$", "", cleaned)
-                generated = cleaned.strip()
+            max_self_correction_attempts = 3
+            current_prompt = codegen_prompt
+
+            for attempt in range(max_self_correction_attempts):
+                try:
+                    req = CompletionRequest(
+                        messages=[Message(role="user", content=current_prompt)],
+                        model=model_to_use,
+                        temperature=0.2,
+                        max_tokens=2048,
+                    )
+                    codegen_timeout = float(os.environ.get("LLM_CODEGEN_TIMEOUT", "6.0"))
+                    res = await asyncio.wait_for(runtime.complete(req), timeout=codegen_timeout)
+                    text = (res.text or "").strip()
+                    match = re.search(r"```(?:[a-zA-Z0-9_\-\.\+]*)[^\S\r\n]*\r?\n([\s\S]*?)```", text)
+                    if match:
+                        candidate_code = match.group(1).strip()
+                    elif text:
+                        cleaned = re.sub(r"^```(?:[a-zA-Z0-9_\-\.\+]*)[^\S\r\n]*\r?\n", "", text)
+                        cleaned = re.sub(r"\r?\n```$", "", cleaned)
+                        candidate_code = cleaned.strip()
+                    else:
+                        candidate_code = ""
+
+                    if is_frontend_prompt and candidate_code:
+                        has_fastapi_violation = (
+                            "from fastapi import" in candidate_code
+                            or "app = FastAPI()" in candidate_code
+                            or "main.py" in candidate_code
+                        )
+                        if has_fastapi_violation:
+                            logger.warning(
+                                "[Implement Node] Self-correction triggered (attempt %d/%d): LLM generated Python/FastAPI for frontend goal",
+                                attempt + 1, max_self_correction_attempts,
+                            )
+                            current_prompt = (
+                                f"{current_prompt}\n\n"
+                                f"PREVIOUS ATTEMPT OUTPUT:\n{candidate_code[:500]}\n\n"
+                                f"{correction_error_msg}"
+                            )
+                            continue
+
+                    generated = candidate_code
+                    break
+                except Exception as exc:
+                    logger.warning("[Implement Node] LLM call attempt %d failed: %s", attempt + 1, exc)
+                    break
         except Exception as exc:
             logger.warning("LLM code generation fallback triggered: %s", exc)
 
@@ -2327,6 +2502,33 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
                     "    main()\n"
                 )
 
+    # -------------------------------------------------------------------------
+    # STEP 2: POST-GENERATION HARD CHECK & STRICT EXTENSION VALIDATION
+    # -------------------------------------------------------------------------
+    if is_frontend_req or has_website_skill or is_frontend_prompt:
+        target_path = filepath if (filepath and filepath.endswith((".tsx", ".jsx", ".html", ".css", ".ts", ".js"))) else "page.tsx"
+    elif is_mobile_req or has_mobile_skill:
+        target_path = filepath if (filepath and filepath.endswith((".dart", ".tsx", ".jsx"))) else ("main.dart" if "flutter" in clean_goal_lower else "App.tsx")
+    else:
+        target_path = filepath or "main.py"
+
+    if is_frontend_prompt:
+        has_fastapi_leak = (
+            "from fastapi import" in (final_code or "")
+            or "app = FastAPI()" in (final_code or "")
+            or "main.py" in (final_code or "")
+        )
+        if has_fastapi_leak:
+            logger.warning("[Implement Node] Post-generation hard check: rejected invalid FastAPI/Python code for frontend request. Replacing with Next.js page.tsx component.")
+            final_code = _build_landing_page_component(clean_goal)
+            target_path = "page.tsx"
+        elif not any(marker in (final_code or "") for marker in (".tsx", ".jsx", "page.tsx", "App.tsx")):
+            target_path = target_path if (target_path and target_path.endswith((".tsx", ".jsx"))) else "page.tsx"
+            final_code = f"// {target_path} (.tsx)\n" + (final_code or "")
+    elif is_python_prompt:
+        # If user explicitly requested FastAPI/Python/API, allow .py
+        pass
+
     # HARD CONSTRAINT ENFORCEMENT:
     # 1. If web-website-build or frontend is requested, the output MUST be .tsx, .jsx, or .html + .css. It MUST NOT output .py unless explicitly asked.
     # 2. If app-mobile-build is matched, the output MUST be Dart (Flutter) or TSX (React Native).
@@ -2470,7 +2672,17 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
 
     code_to_save = code_to_execute or final_code
     current_artifacts = dict(state.get("artifacts") or {})
+    if is_frontend_prompt or is_frontend_req:
+        current_artifacts.pop("main.py", None)
+        current_artifacts.pop("backend/main.py", None)
+        current_artifacts.pop("app.py", None)
     current_artifacts[target_path] = code_to_save
+
+    if is_frontend_prompt or is_frontend_req:
+        clean_explored = [f for f in (state.get("explored_files") or []) if not f.endswith(".py") and "backend" not in f.lower()]
+    else:
+        clean_explored = list(state.get("explored_files") or [])
+    all_explored = list(set(clean_explored + relevant_files))
 
     return {
         "status": "verified",
@@ -2484,7 +2696,7 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
         "exploration_events": explore_events,
         "exploration_summary": implement_summary,
         "phase_explorations": {**(state.get("phase_explorations") or {}), "implement": implement_summary},
-        "explored_files": list(set((state.get("explored_files") or []) + relevant_files)),
+        "explored_files": all_explored,
         "token_usage_per_phase": guard_res["token_usage_per_phase"],
         "token_budget_per_phase": guard_res["token_budget_per_phase"],
         "token_savings": guard_res["token_savings"],
@@ -2492,6 +2704,13 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
         "budget_approvals": guard_res["budget_approvals"],
         "messages": [*explore_messages, *messages],
     }
+
+
+async def implement_node(state: AgentState) -> dict[str, Any]:
+    """Implement node: generates production-ready code complying with domain skills, framework stickiness,
+    and anti-context-bleed rules. Aliases/delegates to implement_phase_node.
+    """
+    return await implement_phase_node(state)
 
 
 async def critic_node(state: AgentState) -> dict[str, Any]:
