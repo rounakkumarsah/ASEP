@@ -1,0 +1,13 @@
+{
+  "chunk_id": "kc_doc_template_saas_001",
+  "document_id": "doc_doc_templates",
+  "content": "REQUIRED DOCUMENTATION FOR SaaS: 1. PRD. 2. UI/UX Specs. 3. SaaS & Multi-Tenant Architecture (RLS, schema, DB isolation). 4. Subscription & Billing Logic (proration, dunning). 5. API Contracts. 6. DB Schema & Privacy (GDPR/HIPAA). 7. SaaS Threat Model (cross-tenant leakage). 8. DFDs. 9. SLA Definitions. 10. CI/CD. 11. IaC Templates. 12. App Security. 13. DR & Fallback. 14. Incident Response. 15. Runbooks. 16. Audit Reports. 17. Dependency Analysis. 18. Customer Support Workflow.",
+  "embedding": null,
+  "metadata": {
+    "source_url": "internal://asep/knowledge/doc_templates/saas",
+    "stack": "documentation,saas",
+    "section": "Documentation Templates",
+    "version": "1.0.0",
+    "tags": ["documentation", "saas", "multi-tenant", "billing", "gdpr"]
+  }
+}

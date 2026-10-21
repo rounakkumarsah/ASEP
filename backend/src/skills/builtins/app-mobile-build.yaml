@@ -1,0 +1,44 @@
+name: "app-mobile-build"
+version: "1.0.0"
+description: "Scaffold a production-grade cross-platform mobile application using Expo SDK 53 or Flutter 3.27."
+author: "ASEP Core"
+triggers:
+  - "build mobile app"
+  - "create ios app"
+  - "create android app"
+  - "react native app"
+  - "flutter app"
+  - "expo app"
+  - "mobile application"
+tags:
+  - "mobile"
+  - "expo"
+  - "flutter"
+  - "react-native"
+  - "ios"
+  - "android"
+risk_level: "medium"
+required_permissions:
+  - "WORKSPACE_WRITE"
+  - "SYSTEM_EXECUTE"
+instructions: |
+  1. If React Native: npx create-expo-app {name} --template tabs. If Flutter: flutter create {name} --org com.example.
+  2. RN: npm i zustand @tanstack/react-query expo-router expo-secure-store watermelondb.
+     Flutter: add riverpod_annotation, go_router, drift, hive_flutter to pubspec.yaml.
+  3. Setup offline-first storage: WatermelonDB (RN) or Drift (Flutter).
+  4. Setup push notifications: expo-notifications (RN) or firebase_messaging (Flutter).
+  5. Implement screens: Splash, Auth (login/register), Home, Profile with proper navigation.
+  6. Apply platform-specific design: HIG (iOS), Material 3 (Android).
+  7. Generate 17 required docs: PRD.md (iOS/Android variants), DESIGN_SYSTEM.md, PLATFORM_ARCH.md, API_CONTRACTS.md, STORAGE_SYNC.md, CROSS_PLATFORM_STRATEGY.md, THREAT_MODEL.md, DFD.md, PRIVACY_POLICY.md, APP_STORE_GUIDELINES.md, CICD.md, APP_SECURITY.md, DR_PLAN.md, INCIDENT_RESPONSE.md, RUNBOOKS.md, AUDIT_REPORT.md, DEPENDENCY_ANALYSIS.md.
+  8. Validate: npx expo-doctor (RN) or flutter analyze (Flutter) returns 0 errors.
+schema:
+  type: "object"
+  properties:
+    name:
+      type: "string"
+    framework:
+      type: "string"
+      enum: ["expo", "flutter"]
+    description:
+      type: "string"
+prompt_template: "You are a senior mobile engineer. Scaffold a production-grade {framework} app named {name}. Description: {description}. Implement offline-first storage, push notifications, and proper platform-specific design. No placeholder screens."

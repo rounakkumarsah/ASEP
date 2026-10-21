@@ -1,0 +1,48 @@
+name: "api-rest-build"
+version: "1.0.0"
+description: "Design and scaffold a production-grade REST or GraphQL API with OpenAPI 3.1, idempotency, rate limits, and full documentation."
+author: "ASEP Core"
+triggers:
+  - "build api"
+  - "create rest api"
+  - "build backend api"
+  - "openapi service"
+  - "graphql api"
+  - "api service"
+  - "backend service"
+tags:
+  - "api"
+  - "rest"
+  - "openapi"
+  - "graphql"
+  - "backend"
+risk_level: "medium"
+required_permissions:
+  - "WORKSPACE_WRITE"
+  - "SYSTEM_EXECUTE"
+instructions: |
+  1. Write OpenAPI 3.1 spec FIRST in docs/openapi.yaml before writing any code.
+  2. Scaffold: FastAPI (Python) or Hono (Node) or NestJS (TypeScript).
+  3. Add auth: OAuth2 + PKCE for user auth. API Keys for service-to-service.
+  4. Add idempotency: Redis-backed idempotency keys for all mutating endpoints. Return cached response on duplicate key.
+  5. Add rate limiting: Upstash Redis. Max 100 req/min per user, 1000 req/min per API key.
+  6. Add versioning: /api/v1 prefix. Add Sunset headers when deprecating.
+  7. Add pagination: cursor-based pagination for all list endpoints.
+  8. Add request validation: Zod (Node) or Pydantic (Python) on all inputs.
+  9. Add error envelope: { "error": { "code": "...", "message": "...", "request_id": "..." } }.
+  10. Generate 10 required docs: OPENAPI_SPEC.md, AUTH_SPEC.md, DATA_MODELS.md, ERROR_HANDLING.md, RATE_LIMITING.md, VERSIONING_STRATEGY.md, PAGINATION_SPEC.md, WEBHOOKS_SPEC.md, MONITORING_SLOS.md, SDK_PLAN.md.
+  11. Validate: openapi-generator validate docs/openapi.yaml exits 0.
+schema:
+  type: "object"
+  properties:
+    name:
+      type: "string"
+    style:
+      type: "string"
+      enum: ["rest", "graphql"]
+    language:
+      type: "string"
+      enum: ["python", "node", "typescript"]
+    description:
+      type: "string"
+prompt_template: "You are a senior API engineer. Design and scaffold a production-grade {style} API named {name} in {language}. Description: {description}. Write the OpenAPI 3.1 spec first. Add idempotency, rate limiting, cursor pagination, and error envelope."

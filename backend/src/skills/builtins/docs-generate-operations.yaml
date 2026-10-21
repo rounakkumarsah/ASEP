@@ -1,0 +1,37 @@
+name: "docs-generate-operations"
+version: "1.0.0"
+description: "Generate operational documentation: Disaster Recovery plan, Incident Response playbook, Runbooks, and CI/CD specification."
+author: "ASEP Core"
+triggers:
+  - "disaster recovery"
+  - "incident response"
+  - "runbook"
+  - "ci cd spec"
+  - "generate operations docs"
+  - "operational documentation"
+  - "dr plan"
+tags:
+  - "documentation"
+  - "operations"
+  - "disaster-recovery"
+  - "incident-response"
+  - "runbooks"
+  - "cicd"
+risk_level: "low"
+required_permissions:
+  - "READ_ONLY"
+instructions: |
+  1. Analyze codebase: identify critical services, dependencies, data stores, and deployment targets.
+  2. Generate DISASTER_RECOVERY.md: RPO/RTO targets, backup strategy, failover procedures, data recovery steps, communication plan, and post-recovery validation checklist.
+  3. Generate INCIDENT_RESPONSE.md: Severity levels (P0/P1/P2/P3), detection, triage, escalation, mitigation, resolution, and post-mortem process.
+  4. Generate RUNBOOKS.md: Step-by-step operational procedures for: deployment, rollback, scaling, database migration, certificate renewal, secret rotation.
+  5. Generate CICD_SPEC.md: Pipeline stages (lint, test, build, security scan, deploy), environment promotion strategy, rollback triggers, and notification rules.
+schema:
+  type: "object"
+  properties:
+    project_path:
+      type: "string"
+    deployment_target:
+      type: "string"
+      description: "Where the app is deployed (e.g., Vercel, AWS, GCP, bare-metal)"
+prompt_template: "You are a senior DevOps/SRE engineer. Analyze the project at {project_path} deployed on {deployment_target}. Generate: DISASTER_RECOVERY.md (with RPO/RTO), INCIDENT_RESPONSE.md (P0-P3 playbooks), RUNBOOKS.md (deployment, rollback, scaling), and CICD_SPEC.md (pipeline spec with security gates)."

@@ -1,0 +1,43 @@
+name: "docs-generate-security"
+version: "1.0.0"
+description: "Generate Threat Model, Security Policy, and Privacy Policy documentation for a project."
+author: "ASEP Core"
+triggers:
+  - "threat model"
+  - "security policy"
+  - "privacy policy"
+  - "generate threat model"
+  - "stride analysis"
+  - "security documentation"
+tags:
+  - "documentation"
+  - "security"
+  - "threat-model"
+  - "stride"
+  - "privacy"
+risk_level: "low"
+required_permissions:
+  - "READ_ONLY"
+instructions: |
+  1. Analyze codebase: identify trust boundaries, data flows, authentication mechanisms, and external integrations.
+  2. Generate THREAT_MODEL.md using STRIDE methodology:
+     - Spoofing: identify authentication attack vectors.
+     - Tampering: identify data integrity risks.
+     - Repudiation: identify audit logging gaps.
+     - Information Disclosure: identify data exposure risks.
+     - Denial of Service: identify availability risks.
+     - Elevation of Privilege: identify authorization flaws.
+     For each threat: describe threat, affected component, likelihood (High/Med/Low), impact (High/Med/Low), mitigation.
+  3. Generate SECURITY_POLICY.md: Secure coding standards, dependency management, secret management, incident classification, and compliance requirements.
+  4. Generate PRIVACY_POLICY.md: Data collected, purpose, retention, sharing, user rights (GDPR Article 13/14), contact information.
+schema:
+  type: "object"
+  properties:
+    project_path:
+      type: "string"
+    compliance:
+      type: "array"
+      items:
+        type: "string"
+      description: "Compliance standards to address (e.g., GDPR, HIPAA, SOC2)"
+prompt_template: "You are a security architect. Analyze the project at {project_path} and generate: THREAT_MODEL.md (STRIDE analysis with mitigations), SECURITY_POLICY.md (coding standards + secret management), and PRIVACY_POLICY.md (GDPR-compliant). Compliance requirements: {compliance}."

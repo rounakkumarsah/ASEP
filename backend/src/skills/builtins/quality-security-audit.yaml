@@ -1,0 +1,34 @@
+name: "quality-security-audit"
+version: "1.0.0"
+description: "Security audit for generated or existing code against OWASP Top 10 with severity ratings and remediation steps."
+author: "ASEP Core"
+triggers:
+  - "security audit"
+  - "owasp audit"
+  - "vulnerability scan"
+  - "check security"
+  - "security review"
+  - "owasp top 10"
+tags:
+  - "quality"
+  - "security"
+  - "owasp"
+  - "audit"
+  - "vulnerability"
+risk_level: "low"
+required_permissions:
+  - "READ_ONLY"
+instructions: |
+  1. A01 Broken Access Control: check all routes for missing auth middleware. Verify RBAC enforcement on protected resources.
+  2. A02 Cryptographic Failures: scan for hardcoded secrets (grep patterns: sk_live, api_key=, password=, secret=). Verify TLS/HTTPS enforcement.
+  3. A03 Injection: check all DB queries for string concatenation (SQLi risk). Verify parameterized queries or ORM usage. Check for eval(), exec(), or dynamic code execution.
+  4. A05 Security Misconfiguration: check CORS (no wildcard * in production), security headers (CSP, HSTS, X-Frame-Options), error messages (no stack traces in production).
+  5. A06 Vulnerable Components: scan package.json or requirements.txt for known CVEs. Report packages with HIGH or CRITICAL vulnerabilities.
+  6. A07 Authentication Failures: verify session token entropy (>= 128 bits), password hashing (bcrypt/argon2), and brute-force protection (rate limiting + account lockout).
+  7. Report format: for each finding report: OWASP category, severity (Critical/High/Medium/Low), affected file:line, description, and remediation.
+schema:
+  type: "object"
+  properties:
+    codebase_path:
+      type: "string"
+prompt_template: "You are a security engineer. Audit the codebase at {codebase_path} against OWASP Top 10. For each finding report: OWASP category, severity (Critical/High/Medium/Low), affected file:line, description, and exact remediation. Do not skip any category."

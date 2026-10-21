@@ -1,0 +1,45 @@
+name: "bot-conversational-build"
+version: "1.0.0"
+description: "Scaffold a production-grade conversational bot for Discord, Telegram, Slack, or WhatsApp with moderation and security."
+author: "ASEP Core"
+triggers:
+  - "build bot"
+  - "discord bot"
+  - "telegram bot"
+  - "slack bot"
+  - "whatsapp bot"
+  - "chatbot"
+  - "conversational bot"
+  - "create bot"
+tags:
+  - "bot"
+  - "discord"
+  - "telegram"
+  - "slack"
+  - "whatsapp"
+  - "moderation"
+risk_level: "medium"
+required_permissions:
+  - "WORKSPACE_WRITE"
+  - "SYSTEM_EXECUTE"
+instructions: |
+  1. Discord: npm i discord.js. Telegram: npm i telegraf. Slack: npm i @slack/bolt. WhatsApp: Meta Cloud API via HTTPS.
+  2. Implement slash commands / inline keyboards with proper command routing.
+  3. Add content moderation: Llama Guard or perspective API to filter harmful content.
+  4. Verify webhooks with HMAC-SHA256: validate X-Hub-Signature-256 header for every incoming webhook.
+  5. Add rate limiting: max 20 messages per user per minute.
+  6. Store conversation history in Postgres with user_id, session_id, message, timestamp.
+  7. Add AI integration: connect to LLM provider via environment variables (never hardcode keys).
+  8. Generate 14 required docs: PRD.md, PERSONA_DESIGN.md, NLP_SPEC.md, API_CONTRACTS.md, DB_SCHEMA.md, BOT_SECURITY.md, DFD.md, PRIVACY_POLICY.md, CICD.md, DR_PLAN.md, INCIDENT_RESPONSE.md, RUNBOOKS.md, AUDIT_REPORT.md, DEPENDENCY_ANALYSIS.md.
+  9. Validate: node index.js --dry-run exits 0.
+schema:
+  type: "object"
+  properties:
+    name:
+      type: "string"
+    platform:
+      type: "string"
+      enum: ["discord", "telegram", "slack", "whatsapp"]
+    description:
+      type: "string"
+prompt_template: "You are a senior bot engineer. Scaffold a production-grade {platform} bot named {name}. Description: {description}. Include content moderation, HMAC webhook verification, rate limiting, and conversation history storage."

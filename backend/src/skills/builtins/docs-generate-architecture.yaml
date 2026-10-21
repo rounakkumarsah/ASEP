@@ -1,0 +1,35 @@
+name: "docs-generate-architecture"
+version: "1.0.0"
+description: "Generate System Architecture Document (SAD), Data Flow Diagrams (DFD), and OpenAPI specification for a project."
+author: "ASEP Core"
+triggers:
+  - "generate sad"
+  - "system architecture doc"
+  - "dfd"
+  - "api specification"
+  - "architecture document"
+  - "data flow diagram"
+  - "generate architecture docs"
+tags:
+  - "documentation"
+  - "architecture"
+  - "dfd"
+  - "openapi"
+  - "sad"
+risk_level: "low"
+required_permissions:
+  - "READ_ONLY"
+instructions: |
+  1. Read existing codebase: inspect src/, package.json or pyproject.toml, existing schemas.
+  2. Generate SAD.md: Executive Summary, System Context, Component Architecture (mermaid diagram), Technology Decisions (ADRs), Scalability & Performance, Security Architecture.
+  3. Generate DFD.md: Level 0 (context diagram), Level 1 (process decomposition), Level 2 (detailed flows). Use mermaid flowchart syntax.
+  4. Generate OPENAPI.yaml: OpenAPI 3.1 spec derived from existing route handlers. Include all endpoints, request/response schemas, auth schemes, error responses.
+  5. All diagrams MUST use mermaid syntax for rendering.
+schema:
+  type: "object"
+  properties:
+    project_path:
+      type: "string"
+    project_name:
+      type: "string"
+prompt_template: "You are a senior software architect. Analyze the project at {project_path} named {project_name}. Generate SAD.md (with mermaid component diagrams), DFD.md (Level 0/1/2 with mermaid flowcharts), and OPENAPI.yaml (OpenAPI 3.1 spec derived from existing routes)."

@@ -1,0 +1,38 @@
+name: "quality-repository-consistency"
+version: "1.0.0"
+description: "Inspect a repository for stack conflicts and consistency issues before generating new code to prevent mismatched patterns."
+author: "ASEP Core"
+triggers:
+  - "check consistency"
+  - "match existing code"
+  - "stack consistency"
+  - "repository audit"
+  - "codebase check"
+  - "check existing patterns"
+  - "before generating code"
+tags:
+  - "quality"
+  - "consistency"
+  - "repository"
+  - "audit"
+  - "patterns"
+risk_level: "low"
+required_permissions:
+  - "READ_ONLY"
+instructions: |
+  1. Read package.json (Node) or pyproject.toml (Python) to identify exact dependency versions.
+  2. Identify ORM: is it Prisma, Drizzle, SQLAlchemy, Tortoise? Flag if multiple ORMs are present.
+  3. Identify auth library: is it NextAuth, Better Auth, Clerk, Passport? Flag conflicts.
+  4. Identify state management: is it Zustand, Jotai, Redux, Context? Flag mixed approaches.
+  5. Identify styling: is it Tailwind, CSS Modules, styled-components? Flag mixing.
+  6. Check import conventions: are imports absolute (@/components) or relative? Must be consistent.
+  7. Check naming conventions: camelCase vs snake_case for files, variables, and DB columns.
+  8. Check test framework: Jest, Vitest, pytest? Flag if multiple are configured.
+  9. Output: { "orm": "...", "auth": "...", "state": "...", "styling": "...", "conflicts": [...], "recommendations": [...] }
+  10. Before generating any new code for this project, this audit output MUST be used to ensure generated code matches existing patterns.
+schema:
+  type: "object"
+  properties:
+    project_path:
+      type: "string"
+prompt_template: "You are a senior code reviewer. Inspect the repository at {project_path}. Identify the exact tech stack (ORM, auth, state management, styling, test framework). Flag any conflicts or inconsistencies. Output a structured JSON report and list all recommendations before any new code is generated for this project."

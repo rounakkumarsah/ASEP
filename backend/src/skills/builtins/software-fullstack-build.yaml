@@ -1,0 +1,47 @@
+name: "software-fullstack-build"
+version: "1.0.0"
+description: "Scaffold production-grade software: CLI tools, desktop apps, backend services using Go, Rust, Tauri, or FastAPI."
+author: "ASEP Core"
+triggers:
+  - "build software"
+  - "create software"
+  - "build cli"
+  - "build desktop app"
+  - "build service"
+  - "create cli tool"
+  - "tauri app"
+  - "go application"
+  - "rust application"
+tags:
+  - "software"
+  - "cli"
+  - "desktop"
+  - "go"
+  - "rust"
+  - "tauri"
+risk_level: "medium"
+required_permissions:
+  - "WORKSPACE_WRITE"
+  - "SYSTEM_EXECUTE"
+instructions: |
+  1. Choose framework based on type: CLI -> Go (cobra) or Rust (clap). Desktop -> Tauri 2. Service -> FastAPI or Go Fiber.
+  2. Apply SOLID principles: Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, Dependency Inversion.
+  3. Add observability: structured logging (zerolog/tracing), metrics (Prometheus), traces (OpenTelemetry).
+  4. Add CI/CD: GitHub Actions workflow with build, test, lint, and release stages.
+  5. Use dependency injection pattern. No global mutable state.
+  6. Generate 15 required docs: PRD.md, DESIGN_SYSTEM.md, SYSTEM_ARCH.md, API_CONTRACTS.md, DB_SCHEMA.md, THREAT_MODEL.md, DFD.md, SECURITY_POLICY.md, CICD.md, ENV_SETUP.md, DR_PLAN.md, INCIDENT_RESPONSE.md, RUNBOOKS.md, AUDIT_REPORT.md, DEPENDENCY_ANALYSIS.md.
+  7. Validate: go build ./... or cargo build or npm run build exits 0.
+schema:
+  type: "object"
+  properties:
+    name:
+      type: "string"
+    type:
+      type: "string"
+      enum: ["cli", "desktop", "service"]
+    language:
+      type: "string"
+      enum: ["go", "rust", "python", "typescript"]
+    description:
+      type: "string"
+prompt_template: "You are a senior software engineer. Build a production-grade {type} named {name} in {language}. Description: {description}. Apply SOLID principles, add observability, and generate all required documentation."

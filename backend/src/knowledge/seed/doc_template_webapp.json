@@ -1,0 +1,13 @@
+{
+  "chunk_id": "kc_doc_template_webapp_001",
+  "document_id": "doc_doc_templates",
+  "content": "REQUIRED DOCUMENTATION FOR A WEB APP: 1. PRD. 2. UI/UX Design System & Interactive Prototypes. 3. Frontend Architecture (routing, state, data fetching). 4. Backend Architecture. 5. DB Schemas. 6. DFDs. 7. API Contracts. 8. Threat Model. 9. Application Security Policy. 10. Privacy Policy. 11. Disaster Recovery. 12. Incident Response. 13. Runbooks. 14. Audit Reports. 15. Dependency Analysis. 16. Business Logic Spec. 17. Style Guide.",
+  "embedding": null,
+  "metadata": {
+    "source_url": "internal://asep/knowledge/doc_templates/webapp",
+    "stack": "documentation,webapp",
+    "section": "Documentation Templates",
+    "version": "1.0.0",
+    "tags": ["documentation", "webapp", "prd", "architecture", "security"]
+  }
+}

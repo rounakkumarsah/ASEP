@@ -1,0 +1,36 @@
+name: "quality-accessibility-check"
+version: "1.0.0"
+description: "Audit UI code for WCAG 2.2 AA compliance including contrast ratios, keyboard navigation, and ARIA attributes."
+author: "ASEP Core"
+triggers:
+  - "accessibility audit"
+  - "a11y check"
+  - "wcag check"
+  - "accessibility review"
+  - "check accessibility"
+  - "wcag 2.2"
+tags:
+  - "quality"
+  - "accessibility"
+  - "wcag"
+  - "a11y"
+  - "review"
+risk_level: "low"
+required_permissions:
+  - "READ_ONLY"
+instructions: |
+  1. Color contrast: verify all text meets WCAG 2.2 AA (4.5:1 for normal, 3:1 for large text). Flag any violations.
+  2. Keyboard navigation: verify all interactive elements are reachable via Tab key. Check focus-visible outlines are visible and not suppressed with outline: none without replacement.
+  3. ARIA labels: verify all non-text interactive elements have aria-label or aria-labelledby. Check for redundant aria-role on semantic HTML.
+  4. Form accessibility: every input has an associated <label> or aria-label. Error messages reference inputs via aria-describedby.
+  5. Images: all <img> have meaningful alt text. Decorative images have alt="".
+  6. Motion: check for prefers-reduced-motion media query on all animations.
+  7. Semantic HTML: verify heading hierarchy (h1 -> h2 -> h3), landmark regions (main, nav, aside, footer).
+  8. Report format: for each violation list element selector, violation type, WCAG criterion (e.g., 1.4.3), severity (Critical/Major/Minor), and remediation.
+schema:
+  type: "object"
+  properties:
+    code:
+      type: "string"
+      description: "UI code to audit"
+prompt_template: "You are an accessibility expert. Audit the following UI code for WCAG 2.2 AA compliance. For each violation, report: element selector, violation type, WCAG criterion, severity (Critical/Major/Minor), and exact remediation code. Code: {code}"

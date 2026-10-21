@@ -1,0 +1,13 @@
+{
+  "chunk_id": "kc_doc_template_software_001",
+  "document_id": "doc_doc_templates",
+  "content": "REQUIRED DOCUMENTATION FOR SOFTWARE: 1. PRD. 2. UI/UX Specs. 3. System Architecture Document (SAD). 4. API Contracts. 5. DB Schema. 6. Threat Model. 7. DFDs. 8. App Security Policy. 9. CI/CD. 10. Environment Setup. 11. DR Plan. 12. Incident Response. 13. Runbooks. 14. Audit Reports. 15. Dependency Analysis.",
+  "embedding": null,
+  "metadata": {
+    "source_url": "internal://asep/knowledge/doc_templates/software",
+    "stack": "documentation,software",
+    "section": "Documentation Templates",
+    "version": "1.0.0",
+    "tags": ["documentation", "software", "architecture", "security", "cicd"]
+  }
+}

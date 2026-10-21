@@ -1,0 +1,13 @@
+{
+  "chunk_id": "kc_stack_software_2026",
+  "document_id": "doc_modern_stacks_2026",
+  "content": "MODERN SOFTWARE STACK (2026): CLI (Go/Rust/Bun), Desktop (Tauri 2/Electron), Backend (FastAPI/Hono/Go Fiber). Data: Postgres, ClickHouse, Qdrant. Orchestration: Temporal/Trigger.dev. Queue: NATS/Kafka. Observability: OpenTelemetry + Grafana. Monorepo: Turborepo. CI/CD: GitHub Actions.",
+  "embedding": null,
+  "metadata": {
+    "source_url": "internal://asep/knowledge/stacks/software_2026",
+    "stack": "go,rust,tauri,fastapi",
+    "section": "Modern Stacks 2026",
+    "version": "1.0.0",
+    "tags": ["software", "cli", "desktop", "tauri", "opentelemetry"]
+  }
+}

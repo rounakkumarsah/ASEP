@@ -1,0 +1,13 @@
+{
+  "chunk_id": "kc_stack_saas_2026",
+  "document_id": "doc_modern_stacks_2026",
+  "content": "MODERN SAAS STACK (2026): Next.js 15 / Remix 3 + TS strict. Multi-tenancy: Postgres RLS. ORM: Drizzle. Auth: Better Auth with orgs / Clerk. Billing: Stripe Billing + Metered usage. Email: Resend. Background: Trigger.dev. Realtime: Ably/Partykit. Admin: Refine. IaC: Terraform. Observability: Sentry + Axiom.",
+  "embedding": null,
+  "metadata": {
+    "source_url": "internal://asep/knowledge/stacks/saas_2026",
+    "stack": "nextjs,drizzle,stripe,terraform",
+    "section": "Modern Stacks 2026",
+    "version": "1.0.0",
+    "tags": ["saas", "multi-tenant", "rls", "stripe", "terraform"]
+  }
+}

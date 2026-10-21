@@ -1,0 +1,13 @@
+{
+  "chunk_id": "kc_doc_template_bot_001",
+  "document_id": "doc_doc_templates",
+  "content": "REQUIRED DOCUMENTATION FOR BOT: 1. PRD. 2. Persona & Conversation Design. 3. NLP Model Spec & Intent Mapping. 4. API Contracts. 5. DB Schema & Conversation Logs. 6. Bot Security & Auth. 7. DFDs. 8. Privacy Policy (GDPR/HIPAA). 9. CI/CD. 10. DR & Fallback. 11. Incident Response. 12. Runbooks. 13. Audit Reports. 14. Dependency Analysis.",
+  "embedding": null,
+  "metadata": {
+    "source_url": "internal://asep/knowledge/doc_templates/bot",
+    "stack": "documentation,bot",
+    "section": "Documentation Templates",
+    "version": "1.0.0",
+    "tags": ["documentation", "bot", "conversation", "nlp", "privacy"]
+  }
+}

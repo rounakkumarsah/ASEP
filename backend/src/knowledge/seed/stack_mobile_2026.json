@@ -1,0 +1,13 @@
+{
+  "chunk_id": "kc_stack_mobile_2026",
+  "document_id": "doc_modern_stacks_2026",
+  "content": "MODERN MOBILE STACK (2026): React Native 0.77 + Expo SDK 53 (Expo Router 4), or Flutter 3.27. Native: Swift 6 (SwiftUI 5) / Kotlin 2 (Compose). State: RN (Zustand + TanStack Query), Flutter (Riverpod 2). DB: WatermelonDB (RN), Drift (Flutter). Push: Expo/FCM/APNs. Payments: RevenueCat. CI/CD: EAS Build.",
+  "embedding": null,
+  "metadata": {
+    "source_url": "internal://asep/knowledge/stacks/mobile_2026",
+    "stack": "react-native,expo,flutter,swift,kotlin",
+    "section": "Modern Stacks 2026",
+    "version": "1.0.0",
+    "tags": ["mobile", "expo", "flutter", "react-native", "eas"]
+  }
+}

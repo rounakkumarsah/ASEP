@@ -1,0 +1,41 @@
+name: "web-webapp-build"
+version: "1.0.0"
+description: "Scaffold a production-grade full-stack web application with Next.js 15, Drizzle ORM, and Better Auth."
+author: "ASEP Core"
+triggers:
+  - "build web app"
+  - "create web application"
+  - "dashboard app"
+  - "internal tool"
+  - "full stack app"
+  - "build a web application"
+tags:
+  - "web"
+  - "webapp"
+  - "nextjs"
+  - "drizzle"
+  - "fullstack"
+risk_level: "medium"
+required_permissions:
+  - "WORKSPACE_WRITE"
+  - "SYSTEM_EXECUTE"
+instructions: |
+  1. Scaffold: npx create-next-app@latest {name} --typescript --tailwind --app --src-dir
+  2. Install: npm i drizzle-orm postgres better-auth @tanstack/react-query zustand react-hook-form zod
+  3. Install dev: npm i -D drizzle-kit
+  4. Configure Drizzle: create drizzle.config.ts, src/db/schema.ts with User, Session tables.
+  5. Configure Better Auth: create src/lib/auth.ts, src/lib/auth-client.ts.
+  6. Implement UI states: every component MUST have Loading, Empty, and Error states.
+  7. Follow Anti-Slop rules: no purple gradients, no lorem ipsum, no placeholder content.
+  8. Generate 17 required docs: PRD.md, DESIGN_SYSTEM.md, FRONTEND_ARCH.md, BACKEND_ARCH.md, DB_SCHEMA.md, DFD.md, API_CONTRACTS.md, THREAT_MODEL.md, SECURITY_POLICY.md, PRIVACY_POLICY.md, DR_PLAN.md, INCIDENT_RESPONSE.md, RUNBOOKS.md, AUDIT_REPORT.md, DEPENDENCY_ANALYSIS.md, BUSINESS_LOGIC.md, STYLE_GUIDE.md.
+  9. Validate: npm run build exits 0. npm run type-check exits 0.
+schema:
+  type: "object"
+  properties:
+    name:
+      type: "string"
+      description: "Name of the web application"
+    description:
+      type: "string"
+      description: "Brief description of what the app does"
+prompt_template: "You are a senior full-stack engineer. Scaffold a production-grade web application named {name} using Next.js 15 App Router, Drizzle ORM, and Better Auth. Description: {description}. Implement real functionality — no placeholders, no lorem ipsum. All UI components must have Loading, Empty, and Error states."

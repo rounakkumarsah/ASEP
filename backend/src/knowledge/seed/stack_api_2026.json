@@ -1,0 +1,13 @@
+{
+  "chunk_id": "kc_stack_api_2026",
+  "document_id": "doc_modern_stacks_2026",
+  "content": "MODERN API STACK (2026): REST: FastAPI/Hono/NestJS. GraphQL: Pothos/Strawberry. Schema: OpenAPI 3.1. Auth: OAuth2 + PKCE / API Keys. Rate limit: Upstash. Idempotency: Redis. Versioning: /v1 + Sunset headers. Docs: Scalar/Redoc. Validation: Zod/Pydantic. Testing: Schemathesis.",
+  "embedding": null,
+  "metadata": {
+    "source_url": "internal://asep/knowledge/stacks/api_2026",
+    "stack": "fastapi,hono,nestjs,openapi",
+    "section": "Modern Stacks 2026",
+    "version": "1.0.0",
+    "tags": ["api", "openapi", "graphql", "oauth2", "rate-limiting"]
+  }
+}

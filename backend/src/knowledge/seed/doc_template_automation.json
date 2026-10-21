@@ -1,0 +1,13 @@
+{
+  "chunk_id": "kc_doc_template_automation_001",
+  "document_id": "doc_doc_templates",
+  "content": "REQUIRED DOCUMENTATION FOR AUTOMATION: 1. PRD (trigger, action, SLA). 2. Workflow Design (nodes, branches, error paths). 3. Integration Contracts (APIs, auth, idempotency). 4. Data Mapping Spec. 5. Secrets Management. 6. Error Handling & Retry Policy. 7. Observability. 8. DFDs. 9. Workflow Security Policy. 10. DR & Fallback. 11. Incident Response. 12. Runbooks. 13. Audit Reports. 14. Dependency Analysis.",
+  "embedding": null,
+  "metadata": {
+    "source_url": "internal://asep/knowledge/doc_templates/automation",
+    "stack": "documentation,automation",
+    "section": "Documentation Templates",
+    "version": "1.0.0",
+    "tags": ["documentation", "automation", "workflow", "idempotency", "observability"]
+  }
+}

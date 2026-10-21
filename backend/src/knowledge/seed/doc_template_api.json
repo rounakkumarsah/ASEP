@@ -1,0 +1,13 @@
+{
+  "chunk_id": "kc_doc_template_api_001",
+  "document_id": "doc_doc_templates",
+  "content": "REQUIRED DOCUMENTATION FOR API: 1. OpenAPI 3.1 Spec. 2. Auth & Authorization. 3. Data Models & Types. 4. Error Handling & Resiliency (envelope, retries). 5. Rate Limiting & Quota. 6. Versioning Strategy. 7. Pagination & Filtering. 8. Webhooks Spec. 9. Monitoring & SLOs. 10. SDK Generation Plan.",
+  "embedding": null,
+  "metadata": {
+    "source_url": "internal://asep/knowledge/doc_templates/api",
+    "stack": "documentation,api",
+    "section": "Documentation Templates",
+    "version": "1.0.0",
+    "tags": ["documentation", "api", "openapi", "versioning", "rate-limiting"]
+  }
+}

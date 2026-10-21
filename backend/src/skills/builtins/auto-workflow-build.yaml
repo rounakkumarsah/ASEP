@@ -1,0 +1,41 @@
+name: "auto-workflow-build"
+version: "1.0.0"
+description: "Design and generate automation workflows for any platform with proper error handling, idempotency, and dead letter queues."
+author: "ASEP Core"
+triggers:
+  - "n8n workflow"
+  - "make.com workflow"
+  - "zapier zap"
+  - "airflow dag"
+  - "temporal workflow"
+  - "build automation"
+  - "automate process"
+  - "create workflow"
+  - "automation pipeline"
+tags:
+  - "automation"
+  - "workflow"
+  - "idempotency"
+  - "n8n"
+  - "temporal"
+risk_level: "low"
+required_permissions:
+  - "READ_ONLY"
+instructions: |
+  1. Map trigger: Webhook, Cron, Event, Queue message.
+  2. Map actions: API calls, DB writes, notifications, transformations.
+  3. Add idempotency: deduplicate via unique key, use upsert not insert.
+  4. Add Dead Letter Queue (DLQ): failed messages route to DLQ after 3 retries with exponential backoff.
+  5. Add error handling: structured error objects with error_code, message, retry_count, timestamp.
+  6. Use environment variables for all secrets. Never hardcode credentials.
+  7. Add observability: log every step with correlation_id.
+  8. Generate 14 required docs: PRD.md, WORKFLOW_DESIGN.md, INTEGRATION_CONTRACTS.md, DATA_MAPPING.md, SECRETS_MANAGEMENT.md, ERROR_RETRY_POLICY.md, OBSERVABILITY.md, DFD.md, SECURITY_POLICY.md, DR_PLAN.md, INCIDENT_RESPONSE.md, RUNBOOKS.md, AUDIT_REPORT.md, DEPENDENCY_ANALYSIS.md.
+schema:
+  type: "object"
+  properties:
+    task_description:
+      type: "string"
+    platform:
+      type: "string"
+      enum: ["n8n", "temporal", "trigger.dev", "inngest", "zapier", "make"]
+prompt_template: "You are an automation architect. Design a production-grade automation workflow for: {task_description}. Platform: {platform}. Include idempotency keys, DLQ, exponential backoff, and full error handling. Never hardcode secrets."

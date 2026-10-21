@@ -1,0 +1,13 @@
+{
+  "chunk_id": "kc_stack_bot_2026",
+  "document_id": "doc_modern_stacks_2026",
+  "content": "MODERN BOT STACK (2026): NLU: OpenAI/Claude/Llama 3.3. Orchestration: LangChain 0.3 / Vercel AI SDK. Platforms: Discord (discord.js), Telegram (Telegraf), Slack (Bolt), WhatsApp (Meta Cloud). Vector: Qdrant/pgvector. Memory: Redis + Postgres. Voice: Groq Whisper. Moderation: Llama Guard. Webhook: HMAC-SHA256.",
+  "embedding": null,
+  "metadata": {
+    "source_url": "internal://asep/knowledge/stacks/bot_2026",
+    "stack": "langchain,discord.js,telegraf,qdrant",
+    "section": "Modern Stacks 2026",
+    "version": "1.0.0",
+    "tags": ["bot", "discord", "telegram", "slack", "moderation"]
+  }
+}

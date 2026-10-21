@@ -1,0 +1,13 @@
+{
+  "chunk_id": "kc_stack_website_2026",
+  "document_id": "doc_modern_stacks_2026",
+  "content": "MODERN WEBSITE STACK (2026): Astro 5 (content) or Next.js 15 (dynamic). Tailwind v4 + shadcn/ui. CMS: Sanity/Payload. Forms: React Hook Form + Zod. Analytics: Plausible. Deploy: Vercel/Cloudflare. Fonts: next/font. Motion: Framer Motion. SEO: JSON-LD. Targets: LCP < 2.5s, INP < 200ms.",
+  "embedding": null,
+  "metadata": {
+    "source_url": "internal://asep/knowledge/stacks/website_2026",
+    "stack": "nextjs,astro,tailwind",
+    "section": "Modern Stacks 2026",
+    "version": "1.0.0",
+    "tags": ["website", "astro", "nextjs", "tailwind", "performance"]
+  }
+}
