@@ -1,0 +1,13 @@
+{
+  "chunk_id": "kc_doc_template_website_001",
+  "document_id": "doc_doc_templates",
+  "content": "REQUIRED DOCUMENTATION FOR A WEBSITE: 1. PRD. 2. UI/UX Design System & Wireframes. 3. Content Architecture & Sitemap. 4. SEO & Metadata Spec. 5. Performance & Web Vitals Budget (LCP, INP, CLS). 6. Analytics & Event Tracking Plan. 7. Security Policy (CSP, HTTPS). 8. Privacy Policy & Cookie Consent. 9. Disaster Recovery & Hosting Fallback. 10. Runbooks & Deployment Spec. 11. Audit Reports. 12. Dependency Analysis. 13. Style Guide.",
+  "embedding": null,
+  "metadata": {
+    "source_url": "internal://asep/knowledge/doc_templates/website",
+    "stack": "documentation,website",
+    "section": "Documentation Templates",
+    "version": "1.0.0",
+    "tags": ["documentation", "website", "prd", "seo", "performance"]
+  }
+}
