@@ -94,6 +94,29 @@ class SandboxRunner:
         """Execute code in the sandbox and capture execution telemetry."""
         start_time = time.perf_counter()
 
+        # Non-Python / frontend file check (package.json, app/page.tsx, etc.)
+        non_py_exts = (".json", ".tsx", ".ts", ".jsx", ".js", ".html", ".css", ".dart")
+        is_frontend_file = (
+            filename.endswith(non_py_exts)
+            or code.strip().startswith(("{", "//", "/*"))
+            or any(m in code for m in ("import * as React", "import React", "export default", "export const", "export function", "</"))
+        )
+        if is_frontend_file:
+            from src.services.restricted_code_sandbox import RestrictedExecutor
+            is_valid, err = RestrictedExecutor.validate_syntax(code)
+            elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
+            return SandboxRunResult(
+                exit_code=0 if is_valid else 1,
+                stdout=f"Static validation passed for {filename}" if is_valid else "",
+                stderr=err or "",
+                stack_trace=err or "",
+                duration_ms=elapsed_ms,
+                timed_out=False,
+                tests_passed=is_valid,
+                success=is_valid,
+                execution_mode="static_validator",
+            )
+
         # 0. E2B cloud sandbox execution if configured
         try:
             from src.services.e2b_sandbox import is_e2b_configured, execute_e2b_sync

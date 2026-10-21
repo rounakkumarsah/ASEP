@@ -110,6 +110,50 @@ class RestrictedExecutor:
         if not code or not code.strip():
             return False, "Code is empty"
 
+        code_trimmed = code.strip()
+
+        # 0. Non-Python JSON validation (e.g. package.json or file tree objects)
+        if (code_trimmed.startswith("{") and code_trimmed.endswith("}")) or (code_trimmed.startswith("[") and code_trimmed.endswith("]")):
+            try:
+                import json
+                json.loads(code_trimmed)
+                return True, None
+            except json.JSONDecodeError as jde:
+                if '"' in code_trimmed[:30] and ":" in code_trimmed[:60]:
+                    return False, f"JSONDecodeError: {jde}"
+                # Otherwise, might be Python dict/set literal, fall through to AST check
+
+        # 0b. Non-Python TSX/JSX/JS/CSS/HTML validation
+        non_python_indicators = (
+            "import * as React", "import React", "export interface", "export const",
+            "export default", "export function", "export class", "export type",
+            "from 'react'", 'from "react"', "</", "=>", "const ", "let ",
+            "interface ", "type ", "@tailwind", "// page.tsx", "/*", "//"
+        )
+        is_frontend = (
+            code_trimmed.startswith("//")
+            or code_trimmed.startswith("/*")
+            or any(m in code for m in non_python_indicators)
+        )
+        if is_frontend:
+            brackets = {"{": "}", "(": ")", "[": "]"}
+            stack = []
+            in_str = False
+            str_char = ""
+            for i, ch in enumerate(code):
+                if in_str:
+                    if ch == str_char and (i == 0 or code[i - 1] != "\\"):
+                        in_str = False
+                elif ch in ('"', "'", "`"):
+                    in_str = True
+                    str_char = ch
+                elif ch in brackets:
+                    stack.append(brackets[ch])
+                elif ch in ("}", ")", "]"):
+                    if not stack or stack.pop() != ch:
+                        return False, f"SyntaxError: Unmatched closing bracket '{ch}'"
+            return True, None
+
         # 1. Parse standard AST
         try:
             tree = ast.parse(code)
@@ -177,6 +221,56 @@ class RestrictedExecutor:
         """
         start_time = time.perf_counter()
         output_buffer: list[str] = []
+
+        code_trimmed = code.strip()
+
+        # 0. If JSON (e.g. package.json)
+        if (code_trimmed.startswith("{") and code_trimmed.endswith("}")) or (code_trimmed.startswith("[") and code_trimmed.endswith("]")):
+            try:
+                import json
+                parsed_json = json.loads(code_trimmed)
+                elapsed_ms = (time.perf_counter() - start_time) * 1000
+                return {
+                    "success": True,
+                    "stdout": "Valid JSON format",
+                    "result": parsed_json,
+                    "error": None,
+                    "execution_time_ms": elapsed_ms,
+                    "security_violation": False,
+                    "timed_out": False,
+                }
+            except Exception as jde:
+                if '"' in code_trimmed[:30] and ":" in code_trimmed[:60]:
+                    elapsed_ms = (time.perf_counter() - start_time) * 1000
+                    return {
+                        "success": False,
+                        "stdout": "",
+                        "result": None,
+                        "error": f"JSONDecodeError: {jde}",
+                        "execution_time_ms": elapsed_ms,
+                        "security_violation": False,
+                        "timed_out": False,
+                    }
+
+        # 0b. If Frontend (e.g. app/page.tsx)
+        non_python_indicators = (
+            "import * as React", "import React", "export interface", "export const",
+            "export default", "export function", "export class", "export type",
+            "from 'react'", 'from "react"', "</", "=>", "const ", "let ",
+            "interface ", "type ", "@tailwind", "// page.tsx", "/*", "//"
+        )
+        if code_trimmed.startswith("//") or code_trimmed.startswith("/*") or any(m in code for m in non_python_indicators):
+            is_valid, validation_error = cls.validate_syntax(code)
+            elapsed_ms = (time.perf_counter() - start_time) * 1000
+            return {
+                "success": is_valid,
+                "stdout": "Frontend TSX/JS static syntax validation passed" if is_valid else "",
+                "result": None,
+                "error": validation_error,
+                "execution_time_ms": elapsed_ms,
+                "security_violation": False,
+                "timed_out": False,
+            }
 
         # 1. Pre-execution AST check
         full_source = f"{code}\n\n{test_code}" if test_code else code
