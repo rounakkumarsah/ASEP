@@ -154,3 +154,68 @@ def test_circuit_breaker_shares_run_id_across_service_instances():
             with pytest.raises(CircuitBreakerError) as exc_info:
                 asyncio.run(service.complete(request))
             assert "Circuit breaker tripped after 3 consecutive LLM failures" in str(exc_info.value)
+
+
+def test_failover_model_mapping_groq_to_gemini():
+    service = AIRuntimeService()
+    mock_groq = MagicMock()
+    mock_groq.name = "groq"
+    mock_groq.get_capability_matrix.return_value = MagicMock(context_window=8192)
+    mock_groq.complete = AsyncMock(side_effect=Exception("Groq failure"))
+
+    mock_gemini = MagicMock()
+    mock_gemini.name = "gemini"
+    mock_gemini.get_capability_matrix.return_value = MagicMock(context_window=8192)
+    mock_gemini.complete = AsyncMock(return_value=CompletionResponse(
+        text="Fallback to Gemini",
+        usage=UsageInfo(prompt_tokens=10, completion_tokens=10, total_tokens=20),
+        provider="gemini",
+        model="gemini-2.0-flash"
+    ))
+
+    service.registry.get_priority_chain = MagicMock(return_value=[mock_groq, mock_gemini])
+
+    request = CompletionRequest(
+        messages=[Message(role="user", content="Test prompt")],
+        model="groq/llama-3.1-8b-instant",
+        session_id="test-failover-gemini"
+    )
+
+    import asyncio
+    res = asyncio.run(service.complete(request))
+    assert res.provider == "gemini"
+    passed_request = mock_gemini.complete.call_args[0][0]
+    assert passed_request.model == "gemini-2.0-flash"
+
+
+def test_failover_model_mapping_groq_to_openrouter():
+    service = AIRuntimeService()
+    mock_groq = MagicMock()
+    mock_groq.name = "groq"
+    mock_groq.get_capability_matrix.return_value = MagicMock(context_window=8192)
+    mock_groq.complete = AsyncMock(side_effect=Exception("Groq failure"))
+
+    mock_openrouter = MagicMock()
+    mock_openrouter.name = "openrouter"
+    mock_openrouter.get_capability_matrix.return_value = MagicMock(context_window=8192)
+    mock_openrouter.complete = AsyncMock(return_value=CompletionResponse(
+        text="Fallback to OpenRouter",
+        usage=UsageInfo(prompt_tokens=10, completion_tokens=10, total_tokens=20),
+        provider="openrouter",
+        model="meta-llama/llama-3.1-8b-instruct"
+    ))
+
+    service.registry.get_priority_chain = MagicMock(return_value=[mock_groq, mock_openrouter])
+
+    request = CompletionRequest(
+        messages=[Message(role="user", content="Test prompt")],
+        model="groq/llama-3.1-8b-instant",
+        session_id="test-failover-openrouter"
+    )
+
+    import asyncio
+    res = asyncio.run(service.complete(request))
+    assert res.provider == "openrouter"
+    passed_request = mock_openrouter.complete.call_args[0][0]
+    assert passed_request.model == "meta-llama/llama-3.1-8b-instruct"
+

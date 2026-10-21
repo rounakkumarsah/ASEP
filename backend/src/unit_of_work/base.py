@@ -91,6 +91,16 @@ class AbstractUnitOfWork(ABC):
     knowledge_documents: KnowledgeDocumentRepository
     users: UserRepository
 
+    @property
+    def session(self) -> Any:
+        """Return the active database session."""
+        raise NotImplementedError("session property is not implemented on this UnitOfWork")
+
+    @property
+    def db_session(self) -> Any:
+        """Alias for ``session``."""
+        return self.session
+
     # ------------------------------------------------------------------
     # Async context manager protocol
     # ------------------------------------------------------------------
