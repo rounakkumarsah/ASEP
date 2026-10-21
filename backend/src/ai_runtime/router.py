@@ -255,3 +255,64 @@ async def resolve_api_key(provider: str, user_id: UUID | str | None = None) -> s
 
     return None
 
+
+def map_failover_model(
+    model: str,
+    target_provider: str,
+    source_provider: str | None = None,
+) -> str:
+    """Map model name to a valid model for the target provider during failover.
+
+    Ensures that provider-specific model names (e.g. 'groq/llama-3.1-8b-instant'
+    or 'llama-3.1-8b-instant') are not passed to fallback providers such as
+    Gemini or OpenRouter, which would reject them with 404/400 errors.
+    """
+    target = target_provider.lower().strip()
+    model_lower = (model or "").lower().strip()
+
+    if target == "gemini":
+        # If already a valid Gemini model, keep it
+        if "gemini" in model_lower or model_lower in (
+            "nano-banana", "veo", "omni", "lyria", "antigravity", "deep-research", "computer-use"
+        ):
+            return model
+        # Primary provider (e.g. Groq) failed and fell back to Gemini
+        return "gemini-2.0-flash"
+
+    if target == "openrouter":
+        # If already an OpenRouter model identifier (with slash, but not groq/)
+        if "/" in model and not model_lower.startswith("groq/"):
+            return model
+        # Primary provider (e.g. Groq) failed and fell back to OpenRouter
+        if "llama-3.3-70b" in model_lower:
+            return "meta-llama/llama-3.3-70b-instruct"
+        if "llama-3.1-8b" in model_lower or "llama" in model_lower:
+            return "meta-llama/llama-3.1-8b-instruct"
+        if "deepseek" in model_lower:
+            return "deepseek/deepseek-r1"
+        return "meta-llama/llama-3.1-8b-instruct"
+
+    if target == "groq":
+        if model_lower.startswith("groq/"):
+            return model[len("groq/"):]
+        if any(k in model_lower for k in ("llama", "gpt-oss", "qwen3", "compound", "whisper")):
+            return model
+        return "llama-3.3-70b-versatile"
+
+    if target == "openai":
+        if model_lower.startswith("gpt-") or model_lower.startswith("o1") or model_lower.startswith("o3"):
+            return model
+        return "gpt-4o-mini"
+
+    if target == "anthropic":
+        if "claude" in model_lower:
+            return model
+        return "claude-3-5-sonnet-20241022"
+
+    if target == "ollama":
+        if model_lower in ("llama3.2", "llama3.1", "llama3", "mistral"):
+            return model
+        return "llama3.2"
+
+    return model
+

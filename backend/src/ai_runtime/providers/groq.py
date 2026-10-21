@@ -84,18 +84,21 @@ class GroqProvider(BaseAIProvider):
 
     @staticmethod
     def _resolve_model(model: str) -> str:
-        if model in ("groq", "groq/default"):
+        if not model:
+            return "llama-3.3-70b-versatile"
+        model_clean = model.strip()
+        if model_clean in ("groq", "groq/default"):
             return "openai/gpt-oss-20b"
-        if model.startswith("groq/") and model not in ("groq/compound", "groq/compound-mini"):
-            remainder = model[len("groq/"):]
+        if model_clean.lower().startswith("groq/"):
+            remainder = model_clean[len("groq/"):]
             if remainder.startswith("gpt-oss"):
                 return f"openai/{remainder}"
             if remainder.startswith("qwen3"):
                 return f"qwen/{remainder}"
             return remainder
-        if "claude" in model.lower() or "anthropic" in model.lower():
+        if "claude" in model_clean.lower() or "anthropic" in model_clean.lower():
             return "llama-3.3-70b-versatile"
-        return model
+        return model_clean
 
     async def complete(self, request: CompletionRequest) -> CompletionResponse:
         if not self.api_key:
@@ -573,7 +576,7 @@ class GroqProvider(BaseAIProvider):
             "Content-Type": "application/json"
         }
         payload: dict[str, Any] = {
-            "model": model,
+            "model": self._resolve_model(model),
             "input": input_text,
             "service_tier": service_tier
         }

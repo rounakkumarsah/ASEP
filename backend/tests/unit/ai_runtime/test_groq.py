@@ -196,3 +196,34 @@ async def test_groq_audio_apis():
 
         audio_out = await provider.generate_speech(text="Hello", voice="troy")
         assert audio_out.startswith(b"RIFF")
+
+
+@pytest.mark.asyncio
+async def test_groq_prefix_stripped_in_payload():
+    provider = GroqProvider(api_key="test-groq-key")
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "choices": [{"message": {"content": "Answer"}, "finish_reason": "stop"}],
+        "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
+    }
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = mock_resp
+        req = CompletionRequest(
+            messages=[Message(role="user", content="Hello")],
+            model="groq/llama-3.1-8b-instant"
+        )
+        res = await provider.complete(req)
+        assert res.text == "Answer"
+        call_kwargs = mock_post.call_args.kwargs
+        assert call_kwargs["json"]["model"] == "llama-3.1-8b-instant"
+
+
+def test_groq_resolve_model_strips_prefix():
+    provider = GroqProvider(api_key="test-groq-key")
+    assert provider._resolve_model("groq/llama-3.1-8b-instant") == "llama-3.1-8b-instant"
+    assert provider._resolve_model("groq/llama-3.3-70b-versatile") == "llama-3.3-70b-versatile"
+    assert provider._resolve_model("llama-3.1-8b-instant") == "llama-3.1-8b-instant"
+    assert provider._resolve_model("groq/compound") == "compound"
+

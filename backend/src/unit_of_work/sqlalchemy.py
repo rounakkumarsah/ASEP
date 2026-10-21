@@ -121,6 +121,25 @@ class SQLAlchemyUnitOfWork(AbstractUnitOfWork):
         # Session and repositories are None until __aenter__ is called.
         self._session: AsyncSession | None = None
 
+    @property
+    def session(self) -> AsyncSession:
+        """Return the active ``AsyncSession``.
+
+        Raises:
+            RuntimeError: If called outside an active ``async with`` block.
+        """
+        if self._session is None:
+            raise RuntimeError(
+                "SQLAlchemyUnitOfWork.session accessed outside an active "
+                "'async with' block. Use 'async with SQLAlchemyUnitOfWork() as uow:'."
+            )
+        return self._session
+
+    @property
+    def db_session(self) -> AsyncSession:
+        """Alias for ``session``."""
+        return self.session
+
     # ------------------------------------------------------------------
     # Async context manager
     # ------------------------------------------------------------------

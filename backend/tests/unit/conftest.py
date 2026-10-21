@@ -31,6 +31,11 @@ class MockUnitOfWork(AbstractUnitOfWork):
         # Mock transaction methods
         self.commit = AsyncMock()
         self.rollback = AsyncMock()
+        self._mock_session = AsyncMock()
+
+    @property
+    def session(self):
+        return self._mock_session
 
     async def __aenter__(self):
         return self

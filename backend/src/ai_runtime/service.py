@@ -116,12 +116,32 @@ class AIRuntimeService:
                 self.context_manager.token_budget = cap.context_window
                 trimmed_messages = self.context_manager.trim_messages(request.messages)
 
+                provider_model = request.model
+                if active_provider.name != primary_name:
+                    from src.ai_runtime.router import map_failover_model
+                    provider_model = map_failover_model(request.model, active_provider.name, primary_name)
+
                 trimmed_request = CompletionRequest(
                     messages=trimmed_messages,
-                    model=request.model,
+                    model=provider_model,
                     temperature=request.temperature,
                     max_tokens=request.max_tokens,
-                    response_format=request.response_format
+                    response_format=request.response_format,
+                    tools=request.tools,
+                    tool_choice=request.tool_choice,
+                    parallel_tool_calls=request.parallel_tool_calls,
+                    tool_callables=request.tool_callables,
+                    user=request.user,
+                    user_id=request.user_id,
+                    session_id=request.session_id,
+                    trace=request.trace,
+                    reasoning=request.reasoning,
+                    preferred_max_latency=request.preferred_max_latency,
+                    preferred_min_throughput=request.preferred_min_throughput,
+                    router_metadata=request.router_metadata,
+                    service_tier=request.service_tier,
+                    seed=request.seed,
+                    research_mode=request.research_mode,
                 )
 
                 for attempt in range(1, 3):
@@ -290,6 +310,7 @@ class AIRuntimeService:
         if not resolved_uid and request.trace and isinstance(request.trace, dict):
             resolved_uid = request.trace.get("user_id")
 
+        primary_name = self.registry.resolve_provider_for_model(request.model)
         chain = self.registry.get_priority_chain(request.model)
         if resolved_uid:
             try:
@@ -331,12 +352,32 @@ class AIRuntimeService:
             self.context_manager.token_budget = cap.context_window
             trimmed_messages = self.context_manager.trim_messages(request.messages)
 
+            provider_model = request.model
+            if active_provider.name != primary_name:
+                from src.ai_runtime.router import map_failover_model
+                provider_model = map_failover_model(request.model, active_provider.name, primary_name)
+
             trimmed_request = CompletionRequest(
                 messages=trimmed_messages,
-                model=request.model,
+                model=provider_model,
                 temperature=request.temperature,
                 max_tokens=request.max_tokens,
-                response_format=request.response_format
+                response_format=request.response_format,
+                tools=request.tools,
+                tool_choice=request.tool_choice,
+                parallel_tool_calls=request.parallel_tool_calls,
+                tool_callables=request.tool_callables,
+                user=request.user,
+                user_id=request.user_id,
+                session_id=request.session_id,
+                trace=request.trace,
+                reasoning=request.reasoning,
+                preferred_max_latency=request.preferred_max_latency,
+                preferred_min_throughput=request.preferred_min_throughput,
+                router_metadata=request.router_metadata,
+                service_tier=request.service_tier,
+                seed=request.seed,
+                research_mode=request.research_mode,
             )
 
             try:
@@ -379,6 +420,7 @@ class AIRuntimeService:
             router_reason = decision["reason"]
             logger.info("AutoRouterDecision", model=request.model, reason=router_reason)
 
+        primary_name = self.registry.resolve_provider_for_model(request.model)
         chain = self.registry.get_priority_chain(request.model)
         if resolved_uid:
             try:
@@ -419,12 +461,32 @@ class AIRuntimeService:
             self.context_manager.token_budget = cap.context_window
             trimmed_messages = self.context_manager.trim_messages(request.messages)
 
+            provider_model = request.model
+            if active_provider.name != primary_name:
+                from src.ai_runtime.router import map_failover_model
+                provider_model = map_failover_model(request.model, active_provider.name, primary_name)
+
             trimmed_request = CompletionRequest(
                 messages=trimmed_messages,
-                model=request.model,
+                model=provider_model,
                 temperature=request.temperature,
                 max_tokens=request.max_tokens,
-                response_format=request.response_format
+                response_format=request.response_format,
+                tools=request.tools,
+                tool_choice=request.tool_choice,
+                parallel_tool_calls=request.parallel_tool_calls,
+                tool_callables=request.tool_callables,
+                user=request.user,
+                user_id=request.user_id,
+                session_id=request.session_id,
+                trace=request.trace,
+                reasoning=request.reasoning,
+                preferred_max_latency=request.preferred_max_latency,
+                preferred_min_throughput=request.preferred_min_throughput,
+                router_metadata=request.router_metadata,
+                service_tier=request.service_tier,
+                seed=request.seed,
+                research_mode=request.research_mode,
             )
 
             for attempt in range(1, 3):
