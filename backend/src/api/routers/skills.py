@@ -11,9 +11,10 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter, File, HTTPException, Query, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from pydantic import BaseModel, Field
 
+from src.licensing.license_manager import require_license
 from src.skills import skill_manager
 
 logger = logging.getLogger(__name__)
@@ -153,7 +154,7 @@ async def export_skill(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Skill '{name}' not found")
 
 
-@router.post("/import", response_model=dict[str, Any])
+@router.post("/import", response_model=dict[str, Any], dependencies=[Depends(require_license)])
 async def import_skill(file: UploadFile = File(...)) -> dict[str, Any]:
     """Import a skill or multiple skills from an uploaded .md or .zip file."""
     try:

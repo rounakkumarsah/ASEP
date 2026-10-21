@@ -1,0 +1,25 @@
+name: "web-website-build"
+version: "1.0.0"
+description: "Build a modern marketing/business website with SEO, accessibility, and performance."
+author: "ASEP Core"
+triggers: ["build website", "create website", "marketing site", "landing page", "business website", "portfolio site"]
+tags: ["web", "website", "marketing", "seo"]
+risk_level: "medium"
+required_permissions: ["WORKSPACE_WRITE", "SYSTEM_EXECUTE"]
+instructions: |
+  1. Read PRD or ask for business goal, target audience, primary CTA.
+  2. Generate required docs (PRD, Threat Model, etc.) as a docs/ folder.
+  3. Scaffold: Astro 5 for content OR Next.js 15 for dynamic.
+  4. Install Tailwind v4 + shadcn/ui. Set up design tokens.
+  5. Build pages: Home, About, Services, Contact, Legal.
+  6. MUST have: Loading, Empty, Error states. Hover/focus states.
+  7. Enforce anti-slop rules (kc_universal_anti_slop_001).
+  8. Add SEO: JSON-LD, OpenGraph, sitemap.
+  9. Validate: `npm run build` exits 0. Lighthouse >90.
+schema:
+  type: "object"
+  properties:
+    name: {type: "string"}
+    business_goal: {type: "string"}
+    primary_cta: {type: "string"}
+prompt_template: "Build a website named {name} for {business_goal}. CTA: {primary_cta}. Follow anti-slop rules."

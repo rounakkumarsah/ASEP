@@ -1,9 +1,9 @@
-name: "sec-audit-owasp"
+name: "sec-audit-standard"
 version: "1.0.0"
-description: "Security audit for generated code against OWASP Top 10."
+description: "Security audit for generated code against standard security baselines."
 author: "ASEP Core"
-triggers: ["security audit", "check security", "owasp", "vulnerability scan"]
-tags: ["security", "owasp", "audit"]
+triggers: ["security audit", "check security", "owasp top 10", "vulnerability scan", "security review", "cwe check"]
+tags: ["security", "audit", "standard"]
 risk_level: "low"
 required_permissions: ["READ_ONLY"]
 instructions: |
@@ -18,4 +18,4 @@ schema:
   properties:
     codebase_path:
       type: "string"
-prompt_template: "You are a security engineer. Audit the code at {codebase_path} against OWASP Top 10. Report severity and remediation."
+prompt_template: "You are a security engineer. Audit the code at {codebase_path} against security standards. Report severity and remediation."

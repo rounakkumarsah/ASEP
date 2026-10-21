@@ -1,0 +1,14 @@
+{
+  "chunk_id": "kc_universal_anti_slop_001",
+  "document_id": "doc_universal_rules",
+  "content": "ANTI-AI-SLOP UNIVERSAL RULES: 1. NEVER use placeholders (lorem ipsum, TODO). 2. Every UI MUST have Loading, Empty, Error, Success states. 3. Every interactive element MUST have hover, focus-visible, active states. 4. Every async function MUST have try/catch. 5. NEVER use generic AI colors (purple-pink gradients). 6. NEVER use generic AI copy (seamless, leverage, empower, unlock, robust, actionable, data-driven, solutions, elevate, delve). 7. Every fetch MUST handle loading, 4xx, 5xx, timeout, empty. 8. Forms MUST have client + server validation. 9. Lists MUST have empty states. 10. Every page needs ONE clear CTA.",
+  "embedding": null,
+  "metadata": {
+    "source_url": "internal://asep/rules/anti_slop",
+    "stack": "universal",
+    "section": "Quality Rules",
+    "version": "1.0.0",
+    "recommended_patterns": ["shadcn/ui", "Real copy", "Loading/Error states"],
+    "anti_patterns": ["Lorem ipsum", "Purple gradients", "TODO comments"]
+  }
+}

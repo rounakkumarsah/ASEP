@@ -1,0 +1,24 @@
+name: "quality-anti-slop-check"
+version: "1.0.0"
+description: "Detect and flag AI slop in generated code, UI, and copy."
+author: "ASEP Core"
+triggers: ["check slop", "anti slop check", "review code quality", "detect placeholder"]
+tags: ["quality", "anti-slop", "review"]
+risk_level: "low"
+required_permissions: ["READ_ONLY"]
+instructions: |
+  Scan for:
+  1. Placeholder text: lorem ipsum, TODO, coming soon.
+  2. Missing states: Loading/Empty/Error/Success.
+  3. Generic AI colors: purple-pink gradients.
+  4. Generic AI words: seamless, leverage, empower, unlock, robust.
+  5. Dead buttons (onClick does nothing).
+  6. Missing async try/catch.
+  7. Missing form validation (Zod/Pydantic).
+  8. Missing alt text / aria-labels.
+  Output severity (critical/major/minor) + line numbers.
+schema:
+  type: "object"
+  properties:
+    artifact_path: {type: "string"}
+prompt_template: "Scan {artifact_path} for anti-slop issues. Report severity + line numbers."

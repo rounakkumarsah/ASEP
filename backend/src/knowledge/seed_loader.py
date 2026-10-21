@@ -78,7 +78,7 @@ async def seed_skills(skills_dir: Path) -> None:
             )
 
             # Preserve extra metadata fields from YAML
-            for attr in ("author", "tags", "risk_level", "required_permissions", "schema", "prompt_template"):
+            for attr in ("author", "tags", "risk_level", "required_permissions", "schema", "prompt_template", "triggers"):
                 if attr in data:
                     setattr(skill, attr, data[attr])
 
@@ -96,22 +96,44 @@ async def seed_knowledge(seed_dir: Path) -> None:
         return
 
     from src.vector.qdrant import get_qdrant_client
-    from src.vector.collections import create_collection_if_not_exists
-    from src.documents.embedding_service import RuntimeEmbeddingProvider
-    from qdrant_client.http.models import PointStruct
+    from src.vector.embedding_service import get_embedding, get_dimension, get_provider
+    from qdrant_client.http.models import PointStruct, Distance, VectorParams, PointIdsList
+
+    provider = get_provider()
+    expected_dim = get_dimension()
+    logger.info("seed_embedding_provider", provider=provider, dim=expected_dim)
 
     collection_name = "asep_knowledge"
-    vector_size = 1536
-
     client = get_qdrant_client()
-    embedder = RuntimeEmbeddingProvider()
 
     try:
-        await create_collection_if_not_exists(
-            client=client,
-            collection_name=collection_name,
-            vector_size=vector_size,
-        )
+        coll_exists = await client.collection_exists(collection_name=collection_name)
+        if coll_exists:
+            coll_info = await client.get_collection(collection_name=collection_name)
+            current_size = None
+            vectors_config = getattr(getattr(coll_info, "config", None), "params", None)
+            vectors_param = getattr(vectors_config, "vectors", None)
+            if hasattr(vectors_param, "size"):
+                current_size = vectors_param.size
+            elif isinstance(vectors_param, dict) and vectors_param:
+                current_size = next(iter(vectors_param.values())).size
+
+            if current_size is not None and current_size != expected_dim:
+                await client.delete_collection(collection_name=collection_name)
+                await client.create_collection(
+                    collection_name=collection_name,
+                    vectors_config=VectorParams(size=expected_dim, distance=Distance.COSINE),
+                )
+                logger.warning(
+                    "qdrant_collection_recreated",
+                    old_size=current_size,
+                    new_size=expected_dim,
+                )
+        else:
+            await client.create_collection(
+                collection_name=collection_name,
+                vectors_config=VectorParams(size=expected_dim, distance=Distance.COSINE),
+            )
     except Exception as coll_exc:
         logger.warning(
             "Could not ensure Qdrant collection for seeding; Qdrant may be unavailable",
@@ -119,6 +141,44 @@ async def seed_knowledge(seed_dir: Path) -> None:
             error=str(coll_exc),
         )
         return
+
+    # Delete stale zero-vectors before seeding
+    try:
+        offset = None
+        zero_ids: list[Any] = []
+        while True:
+            records, next_offset = await client.scroll(
+                collection_name=collection_name,
+                limit=100,
+                offset=offset,
+                with_vectors=True,
+            )
+            for r in records:
+                if r.vector is not None:
+                    if isinstance(r.vector, list):
+                        vec = r.vector
+                    elif isinstance(r.vector, dict) and r.vector:
+                        vec = next(iter(r.vector.values()))
+                    else:
+                        vec = list(r.vector)
+                    if sum(abs(x) for x in vec) == 0:
+                        zero_ids.append(r.id)
+            if next_offset is None:
+                break
+            offset = next_offset
+
+        if zero_ids:
+            await client.delete(
+                collection_name=collection_name,
+                points_selector=PointIdsList(points=zero_ids),
+            )
+        logger.info("zero_vectors_deleted", count=len(zero_ids))
+    except Exception as clean_exc:
+        logger.warning(
+            "Could not cleanup zero vectors from Qdrant",
+            collection=collection_name,
+            error=str(clean_exc),
+        )
 
     for json_file in sorted(seed_dir.glob("*.json")):
         try:
@@ -146,20 +206,23 @@ async def seed_knowledge(seed_dir: Path) -> None:
             except Exception:
                 pass
 
-            # Generate embeddings using existing embedding service
+            # Generate embeddings using local/configured embedding service
             embedding = data.get("embedding")
             if (
                 not embedding
                 or not isinstance(embedding, list)
-                or len(embedding) != vector_size
                 or not all(isinstance(x, (int, float)) for x in embedding)
             ):
                 try:
-                    generated = await embedder.embed_documents([content])
-                    embedding = generated[0] if generated else [0.0] * vector_size
+                    embedding = get_embedding(content)
                 except Exception as emb_exc:
-                    logger.warning("Failed to generate embedding; using zero vector fallback", error=str(emb_exc))
-                    embedding = [0.0] * vector_size
+                    logger.error("Failed to generate embedding", chunk_id=chunk_id, error=str(emb_exc))
+                    continue
+
+            expected = get_dimension()
+            if len(embedding) != expected:
+                logger.warning("embedding_dim_mismatch", expected=expected, got=len(embedding))
+                continue
 
             payload = {
                 "chunk_id": chunk_id,
@@ -183,6 +246,7 @@ async def seed_knowledge(seed_dir: Path) -> None:
             logger.info("seeded_builtin", seeded_builtin=chunk_id, type="knowledge", chunk_id=chunk_id)
         except Exception as exc:
             logger.error("Failed to seed knowledge chunk", file=str(json_file), error=str(exc))
+
 
 
 async def seed_builtin_data(

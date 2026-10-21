@@ -1,0 +1,24 @@
+name: "saas-multitenant-build"
+version: "1.0.0"
+description: "Build a multi-tenant SaaS with billing, RLS isolation, and admin console."
+author: "ASEP Core"
+triggers: ["build saas", "create saas", "multi-tenant app", "saas platform", "subscription app"]
+tags: ["saas", "multi-tenant", "billing"]
+risk_level: "critical"
+required_permissions: ["WORKSPACE_WRITE", "SYSTEM_EXECUTE", "ADMIN"]
+instructions: |
+  1. Read PRD or ask for pricing tiers, isolation level.
+  2. Generate 18 docs (PRD, SaaS Architecture, Billing Logic, etc.).
+  3. Scaffold Next.js 15 + TypeScript. Setup Postgres with RLS.
+  4. Add tenant_id to EVERY table. Enforce at DB level.
+  5. Setup Better Auth or Clerk with organizations.
+  6. Setup Stripe Billing: checkout, webhooks, portal.
+  7. Build admin console: tenants list, usage, billing.
+  8. Validate: RLS enabled, Stripe webhook verified, tests pass.
+schema:
+  type: "object"
+  properties:
+    name: {type: "string"}
+    pricing_tiers: {type: "array"}
+    isolation_model: {type: "string", enum: ["shared-rls", "schema-per-tenant", "db-per-tenant"]}
+prompt_template: "Build SaaS {name} with {isolation_model}. Tiers: {pricing_tiers}. Enforce RLS. Follow anti-slop."

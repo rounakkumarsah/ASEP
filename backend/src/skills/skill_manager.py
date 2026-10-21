@@ -120,6 +120,10 @@ class Skill:
     created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
+    @property
+    def metadata(self) -> Skill:
+        return self
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
@@ -1069,6 +1073,68 @@ class SkillManager:
                 active_skills.append(s)
 
         return active_skills
+
+    def match(self, request_text: str) -> Skill | None:
+        """Find the single best matching skill for a request string."""
+        req_lower = request_text.strip().lower()
+        req_words = set(re.findall(r"\b[a-zA-Z0-9_-]+\b", req_lower))
+        if not req_words:
+            return None
+
+        candidates = list(self._skills_cache.values())
+        if not candidates:
+            return None
+
+        best_skill: Skill | None = None
+        best_score = -1.0
+
+        for skill in candidates:
+            if not skill.enabled:
+                continue
+
+            trigs = getattr(skill, "triggers", [])
+            if not trigs and hasattr(skill, "trigger"):
+                trigs = [skill.trigger]
+            if isinstance(trigs, str):
+                trigs = [trigs]
+
+            score = 0.0
+            for t in trigs:
+                t_str = str(t).lower().strip()
+                t_words = set(re.findall(r"\b[a-zA-Z0-9_-]+\b", t_str))
+                common = req_words.intersection(t_words)
+
+                if t_str == req_lower:
+                    score += 100.0
+                elif t_words and t_words.issubset(req_words):
+                    score += 50.0 + len(common) * 10.0
+                elif req_words and req_words.issubset(t_words):
+                    score += 40.0 + len(common) * 10.0
+                elif t_str in req_lower or req_lower in t_str:
+                    score += 30.0 + len(common) * 10.0
+                elif common:
+                    score += len(common) * 5.0
+
+            if score > best_score:
+                best_score = score
+                best_skill = skill
+
+        if best_score <= 0.0:
+            matched = self.match_skills(request_text)
+            return matched[0] if matched else None
+
+        return best_skill
+
+    def find_skill(self, request_text: str) -> Skill | None:
+        """Alias for match()."""
+        return self.match(request_text)
+
+    async def load_all(self) -> None:
+        """Load builtin YAML skills from disk."""
+        from src.knowledge.seed_loader import seed_skills
+        yaml_dir = Path(__file__).parent / "builtins"
+        if yaml_dir.exists():
+            await seed_skills(yaml_dir)
 
     # -------------------------------------------------------------------------
     # Retrieval at Activation

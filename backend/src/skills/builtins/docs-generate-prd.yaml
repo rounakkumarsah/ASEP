@@ -1,0 +1,26 @@
+name: "docs-generate-prd"
+version: "1.0.0"
+description: "Generate a Product Requirements Document from a short brief."
+author: "ASEP Core"
+triggers: ["generate prd", "write prd", "product requirements", "product spec"]
+tags: ["docs", "prd", "product"]
+risk_level: "low"
+required_permissions: ["WORKSPACE_WRITE"]
+instructions: |
+  Generate PRD.md with:
+  1. Executive Summary
+  2. Problem Statement (quantified)
+  3. Target Users (named personas)
+  4. User Stories (As a <role>, I want <capability> so that <benefit>)
+  5. Acceptance Criteria (Given/When/Then)
+  6. Success Metrics (specific numbers)
+  7. Out of Scope
+  8. Assumptions
+  9. Open Questions
+  Rules: NO generic filler. Real names. Real numbers.
+schema:
+  type: "object"
+  properties:
+    brief: {type: "string"}
+    product_name: {type: "string"}
+prompt_template: "Write a PRD for {product_name}. Brief: {brief}. Use the exact section list."

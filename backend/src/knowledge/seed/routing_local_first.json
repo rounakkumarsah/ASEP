@@ -1,0 +1,14 @@
+{
+  "chunk_id": "kc_universal_routing_001",
+  "document_id": "doc_universal_rules",
+  "content": "LOCAL-FIRST ROUTING POLICY: 1. ALWAYS check local knowledge and skills BEFORE web search. 2. If skill trigger matches (>0.75), execute skill. Do NOT web search. 3. If local knowledge rerank_score >0.6, use it. Do NOT web search. 4. Web search ONLY when: (a) no local match, (b) user asks for 'latest/newest', (c) local knowledge is >6 months old, (d) user rejected prior answer. 5. Every web search result MUST be verified, summarized, and tagged with TTL before storing. 6. NEVER store unverified web results. 7. Log every web search with reason: 'no_local_match' | 'user_requested_fresh' | 'local_outdated' | 'user_rejected'.",
+  "embedding": null,
+  "metadata": {
+    "source_url": "internal://asep/rules/routing",
+    "stack": "universal",
+    "section": "Routing Policy",
+    "version": "1.0.0",
+    "recommended_patterns": ["Skill match before search", "Verified web results only"],
+    "anti_patterns": ["Unconditional web search", "Storing raw HTML"]
+  }
+}
