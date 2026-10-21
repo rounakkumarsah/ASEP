@@ -96,6 +96,12 @@ class GroqProvider(BaseAIProvider):
             if remainder.startswith("qwen3"):
                 return f"qwen/{remainder}"
             return remainder
+        if model_clean.lower().startswith("meta-llama/"):
+            if "70b" in model_clean.lower() or "3.3" in model_clean.lower():
+                return "llama-3.3-70b-versatile"
+            if "8b" in model_clean.lower() or "3.1" in model_clean.lower():
+                return "llama-3.1-8b-instant"
+            return "llama-3.3-70b-versatile"
         if "claude" in model_clean.lower() or "anthropic" in model_clean.lower():
             return "llama-3.3-70b-versatile"
         return model_clean
@@ -461,7 +467,7 @@ class GroqProvider(BaseAIProvider):
 
         headers = {"Authorization": f"Bearer {self.api_key}"}
         data: dict[str, Any] = {
-            "model": model,
+            "model": self._resolve_model(model),
             "response_format": response_format,
             "temperature": temperature
         }
@@ -503,7 +509,7 @@ class GroqProvider(BaseAIProvider):
 
         headers = {"Authorization": f"Bearer {self.api_key}"}
         data: dict[str, Any] = {
-            "model": model,
+            "model": self._resolve_model(model),
             "response_format": response_format,
             "temperature": temperature
         }
@@ -543,7 +549,7 @@ class GroqProvider(BaseAIProvider):
             "Content-Type": "application/json"
         }
         payload = {
-            "model": model,
+            "model": self._resolve_model(model),
             "input": text,
             "voice": voice,
             "response_format": response_format,

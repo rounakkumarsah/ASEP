@@ -226,4 +226,24 @@ def test_groq_resolve_model_strips_prefix():
     assert provider._resolve_model("groq/llama-3.3-70b-versatile") == "llama-3.3-70b-versatile"
     assert provider._resolve_model("llama-3.1-8b-instant") == "llama-3.1-8b-instant"
     assert provider._resolve_model("groq/compound") == "compound"
+    assert provider._resolve_model("meta-llama/llama-3.1-8b-instruct") == "llama-3.1-8b-instant"
+    assert provider._resolve_model("meta-llama/llama-3.3-70b-instruct") == "llama-3.3-70b-versatile"
+
+
+@pytest.mark.asyncio
+async def test_groq_audio_model_prefix_stripped():
+    provider = GroqProvider(api_key="test-groq-key")
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {"text": "Transcribed audio"}
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = mock_resp
+        res = await provider.transcribe_audio(
+            audio_bytes=b"fake-audio-bytes",
+            model="groq/whisper-large-v3-turbo"
+        )
+        assert res["text"] == "Transcribed audio"
+        call_data = mock_post.call_args.kwargs["data"]
+        assert call_data["model"] == "whisper-large-v3-turbo"
 

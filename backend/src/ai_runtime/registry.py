@@ -128,7 +128,17 @@ class ProviderRegistry:
         if not model or model.lower() in ("default", "auto"):
             return self.get_default_provider_name()
         model_lower = model.lower()
-        if "deepseek" in model_lower or "openrouter" in model_lower or model_lower.startswith("meta-llama/"):
+        if model_lower.startswith("groq/"):
+            return "groq"
+        elif model_lower.startswith("openrouter/"):
+            return "openrouter"
+        elif model_lower.startswith("gemini/"):
+            return "gemini"
+        elif model_lower.startswith("anthropic/"):
+            if self.is_key_present("anthropic"):
+                return "anthropic"
+            return self.get_default_provider_name()
+        elif "deepseek" in model_lower or "openrouter" in model_lower or model_lower.startswith("meta-llama/"):
             return "openrouter"
         elif "groq" in model_lower or "gpt-oss" in model_lower or "whisper" in model_lower or "compound" in model_lower or "qwen3" in model_lower or "llama" in model_lower:
             return "groq"

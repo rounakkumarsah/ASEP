@@ -280,31 +280,54 @@ def map_failover_model(
         return "gemini-2.0-flash"
 
     if target == "openrouter":
+        clean_model = model
+        if model_lower.startswith("openrouter/"):
+            clean_model = model[len("openrouter/"):]
+            model_lower = clean_model.lower().strip()
         # If already an OpenRouter model identifier (with slash, but not groq/)
-        if "/" in model and not model_lower.startswith("groq/"):
-            return model
+        if "/" in clean_model and not model_lower.startswith("groq/"):
+            return clean_model
         # Primary provider (e.g. Groq) failed and fell back to OpenRouter
-        if "llama-3.3-70b" in model_lower:
-            return "meta-llama/llama-3.3-70b-instruct"
-        if "llama-3.1-8b" in model_lower or "llama" in model_lower:
-            return "meta-llama/llama-3.1-8b-instruct"
         if "deepseek" in model_lower:
             return "deepseek/deepseek-r1"
+        if "llama-3.3-70b" in model_lower or "70b" in model_lower:
+            return "meta-llama/llama-3.3-70b-instruct"
+        if "llama-3.1-8b" in model_lower or "8b" in model_lower or "llama" in model_lower:
+            return "meta-llama/llama-3.1-8b-instruct"
         return "meta-llama/llama-3.1-8b-instruct"
 
     if target == "groq":
         if model_lower.startswith("groq/"):
-            return model[len("groq/"):]
-        if any(k in model_lower for k in ("llama", "gpt-oss", "qwen3", "compound", "whisper")):
+            remainder = model[len("groq/"):]
+            if remainder.startswith("gpt-oss"):
+                return f"openai/{remainder}"
+            if remainder.startswith("qwen3"):
+                return f"qwen/{remainder}"
+            return remainder
+        if "deepseek" in model_lower:
+            return "deepseek-r1-distill-llama-70b"
+        if "70b" in model_lower or "llama-3.3" in model_lower:
+            return "llama-3.3-70b-versatile"
+        if "8b" in model_lower or "llama-3.1" in model_lower:
+            return "llama-3.1-8b-instant"
+        if model_lower.startswith("meta-llama/"):
+            return "llama-3.3-70b-versatile"
+        if any(k in model_lower for k in ("llama-", "gpt-oss", "qwen", "compound", "whisper")):
             return model
         return "llama-3.3-70b-versatile"
 
     if target == "openai":
+        if model_lower.startswith("openai/"):
+            return model[len("openai/"):]
         if model_lower.startswith("gpt-") or model_lower.startswith("o1") or model_lower.startswith("o3"):
             return model
         return "gpt-4o-mini"
 
     if target == "anthropic":
+        if model_lower.startswith("anthropic/"):
+            remainder = model[len("anthropic/"):]
+            if "claude" in remainder.lower():
+                return remainder
         if "claude" in model_lower:
             return model
         return "claude-3-5-sonnet-20241022"
