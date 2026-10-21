@@ -119,8 +119,12 @@ def extract_clean_goal(raw_goal: str) -> str:
     import re
     text = str(raw_goal).strip()
 
-    # Strip thread title / conversation header prefixes if present
-    text = re.sub(r"^(?:Thread|Conversation|Session):\s*[^\n]+\r?\n+", "", text, flags=re.IGNORECASE)
+    # Strip thread title / conversation header prefixes if present (e.g. "Thread: ...", "[Thread: ...]")
+    while True:
+        stripped = re.sub(r"^\[?(?:Thread|Conversation|Session|Chat|Project):\s*[^\]\r\n]+\]?\s*[\r\n]+", "", text, flags=re.IGNORECASE)
+        if stripped == text:
+            break
+        text = stripped.strip()
 
     # Strip [Past Context] prefix if present
     if "[Past Context]" in text:
