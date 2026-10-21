@@ -41,6 +41,7 @@ from src.db.models.user_quota_log import UserQuotaLog
 from src.db.models.token_usage_log import TokenUsageLog
 from src.db.models.queue_job import QueueJob
 from src.db.models.mcp_server import MCPServer
+from src.db.models.user_api_key import UserApiKey
 
 __all__: list[str] = [
     # multi-tenancy
@@ -49,6 +50,7 @@ __all__: list[str] = [
     "MCPServer",
     "Subscription",
     "ApiKey",
+    "UserApiKey",
     # user
     "User",
     "UserQuotaLog",

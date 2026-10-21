@@ -25,16 +25,26 @@ class AIRuntimeService:
         self.context_manager = ConversationContextManager()
         self._fallback_breaker = CircuitBreaker(failure_threshold=3, cooldown_seconds=60.0)
 
-    async def complete(self, request: CompletionRequest) -> CompletionResponse:
+    async def complete(self, request: CompletionRequest, user_id: Any | None = None) -> CompletionResponse:
         logger.info("RequestStarted", model=request.model, temperature=request.temperature)
+
+        resolved_uid = user_id or getattr(request, "user_id", None) or getattr(request, "user", None)
+        if not resolved_uid and request.trace and isinstance(request.trace, dict):
+            resolved_uid = request.trace.get("user_id")
 
         router_reason = None
         is_auto = request.model == "auto-router"
         if is_auto:
-            from src.ai_runtime.router import auto_router
+            from src.ai_runtime.router import auto_router, resolve_api_key
             prompt_text = "".join(m.content for m in request.messages if m.content)
             has_tools = bool(request.tool_callables) or bool(request.tools)
-            decision = auto_router.route(prompt_text, has_tools, request.research_mode)
+            user_has_anthropic = None
+            if resolved_uid:
+                try:
+                    user_has_anthropic = bool(await resolve_api_key("anthropic", resolved_uid))
+                except Exception:
+                    pass
+            decision = auto_router.route(prompt_text, has_tools, request.research_mode, has_anthropic=user_has_anthropic)
             request.model = decision["model"]
             router_reason = decision["reason"]
             logger.info("AutoRouterDecision", model=request.model, reason=router_reason)
@@ -60,19 +70,49 @@ class AIRuntimeService:
             chain = self.registry.get_priority_chain(request.model)
             model_success = False
 
+            primary_name = self.registry.resolve_provider_for_model(request.model)
+
+            if resolved_uid:
+                try:
+                    from src.ai_runtime.router import resolve_api_key
+                    model_lower = (request.model or "").lower()
+                    if ("claude" in model_lower or "anthropic" in model_lower) and not any(p.name == "anthropic" for p in chain):
+                        user_anthropic_key = await resolve_api_key("anthropic", resolved_uid)
+                        if user_anthropic_key:
+                            anthropic_p = self.registry.create_provider("anthropic", api_key=user_anthropic_key)
+                            if anthropic_p:
+                                chain = [anthropic_p] + chain
+                                primary_name = "anthropic"
+                    elif "anthropic" in self.registry.priority and not any(p.name == "anthropic" for p in chain):
+                        user_anthropic_key = await resolve_api_key("anthropic", resolved_uid)
+                        if user_anthropic_key:
+                            anthropic_p = self.registry.create_provider("anthropic", api_key=user_anthropic_key)
+                            if anthropic_p:
+                                chain.append(anthropic_p)
+                except Exception as err:
+                    logger.warning("FailedToInjectAnthropicUserKey", error=str(err))
+
             # Diagnostic logging: key_present booleans in priority order
             key_status_str = ", ".join(f"{p}:key_present={self.registry.is_key_present(p)}" for p in self.registry.priority)
             logger.info("AI Provider priority key check", key_statuses=key_status_str)
 
-            primary_name = self.registry.resolve_provider_for_model(request.model)
-
             for idx, provider in enumerate(chain):
-                breaker = self.registry.get_breaker(provider.name)
-                reason = "priority[0]" if provider.name == primary_name and (self.registry.priority and self.registry.priority[0] == primary_name) else (f"model_match({request.model})" if provider.name == primary_name else f"priority_fallback[{idx}]")
-                logger.info(f"Provider resolved: provider={provider.name}, reason={reason}")
-                logger.info("ProviderSelected", provider=provider.name, model=request.model, reason=reason)
+                active_provider = provider
+                if resolved_uid:
+                    try:
+                        from src.ai_runtime.router import resolve_api_key
+                        resolved_key = await resolve_api_key(provider.name, resolved_uid)
+                        if resolved_key and resolved_key != getattr(provider, "api_key", None):
+                            active_provider = self.registry.create_provider(provider.name, api_key=resolved_key) or provider
+                    except Exception as err:
+                        logger.warning("FailedToResolveUserKey", provider=provider.name, error=str(err))
 
-                cap = provider.get_capability_matrix()
+                breaker = self.registry.get_breaker(active_provider.name)
+                reason = "priority[0]" if active_provider.name == primary_name and (self.registry.priority and self.registry.priority[0] == primary_name) else (f"model_match({request.model})" if active_provider.name == primary_name else f"priority_fallback[{idx}]")
+                logger.info(f"Provider resolved: provider={active_provider.name}, reason={reason}")
+                logger.info("ProviderSelected", provider=active_provider.name, model=request.model, reason=reason)
+
+                cap = active_provider.get_capability_matrix()
                 self.context_manager.token_budget = cap.context_window
                 trimmed_messages = self.context_manager.trim_messages(request.messages)
 
@@ -92,7 +132,7 @@ class AIRuntimeService:
                         
                         while iterations < max_iterations:
                             iterations += 1
-                            res = await provider.complete(current_request)
+                            res = await active_provider.complete(current_request)
                             
                             if res.finish_reason == "tool_calls" and res.tool_calls:
                                 import json
@@ -243,19 +283,51 @@ class AIRuntimeService:
             
         raise RuntimeError(f"AI runtime failed to process request. All providers exhausted. Last error: {error_msg}") from last_error
 
-    async def stream(self, request: CompletionRequest) -> AsyncGenerator[StreamChunk, None]:
+    async def stream(self, request: CompletionRequest, user_id: Any | None = None) -> AsyncGenerator[StreamChunk, None]:
         logger.info("RequestStarted", model=request.model, streaming=True)
 
+        resolved_uid = user_id or getattr(request, "user_id", None) or getattr(request, "user", None)
+        if not resolved_uid and request.trace and isinstance(request.trace, dict):
+            resolved_uid = request.trace.get("user_id")
+
         chain = self.registry.get_priority_chain(request.model)
+        if resolved_uid:
+            try:
+                from src.ai_runtime.router import resolve_api_key
+                model_lower = (request.model or "").lower()
+                if ("claude" in model_lower or "anthropic" in model_lower) and not any(p.name == "anthropic" for p in chain):
+                    user_anthropic_key = await resolve_api_key("anthropic", resolved_uid)
+                    if user_anthropic_key:
+                        anthropic_p = self.registry.create_provider("anthropic", api_key=user_anthropic_key)
+                        if anthropic_p:
+                            chain = [anthropic_p] + chain
+                elif "anthropic" in self.registry.priority and not any(p.name == "anthropic" for p in chain):
+                    user_anthropic_key = await resolve_api_key("anthropic", resolved_uid)
+                    if user_anthropic_key:
+                        anthropic_p = self.registry.create_provider("anthropic", api_key=user_anthropic_key)
+                        if anthropic_p:
+                            chain.append(anthropic_p)
+            except Exception as err:
+                logger.warning("FailedToInjectAnthropicUserKey", error=str(err))
         last_error = None
 
         for provider in chain:
-            breaker = self.registry.get_breaker(provider.name)
-            logger.info("ProviderSelected", provider=provider.name, model=request.model)
-            logger.info("StreamStarted", provider=provider.name)
+            active_provider = provider
+            if resolved_uid:
+                try:
+                    from src.ai_runtime.router import resolve_api_key
+                    resolved_key = await resolve_api_key(provider.name, resolved_uid)
+                    if resolved_key and resolved_key != getattr(provider, "api_key", None):
+                        active_provider = self.registry.create_provider(provider.name, api_key=resolved_key) or provider
+                except Exception as err:
+                    logger.warning("FailedToResolveUserKey", provider=provider.name, error=str(err))
+
+            breaker = self.registry.get_breaker(active_provider.name)
+            logger.info("ProviderSelected", provider=active_provider.name, model=request.model)
+            logger.info("StreamStarted", provider=active_provider.name)
 
             # Auto fallback context trimming based on provider capabilities window
-            cap = provider.get_capability_matrix()
+            cap = active_provider.get_capability_matrix()
             self.context_manager.token_budget = cap.context_window
             trimmed_messages = self.context_manager.trim_messages(request.messages)
 
@@ -268,7 +340,7 @@ class AIRuntimeService:
             )
 
             try:
-                async for chunk in provider.stream(trimmed_request):
+                async for chunk in active_provider.stream(trimmed_request):
                     yield chunk
 
                 if breaker:
@@ -284,28 +356,66 @@ class AIRuntimeService:
         logger.error("RuntimeError", error="All providers failed during stream initialization")
         raise RuntimeError("AI runtime stream failed.") from last_error
 
-    async def complete_structured(self, request: CompletionRequest, schema: dict[str, Any]) -> CompletionResponse:
+    async def complete_structured(self, request: CompletionRequest, schema: dict[str, Any], user_id: Any | None = None) -> CompletionResponse:
         logger.info("RequestStarted", model=request.model, structured=True)
+
+        resolved_uid = user_id or getattr(request, "user_id", None) or getattr(request, "user", None)
+        if not resolved_uid and request.trace and isinstance(request.trace, dict):
+            resolved_uid = request.trace.get("user_id")
 
         router_reason = None
         if request.model == "auto-router":
-            from src.ai_runtime.router import auto_router
+            from src.ai_runtime.router import auto_router, resolve_api_key
             prompt_text = "".join(m.content for m in request.messages if m.content)
             has_tools = bool(request.tool_callables) or bool(request.tools)
-            decision = auto_router.route(prompt_text, has_tools, request.research_mode)
+            user_has_anthropic = None
+            if resolved_uid:
+                try:
+                    user_has_anthropic = bool(await resolve_api_key("anthropic", resolved_uid))
+                except Exception:
+                    pass
+            decision = auto_router.route(prompt_text, has_tools, request.research_mode, has_anthropic=user_has_anthropic)
             request.model = decision["model"]
             router_reason = decision["reason"]
             logger.info("AutoRouterDecision", model=request.model, reason=router_reason)
 
         chain = self.registry.get_priority_chain(request.model)
+        if resolved_uid:
+            try:
+                from src.ai_runtime.router import resolve_api_key
+                model_lower = (request.model or "").lower()
+                if ("claude" in model_lower or "anthropic" in model_lower) and not any(p.name == "anthropic" for p in chain):
+                    user_anthropic_key = await resolve_api_key("anthropic", resolved_uid)
+                    if user_anthropic_key:
+                        anthropic_p = self.registry.create_provider("anthropic", api_key=user_anthropic_key)
+                        if anthropic_p:
+                            chain = [anthropic_p] + chain
+                elif "anthropic" in self.registry.priority and not any(p.name == "anthropic" for p in chain):
+                    user_anthropic_key = await resolve_api_key("anthropic", resolved_uid)
+                    if user_anthropic_key:
+                        anthropic_p = self.registry.create_provider("anthropic", api_key=user_anthropic_key)
+                        if anthropic_p:
+                            chain.append(anthropic_p)
+            except Exception as err:
+                logger.warning("FailedToInjectAnthropicUserKey", error=str(err))
         last_error = None
 
         for provider in chain:
-            breaker = self.registry.get_breaker(provider.name)
-            logger.info("ProviderSelected", provider=provider.name, model=request.model)
+            active_provider = provider
+            if resolved_uid:
+                try:
+                    from src.ai_runtime.router import resolve_api_key
+                    resolved_key = await resolve_api_key(provider.name, resolved_uid)
+                    if resolved_key and resolved_key != getattr(provider, "api_key", None):
+                        active_provider = self.registry.create_provider(provider.name, api_key=resolved_key) or provider
+                except Exception as err:
+                    logger.warning("FailedToResolveUserKey", provider=provider.name, error=str(err))
+
+            breaker = self.registry.get_breaker(active_provider.name)
+            logger.info("ProviderSelected", provider=active_provider.name, model=request.model)
 
             # Auto fallback context trimming based on provider capabilities window
-            cap = provider.get_capability_matrix()
+            cap = active_provider.get_capability_matrix()
             self.context_manager.token_budget = cap.context_window
             trimmed_messages = self.context_manager.trim_messages(request.messages)
 
@@ -319,10 +429,10 @@ class AIRuntimeService:
 
             for attempt in range(1, 3):
                 try:
-                    res = await provider.complete_structured(trimmed_request, schema)
+                    res = await active_provider.complete_structured(trimmed_request, schema)
                     if breaker:
                         breaker.record_success()
-                    logger.info("UsageCollected", provider=provider.name, total_tokens=res.usage.total_tokens)
+                    logger.info("UsageCollected", provider=active_provider.name, total_tokens=res.usage.total_tokens)
                     if router_reason:
                         res.router_reason = router_reason
                     return res

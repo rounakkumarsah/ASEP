@@ -44,6 +44,7 @@ import { CardHeader, CardTitle, CardDescription, CardContent } from "@/component
 import { AnimatedCard } from "@/components/ui/animated-card";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { ByokKeysSection } from "./byok-keys-section";
 
 type SettingsTab = 
   | "profile"
@@ -1514,34 +1515,37 @@ export default function SettingsPage() {
 
       case "llm":
         return (
-          <AnimatedCard className="border-border/40 bg-card/30 shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-xl font-bold flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-primary" /> Production LLM Providers
-              </CardTitle>
-              <CardDescription>Connected enterprise cloud AI model services.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {[
-                { name: "Google Gemini", detail: "Gemini 1.5 Pro / Flash 1.5", badge: "Active" },
-                { name: "Anthropic Claude", detail: "Claude 3.5 Sonnet / Haiku", badge: "Active" },
-                { name: "OpenAI GPT", detail: "GPT-4o / GPT-4o-mini", badge: "Active" },
-                { name: "OpenRouter Swarm", detail: "DeepSeek R1 / Qwen 2.5", badge: "Active" },
-                { name: "Groq Cloud", detail: "Llama 3.3 70B (High-speed inference)", badge: "Active" },
-                { name: "Cohere Command", detail: "Command R+ / Embed v3", badge: "Active" },
-              ].map(provider => (
-                <div key={provider.name} className="p-4 border border-border/40 rounded-xl bg-background/40 flex items-center justify-between relative z-10">
-                  <div>
-                    <p className="font-semibold text-sm text-foreground">{provider.name}</p>
-                    <p className="text-xs text-muted-foreground">{provider.detail}</p>
+          <div className="space-y-6">
+            <ByokKeysSection />
+            <AnimatedCard className="border-border/40 bg-card/30 shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-xl font-bold flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-primary" /> Production LLM Providers
+                </CardTitle>
+                <CardDescription>Connected enterprise cloud AI model services.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {[
+                  { name: "Google Gemini", detail: "Gemini 1.5 Pro / Flash 1.5", badge: "Active" },
+                  { name: "Anthropic Claude", detail: "Claude 3.5 Sonnet / Haiku", badge: "Active" },
+                  { name: "OpenAI GPT", detail: "GPT-4o / GPT-4o-mini", badge: "Active" },
+                  { name: "OpenRouter Swarm", detail: "DeepSeek R1 / Qwen 2.5", badge: "Active" },
+                  { name: "Groq Cloud", detail: "Llama 3.3 70B (High-speed inference)", badge: "Active" },
+                  { name: "Cohere Command", detail: "Command R+ / Embed v3", badge: "Active" },
+                ].map(provider => (
+                  <div key={provider.name} className="p-4 border border-border/40 rounded-xl bg-background/40 flex items-center justify-between relative z-10">
+                    <div>
+                      <p className="font-semibold text-sm text-foreground">{provider.name}</p>
+                      <p className="text-xs text-muted-foreground">{provider.detail}</p>
+                    </div>
+                    <Badge variant="default" className="text-xs font-semibold">
+                      {provider.badge}
+                    </Badge>
                   </div>
-                  <Badge variant="default" className="text-xs font-semibold">
-                    {provider.badge}
-                  </Badge>
-                </div>
-              ))}
-            </CardContent>
-          </AnimatedCard>
+                ))}
+              </CardContent>
+            </AnimatedCard>
+          </div>
         );
 
       case "mcp":

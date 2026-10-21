@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import re
 from typing import List, Dict, Any, Optional
+from uuid import UUID
 import time
 import logging
 
@@ -93,7 +96,7 @@ class ModelRegistry:
             "tokens": tok_estimate
         }
 
-    def route(self, prompt: str, has_tools: bool, research_mode: str) -> dict:
+    def route(self, prompt: str, has_tools: bool, research_mode: str, has_anthropic: bool | None = None) -> dict:
         task_info = self.score_task(prompt, has_tools, research_mode)
         tier = task_info["tier"]
         tokens = task_info["tokens"]
@@ -103,6 +106,8 @@ class ModelRegistry:
         self.degraded_models = {k: v for k, v in self.degraded_models.items() if v > now}
 
         def _is_anthropic_available() -> bool:
+            if has_anthropic is not None:
+                return has_anthropic
             import os
             key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
             if not key:
@@ -113,17 +118,17 @@ class ModelRegistry:
                     pass
             return bool(key)
 
-        has_anthropic = _is_anthropic_available()
+        can_use_anthropic = _is_anthropic_available()
 
         # Filter available models
         available = [
             m for m in self.models.values()
             if m["id"] not in self.degraded_models
-            and (has_anthropic or "claude" not in m["id"].lower())
+            and (can_use_anthropic or "claude" not in m["id"].lower())
         ]
         if not available:
             # If all degraded, fallback excluding claude if no key
-            fallback = [m for m in self.models.values() if has_anthropic or "claude" not in m["id"].lower()]
+            fallback = [m for m in self.models.values() if can_use_anthropic or "claude" not in m["id"].lower()]
             available = fallback if fallback else list(self.models.values())
             
         # 1. Filter by context window
@@ -172,3 +177,81 @@ class ModelRegistry:
         self.failure_counts[model_id] = 0
 
 auto_router = ModelRegistry()
+
+
+async def resolve_api_key(provider: str, user_id: UUID | str | None = None) -> str | None:
+    """Resolve active API key for a provider.
+
+    1. If user_id given, try user's own key from DB (decrypt it).
+    2. If not found or decrypt fails, fall back to platform env key via existing settings lookup.
+    3. If user's key exists but is marked invalid, still attempt it (user may have fixed it) but log a warning.
+    4. Return None only if neither exists.
+    """
+    import os
+    import uuid as _uuid
+    import structlog
+
+    slog = structlog.get_logger(__name__)
+    p = provider.lower().strip()
+
+    # 1. If user_id given, try user's own key from DB
+    if user_id is not None:
+        try:
+            parsed_uid = user_id if isinstance(user_id, _uuid.UUID) else _uuid.UUID(str(user_id))
+            from src.db.postgres import _get_session_factory
+            from src.db.repositories.user_api_key_repository import get_by_user_and_provider
+            from src.auth.key_vault import decrypt_key
+
+            factory = _get_session_factory()
+            async with factory() as session:
+                key_record = await get_by_user_and_provider(session, parsed_uid, p)
+                if key_record is not None and key_record.encrypted_key:
+                    if not key_record.is_valid:
+                        slog.warning(
+                            "user_api_key_marked_invalid_attempting",
+                            provider=p,
+                            user_id=str(parsed_uid),
+                        )
+                    try:
+                        decrypted = decrypt_key(key_record.encrypted_key)
+                        if decrypted and decrypted.strip():
+                            return decrypted.strip()
+                    except Exception as exc:
+                        slog.warning(
+                            "user_api_key_decrypt_failed",
+                            provider=p,
+                            user_id=str(parsed_uid),
+                            error=str(exc),
+                        )
+        except Exception as exc:
+            slog.warning(
+                "user_api_key_lookup_error",
+                provider=p,
+                user_id=str(user_id),
+                error=str(exc),
+            )
+
+    # 2. Fall back to platform env key via existing settings lookup
+    env_keys = {
+        "gemini": "GEMINI_API_KEY",
+        "groq": "GROQ_API_KEY",
+        "openrouter": "OPENROUTER_API_KEY",
+        "openai": "OPENAI_API_KEY",
+        "anthropic": "ANTHROPIC_API_KEY",
+    }
+    env_var_name = env_keys.get(p)
+    if env_var_name:
+        val_os = os.environ.get(env_var_name, "").strip()
+        if val_os:
+            return val_os
+
+        try:
+            from src.config.settings import get_settings
+            val = getattr(get_settings(), env_var_name, None)
+            if val and str(val).strip():
+                return str(val).strip()
+        except Exception:
+            pass
+
+    return None
+

@@ -99,6 +99,27 @@ class ProviderRegistry:
     def get_provider(self, name: str) -> BaseAIProvider | None:
         return self.providers.get(name.lower())
 
+    def create_provider(self, name: str, api_key: str | None = None) -> BaseAIProvider | None:
+        """Instantiate a provider client with a specific API key (for BYOK injection)."""
+        p = name.lower().strip()
+        if p == "groq":
+            return GroqProvider(api_key=api_key)
+        elif p == "gemini":
+            return GeminiProvider(api_key=api_key)
+        elif p == "openai":
+            return OpenAIProvider(api_key=api_key)
+        elif p == "anthropic":
+            return AnthropicProvider(api_key=api_key)
+        elif p == "openrouter":
+            return OpenRouterProvider(api_key=api_key)
+        elif p == "ollama":
+            return OllamaProvider()
+        elif p == "vision":
+            return VisionModelProvider()
+        elif p == "mock":
+            return MockProvider()
+        return self.providers.get(p)
+
     def get_breaker(self, name: str) -> CircuitBreaker | None:
         return self.circuit_breakers.get(name.lower())
 

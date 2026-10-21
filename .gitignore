@@ -87,6 +87,8 @@ Thumbs.db
 
 # Secrets / credentials
 *.pem
+!**/public_key.pem
+asep_private_key.pem
 *.key
 *.cert
 *.crt

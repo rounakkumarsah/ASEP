@@ -46,6 +46,7 @@ class CompletionRequest(BaseModel):
     parallel_tool_calls: bool | None = None
     tool_callables: dict[str, Any] | None = None
     user: str | None = None
+    user_id: Any | None = None
     session_id: str | None = None
     trace: dict[str, Any] | None = None
     reasoning: dict[str, Any] | None = None
