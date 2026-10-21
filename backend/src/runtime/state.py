@@ -27,6 +27,10 @@ class AgentState(TypedDict, total=False):
     # Execution ID linking to AgentRun/Task
     run_id: str
 
+    # Project and workspace isolation
+    project_id: str
+    workspace_id: str
+
     # Model choice
     model: str
 

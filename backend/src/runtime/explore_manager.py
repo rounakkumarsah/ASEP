@@ -358,9 +358,14 @@ class ExploreManager:
                 found_files_set.add(m)
 
         # 3. List Directory (Real tool call)
-        target_dir = "backend/src" if (self.workspace_root / "backend/src").exists() else "src"
-        if is_auth and (self.workspace_root / "backend/src/auth").exists():
-            target_dir = "backend/src/auth"
+        if (self.workspace_root / "src").exists():
+            target_dir = "src"
+        elif (self.workspace_root / "backend/src").exists():
+            target_dir = "backend/src"
+        else:
+            target_dir = "."
+        if is_auth and (self.workspace_root / target_dir / "auth").exists():
+            target_dir = f"{target_dir}/auth"
 
         items, dur = self.list_directory(target_dir)
         emit(ExploreEvent(
@@ -415,11 +420,7 @@ class ExploreManager:
         # 7. Read Priority Files with 20-Line Previews (Real tool calls)
         top_candidates = list(found_files_set)
         if not top_candidates:
-            top_candidates = [
-                "backend/src/api/app.py",
-                "backend/src/runtime/state.py",
-                "backend/src/runtime/nodes.py"
-            ]
+            top_candidates = []
 
         # Resilient error handling verification:
         # Perform real tool call to non-existent module if auth, handle actual failure, emit ⚠️, and proceed.
