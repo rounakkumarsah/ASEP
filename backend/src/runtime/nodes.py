@@ -372,6 +372,44 @@ async def supervisor_node(state: AgentState) -> dict[str, Any]:
     }
 
 
+def parse_llm_json_safely(raw_text: str) -> Any:
+    """Parse JSON from LLM output safely, stripping markdown fences and repairing malformed JSON."""
+    if not raw_text or not isinstance(raw_text, str) or not raw_text.strip():
+        return {}
+
+    cleaned = raw_text.strip()
+    match = re.search(r"```(?:json)?\s*(.*?)\s*```", cleaned, re.DOTALL | re.IGNORECASE)
+    if match:
+        cleaned = match.group(1).strip()
+    else:
+        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"\s*```$", "", cleaned)
+        cleaned = cleaned.strip()
+
+    try:
+        return json.loads(cleaned)
+    except Exception:
+        pass
+
+    try:
+        from json_repair import repair_json
+        res = repair_json(cleaned, return_objects=True)
+        if isinstance(res, str):
+            try:
+                return json.loads(res)
+            except Exception:
+                pass
+        if res == "" and cleaned not in ('""', "''"):
+            fallback = repair_json(raw_text.strip(), return_objects=True)
+            if fallback != "":
+                return fallback
+            return {}
+        return res
+    except Exception as exc:
+        logger.warning("parse_llm_json_safely failed to parse or repair JSON: %s", exc)
+        return {}
+
+
 async def planner_node(state: AgentState) -> dict[str, Any]:
     """Planner node: decomposes the goal into sequential subtasks via AIRuntimeService or heuristic."""
     goal = extract_clean_goal(state.get("goal", ""))
@@ -439,9 +477,15 @@ async def planner_node(state: AgentState) -> dict[str, Any]:
         res = await asyncio.wait_for(runtime.complete(req), timeout=5.0)
         text = res.text.strip()
         # Parse JSON
-        match = re.search(r"\[.*\]", text, re.DOTALL)
-        if match:
-            plan = json.loads(match.group(0))
+        parsed_plan = parse_llm_json_safely(text)
+        if isinstance(parsed_plan, list):
+            plan = parsed_plan
+        else:
+            match = re.search(r"\[.*\]", text, re.DOTALL)
+            if match:
+                parsed_plan = parse_llm_json_safely(match.group(0))
+                if isinstance(parsed_plan, list):
+                    plan = parsed_plan
     except Exception as exc:
         if type(exc).__name__ == "CircuitBreakerError" or "CircuitBreakerError" in [b.__name__ for b in type(exc).__mro__]:
             raise
@@ -666,7 +710,18 @@ async def coding_node(state: AgentState) -> dict[str, Any]:
             "Format your output in clean Markdown with codeblocks, explanation, and verification steps."
         )
 
-        model_name = state.get("model") or "gemini-1.5-flash"
+        model_from_state = state.get("model")
+        if (
+            not model_from_state
+            or "8b" in str(model_from_state).lower()
+            or model_from_state in ("auto", "auto-router", "groq/llama-3.1-8b-instant", "llama-3.1-8b-instant")
+        ):
+            from src.ai_runtime.router import get_model_for_phase
+            model_name = get_model_for_phase("coding")
+        else:
+            model_name = model_from_state
+        if not model_name or "8b" in str(model_name).lower() or model_name in ("groq/llama-3.1-8b-instant", "llama-3.1-8b-instant"):
+            model_name = "groq/llama-3.3-70b-versatile"
         req = CompletionRequest(
             messages=[
                 Message(role="system", content=system_instruction),
@@ -1956,39 +2011,6 @@ def _build_nextjs_project_files(goal: str, page_component_code: str | None = Non
         "app/globals.css": globals_css,
         "page.tsx": page_code,
     }
-
-
-def parse_llm_json_safely(raw_text: str) -> Any:
-    """Parse JSON from LLM output safely, stripping markdown fences and repairing malformed JSON."""
-    if not raw_text or not isinstance(raw_text, str):
-        return {}
-
-    cleaned = raw_text.strip()
-    match = re.search(r"```(?:json)?\s*(.*?)\s*```", cleaned, re.DOTALL | re.IGNORECASE)
-    if match:
-        cleaned = match.group(1).strip()
-    else:
-        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
-        cleaned = re.sub(r"\s*```$", "", cleaned)
-        cleaned = cleaned.strip()
-
-    try:
-        return json.loads(cleaned)
-    except Exception:
-        pass
-
-    try:
-        from json_repair import repair_json
-        res = repair_json(cleaned, return_objects=True)
-        if isinstance(res, str):
-            try:
-                return json.loads(res)
-            except Exception:
-                pass
-        return res
-    except Exception as exc:
-        logger.warning("parse_llm_json_safely failed to parse or repair JSON: %s", exc)
-        raise
 
 
 def _try_parse_file_tree(text: str) -> dict[str, str] | None:

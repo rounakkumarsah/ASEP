@@ -64,6 +64,12 @@ class TestRobustJsonParsing:
     def test_parse_empty_and_invalid_input(self):
         assert parse_llm_json_safely("") == {}
         assert parse_llm_json_safely(None) == {}
+        assert parse_llm_json_safely("   \n\t  ") == {}
+        assert parse_llm_json_safely("Random raw string that is definitely not JSON") == {}
+
+    def test_parse_repair_exception_fallback(self):
+        with patch("json_repair.repair_json", side_effect=Exception("Simulated repair crash")):
+            assert parse_llm_json_safely("malformed {json") == {}
 
     def test_try_parse_file_tree_with_malformed_json(self):
         malformed = """```json
@@ -115,13 +121,60 @@ class TestModelSelection:
             req_arg = mock_complete.call_args[0][0]
             assert req_arg.model == "groq/llama-3.3-70b-versatile"
 
+    @pytest.mark.asyncio
+    async def test_coding_node_switches_from_8b_to_70b(self):
+        from src.runtime.nodes import coding_node
+
+        state = {
+            "goal": "build an auth module",
+            "model": "groq/llama-3.1-8b-instant",
+            "status": "started",
+            "run_id": "test-coding-node-model",
+        }
+
+        mock_complete = AsyncMock()
+        mock_res = MagicMock()
+        mock_res.text = "```python\n# Auth module\n```"
+        mock_complete.return_value = mock_res
+
+        with patch("src.ai_runtime.service.AIRuntimeService.complete", mock_complete):
+            result = await coding_node(state)
+            assert result["status"] == "coded"
+            assert mock_complete.called
+            req_arg = mock_complete.call_args[0][0]
+            assert req_arg.model == "groq/llama-3.3-70b-versatile"
+
+    @pytest.mark.asyncio
+    async def test_planner_node_robust_json_parsing(self):
+        from src.runtime.nodes import planner_node
+
+        state = {
+            "goal": "Build an admin panel",
+            "run_id": "test-planner-robust-json",
+        }
+
+        mock_complete = AsyncMock()
+        mock_res = MagicMock()
+        mock_res.text = "Here is your plan:\n```json\n['Step 1: Setup', 'Step 2: Build', ]\n```"
+        mock_complete.return_value = mock_res
+
+        with patch("src.ai_runtime.service.AIRuntimeService.complete", mock_complete):
+            result = await planner_node(state)
+            assert result["status"] == "planned"
+            assert result["plan"] == ["Step 1: Setup", "Step 2: Build"]
+
 
 class TestPgBouncerPoolConfiguration:
     """Tests verifying PostgreSQL connection pool settings for PgBouncer / Vercel."""
 
     def test_connection_pool_kwargs_contain_prepare_threshold_and_autocommit(self):
+        from src.db.postgres import CONNECT_KWARGS, SERVERLESS_CONNECT_KWARGS
         assert CONNECTION_POOL_KWARGS.get("prepare_threshold") == 0
         assert CONNECTION_POOL_KWARGS.get("autocommit") is True
+        assert CONNECT_KWARGS.get("prepare_threshold") == 0
+        assert CONNECT_KWARGS.get("autocommit") is True
+        assert SERVERLESS_CONNECT_KWARGS.get("prepare_threshold") == 0
+        assert SERVERLESS_CONNECT_KWARGS.get("autocommit") is True
 
     def test_get_connection_pool_passes_expected_kwargs(self):
         mock_pool = MagicMock()
@@ -131,6 +184,11 @@ class TestPgBouncerPoolConfiguration:
             call_kwargs = mock_pool.call_args[1]
             assert call_kwargs["kwargs"]["prepare_threshold"] == 0
             assert call_kwargs["kwargs"]["autocommit"] is True
+
+    def test_get_connection_pool_without_running_loop_instantiation(self):
+        pool = get_connection_pool("postgresql://user:pass@localhost:5432/testdb")
+        assert pool.kwargs.get("prepare_threshold") == 0
+        assert pool.kwargs.get("autocommit") is True
 
 
 class TestGlobalExceptionHandler:
