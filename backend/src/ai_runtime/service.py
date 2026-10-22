@@ -110,16 +110,17 @@ class AIRuntimeService:
                 breaker = self.registry.get_breaker(active_provider.name)
                 reason = "priority[0]" if active_provider.name == primary_name and (self.registry.priority and self.registry.priority[0] == primary_name) else (f"model_match({request.model})" if active_provider.name == primary_name else f"priority_fallback[{idx}]")
                 logger.info(f"Provider resolved: provider={active_provider.name}, reason={reason}")
-                logger.info("ProviderSelected", provider=active_provider.name, model=request.model, reason=reason)
-
-                cap = active_provider.get_capability_matrix()
-                self.context_manager.token_budget = cap.context_window
-                trimmed_messages = self.context_manager.trim_messages(request.messages)
 
                 provider_model = request.model
                 if active_provider.name != primary_name:
                     from src.ai_runtime.router import map_failover_model
                     provider_model = map_failover_model(request.model, active_provider.name, primary_name)
+
+                logger.info("ProviderSelected", provider=active_provider.name, model=provider_model, reason=reason)
+
+                cap = active_provider.get_capability_matrix()
+                self.context_manager.token_budget = cap.context_window
+                trimmed_messages = self.context_manager.trim_messages(request.messages)
 
                 trimmed_request = CompletionRequest(
                     messages=trimmed_messages,
@@ -202,7 +203,7 @@ class AIRuntimeService:
                             logger.info(
                                 "UsageCollected",
                                 provider=provider.name,
-                                model=request.model,
+                                model=provider_model,
                                 prompt_tokens=res.usage.prompt_tokens,
                                 completion_tokens=res.usage.completion_tokens,
                                 total_tokens=res.usage.total_tokens,
@@ -343,19 +344,19 @@ class AIRuntimeService:
                 except Exception as err:
                     logger.warning("FailedToResolveUserKey", provider=provider.name, error=str(err))
 
+            provider_model = request.model
+            if active_provider.name != primary_name:
+                from src.ai_runtime.router import map_failover_model
+                provider_model = map_failover_model(request.model, active_provider.name, primary_name)
+
             breaker = self.registry.get_breaker(active_provider.name)
-            logger.info("ProviderSelected", provider=active_provider.name, model=request.model)
+            logger.info("ProviderSelected", provider=active_provider.name, model=provider_model)
             logger.info("StreamStarted", provider=active_provider.name)
 
             # Auto fallback context trimming based on provider capabilities window
             cap = active_provider.get_capability_matrix()
             self.context_manager.token_budget = cap.context_window
             trimmed_messages = self.context_manager.trim_messages(request.messages)
-
-            provider_model = request.model
-            if active_provider.name != primary_name:
-                from src.ai_runtime.router import map_failover_model
-                provider_model = map_failover_model(request.model, active_provider.name, primary_name)
 
             trimmed_request = CompletionRequest(
                 messages=trimmed_messages,
@@ -453,18 +454,18 @@ class AIRuntimeService:
                 except Exception as err:
                     logger.warning("FailedToResolveUserKey", provider=provider.name, error=str(err))
 
+            provider_model = request.model
+            if active_provider.name != primary_name:
+                from src.ai_runtime.router import map_failover_model
+                provider_model = map_failover_model(request.model, active_provider.name, primary_name)
+
             breaker = self.registry.get_breaker(active_provider.name)
-            logger.info("ProviderSelected", provider=active_provider.name, model=request.model)
+            logger.info("ProviderSelected", provider=active_provider.name, model=provider_model)
 
             # Auto fallback context trimming based on provider capabilities window
             cap = active_provider.get_capability_matrix()
             self.context_manager.token_budget = cap.context_window
             trimmed_messages = self.context_manager.trim_messages(request.messages)
-
-            provider_model = request.model
-            if active_provider.name != primary_name:
-                from src.ai_runtime.router import map_failover_model
-                provider_model = map_failover_model(request.model, active_provider.name, primary_name)
 
             trimmed_request = CompletionRequest(
                 messages=trimmed_messages,

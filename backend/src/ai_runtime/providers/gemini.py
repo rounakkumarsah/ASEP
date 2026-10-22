@@ -7,6 +7,7 @@ import hashlib
 import hmac
 import json
 import os
+from pathlib import Path
 import time
 from collections.abc import AsyncGenerator
 from typing import Any
@@ -24,10 +25,23 @@ from src.ai_runtime.contracts import (
 )
 from src.ai_runtime.providers.base import BaseAIProvider
 
+_GEMINI_MODEL_FALLBACKS: dict[str, str] = {}
+
 
 class GeminiProvider(BaseAIProvider):
     def __init__(self, api_key: str | None = None) -> None:
         raw_key = (api_key or os.environ.get("GEMINI_API_KEY", "")).strip()
+        if not raw_key:
+            try:
+                from dotenv import load_dotenv
+                backend_env = Path(__file__).resolve().parent.parent.parent.parent / ".env"
+                if backend_env.exists():
+                    load_dotenv(backend_env)
+                else:
+                    load_dotenv()
+                raw_key = (api_key or os.environ.get("GEMINI_API_KEY", "")).strip()
+            except Exception:
+                pass
         if raw_key.startswith("AQ.AQ."):
             raw_key = raw_key[3:]
         self.api_key = raw_key
@@ -161,6 +175,7 @@ class GeminiProvider(BaseAIProvider):
                 filtered_contents.append(content)
 
         model_name = self._resolve_model(request.model)
+        model_name = _GEMINI_MODEL_FALLBACKS.get(model_name, model_name)
         meta = request.router_metadata or {}
         gen_config: dict[str, Any] = {}
 
@@ -200,6 +215,17 @@ class GeminiProvider(BaseAIProvider):
 
         async with httpx.AsyncClient(base_url=self.base_url, timeout=timeout) as client:
             response = await client.post(url, headers=headers, json=payload)
+            if response.status_code == 404:
+                original_failed_model = model_name
+                for fallback_model in ("gemini-1.5-flash", "gemini-3.6-flash"):
+                    if fallback_model != original_failed_model:
+                        fallback_url = f"/models/{fallback_model}:generateContent"
+                        fb_resp = await client.post(fallback_url, headers=headers, json=payload)
+                        if fb_resp.status_code == 200:
+                            response = fb_resp
+                            model_name = fallback_model
+                            _GEMINI_MODEL_FALLBACKS[original_failed_model] = fallback_model
+                            break
             if response.status_code == 429 or "rate" in response.text.lower() or "quota" in response.text.lower() or "resource_exhausted" in response.text.lower():
                 import logging
                 logging.getLogger(__name__).warning("Gemini 429 Rate Limit response: %s", response.text)
@@ -293,6 +319,7 @@ class GeminiProvider(BaseAIProvider):
         system_prompt = next((c["parts"] for c in contents if c["role"] == "system"), None)
 
         model_name = self._resolve_model(request.model)
+        model_name = _GEMINI_MODEL_FALLBACKS.get(model_name, model_name)
         gen_config: dict[str, Any] = {
             "responseMimeType": "application/json",
             "responseSchema": schema,
@@ -314,6 +341,17 @@ class GeminiProvider(BaseAIProvider):
 
         async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
             response = await client.post(url, headers=headers, json=payload)
+            if response.status_code == 404:
+                original_failed_model = model_name
+                for fallback_model in ("gemini-1.5-flash", "gemini-3.6-flash"):
+                    if fallback_model != original_failed_model:
+                        fallback_url = f"/models/{fallback_model}:generateContent"
+                        fb_resp = await client.post(fallback_url, headers=headers, json=payload)
+                        if fb_resp.status_code == 200:
+                            response = fb_resp
+                            model_name = fallback_model
+                            _GEMINI_MODEL_FALLBACKS[original_failed_model] = fallback_model
+                            break
             response.raise_for_status()
             data = response.json()
 

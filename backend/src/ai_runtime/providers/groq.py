@@ -21,6 +21,9 @@ from src.ai_runtime.contracts import (
 from src.ai_runtime.providers.base import BaseAIProvider
 
 
+_GROQ_MODEL_FALLBACKS: dict[str, str] = {}
+
+
 class GroqProvider(BaseAIProvider):
     def __init__(self, api_key: str | None = None) -> None:
         self.api_key = api_key or os.environ.get("GROQ_API_KEY", "")
@@ -114,6 +117,7 @@ class GroqProvider(BaseAIProvider):
         headers = self._get_headers()
 
         model = self._resolve_model(request.model)
+        model = _GROQ_MODEL_FALLBACKS.get(model, model)
 
         payload: dict[str, Any] = {
             "model": model,
@@ -173,8 +177,14 @@ class GroqProvider(BaseAIProvider):
                 response = await client.post("/chat/completions", headers=headers, json=payload)
                 response.raise_for_status()
             except httpx.HTTPStatusError as e:
+                # Handle model not found (HTTP 404) by falling back to active supported model
+                if e.response.status_code == 404 and payload.get("model") != "qwen/qwen3.8-27b":
+                    _GROQ_MODEL_FALLBACKS[payload["model"]] = "qwen/qwen3.8-27b"
+                    payload["model"] = "qwen/qwen3.8-27b"
+                    response = await client.post("/chat/completions", headers=headers, json=payload)
+                    response.raise_for_status()
                 # Handle Flex tier capacity exceeded (HTTP 498) by falling back to on_demand
-                if e.response.status_code == 498 and payload.get("service_tier") == "flex":
+                elif e.response.status_code == 498 and payload.get("service_tier") == "flex":
                     payload["service_tier"] = "on_demand"
                     response = await client.post("/chat/completions", headers=headers, json=payload)
                     response.raise_for_status()
@@ -271,6 +281,7 @@ class GroqProvider(BaseAIProvider):
         headers = self._get_headers()
 
         model = self._resolve_model(request.model)
+        model = _GROQ_MODEL_FALLBACKS.get(model, model)
 
         payload: dict[str, Any] = {
             "model": model,
@@ -326,8 +337,23 @@ class GroqProvider(BaseAIProvider):
         payload["model"] = payload["model"].replace("groq/", "")
 
         async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
-            async with client.stream("POST", "/chat/completions", headers=headers, json=payload) as response:
+            stream_ctx = client.stream("POST", "/chat/completions", headers=headers, json=payload)
+            response = await stream_ctx.__aenter__()
+            try:
                 response.raise_for_status()
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 404 and payload.get("model") != "qwen/qwen3.8-27b":
+                    await stream_ctx.__aexit__(None, None, None)
+                    _GROQ_MODEL_FALLBACKS[payload["model"]] = "qwen/qwen3.8-27b"
+                    payload["model"] = "qwen/qwen3.8-27b"
+                    stream_ctx = client.stream("POST", "/chat/completions", headers=headers, json=payload)
+                    response = await stream_ctx.__aenter__()
+                    response.raise_for_status()
+                else:
+                    await stream_ctx.__aexit__(None, None, None)
+                    raise
+
+            try:
                 import json
                 async for line in response.aiter_lines():
                     if not line:
@@ -384,6 +410,8 @@ class GroqProvider(BaseAIProvider):
                             )
                         except Exception:
                             pass
+            finally:
+                await stream_ctx.__aexit__(None, None, None)
 
     async def complete_structured(self, request: CompletionRequest, schema: dict[str, Any]) -> CompletionResponse:
         if not self.api_key:
@@ -393,6 +421,7 @@ class GroqProvider(BaseAIProvider):
         headers = self._get_headers()
 
         model = self._resolve_model(request.model)
+        model = _GROQ_MODEL_FALLBACKS.get(model, model)
 
         schema_title = schema.get("title", "structured_output")
         response_format: dict[str, Any]
@@ -429,8 +458,14 @@ class GroqProvider(BaseAIProvider):
                 response = await client.post("/chat/completions", headers=headers, json=payload)
                 response.raise_for_status()
             except httpx.HTTPStatusError as e:
+                # Handle model not found (HTTP 404) by falling back to active supported model
+                if e.response.status_code == 404 and payload.get("model") != "qwen/qwen3.8-27b":
+                    _GROQ_MODEL_FALLBACKS[payload["model"]] = "qwen/qwen3.8-27b"
+                    payload["model"] = "qwen/qwen3.8-27b"
+                    response = await client.post("/chat/completions", headers=headers, json=payload)
+                    response.raise_for_status()
                 # Fallback to json_object if json_schema is not supported for this model
-                if payload["response_format"].get("type") == "json_schema" and e.response.status_code in (400, 422):
+                elif payload["response_format"].get("type") == "json_schema" and e.response.status_code in (400, 422):
                     payload["response_format"] = {"type": "json_object"}
                     response = await client.post("/chat/completions", headers=headers, json=payload)
                     response.raise_for_status()
