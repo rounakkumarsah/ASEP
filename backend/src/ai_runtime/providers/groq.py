@@ -162,6 +162,11 @@ class GroqProvider(BaseAIProvider):
         # Apply reasoning options
         self._apply_reasoning_parameters(payload, model, request.reasoning)
 
+        # Safety guard: strip any residual "groq/" prefix from the payload model name
+        # right before the HTTP call.  _resolve_model already handles this, but an
+        # explicit check here prevents a 404 if the prefix is added after resolution.
+        payload["model"] = payload["model"].replace("groq/", "")
+
         async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
             try:
                 response = await client.post("/chat/completions", headers=headers, json=payload)
@@ -314,6 +319,10 @@ class GroqProvider(BaseAIProvider):
 
         self._apply_reasoning_parameters(payload, model, request.reasoning)
 
+        # Safety guard: strip any residual "groq/" prefix from the payload model name
+        # right before the HTTP call.
+        payload["model"] = payload["model"].replace("groq/", "")
+
         async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
             async with client.stream("POST", "/chat/completions", headers=headers, json=payload) as response:
                 response.raise_for_status()
@@ -407,6 +416,10 @@ class GroqProvider(BaseAIProvider):
 
         if request.max_tokens:
             payload["max_tokens"] = request.max_tokens
+
+        # Safety guard: strip any residual "groq/" prefix from the payload model name
+        # right before the HTTP call.
+        payload["model"] = payload["model"].replace("groq/", "")
 
         async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
             try:
