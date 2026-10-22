@@ -62,8 +62,8 @@ class ModelRegistry:
             "gemini-1.5-pro": {
                 "id": "gemini-1.5-pro",
                 "tier": "premium",
-                "cost_in": 1.25,
-                "cost_out": 5.0,
+                "cost_in": 3.5,
+                "cost_out": 10.5,
                 "latency": 1.5,
                 "context": 2097152,
             },

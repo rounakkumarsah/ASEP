@@ -54,12 +54,19 @@ async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse
 
 async def unexpected_error_handler(request: Request, exc: Exception) -> JSONResponse:
     """Catch-all for unexpected 500 errors."""
-    logger.exception("Unexpected unhandled exception")
-    error = ErrorResponse(
-        error_code="INTERNAL_SERVER_ERROR",
-        message="An unexpected error occurred.",
+    import traceback
+    logger.exception("Unexpected unhandled exception: %s", exc)
+    tb_str = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": str(exc) or "Internal Server Error",
+            "error_code": "INTERNAL_SERVER_ERROR",
+            "message": str(exc) or "An unexpected error occurred.",
+            "traceback": tb_str,
+            "path": request.url.path,
+        },
     )
-    return JSONResponse(status_code=500, content=error.model_dump())
 
 
 def register_exception_handlers(app: FastAPI) -> None:

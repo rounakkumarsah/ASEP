@@ -37,3 +37,4 @@ cryptography>=42.0.0
 psutil>=5.9.0
 langchain-core>=0.3.0
 python-magic==0.4.27
+json-repair>=0.30.0
