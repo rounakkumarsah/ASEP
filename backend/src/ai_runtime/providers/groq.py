@@ -178,9 +178,9 @@ class GroqProvider(BaseAIProvider):
                 response.raise_for_status()
             except httpx.HTTPStatusError as e:
                 # Handle model not found (HTTP 404) by falling back to active supported model
-                if e.response.status_code == 404 and payload.get("model") != "qwen/qwen3.8-27b":
-                    _GROQ_MODEL_FALLBACKS[payload["model"]] = "qwen/qwen3.8-27b"
-                    payload["model"] = "qwen/qwen3.8-27b"
+                if e.response.status_code == 404 and payload.get("model") != "openai/gpt-oss-20b":
+                    _GROQ_MODEL_FALLBACKS[payload["model"]] = "openai/gpt-oss-20b"
+                    payload["model"] = "openai/gpt-oss-20b"
                     response = await client.post("/chat/completions", headers=headers, json=payload)
                     response.raise_for_status()
                 # Handle Flex tier capacity exceeded (HTTP 498) by falling back to on_demand
@@ -342,10 +342,10 @@ class GroqProvider(BaseAIProvider):
             try:
                 response.raise_for_status()
             except httpx.HTTPStatusError as e:
-                if e.response.status_code == 404 and payload.get("model") != "qwen/qwen3.8-27b":
+                if e.response.status_code == 404 and payload.get("model") != "openai/gpt-oss-20b":
                     await stream_ctx.__aexit__(None, None, None)
-                    _GROQ_MODEL_FALLBACKS[payload["model"]] = "qwen/qwen3.8-27b"
-                    payload["model"] = "qwen/qwen3.8-27b"
+                    _GROQ_MODEL_FALLBACKS[payload["model"]] = "openai/gpt-oss-20b"
+                    payload["model"] = "openai/gpt-oss-20b"
                     stream_ctx = client.stream("POST", "/chat/completions", headers=headers, json=payload)
                     response = await stream_ctx.__aenter__()
                     response.raise_for_status()
@@ -459,9 +459,9 @@ class GroqProvider(BaseAIProvider):
                 response.raise_for_status()
             except httpx.HTTPStatusError as e:
                 # Handle model not found (HTTP 404) by falling back to active supported model
-                if e.response.status_code == 404 and payload.get("model") != "qwen/qwen3.8-27b":
-                    _GROQ_MODEL_FALLBACKS[payload["model"]] = "qwen/qwen3.8-27b"
-                    payload["model"] = "qwen/qwen3.8-27b"
+                if e.response.status_code == 404 and payload.get("model") != "openai/gpt-oss-20b":
+                    _GROQ_MODEL_FALLBACKS[payload["model"]] = "openai/gpt-oss-20b"
+                    payload["model"] = "openai/gpt-oss-20b"
                     response = await client.post("/chat/completions", headers=headers, json=payload)
                     response.raise_for_status()
                 # Fallback to json_object if json_schema is not supported for this model

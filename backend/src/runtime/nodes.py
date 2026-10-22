@@ -83,10 +83,9 @@ def _is_explicit_continuation(goal: str) -> bool:
     """Check if the goal explicitly references past codebase or continues an ongoing task."""
     goal_lower = goal.lower()
     continuation_keywords = [
-        "refactor", "update this", "modify this", "fix this", "fix the",
-        "add to this", "add to the above", "previous", "existing",
-        "current code", "in the file", "in main.py", "debug this",
-        "change the", "replace in"
+        "refactor", "update", "modify", "fix", "patch", "debug",
+        "add to", "previous", "existing", "current code",
+        "in the file", "in main.py", "change the", "replace in"
     ]
     return any(kw in goal_lower for kw in continuation_keywords)
 
@@ -2277,10 +2276,22 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
     clean_goal = extract_clean_goal(goal)
     clean_goal_lower = clean_goal.lower()
 
+    raw_filepath = state.get("filepath") or variables.get("filepath") or ""
+    user_explicitly_wants_python = (
+        any(w in clean_goal_lower for w in ("in python", "using python", "with python", "py file", ".py"))
+        or (
+            bool(raw_filepath and raw_filepath.endswith(".py"))
+            and "web-website-build" not in (state.get("active_skills") or [])
+            and not any(k in clean_goal_lower for k in ("next.js", "nextjs", "react", "tailwind", "landing page"))
+        )
+    )
+
     _ensure_builtin_skills()
     from src.skills import get_skill_manager
     skill_mgr = get_skill_manager()
     matched_skill = skill_mgr.match(clean_goal)
+    if user_explicitly_wants_python and matched_skill and matched_skill.name == "web-website-build":
+        matched_skill = None
     state_matched_skill = state.get("matched_skill")
     if state_matched_skill:
         if isinstance(state_matched_skill, str):
@@ -2315,27 +2326,29 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
             "next.js", "nextjs", "tailwind", "landing page", "react", "vue", "svelte", "astro", "frontend", "html"
         )
     )
-    if product_type == "api" and not has_frontend_kw:
+    if user_explicitly_wants_python:
+        has_website_skill = False
+    elif product_type == "api" and not has_frontend_kw:
         has_website_skill = False
     else:
         has_website_skill = "web-website-build" in active_skills or (matched_skill and matched_skill.name == "web-website-build")
     has_mobile_skill = "app-mobile-build" in active_skills or (matched_skill and matched_skill.name == "app-mobile-build")
 
-    is_frontend_req = has_frontend_kw or has_website_skill or (product_type == "website")
+    is_frontend_req = (not user_explicitly_wants_python) and (has_frontend_kw or has_website_skill or (product_type == "website"))
     is_mobile_req = has_mobile_skill or any(
         kw in clean_goal_lower for kw in (
             "flutter", "dart", "react native", "react-native", "mobile app", "ios app", "android app"
         )
     )
 
-    is_frontend_prompt = has_frontend_kw or any(
+    is_frontend_prompt = (not user_explicitly_wants_python) and (has_frontend_kw or any(
         kw in clean_goal_lower for kw in ("next.js", "nextjs", "react", "tailwind", "vue", "landing page")
-    )
-    is_frontend_domain_guard = any(
+    ))
+    is_frontend_domain_guard = (not user_explicitly_wants_python) and any(
         kw in clean_goal_lower
         for kw in ("next.js", "nextjs", "react", "tailwind", "landing page")
     )
-    is_python_prompt = (
+    is_python_prompt = user_explicitly_wants_python or (
         not is_frontend_prompt
         and any(kw in clean_goal_lower for kw in ("fastapi", "python", "api"))
     )
@@ -2344,6 +2357,7 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
     # A new task must NOT inherit stale code_context or previous chat history's codebase (like an old E-Commerce API)
     # unless explicitly referenced as a continuation.
     is_continuation = _is_explicit_continuation(clean_goal)
+    has_target = bool(state.get("target_symbol") or variables.get("target_symbol") or state.get("changed_lines") or variables.get("changed_lines"))
     raw_code_context = (
         state.get("code_context")
         or variables.get("code_context")
@@ -2352,7 +2366,20 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
     )
     code_is_python = bool(raw_code_context and any(kw in raw_code_context for kw in ("from fastapi", "import fastapi", "FastAPI", "def execute_task", "def get_current_user")))
 
-    if not is_continuation or ((is_frontend_req or is_mobile_req or is_frontend_prompt) and code_is_python):
+    is_domain_switch = (is_frontend_req or is_mobile_req or is_frontend_prompt) and code_is_python
+    has_explicit_context = bool(state.get("code_context") or state.get("file_content"))
+    goal_words = set(re.findall(r'\b[a-zA-Z]{3,}\b', clean_goal_lower))
+    code_words = set(re.findall(r'\b[a-zA-Z]{3,}\b', (raw_code_context or "").lower()))
+    has_keyword_overlap = bool(
+        (goal_words & code_words)
+        or any(
+            (gw.startswith(cw) or cw.startswith(gw) or (len(gw) >= 4 and len(cw) >= 4 and gw[:4] == cw[:4]))
+            for gw in goal_words
+            for cw in code_words
+        )
+    )
+
+    if is_domain_switch or (not is_continuation and not has_target and not has_keyword_overlap and not has_explicit_context):
         code_context = None
         target_symbol = None
         changed_lines = None
@@ -2365,7 +2392,10 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
 
     if is_frontend_prompt or is_frontend_req or has_website_skill:
         if not filepath or not filepath.endswith((".tsx", ".jsx", ".html", ".css", ".ts", ".js")):
-            filepath = "page.tsx"
+            if state.get("filepath") and state.get("filepath").endswith(".py") and not has_website_skill and not any(k in clean_goal_lower for k in ("next.js", "nextjs", "react", "tailwind")):
+                filepath = state.get("filepath")
+            else:
+                filepath = "page.tsx"
 
     guard_res = execute_phase_token_guard(
         phase="implement",
@@ -2642,7 +2672,9 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
         goal_lower = clean_goal.lower()
         if generated:
             final_code = generated
-        elif is_frontend_domain_guard or is_frontend_req:
+        elif (is_frontend_domain_guard or is_frontend_req) and not (
+            state.get("filepath") == "main.py" and not has_website_skill and not any(k in clean_goal_lower for k in ("next.js", "nextjs", "react", "tailwind"))
+        ):
             multi_file_tree = _build_nextjs_project_files(clean_goal)
             final_code = multi_file_tree["app/page.tsx"]
         elif is_mobile_req:
@@ -2899,7 +2931,11 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
     # -------------------------------------------------------------------------
     # STEP 2: POST-GENERATION HARD CHECK & STRICT EXTENSION VALIDATION
     # -------------------------------------------------------------------------
-    if is_frontend_domain_guard or is_frontend_req or has_website_skill or is_frontend_prompt:
+    user_explicitly_wants_python = user_explicitly_wants_python or (
+        any(w in clean_goal_lower for w in ("in python", "using python", "with python", "py file", ".py"))
+        or (bool(raw_filepath and raw_filepath.endswith(".py")) and "web-website-build" not in (state.get("active_skills") or []) and not any(k in clean_goal_lower for k in ("next.js", "nextjs", "react", "tailwind", "landing page")))
+    )
+    if (is_frontend_domain_guard or is_frontend_req or has_website_skill or is_frontend_prompt) and not user_explicitly_wants_python:
         if parsed_tree and "app/page.tsx" in parsed_tree and state.get("filepath") != "page.tsx":
             target_path = "app/page.tsx"
         elif filepath and filepath.endswith((".tsx", ".jsx", ".html", ".css", ".ts", ".js", ".json")):
@@ -2938,7 +2974,6 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
     # HARD CONSTRAINT ENFORCEMENT:
     # 1. If web-website-build or frontend is requested, the output MUST be .tsx, .jsx, or .html + .css. It MUST NOT output .py unless explicitly asked.
     # 2. If app-mobile-build is matched, the output MUST be Dart (Flutter) or TSX (React Native).
-    user_explicitly_wants_python = any(w in clean_goal_lower for w in ("in python", "using python", "with python", "py file", ".py"))
     code_looks_like_py = bool(
         final_code
         and (
@@ -3081,7 +3116,7 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
 
     code_to_save = code_to_execute or final_code
     current_artifacts = dict(state.get("artifacts") or {})
-    if is_frontend_prompt or is_frontend_req or is_frontend_domain_guard or has_website_skill:
+    if (is_frontend_prompt or is_frontend_req or is_frontend_domain_guard or has_website_skill) and not user_explicitly_wants_python:
         current_artifacts.pop("main.py", None)
         current_artifacts.pop("backend/main.py", None)
         current_artifacts.pop("app.py", None)
@@ -3161,6 +3196,7 @@ async def critic_node(state: AgentState) -> dict[str, Any]:
         or "print('No code to evaluate')\n"
     )
     entrypoint = state.get("filepath") or "main.py"
+    heal_count = int(state.get("heal_cycle_count") or state.get("heal_count") or len(state.get("heal_history") or []) or 0)
     artifacts = dict(state.get("artifacts") or {})
     if not artifacts and code and entrypoint:
         artifacts[entrypoint] = code
