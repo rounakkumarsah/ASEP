@@ -217,7 +217,7 @@ class GeminiProvider(BaseAIProvider):
             response = await client.post(url, headers=headers, json=payload)
             if response.status_code == 404:
                 original_failed_model = model_name
-                for fallback_model in ("gemini-1.5-flash", "gemini-3.6-flash"):
+                for fallback_model in ("gemini-1.5-flash", "gemini-2.5-flash", "gemini-2.0-flash-exp", "gemini-flash-latest", "gemini-3.8-flash", "gemini-3.6-flash"):
                     if fallback_model != original_failed_model:
                         fallback_url = f"/models/{fallback_model}:generateContent"
                         fb_resp = await client.post(fallback_url, headers=headers, json=payload)
@@ -343,7 +343,7 @@ class GeminiProvider(BaseAIProvider):
             response = await client.post(url, headers=headers, json=payload)
             if response.status_code == 404:
                 original_failed_model = model_name
-                for fallback_model in ("gemini-1.5-flash", "gemini-3.6-flash"):
+                for fallback_model in ("gemini-1.5-flash", "gemini-2.5-flash", "gemini-2.0-flash-exp", "gemini-flash-latest", "gemini-3.8-flash", "gemini-3.6-flash"):
                     if fallback_model != original_failed_model:
                         fallback_url = f"/models/{fallback_model}:generateContent"
                         fb_resp = await client.post(fallback_url, headers=headers, json=payload)
