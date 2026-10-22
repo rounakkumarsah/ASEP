@@ -75,7 +75,7 @@ async def classify_prompt(prompt: str) -> tuple[bool, str | None]:
             messages=[Message(role="user", content=classification_prompt)],
             model=model,
             temperature=0.0,
-            max_tokens=10,
+            max_tokens=20,
         )
 
         service = AIRuntimeService()
