@@ -51,6 +51,30 @@ class ModelRegistry:
                 "latency": 2.2,
                 "context": 128000,
             },
+            "groq/llama-3.3-70b-versatile": {
+                "id": "groq/llama-3.3-70b-versatile",
+                "tier": "balanced",
+                "cost_in": 0.59,
+                "cost_out": 0.79,
+                "latency": 1.0,
+                "context": 128000,
+            },
+            "gemini-1.5-pro": {
+                "id": "gemini-1.5-pro",
+                "tier": "premium",
+                "cost_in": 1.25,
+                "cost_out": 5.0,
+                "latency": 1.5,
+                "context": 2097152,
+            },
+            "openrouter/meta-llama/llama-3.3-70b-instruct": {
+                "id": "openrouter/meta-llama/llama-3.3-70b-instruct",
+                "tier": "balanced",
+                "cost_in": 0.40,
+                "cost_out": 0.40,
+                "latency": 1.2,
+                "context": 128000,
+            },
         }
 
         # Model rate limit states
@@ -58,8 +82,8 @@ class ModelRegistry:
         self.failure_counts = {}  # model_id -> consecutive_failures
         self.routing_logs = []
 
-    def score_task(self, prompt: str, has_tools: bool, research_mode: str) -> dict:
-        """Estimate complexity from prompt length, code keywords, tools, mode."""
+    def score_task(self, prompt: str, has_tools: bool, research_mode: str, phase: str | None = None) -> dict:
+        """Estimate complexity from prompt length, code keywords, tools, mode, and phase."""
         score = 0
         
         # 1. Prompt length
@@ -69,9 +93,10 @@ class ModelRegistry:
         elif tok_estimate > 500:
             score += 1
             
-        # 2. Code keywords
+        # 2. Code keywords or coding phase
         code_keywords = ["class ", "def ", "function", "import ", "extends ", "implements ", "architecture", "kubernetes", "docker"]
-        if any(kw in prompt.lower() for kw in code_keywords):
+        is_code = (phase in ("implement", "coding", "code_generation")) or any(kw in prompt.lower() for kw in code_keywords)
+        if is_code:
             score += 2
             
         # 3. Tool usage
@@ -93,13 +118,15 @@ class ModelRegistry:
         return {
             "score": score,
             "tier": tier,
-            "tokens": tok_estimate
+            "tokens": tok_estimate,
+            "is_code": is_code,
         }
 
-    def route(self, prompt: str, has_tools: bool, research_mode: str, has_anthropic: bool | None = None) -> dict:
-        task_info = self.score_task(prompt, has_tools, research_mode)
+    def route(self, prompt: str, has_tools: bool, research_mode: str, has_anthropic: bool | None = None, phase: str | None = None) -> dict:
+        task_info = self.score_task(prompt, has_tools, research_mode, phase=phase)
         tier = task_info["tier"]
         tokens = task_info["tokens"]
+        is_code = task_info.get("is_code", False) or (phase in ("implement", "coding", "code_generation"))
         
         # Clean up degraded models
         now = time.time()
@@ -135,7 +162,14 @@ class ModelRegistry:
         capable = [m for m in available if m["context"] >= tokens + 1000]
         if not capable:
             capable = available # fallback
-            
+
+        # CRITICAL (FIX 1): For code generation / implement phase, never default to 8b-instant models
+        # (they lack the context window for multi-file generation).
+        if is_code:
+            non_8b = [m for m in capable if "8b" not in m["id"].lower()]
+            if non_8b:
+                capable = non_8b
+
         # 2. Filter by tier
         tier_order = {"cheap": 1, "balanced": 2, "premium": 3}
         target_val = tier_order[tier]
@@ -144,9 +178,17 @@ class ModelRegistry:
         if not tier_models:
             tier_models = capable
             
-        # 3. Pick cheapest in the matched tiers
-        tier_models.sort(key=lambda x: x["cost_in"])
-        selected = tier_models[0]
+        # 3. For code generation / implement phase, prefer groq/llama-3.3-70b-versatile or gemini-1.5-pro
+        if is_code and any(m["id"] == "groq/llama-3.3-70b-versatile" for m in tier_models):
+            pref_70b = next((m for m in tier_models if m["id"] == "groq/llama-3.3-70b-versatile"), None)
+            if pref_70b and tier != "premium":
+                selected = pref_70b
+            else:
+                tier_models.sort(key=lambda x: x["cost_in"])
+                selected = tier_models[0]
+        else:
+            tier_models.sort(key=lambda x: x["cost_in"])
+            selected = tier_models[0]
         
         reason = f"chose {selected['id']}: complexity {task_info['score']} ({tier}), {tokens} tokens"
         
@@ -162,6 +204,9 @@ class ModelRegistry:
             "task_info": task_info
         }
 
+    def get_model_for_phase(self, phase: str = "implement") -> str:
+        return get_model_for_phase(phase)
+
     def record_failure(self, model_id: str, is_429: bool = True):
         if not is_429:
             return False
@@ -175,6 +220,32 @@ class ModelRegistry:
         
     def record_success(self, model_id: str):
         self.failure_counts[model_id] = 0
+
+# Preferred models by execution phase (FIX 1)
+PHASE_PREFERRED_MODELS: dict[str, str] = {
+    "implement": "groq/llama-3.3-70b-versatile",
+    "coding": "groq/llama-3.3-70b-versatile",
+    "code_generation": "groq/llama-3.3-70b-versatile",
+}
+
+PHASE_FALLBACK_MODELS: dict[str, list[str]] = {
+    "implement": ["gemini-1.5-pro", "openrouter/meta-llama/llama-3.3-70b-instruct"],
+    "coding": ["gemini-1.5-pro", "openrouter/meta-llama/llama-3.3-70b-instruct"],
+    "code_generation": ["gemini-1.5-pro", "openrouter/meta-llama/llama-3.3-70b-instruct"],
+}
+
+
+def get_model_for_phase(phase: str = "implement") -> str:
+    """Select preferred model for a given execution phase.
+
+    For 'implement' or 'coding' (code generation), returns a large-context model:
+    Primary: groq/llama-3.3-70b-versatile
+    Fallback: gemini-1.5-pro or openrouter/meta-llama/llama-3.3-70b-instruct
+    Never defaults to llama-3.1-8b-instant for code generation.
+    """
+    phase_clean = (phase or "").lower().strip()
+    return PHASE_PREFERRED_MODELS.get(phase_clean, "groq/llama-3.3-70b-versatile")
+
 
 auto_router = ModelRegistry()
 
