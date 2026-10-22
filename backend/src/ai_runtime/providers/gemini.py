@@ -78,14 +78,20 @@ class GeminiProvider(BaseAIProvider):
         if model_clean.startswith("gemini/"):
             model_clean = model_clean[len("gemini/"):]
 
+        # Valid production Google Gemini models must NOT be rewritten to hallucinated names
+        if model_clean in ("gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"):
+            return model_clean
+        if model_clean in ("gemini-3.6", "gemini-3.6-flash"):
+            return "gemini-2.0-flash"
+
         # Gemini 3 Core Text & Reasoning
         if model_clean in ("gemini", "gemini-default", "gemini-flash", "gemini-3.8", "gemini-3.8-flash", "antigravity-default"):
             return "gemini-3.6-flash"
         if model_clean in ("gemini-3.7", "gemini-3.7-flash"):
             return "gemini-3.7-flash"
-        if model_clean in ("gemini-3.6", "gemini-3.6-flash", "gemini-2.0-flash", "gemini-2.5-flash", "gemini-1.5-flash", "gemini-flash-latest"):
+        if model_clean in ("gemini-2.5-flash", "gemini-flash-latest"):
             return "gemini-3.6-flash"
-        if model_clean in ("gemini-pro", "gemini-1.5-pro", "gemini-2.5-pro", "gemini-3.1-pro"):
+        if model_clean in ("gemini-pro", "gemini-2.5-pro", "gemini-3.1-pro"):
             return "gemini-3.1-pro"
         if model_clean in ("gemini-lite", "gemini-flash-lite", "gemini-2.5-flash-lite", "gemini-3.5-flash-lite"):
             return "gemini-3.5-flash-lite"

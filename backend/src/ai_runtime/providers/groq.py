@@ -502,6 +502,9 @@ class GroqProvider(BaseAIProvider):
         else:
             raise ValueError("Either audio_bytes or url must be provided.")
 
+        model = model.replace("groq/", "")
+        data["model"] = str(data["model"]).replace("groq/", "")
+
         async with httpx.AsyncClient(base_url=self.base_url, timeout=60.0) as client:
             res = await client.post("/audio/transcriptions", headers=headers, data=data, files=files)
             res.raise_for_status()
@@ -539,6 +542,9 @@ class GroqProvider(BaseAIProvider):
             data["url"] = url
         else:
             raise ValueError("Either audio_bytes or url must be provided.")
+
+        model = model.replace("groq/", "")
+        data["model"] = str(data["model"]).replace("groq/", "")
 
         async with httpx.AsyncClient(base_url=self.base_url, timeout=60.0) as client:
             res = await client.post("/audio/translations", headers=headers, data=data, files=files)
