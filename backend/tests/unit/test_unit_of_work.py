@@ -24,6 +24,7 @@ async def test_uow_session_accessible_in_context(mock_session_factory):
     async with uow:
         assert uow.session is mock_session
         assert uow.db_session is mock_session
+        assert uow.db is mock_session
         assert uow._session is mock_session
 
 
@@ -36,6 +37,9 @@ async def test_uow_session_outside_context_raises():
 
     with pytest.raises(RuntimeError, match="SQLAlchemyUnitOfWork.session accessed outside an active"):
         _ = uow.db_session
+
+    with pytest.raises(RuntimeError, match="SQLAlchemyUnitOfWork.session accessed outside an active"):
+        _ = uow.db
 
 
 @pytest.mark.asyncio

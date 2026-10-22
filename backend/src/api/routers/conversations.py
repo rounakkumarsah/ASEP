@@ -231,10 +231,12 @@ async def start_run(
                     Project.org_id == current_user.org_id,
                     Project.is_active == True,
                 ).order_by(Project.created_at.desc()).limit(1)
-                res = await uow.session.execute(stmt)
-                proj = res.scalar_one_or_none()
-                if proj:
-                    resolved_project_id = str(proj.id)
+                sess = getattr(uow, "session", None) or getattr(uow, "db", None) or getattr(uow, "db_session", None) or getattr(uow, "_session", None)
+                if sess is not None:
+                    res = await sess.execute(stmt)
+                    proj = res.scalar_one_or_none()
+                    if proj:
+                        resolved_project_id = str(proj.id)
         except Exception as e:
             logger.warning("Could not query active project for user: %s", e)
 
@@ -340,10 +342,12 @@ async def run_step(
                     Project.org_id == current_user.org_id,
                     Project.is_active == True,
                 ).order_by(Project.created_at.desc()).limit(1)
-                res = await uow.session.execute(stmt)
-                proj = res.scalar_one_or_none()
-                if proj:
-                    project_id = str(proj.id)
+                sess = getattr(uow, "session", None) or getattr(uow, "db", None) or getattr(uow, "db_session", None) or getattr(uow, "_session", None)
+                if sess is not None:
+                    res = await sess.execute(stmt)
+                    proj = res.scalar_one_or_none()
+                    if proj:
+                        project_id = str(proj.id)
         except Exception:
             pass
     project_id = project_id or "default_project"

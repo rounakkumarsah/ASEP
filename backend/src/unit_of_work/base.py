@@ -101,6 +101,11 @@ class AbstractUnitOfWork(ABC):
         """Alias for ``session``."""
         return self.session
 
+    @property
+    def db(self) -> Any:
+        """Alias for ``session``."""
+        return self.session
+
     # ------------------------------------------------------------------
     # Async context manager protocol
     # ------------------------------------------------------------------

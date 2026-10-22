@@ -48,9 +48,27 @@ class TestMapFailoverModelGemini:
         result = map_failover_model("google/gemini-2.0-flash", "gemini")
         assert result == "gemini-2.0-flash"
 
-    def test_alias_deep_research_preserved(self):
+    def test_alias_deep_research_mapped_to_allowed_gemini(self):
         result = map_failover_model("deep-research", "gemini")
-        assert result == "deep-research"
+        assert result in {"gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"}
+        assert result == "gemini-2.0-flash"
+
+    def test_all_gemini_failover_models_strictly_in_allowlist(self):
+        allowed = {"gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"}
+        candidates = [
+            "gemini-3.6-flash",
+            "gemini-2.0-flash",
+            "gemini-1.5-flash",
+            "gemini-1.5-pro",
+            "gemini-ultra",
+            "llama-3.1-8b-instant",
+            "groq/llama-3.1-8b-instant",
+            "random-hallucinated-model",
+            "google/gemini-1.5-pro",
+        ]
+        for c in candidates:
+            res = map_failover_model(c, "gemini")
+            assert res in allowed, f"Model {c} mapped to disallowed Gemini model {res}"
 
 
 # ---------------------------------------------------------------------------
@@ -66,6 +84,10 @@ class TestMapFailoverModelOpenRouter:
         result = map_failover_model("groq/llama-3.1-8b-instant", "openrouter")
         # groq/ prefix is excluded from slash-based pass-through
         assert result == "meta-llama/llama-3.1-8b-instruct"
+
+    def test_claude_mapped_for_openrouter(self):
+        result = map_failover_model("claude-3-5-sonnet", "openrouter")
+        assert result == "anthropic/claude-3.5-sonnet"
 
     def test_deepseek_mapped(self):
         result = map_failover_model("deepseek-r1", "openrouter")

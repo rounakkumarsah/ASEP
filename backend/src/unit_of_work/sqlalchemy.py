@@ -140,6 +140,11 @@ class SQLAlchemyUnitOfWork(AbstractUnitOfWork):
         """Alias for ``session``."""
         return self.session
 
+    @property
+    def db(self) -> AsyncSession:
+        """Alias for ``session``."""
+        return self.session
+
     # ------------------------------------------------------------------
     # Async context manager
     # ------------------------------------------------------------------
