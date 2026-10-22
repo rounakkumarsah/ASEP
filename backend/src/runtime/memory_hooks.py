@@ -151,7 +151,11 @@ async def extract_and_store_durable_memories(
             logger.warning(f"Failed to extract JSON from LLM response for run {run_id}")
             return
             
-        items = json.loads(match.group(0))
+        from src.runtime.nodes import parse_llm_json_safely
+        items = parse_llm_json_safely(match.group(0))
+        if not isinstance(items, list):
+            logger.warning(f"Failed to parse JSON array from LLM response for run {run_id}")
+            return
         uow_factory = get_uow_factory()
         agent_run_uuid = await _ensure_agent_run(uow_factory, run_id, org_id)
         memory_service = MemoryService(uow_factory)

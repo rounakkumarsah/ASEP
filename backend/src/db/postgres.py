@@ -58,6 +58,7 @@ SERVERLESS_CONNECT_KWARGS: dict[str, Any] = {
     "prepare_threshold": 0,
     "autocommit": True,
 }
+CONNECT_KWARGS: dict[str, Any] = dict(CONNECTION_POOL_KWARGS)
 
 
 def get_connection_pool(
@@ -80,12 +81,19 @@ def get_connection_pool(
     if "kwargs" in kwargs:
         pool_kwargs.update(kwargs.pop("kwargs"))
 
+    pool_args = dict(kwargs)
+    if "open" not in pool_args:
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            pool_args["open"] = False
+
     return AsyncConnectionPool(
         conninfo=url,
         min_size=min_size,
         max_size=max_size,
         kwargs=pool_kwargs,
-        **kwargs,
+        **pool_args,
     )
 
 
