@@ -329,6 +329,26 @@ def create_app() -> FastAPI:
     # -----------------------------------------------------------------------
     register_exception_handlers(app)
 
+    import traceback
+    from fastapi.responses import JSONResponse
+
+    @app.exception_handler(Exception)
+    @app.exception_handler(500)
+    async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+        """Global exception handler catching Exception to return JSON response with traceback."""
+        logger.exception("Global unhandled exception on %s %s: %s", request.method, request.url.path, exc)
+        tb_str = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": str(exc) or "Internal Server Error",
+                "error_code": "INTERNAL_SERVER_ERROR",
+                "message": str(exc) or "An unexpected error occurred.",
+                "traceback": tb_str,
+                "path": request.url.path,
+            },
+        )
+
     # -----------------------------------------------------------------------
     # Routers
     # -----------------------------------------------------------------------

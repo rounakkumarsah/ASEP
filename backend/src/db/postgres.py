@@ -21,7 +21,12 @@ import logging
 import os
 import time
 from collections.abc import AsyncGenerator
-from typing import Annotated
+from typing import Annotated, Any
+
+try:
+    from psycopg_pool import AsyncConnectionPool
+except ImportError:
+    AsyncConnectionPool = None  # type: ignore[assignment, misc]
 
 from fastapi import Depends
 from sqlalchemy import text
@@ -43,6 +48,45 @@ logger = logging.getLogger(__name__)
 
 _engine: AsyncEngine | None = None
 _session_factory: async_sessionmaker[AsyncSession] | None = None
+
+# PgBouncer / Neon / Supabase serverless pooler connection arguments
+CONNECTION_POOL_KWARGS: dict[str, Any] = {
+    "prepare_threshold": 0,
+    "autocommit": True,
+}
+SERVERLESS_CONNECT_KWARGS: dict[str, Any] = {
+    "prepare_threshold": 0,
+    "autocommit": True,
+}
+
+
+def get_connection_pool(
+    conninfo: str | None = None,
+    min_size: int = 0,
+    max_size: int = 20,
+    **kwargs: Any,
+) -> Any:
+    """Create an AsyncConnectionPool configured with prepare_threshold=0 and autocommit=True for PgBouncer."""
+    if AsyncConnectionPool is None:
+        raise RuntimeError("psycopg_pool is required for get_connection_pool")
+    settings = get_settings()
+    url = conninfo or settings.DATABASE_URL
+    if "postgresql+asyncpg://" in url:
+        url = url.replace("postgresql+asyncpg://", "postgresql://")
+    elif "postgres://" in url:
+        url = url.replace("postgres://", "postgresql://")
+
+    pool_kwargs = dict(CONNECTION_POOL_KWARGS)
+    if "kwargs" in kwargs:
+        pool_kwargs.update(kwargs.pop("kwargs"))
+
+    return AsyncConnectionPool(
+        conninfo=url,
+        min_size=min_size,
+        max_size=max_size,
+        kwargs=pool_kwargs,
+        **kwargs,
+    )
 
 
 def _get_engine() -> AsyncEngine:
@@ -73,6 +117,24 @@ def _get_engine() -> AsyncEngine:
         or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")
     )
 
+    # Driver-specific connection settings
+    connect_args: dict[str, Any] = {
+        "timeout": 10,
+        "command_timeout": 10,
+        "server_settings": {
+            "jit": "off",
+            "random_page_cost": "1.1",
+        },
+    }
+
+    if "psycopg" in db_url or ("asyncpg" not in db_url and "sqlite" not in db_url):
+        connect_args["prepare_threshold"] = 0
+        connect_args["autocommit"] = True
+    else:
+        # For asyncpg, statement_cache_size=0 disables prepared statement caching on PgBouncer
+        connect_args["statement_cache_size"] = 0
+        connect_args["prepared_statement_cache_size"] = 0
+
     _engine = create_async_engine(
         db_url,
         echo=settings.APP_ENV == "development",
@@ -83,19 +145,12 @@ def _get_engine() -> AsyncEngine:
         pool_recycle=300 if is_serverless else 3600,
         # Pre-ping ensures stale connections are recycled
         pool_pre_ping=True,
-        # Driver-specific settings for asyncpg
-        connect_args={
-            "timeout": 10,
-            "command_timeout": 10,
-            "server_settings": {
-                "jit": "off",
-                "random_page_cost": "1.1",
-            },
-        },
+        connect_args=connect_args,
     )
 
     logger.info("PostgreSQL async engine created")
     return _engine
+
 
 
 def _get_session_factory() -> async_sessionmaker[AsyncSession]:

@@ -39,3 +39,4 @@ langchain-core>=0.3.0
 python-magic==0.4.27
 sentence-transformers>=3.0.0
 torch>=2.0.0
+json-repair>=0.30.0

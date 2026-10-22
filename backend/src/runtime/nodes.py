@@ -1958,10 +1958,61 @@ def _build_nextjs_project_files(goal: str, page_component_code: str | None = Non
     }
 
 
+def parse_llm_json_safely(raw_text: str) -> Any:
+    """Parse JSON from LLM output safely, stripping markdown fences and repairing malformed JSON."""
+    if not raw_text or not isinstance(raw_text, str):
+        return {}
+
+    cleaned = raw_text.strip()
+    match = re.search(r"```(?:json)?\s*(.*?)\s*```", cleaned, re.DOTALL | re.IGNORECASE)
+    if match:
+        cleaned = match.group(1).strip()
+    else:
+        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"\s*```$", "", cleaned)
+        cleaned = cleaned.strip()
+
+    try:
+        return json.loads(cleaned)
+    except Exception:
+        pass
+
+    try:
+        from json_repair import repair_json
+        res = repair_json(cleaned, return_objects=True)
+        if isinstance(res, str):
+            try:
+                return json.loads(res)
+            except Exception:
+                pass
+        return res
+    except Exception as exc:
+        logger.warning("parse_llm_json_safely failed to parse or repair JSON: %s", exc)
+        raise
+
+
 def _try_parse_file_tree(text: str) -> dict[str, str] | None:
     """Attempts to parse a multi-file JSON tree from LLM output."""
     if not text or not text.strip():
         return None
+
+    try:
+        parsed_direct = parse_llm_json_safely(text)
+        if isinstance(parsed_direct, dict) and any(
+            k.endswith((".json", ".tsx", ".ts", ".js", ".jsx", ".css", ".html"))
+            or "/" in k
+            for k in parsed_direct.keys()
+        ):
+            file_tree: dict[str, str] = {}
+            for k, v in parsed_direct.items():
+                if isinstance(v, (dict, list)):
+                    file_tree[str(k)] = json.dumps(v, indent=2)
+                else:
+                    file_tree[str(k)] = str(v)
+            return file_tree
+    except Exception:
+        pass
+
     candidate_json_strs: list[str] = []
     for match in re.finditer(r"```(?:json)?\s*\r?\n([\s\S]*?)```", text, re.IGNORECASE):
         candidate_json_strs.append(match.group(1).strip())
@@ -1973,7 +2024,7 @@ def _try_parse_file_tree(text: str) -> dict[str, str] | None:
 
     for cand in candidate_json_strs:
         try:
-            parsed = json.loads(cand)
+            parsed = parse_llm_json_safely(cand)
             if isinstance(parsed, dict) and any(
                 k.endswith((".json", ".tsx", ".ts", ".js", ".jsx", ".css", ".html"))
                 or "/" in k
@@ -2470,10 +2521,16 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
         generated = ""
         from src.ai_runtime.router import get_model_for_phase
         model_from_state = state.get("model")
-        if not model_from_state or "8b" in str(model_from_state).lower() or model_from_state in ("auto", "auto-router", "gemini-1.5-flash"):
+        if (
+            not model_from_state
+            or "8b" in str(model_from_state).lower()
+            or model_from_state in ("auto", "auto-router", "gemini-1.5-flash", "groq/llama-3.1-8b-instant", "llama-3.1-8b-instant")
+        ):
             model_to_use = get_model_for_phase("implement")
         else:
             model_to_use = model_from_state
+        if not model_to_use or "8b" in str(model_to_use).lower() or model_to_use in ("groq/llama-3.1-8b-instant", "llama-3.1-8b-instant"):
+            model_to_use = "groq/llama-3.3-70b-versatile"
 
         try:
             from src.ai_runtime.contracts import CompletionRequest, Message
@@ -2549,6 +2606,17 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
                     text = (res.text or "").strip()
 
                     parsed_tree = _try_parse_file_tree(text) if (is_frontend_domain_guard or is_frontend_req) else None
+                    if not parsed_tree and (is_frontend_domain_guard or is_frontend_req):
+                        try:
+                            candidate_obj = parse_llm_json_safely(text)
+                            if isinstance(candidate_obj, dict) and any(
+                                k.endswith((".json", ".tsx", ".ts", ".js", ".jsx", ".css", ".html"))
+                                or "/" in k
+                                for k in candidate_obj.keys()
+                            ):
+                                parsed_tree = {str(k): (json.dumps(v, indent=2) if isinstance(v, (dict, list)) else str(v)) for k, v in candidate_obj.items()}
+                        except Exception:
+                            pass
                     if parsed_tree:
                         tree_keys_lower = " ".join(parsed_tree.keys()).lower()
                         tree_values_lower = " ".join(str(v) for v in parsed_tree.values()).lower()
