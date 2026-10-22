@@ -271,33 +271,19 @@ def map_failover_model(
     model_lower = (model or "").lower().strip()
 
     if target == "gemini":
-        # Allowlist of real, production-validated Gemini model IDs.
-        # Any hallucinated name (e.g. "gemini-3.6-flash") that is NOT in this
-        # set will be replaced with the safe default "gemini-2.0-flash".
-        _VALID_GEMINI_MODELS = {
-            "gemini-2.0-flash",
-            "gemini-2.0-flash-lite",
-            "gemini-1.5-flash",
-            "gemini-1.5-flash-8b",
-            "gemini-1.5-pro",
-            "gemini-2.5-flash-preview-05-20",
-            "gemini-2.5-pro-preview-05-06",
-        }
-        # Non-gemini model names that are also valid on the Gemini endpoint
-        _VALID_GEMINI_ALIASES = {
-            "nano-banana", "veo", "omni", "lyria", "antigravity",
-            "deep-research", "computer-use",
-        }
-        if model_lower in _VALID_GEMINI_ALIASES:
-            return model
-        if "gemini" in model_lower:
-            # Strip provider prefix if present (e.g. "google/gemini-2.0-flash")
-            clean = model.split("/")[-1] if "/" in model else model
-            if clean.lower() in _VALID_GEMINI_MODELS:
-                return clean
-            # Hallucinated / unrecognised Gemini model name — use safe default
+        # Target Gemini failover models MUST be exactly one of:
+        # - gemini-2.0-flash
+        # - gemini-1.5-flash
+        # - gemini-1.5-pro
+        # Hallucinated models (such as "gemini-3.6-flash") or foreign models are never passed through.
+        clean = (model.split("/")[-1] if "/" in model else model).lower().strip()
+        if "1.5-pro" in clean:
+            return "gemini-1.5-pro"
+        if "1.5-flash" in clean:
+            return "gemini-1.5-flash"
+        if "2.0-flash" in clean:
             return "gemini-2.0-flash"
-        # Non-gemini model from a different provider; map to safe default
+        # Safe default for any other model (e.g. hallucinated "gemini-3.6-flash", groq/llama, etc.)
         return "gemini-2.0-flash"
 
     if target == "openrouter":
@@ -305,16 +291,14 @@ def map_failover_model(
         if model_lower.startswith("openrouter/"):
             clean_model = model[len("openrouter/"):]
             model_lower = clean_model.lower().strip()
-        # If already an OpenRouter model identifier (with slash, but not groq/)
-        if "/" in clean_model and not model_lower.startswith("groq/"):
-            return clean_model
-        # Primary provider (e.g. Groq) failed and fell back to OpenRouter
+        # Map to anthropic/claude-3.5-sonnet if Claude/Anthropic is requested
+        if any(c in model_lower for c in ("claude", "anthropic", "sonnet")):
+            return "anthropic/claude-3.5-sonnet"
         if "deepseek" in model_lower:
             return "deepseek/deepseek-r1"
-        if "llama-3.3-70b" in model_lower or "70b" in model_lower:
+        if "70b" in model_lower or "llama-3.3" in model_lower:
             return "meta-llama/llama-3.3-70b-instruct"
-        if "llama-3.1-8b" in model_lower or "8b" in model_lower or "llama" in model_lower:
-            return "meta-llama/llama-3.1-8b-instruct"
+        # Default fallback for OpenRouter
         return "meta-llama/llama-3.1-8b-instruct"
 
     if target == "groq":

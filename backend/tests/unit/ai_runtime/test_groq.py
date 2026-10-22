@@ -218,6 +218,32 @@ async def test_groq_prefix_stripped_in_payload():
         assert res.text == "Answer"
         call_kwargs = mock_post.call_args.kwargs
         assert call_kwargs["json"]["model"] == "llama-3.1-8b-instant"
+        assert not call_kwargs["json"]["model"].startswith("groq/")
+        assert "groq/" not in call_kwargs["json"]["model"]
+
+
+@pytest.mark.asyncio
+async def test_groq_prefix_stripped_in_structured_payload():
+    provider = GroqProvider(api_key="test-groq-key")
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "choices": [{"message": {"content": "{\"result\": 42}"}, "finish_reason": "stop"}],
+        "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
+    }
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = mock_resp
+        req = CompletionRequest(
+            messages=[Message(role="user", content="Calculate")],
+            model="groq/llama-3.1-8b-instant"
+        )
+        res = await provider.complete_structured(req, schema={"type": "object", "properties": {"result": {"type": "integer"}}})
+        assert res.text == "{\"result\": 42}"
+        call_kwargs = mock_post.call_args.kwargs
+        assert call_kwargs["json"]["model"] == "llama-3.1-8b-instant"
+        assert not call_kwargs["json"]["model"].startswith("groq/")
+        assert "groq/" not in call_kwargs["json"]["model"]
 
 
 def test_groq_resolve_model_strips_prefix():

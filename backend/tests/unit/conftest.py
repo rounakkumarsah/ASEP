@@ -37,6 +37,14 @@ class MockUnitOfWork(AbstractUnitOfWork):
     def session(self):
         return self._mock_session
 
+    @property
+    def db_session(self):
+        return self._mock_session
+
+    @property
+    def db(self):
+        return self._mock_session
+
     async def __aenter__(self):
         return self
 

@@ -165,6 +165,7 @@ class GroqProvider(BaseAIProvider):
         # Safety guard: strip any residual "groq/" prefix from the payload model name
         # right before the HTTP call.  _resolve_model already handles this, but an
         # explicit check here prevents a 404 if the prefix is added after resolution.
+        model = model.replace("groq/", "")
         payload["model"] = payload["model"].replace("groq/", "")
 
         async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
@@ -321,6 +322,7 @@ class GroqProvider(BaseAIProvider):
 
         # Safety guard: strip any residual "groq/" prefix from the payload model name
         # right before the HTTP call.
+        model = model.replace("groq/", "")
         payload["model"] = payload["model"].replace("groq/", "")
 
         async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
@@ -419,6 +421,7 @@ class GroqProvider(BaseAIProvider):
 
         # Safety guard: strip any residual "groq/" prefix from the payload model name
         # right before the HTTP call.
+        model = model.replace("groq/", "")
         payload["model"] = payload["model"].replace("groq/", "")
 
         async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
@@ -561,8 +564,9 @@ class GroqProvider(BaseAIProvider):
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
         }
+        model = model.replace("groq/", "")
         payload = {
-            "model": self._resolve_model(model),
+            "model": self._resolve_model(model).replace("groq/", ""),
             "input": text,
             "voice": voice,
             "response_format": response_format,
@@ -594,8 +598,9 @@ class GroqProvider(BaseAIProvider):
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
         }
+        model = model.replace("groq/", "")
         payload: dict[str, Any] = {
-            "model": self._resolve_model(model),
+            "model": self._resolve_model(model).replace("groq/", ""),
             "input": input_text,
             "service_tier": service_tier
         }
@@ -609,6 +614,9 @@ class GroqProvider(BaseAIProvider):
             payload["metadata"] = metadata
         if max_output_tokens:
             payload["max_output_tokens"] = max_output_tokens
+
+        model = model.replace("groq/", "")
+        payload["model"] = payload["model"].replace("groq/", "")
 
         async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
             res = await client.post("/responses", headers=headers, json=payload)
