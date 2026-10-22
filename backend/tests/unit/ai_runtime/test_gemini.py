@@ -19,6 +19,11 @@ def test_gemini_resolve_model():
     assert GeminiProvider._resolve_model("veo") == "veo-3.1-generate-preview"
     assert GeminiProvider._resolve_model("lyria-pro") == "lyria-3.5-pro-preview"
     assert GeminiProvider._resolve_model("gemini-3.8-flash") == "gemini-3.6-flash"
+    assert GeminiProvider._resolve_model("gemini-2.0-flash") == "gemini-2.0-flash"
+    assert GeminiProvider._resolve_model("gemini-1.5-flash") == "gemini-1.5-flash"
+    assert GeminiProvider._resolve_model("gemini-1.5-pro") == "gemini-1.5-pro"
+    assert GeminiProvider._resolve_model("gemini-3.6-flash") == "gemini-2.0-flash"
+    assert GeminiProvider._resolve_model("gemini-3.6") == "gemini-2.0-flash"
 
 
 @pytest.mark.asyncio
