@@ -2466,6 +2466,7 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
             "};\n"
         )
     else:
+        final_code = ""
         generated = ""
         from src.ai_runtime.router import get_model_for_phase
         model_from_state = state.get("model")
@@ -2668,10 +2669,10 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
                         continue
                     else:
                         logger.warning("[Implement Node] LLM call attempt %d failed: %s", attempt + 1, rerr)
-                        break
+                        raise
                 except Exception as exc:
                     logger.warning("[Implement Node] LLM call attempt %d failed: %s", attempt + 1, exc)
-                    break
+                    raise
         except Exception as e:
             logger.warning(f"[Implement Node] LLM generation crashed: {str(e)}. Falling back to default template.")
             final_code = _build_landing_page_component(clean_goal)
@@ -2920,7 +2921,9 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
                 target_path = filepath if (filepath and filepath.endswith((".dart", ".tsx", ".jsx"))) else ("main.dart" if "flutter" in clean_goal_lower else "App.tsx")
 
         goal_lower = clean_goal.lower()
-        if generated:
+        if final_code:
+            pass
+        elif generated:
             final_code = generated
         elif (is_frontend_domain_guard or is_frontend_req) and not (
             state.get("filepath") == "main.py" and not has_website_skill and not any(k in clean_goal_lower for k in ("next.js", "nextjs", "react", "tailwind"))
