@@ -41,17 +41,56 @@ class FilesystemTool(BaseTool):
     ) -> ToolExecutionOutput:
         try:
             inputs = self.input_model.model_validate(arguments)
-            path = os.path.abspath(inputs.path)
 
-            # Strict sandbox workspace boundary check to prevent path traversal
             from src.utils.paths import get_workspaces_dir
 
+            is_serverless = os.environ.get("VERCEL") == "1" or os.environ.get("AWS_LAMBDA_FUNCTION_NAME") is not None
+            workspaces_dir = get_workspaces_dir()
+            workspaces_path = os.path.abspath(str(workspaces_dir))
+
+            norm_input = inputs.path.replace("\\", "/")
+            if is_serverless:
+                if norm_input.startswith("/var/task/workspaces"):
+                    rel = norm_input[len("/var/task/workspaces"):].lstrip("/")
+                    try:
+                        candidate = (workspaces_dir / rel).resolve() if rel else workspaces_dir
+                        if not candidate.is_relative_to(workspaces_dir):
+                            return ToolExecutionOutput(
+                                success=False,
+                                error=f"Security Policy Violation: Access denied to path outside workspace boundary: {inputs.path}",
+                            )
+                        path = str(candidate)
+                    except (ValueError, Exception):
+                        return ToolExecutionOutput(
+                            success=False,
+                            error=f"Security Policy Violation: Access denied to path outside workspace boundary: {inputs.path}",
+                        )
+                elif norm_input == "workspaces" or norm_input.startswith("workspaces/"):
+                    rel = norm_input[len("workspaces"):].lstrip("/")
+                    try:
+                        candidate = (workspaces_dir / rel).resolve() if rel else workspaces_dir
+                        if not candidate.is_relative_to(workspaces_dir):
+                            return ToolExecutionOutput(
+                                success=False,
+                                error=f"Security Policy Violation: Access denied to path outside workspace boundary: {inputs.path}",
+                            )
+                        path = str(candidate)
+                    except (ValueError, Exception):
+                        return ToolExecutionOutput(
+                            success=False,
+                            error=f"Security Policy Violation: Access denied to path outside workspace boundary: {inputs.path}",
+                        )
+                else:
+                    path = os.path.abspath(inputs.path)
+            else:
+                path = os.path.abspath(inputs.path)
+
+            # Strict sandbox workspace boundary check to prevent path traversal
             workspace_root = os.path.abspath(os.environ.get("WORKSPACE_ROOT", os.getcwd()))
-            workspaces_path = os.path.abspath(str(get_workspaces_dir()))
             allowed = (
-                path.startswith(workspace_root)
+                path.startswith(workspaces_path)
+                or path.startswith(workspace_root)
                 or path.startswith(os.path.abspath(os.path.dirname(os.getcwd())))
-                or path.startswith(workspaces_path)
                 or path.startswith("/tmp")
             )
             if not allowed:
