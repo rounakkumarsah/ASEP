@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { apiClient } from '@/lib/api/client';
 
 export interface Attachment {
   id: string;
@@ -114,6 +115,15 @@ export interface PlaygroundState {
   githubRepo: { url: string; files: string[]; activeFile: string | null } | null;
   setGithubRepo: (repo: { url: string; files: string[]; activeFile: string | null } | null) => void;
   setGithubActiveFile: (file: string | null) => void;
+
+  // Artifacts State
+  artifacts: Record<string, string>;
+  setArtifacts: (artifacts: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => void;
+  selectedArtifactFile: string | null;
+  setSelectedArtifactFile: (file: string | null) => void;
+  activeRunId: string | null;
+  setActiveRunId: (runId: string | null) => void;
+  fetchRunArtifacts: (runId: string) => Promise<Record<string, string> | null>;
 
   // Metrics
   sessionMetrics: { estimatedCost: number | null; confidence: number | null } | null;
@@ -450,6 +460,74 @@ export const usePlaygroundStore = create<PlaygroundState>()(
             ? { ...state.githubRepo, activeFile }
             : null,
         })),
+
+      artifacts: {},
+      setArtifacts: (artifacts) =>
+        set((state) => ({
+          artifacts: typeof artifacts === 'function' ? artifacts(state.artifacts) : artifacts,
+        })),
+      selectedArtifactFile: null,
+      setSelectedArtifactFile: (file) =>
+        set((state) => {
+          if (!file) return { selectedArtifactFile: null };
+          const normalized = file.replace(/\\/g, '/').replace(/^\.\//, '').replace(/^\//, '');
+          const matchedKey =
+            Object.keys(state.artifacts).find(
+              (k) =>
+                k === file ||
+                k.replace(/\\/g, '/').replace(/^\.\//, '').replace(/^\//, '') === normalized
+            ) || normalized;
+          return { selectedArtifactFile: matchedKey };
+        }),
+      activeRunId: null,
+      setActiveRunId: (runId) => set({ activeRunId: runId }),
+      fetchRunArtifacts: async (runId: string) => {
+        if (!runId) return null;
+        try {
+          const res = await apiClient.get<Record<string, unknown>>(`/api/v1/conversations/run/${runId}/artifacts`);
+          if (res.data && typeof res.data === 'object' && !Array.isArray(res.data)) {
+            const rawData = res.data as Record<string, unknown>;
+            const rawMap =
+              'artifacts' in rawData &&
+              rawData.artifacts &&
+              typeof rawData.artifacts === 'object' &&
+              !Array.isArray(rawData.artifacts)
+                ? (rawData.artifacts as Record<string, unknown>)
+                : rawData;
+
+            const sanitized: Record<string, string> = {};
+            for (const [k, v] of Object.entries(rawMap)) {
+              const normKey = k.replace(/\\/g, '/').replace(/^\.\//, '').replace(/^\//, '');
+              if (typeof v === 'string') {
+                sanitized[normKey] = v;
+              } else if (v !== null && v !== undefined) {
+                sanitized[normKey] = typeof v === 'object' ? JSON.stringify(v, null, 2) : String(v);
+              }
+            }
+
+            set((state) => {
+              const keys = Object.keys(sanitized);
+              const currentSelected = state.selectedArtifactFile;
+              const normalizedCurrent = currentSelected
+                ? currentSelected.replace(/\\/g, '/').replace(/^\.\//, '').replace(/^\//, '')
+                : null;
+              const nextSelected =
+                normalizedCurrent && sanitized[normalizedCurrent] !== undefined
+                  ? normalizedCurrent
+                  : (keys[0] || null);
+              return {
+                artifacts: sanitized,
+                selectedArtifactFile: nextSelected,
+              };
+            });
+            return sanitized;
+          }
+          return null;
+        } catch (err) {
+          console.warn('Failed to fetch run artifacts:', err);
+          return null;
+        }
+      },
 
       sessionMetrics: null,
       setSessionMetrics: (sessionMetrics) => set({ sessionMetrics }),
