@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   classifyEvent,
   extractMessageContent,
@@ -7,7 +7,11 @@ import {
   MessageItem,
   DEFAULT_MAIN_PY,
   DEFAULT_CONFIG_JSON,
+  getLanguageFromFilename,
+  getFileIconColor,
 } from './CenterWorkspace';
+import { usePlaygroundStore } from '@/lib/stores/playgroundStore';
+import { apiClient } from '@/lib/api/client';
 
 describe('CenterWorkspace UX - Event Classification, Extraction, and Message Routing', () => {
   describe('extractMessageContent()', () => {
@@ -429,6 +433,240 @@ describe('CenterWorkspace UX - Event Classification, Extraction, and Message Rou
       processEventData(eventData, { onArtifactCode });
       expect(onArtifactCode).toHaveBeenCalled();
       expect(activeTab).toBe('chat');
+    });
+
+    it('processes artifacts dictionary in event update and passes to onArtifacts handler', () => {
+      const onArtifacts = vi.fn();
+      const onArtifactCode = vi.fn();
+
+      const eventData = {
+        event: {
+          scaffold: {
+            artifacts: {
+              'package.json': '{\n  "name": "my-app"\n}',
+              'app/page.tsx': 'export default function Page() { return <div>Hello</div>; }',
+            },
+          },
+        },
+      };
+
+      processEventData(eventData, { onArtifacts, onArtifactCode });
+      expect(onArtifacts).toHaveBeenCalledWith({
+        'package.json': '{\n  "name": "my-app"\n}',
+        'app/page.tsx': 'export default function Page() { return <div>Hello</div>; }',
+      });
+      expect(onArtifactCode).toHaveBeenCalledWith('{\n  "name": "my-app"\n}');
+    });
+  });
+
+  describe('Language & Icon Detection for Artifact Files', () => {
+    it('maps file extensions to correct Monaco Editor languages', () => {
+      expect(getLanguageFromFilename('app/page.tsx')).toBe('typescript');
+      expect(getLanguageFromFilename('src/index.ts')).toBe('typescript');
+      expect(getLanguageFromFilename('component.jsx')).toBe('javascript');
+      expect(getLanguageFromFilename('index.js')).toBe('javascript');
+      expect(getLanguageFromFilename('package.json')).toBe('json');
+      expect(getLanguageFromFilename('main.py')).toBe('python');
+      expect(getLanguageFromFilename('index.html')).toBe('html');
+      expect(getLanguageFromFilename('styles.css')).toBe('css');
+      expect(getLanguageFromFilename('README.md')).toBe('markdown');
+      expect(getLanguageFromFilename('script.sh')).toBe('shell');
+      expect(getLanguageFromFilename('docker-compose.yml')).toBe('yaml');
+      expect(getLanguageFromFilename('Dockerfile')).toBe('dockerfile');
+      expect(getLanguageFromFilename('Makefile')).toBe('makefile');
+      expect(getLanguageFromFilename('.env')).toBe('ini');
+      expect(getLanguageFromFilename('main.rs')).toBe('rust');
+      expect(getLanguageFromFilename('server.go')).toBe('go');
+      expect(getLanguageFromFilename('App.java')).toBe('java');
+      expect(getLanguageFromFilename('query.sql')).toBe('sql');
+      expect(getLanguageFromFilename('unknown.xyz')).toBe('plaintext');
+      expect(getLanguageFromFilename('no_extension')).toBe('plaintext');
+    });
+
+    it('maps file extensions to appropriate icon color classes', () => {
+      expect(getFileIconColor('main.py')).toBe('text-emerald-400');
+      expect(getFileIconColor('config.json')).toBe('text-amber-400');
+      expect(getFileIconColor('app/page.tsx')).toBe('text-cyan-400');
+      expect(getFileIconColor('utils.js')).toBe('text-yellow-400');
+      expect(getFileIconColor('style.css')).toBe('text-blue-400');
+      expect(getFileIconColor('index.html')).toBe('text-orange-400');
+      expect(getFileIconColor('README.md')).toBe('text-zinc-400');
+      expect(getFileIconColor('main.go')).toBe('text-sky-400');
+      expect(getFileIconColor('main.rs')).toBe('text-amber-600');
+      expect(getFileIconColor('schema.sql')).toBe('text-indigo-400');
+      expect(getFileIconColor('run.sh')).toBe('text-green-400');
+      expect(getFileIconColor('docker-compose.yml')).toBe('text-rose-400');
+      expect(getFileIconColor('file.unknown')).toBe('text-muted-foreground');
+    });
+  });
+
+  describe('Backend Run Artifacts API Integration & Playground Store', () => {
+    beforeEach(() => {
+      usePlaygroundStore.setState({
+        artifacts: {},
+        selectedArtifactFile: null,
+        activeRunId: null,
+      });
+      vi.restoreAllMocks();
+    });
+
+    it('fetches artifacts dictionary from GET /api/v1/conversations/run/{run_id}/artifacts and updates store', async () => {
+      const mockRunId = 'run_abc_123';
+      const mockArtifacts = {
+        'package.json': '{\n  "name": "my-app"\n}',
+        'app/page.tsx': 'export default function Page() { return <h1>ASEP</h1>; }',
+      };
+
+      const getSpy = vi.spyOn(apiClient, 'get').mockResolvedValueOnce({
+        data: mockArtifacts,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as any,
+      });
+
+      const result = await usePlaygroundStore.getState().fetchRunArtifacts(mockRunId);
+
+      expect(getSpy).toHaveBeenCalledWith(`/api/v1/conversations/run/${mockRunId}/artifacts`);
+      expect(result).toEqual(mockArtifacts);
+
+      const state = usePlaygroundStore.getState();
+      expect(state.artifacts).toEqual(mockArtifacts);
+      expect(state.selectedArtifactFile).toBe('package.json');
+    });
+
+    it('normalizes Windows backslashes and leading slashes in artifact keys', async () => {
+      const mockRunId = 'run_norm_123';
+      const rawArtifacts = {
+        'app\\page.tsx': 'export default function Page() {}',
+        './package.json': '{"name": "test"}',
+        '/src/index.ts': 'console.log("hello")',
+      };
+
+      vi.spyOn(apiClient, 'get').mockResolvedValueOnce({
+        data: rawArtifacts,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as any,
+      });
+
+      const result = await usePlaygroundStore.getState().fetchRunArtifacts(mockRunId);
+
+      expect(result).toEqual({
+        'app/page.tsx': 'export default function Page() {}',
+        'package.json': '{"name": "test"}',
+        'src/index.ts': 'console.log("hello")',
+      });
+
+      const state = usePlaygroundStore.getState();
+      expect(Object.keys(state.artifacts)).toEqual(['app/page.tsx', 'package.json', 'src/index.ts']);
+    });
+
+    it('handles wrapped { artifacts: { ... } } responses from backend', async () => {
+      const mockRunId = 'run_wrapped_456';
+      const wrappedPayload = {
+        artifacts: {
+          'server.py': 'print("hello server")',
+        },
+      };
+
+      vi.spyOn(apiClient, 'get').mockResolvedValueOnce({
+        data: wrappedPayload,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as any,
+      });
+
+      const result = await usePlaygroundStore.getState().fetchRunArtifacts(mockRunId);
+
+      expect(result).toEqual({
+        'server.py': 'print("hello server")',
+      });
+      expect(usePlaygroundStore.getState().artifacts).toEqual({
+        'server.py': 'print("hello server")',
+      });
+    });
+
+    it('sanitizes non-string artifact values safely into stringified format', async () => {
+      const mockRunId = 'run_sanitize_789';
+      const mixedPayload = {
+        'config.json': { port: 8080, debug: true },
+        'count.txt': 42,
+      };
+
+      vi.spyOn(apiClient, 'get').mockResolvedValueOnce({
+        data: mixedPayload,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as any,
+      });
+
+      const result = await usePlaygroundStore.getState().fetchRunArtifacts(mockRunId);
+
+      expect(result?.['config.json']).toContain('"port": 8080');
+      expect(result?.['count.txt']).toBe('42');
+    });
+
+    it('preserves existing selectedArtifactFile if present in newly fetched artifacts', async () => {
+      const mockRunId = 'run_xyz_789';
+      usePlaygroundStore.setState({
+        selectedArtifactFile: 'app/page.tsx',
+      });
+
+      const mockArtifacts = {
+        'package.json': '{\n  "name": "my-app"\n}',
+        'app/page.tsx': 'export default function Page() { return <h1>ASEP</h1>; }',
+      };
+
+      vi.spyOn(apiClient, 'get').mockResolvedValueOnce({
+        data: mockArtifacts,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as any,
+      });
+
+      await usePlaygroundStore.getState().fetchRunArtifacts(mockRunId);
+
+      const state = usePlaygroundStore.getState();
+      expect(state.selectedArtifactFile).toBe('app/page.tsx');
+    });
+
+    it('setSelectedArtifactFile matches existing artifact even with leading slash or backslash', () => {
+      usePlaygroundStore.setState({
+        artifacts: {
+          'src/components/Button.tsx': 'export const Button = () => null;',
+        },
+        selectedArtifactFile: null,
+      });
+
+      usePlaygroundStore.getState().setSelectedArtifactFile('./src/components/Button.tsx');
+      expect(usePlaygroundStore.getState().selectedArtifactFile).toBe('src/components/Button.tsx');
+
+      usePlaygroundStore.getState().setSelectedArtifactFile('src\\components\\Button.tsx');
+      expect(usePlaygroundStore.getState().selectedArtifactFile).toBe('src/components/Button.tsx');
+    });
+
+    it('gracefully handles API network error when fetching artifacts', async () => {
+      const mockRunId = 'run_fail_456';
+      vi.spyOn(apiClient, 'get').mockRejectedValueOnce(new Error('Network error'));
+
+      const result = await usePlaygroundStore.getState().fetchRunArtifacts(mockRunId);
+
+      expect(result).toBeNull();
+      const state = usePlaygroundStore.getState();
+      expect(state.artifacts).toEqual({});
+    });
+
+    it('returns null and does not call API when runId is empty', async () => {
+      const getSpy = vi.spyOn(apiClient, 'get');
+      const result = await usePlaygroundStore.getState().fetchRunArtifacts('');
+
+      expect(result).toBeNull();
+      expect(getSpy).not.toHaveBeenCalled();
     });
   });
 });

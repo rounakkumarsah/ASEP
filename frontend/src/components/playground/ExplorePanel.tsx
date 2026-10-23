@@ -340,7 +340,12 @@ export function ExplorePanel() {
                         <Button
                           variant="link"
                           size="sm"
-                          onClick={() => setActiveCenterTab("artifacts")}
+                          onClick={() => {
+                            if (ev.file) {
+                              usePlaygroundStore.getState().setSelectedArtifactFile(ev.file);
+                            }
+                            setActiveCenterTab("artifacts");
+                          }}
                           className="h-5 p-0 text-[10px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
                         >
                           Read full file in Artifacts

@@ -308,6 +308,7 @@ export function processEventData(
     onFinalAnswer?: (answer: string) => void;
     onStatusEvent?: (item: MessageItem) => void;
     onArtifactCode?: (code: string) => void;
+    onArtifacts?: (artifacts: Record<string, string>) => void;
   }
 ): void {
   if (!data || typeof data !== "object") return;
@@ -328,10 +329,25 @@ export function processEventData(
 
       // Direct code fields on node output
       let directCode = updateObj.generated_code || updateObj.file_content || updateObj.code_context;
-      if (!directCode && updateObj.artifacts && typeof updateObj.artifacts === "object") {
-        const artFiles = Object.values(updateObj.artifacts as Record<string, unknown>);
-        if (artFiles.length > 0 && typeof artFiles[0] === "string") {
-          directCode = artFiles[0];
+      if (updateObj.artifacts && typeof updateObj.artifacts === "object") {
+        const rawArts = updateObj.artifacts as Record<string, unknown>;
+        const validArts: Record<string, string> = {};
+        for (const [k, v] of Object.entries(rawArts)) {
+          const normKey = k.replace(/\\/g, '/').replace(/^\.\//, '').replace(/^\//, '');
+          if (typeof v === "string") {
+            validArts[normKey] = v;
+          } else if (v !== null && v !== undefined) {
+            validArts[normKey] = typeof v === "object" ? JSON.stringify(v, null, 2) : String(v);
+          }
+        }
+        if (Object.keys(validArts).length > 0 && handlers.onArtifacts) {
+          handlers.onArtifacts(validArts);
+        }
+        if (!directCode) {
+          const artFiles = Object.values(validArts);
+          if (artFiles.length > 0 && typeof artFiles[0] === "string") {
+            directCode = artFiles[0];
+          }
         }
       }
       if (typeof directCode === "string" && directCode.trim() && handlers.onArtifactCode) {
@@ -405,6 +421,86 @@ export function processEventData(
       }
     }
   }
+}
+
+export function getLanguageFromFilename(filename: string): string {
+  const lower = filename.toLowerCase();
+  const baseName = lower.split('/').pop() || lower;
+  if (baseName === 'dockerfile') return 'dockerfile';
+  if (baseName === 'makefile') return 'makefile';
+  if (baseName === '.gitignore' || baseName === '.env' || baseName.startsWith('.env.')) return 'ini';
+
+  const ext = filename.split('.').pop()?.toLowerCase();
+  switch (ext) {
+    case 'ts':
+    case 'tsx':
+      return 'typescript';
+    case 'js':
+    case 'jsx':
+    case 'mjs':
+    case 'cjs':
+      return 'javascript';
+    case 'json':
+      return 'json';
+    case 'py':
+      return 'python';
+    case 'html':
+    case 'htm':
+      return 'html';
+    case 'css':
+    case 'scss':
+    case 'less':
+      return 'css';
+    case 'md':
+    case 'markdown':
+      return 'markdown';
+    case 'sql':
+      return 'sql';
+    case 'sh':
+    case 'bash':
+      return 'shell';
+    case 'yaml':
+    case 'yml':
+      return 'yaml';
+    case 'xml':
+    case 'svg':
+      return 'xml';
+    case 'rs':
+      return 'rust';
+    case 'go':
+      return 'go';
+    case 'java':
+      return 'java';
+    case 'c':
+    case 'h':
+    case 'cpp':
+    case 'hpp':
+      return 'cpp';
+    case 'graphql':
+    case 'gql':
+      return 'graphql';
+    case 'toml':
+      return 'toml';
+    default:
+      return 'plaintext';
+  }
+}
+
+export function getFileIconColor(filename: string): string {
+  const lower = filename.toLowerCase();
+  if (lower.endsWith('.py')) return 'text-emerald-400';
+  if (lower.endsWith('.json')) return 'text-amber-400';
+  if (lower.endsWith('.ts') || lower.endsWith('.tsx')) return 'text-cyan-400';
+  if (lower.endsWith('.js') || lower.endsWith('.jsx') || lower.endsWith('.mjs')) return 'text-yellow-400';
+  if (lower.endsWith('.css') || lower.endsWith('.scss') || lower.endsWith('.less')) return 'text-blue-400';
+  if (lower.endsWith('.html') || lower.endsWith('.htm')) return 'text-orange-400';
+  if (lower.endsWith('.md') || lower.endsWith('.markdown')) return 'text-zinc-400';
+  if (lower.endsWith('.go')) return 'text-sky-400';
+  if (lower.endsWith('.rs')) return 'text-amber-600';
+  if (lower.endsWith('.sql')) return 'text-indigo-400';
+  if (lower.endsWith('.sh') || lower.endsWith('.bash')) return 'text-green-400';
+  if (lower.endsWith('.yml') || lower.endsWith('.yaml')) return 'text-rose-400';
+  return 'text-muted-foreground';
 }
 
 export const DEFAULT_MAIN_PY = `# main.py
@@ -499,13 +595,75 @@ export function CenterWorkspace() {
     addExplorationEvent,
     setPhaseExploration,
     voiceMetrics,
+    artifacts,
+    setArtifacts,
+    selectedArtifactFile,
+    setSelectedArtifactFile,
+    activeRunId,
+    setActiveRunId,
+    fetchRunArtifacts,
   } = usePlaygroundStore();
   const { isLeftPanelOpen, toggleLeftPanel, setLeftPanelOpen, isRightPanelOpen, toggleRightPanel } = useSidebarStore();
   const [input, setInput] = React.useState("");
   const [cmdMenu, setCmdMenu] = React.useState<'tool' | 'model' | null>(null);
   const [artifactCode, setArtifactCode] = React.useState<string>("");
-  const [selectedArtifactFile, setSelectedArtifactFile] = React.useState<string>("main.py");
   const [configCode, setConfigCode] = React.useState<string>(DEFAULT_CONFIG_JSON);
+  const [isFetchingArtifacts, setIsFetchingArtifacts] = React.useState(false);
+  const lastFetchedRunIdRef = React.useRef<string | null>(null);
+
+  const activeArtifactFile = React.useMemo(() => {
+    const artKeys = Object.keys(artifacts);
+    if (artKeys.length > 0) {
+      if (selectedArtifactFile && selectedArtifactFile in artifacts) {
+        return selectedArtifactFile;
+      }
+      return artKeys[0];
+    }
+    if (selectedArtifactFile === "config.json" || selectedArtifactFile === "main.py") {
+      return selectedArtifactFile;
+    }
+    return "main.py";
+  }, [artifacts, selectedArtifactFile]);
+
+  const currentEditorCode = React.useMemo(() => {
+    if (artifacts && activeArtifactFile in artifacts) {
+      return artifacts[activeArtifactFile];
+    }
+    if (activeArtifactFile === "config.json") {
+      return configCode;
+    }
+    return artifactCode || DEFAULT_MAIN_PY;
+  }, [artifacts, activeArtifactFile, configCode, artifactCode]);
+
+  const currentEditorLanguage = React.useMemo(() => {
+    return getLanguageFromFilename(activeArtifactFile);
+  }, [activeArtifactFile]);
+
+  const handleEditorChange = (newVal: string) => {
+    if (artifacts && activeArtifactFile in artifacts) {
+      setArtifacts((prev) => ({
+        ...prev,
+        [activeArtifactFile]: newVal,
+      }));
+    } else if (activeArtifactFile === "config.json") {
+      setConfigCode(newVal);
+    } else {
+      setArtifactCode(newVal);
+    }
+  };
+
+  React.useEffect(() => {
+    if (
+      activeCenterTab === "artifacts" &&
+      activeRunId &&
+      !isThinking &&
+      lastFetchedRunIdRef.current !== activeRunId
+    ) {
+      lastFetchedRunIdRef.current = activeRunId;
+      setIsFetchingArtifacts(true);
+      fetchRunArtifacts(activeRunId).finally(() => setIsFetchingArtifacts(false));
+    }
+  }, [activeCenterTab, activeRunId, isThinking, fetchRunArtifacts]);
   const [editorReady, setEditorReady] = React.useState(false);
   const [editorTimedOut, setEditorTimedOut] = React.useState(false);
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
@@ -808,7 +966,10 @@ export function CenterWorkspace() {
     setPushError(null);
     try {
       const token = localStorage.getItem("asep_auth_token") || sessionStorage.getItem("asep_auth_token") || "";
-      const codeToPush = artifactCode || "# Generated by ASEP\nprint('Hello from ASEP')";
+      const filesToPush: Record<string, string> =
+        Object.keys(artifacts).length > 0
+          ? artifacts
+          : { "main.py": artifactCode || "# Generated by ASEP\nprint('Hello from ASEP')" };
       const res = await fetch("/api/v1/integrations/github/push", {
         method: "POST",
         headers: {
@@ -823,9 +984,7 @@ export function CenterWorkspace() {
           language: pushLanguage,
           task_summary: pushTaskSummary.trim() || "Application built with ASEP",
           task_slug: pushBranchSlug.trim() || "app",
-          files: {
-            "main.py": codeToPush,
-          },
+          files: filesToPush,
         }),
       });
       const data = await res.json();
@@ -873,7 +1032,7 @@ export function CenterWorkspace() {
         body: JSON.stringify({
           repo_name: targetRepo,
           branch: githubActiveBranch || "asep/app",
-          local_files: {
+          local_files: Object.keys(artifacts).length > 0 ? artifacts : {
             "main.py": artifactCode || DEFAULT_MAIN_PY,
             "config.json": configCode || DEFAULT_CONFIG_JSON,
           },
@@ -925,6 +1084,7 @@ export function CenterWorkspace() {
 
   const jumpToLine = (file: string, line: number) => {
     setActiveCenterTab("artifacts");
+    setSelectedArtifactFile(file);
     if (editorInstance) {
       setTimeout(() => {
         editorInstance.revealLineInCenter(line);
@@ -934,18 +1094,28 @@ export function CenterWorkspace() {
     }
   };
 
-  const handleRunArtifact = async () => {
+  const handleRunArtifact = async (fileToRun?: string) => {
     clearTerminalLogs();
-    addTerminalLog("input", "Running main.py in isolated sandbox...");
+    const targetFile = fileToRun || activeArtifactFile;
+    if (!targetFile.endsWith(".py") && !targetFile.endsWith(".sh")) {
+      addTerminalLog("system", `[Sandbox Notice] Code execution is currently supported for Python (.py) and Shell (.sh) files. Cannot execute '${targetFile}'.`);
+      setToastMessage(`Cannot run ${targetFile} (sandbox supports .py and .sh)`);
+      setTimeout(() => setToastMessage(null), 3000);
+      return;
+    }
+    addTerminalLog("input", `Running ${targetFile} in isolated sandbox...`);
     
     try {
       const apiBase = "";
       const endpoint = `${apiBase}/api/v1/sandbox/python/stream`;
+      const codeToRun = (artifacts && targetFile in artifacts)
+        ? artifacts[targetFile]
+        : (targetFile === "config.json" ? configCode : (artifactCode || DEFAULT_MAIN_PY));
       
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: artifactCode || DEFAULT_MAIN_PY }),
+        body: JSON.stringify({ code: codeToRun }),
       });
       
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
@@ -1373,12 +1543,21 @@ export function CenterWorkspace() {
                 onArtifactCode: (code) => {
                   setArtifactCode(code);
                 },
+                onArtifacts: (arts) => {
+                  setArtifacts((prev) => ({ ...prev, ...arts }));
+                },
               });
             } catch (e) {
               // Ignore parse errors
             }
           }
         }
+      }
+
+      if (activeRunId) {
+        try {
+          await fetchRunArtifacts(activeRunId);
+        } catch {}
       }
 
       if (aiResponse) {
@@ -1415,6 +1594,7 @@ export function CenterWorkspace() {
     initialPollCount = 0
   ) => {
     setIsThinking(true);
+    setActiveRunId(runId);
     let aiResponse = "";
     let currentArtifactCode = "";
     let pollCount = initialPollCount;
@@ -1455,6 +1635,13 @@ export function CenterWorkspace() {
             return;
           } else if (serverStatus === "completed" || serverStatus === "done") {
             addTerminalLog("system", "[System] In-progress run already completed.");
+            try {
+              lastFetchedRunIdRef.current = runId;
+              const artData = await fetchRunArtifacts(runId);
+              if (artData && Object.keys(artData).length > 0) {
+                addTerminalLog("system", `[Artifacts] Loaded ${Object.keys(artData).length} generated file(s).`);
+              }
+            } catch {}
             return;
           } else if (serverStatus === "failed") {
             const err = serverErrMsg || "Agent execution failed.";
@@ -1554,6 +1741,9 @@ export function CenterWorkspace() {
                     currentArtifactCode = code;
                     setArtifactCode(code);
                   },
+                  onArtifacts: (arts) => {
+                    setArtifacts((prev) => ({ ...prev, ...arts }));
+                  },
                 }
               );
             } catch {}
@@ -1572,6 +1762,17 @@ export function CenterWorkspace() {
           }),
         });
         return;
+      }
+
+      // Fetch generated code artifacts from backend API endpoint
+      try {
+        lastFetchedRunIdRef.current = runId;
+        const artData = await fetchRunArtifacts(runId);
+        if (artData && Object.keys(artData).length > 0) {
+          addTerminalLog("system", `[Artifacts] Loaded ${Object.keys(artData).length} generated file(s) for run ${runId.slice(0, 8)}.`);
+        }
+      } catch (artErr) {
+        console.warn("Could not fetch run artifacts:", artErr);
       }
 
       if (aiResponse) {
@@ -1641,6 +1842,7 @@ export function CenterWorkspace() {
       const saved = JSON.parse(raw);
       if (saved && saved.status === "running" && saved.runId && saved.threadId) {
         addTerminalLog("system", `[System] Resuming in-progress run ${saved.runId}...`);
+        setActiveRunId(saved.runId);
         setClarificationThreadId(saved.threadId);
         pollActiveRun(saved.runId, saved.threadId, saved.currentInput || "", saved.pollCount || 0);
       }
@@ -1687,6 +1889,9 @@ export function CenterWorkspace() {
     resetActiveNodes();
     setSecurityFindings([]);
     securityFindingsRef.current = [];
+    setArtifacts({});
+    setSelectedArtifactFile(null);
+    lastFetchedRunIdRef.current = null;
 
     try {
       // 1. Submit the run — returns immediately with run_id
@@ -1703,6 +1908,7 @@ export function CenterWorkspace() {
 
       const startData = startRes.data;
       const runId = startData.run_id;
+      setActiveRunId(runId);
 
       // 2. Poll for events and status
       await pollActiveRun(runId, newThreadId, currentInput, 0);
@@ -2193,14 +2399,104 @@ export function CenterWorkspace() {
                     )}
                   </div>
                 </>
+              ) : isFetchingArtifacts && Object.keys(artifacts).length === 0 ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                    <span>Fetching artifacts...</span>
+                  </div>
+                  <div className="h-7 bg-muted/20 rounded animate-pulse" />
+                  <div className="h-7 bg-muted/20 rounded animate-pulse" />
+                  <div className="h-7 bg-muted/20 rounded animate-pulse" />
+                </div>
+              ) : Object.keys(artifacts).length > 0 ? (
+                <>
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Artifacts ({Object.keys(artifacts).length})
+                    </h4>
+                    {activeRunId && (
+                      <button
+                        onClick={() => {
+                          setIsFetchingArtifacts(true);
+                          fetchRunArtifacts(activeRunId).finally(() => setIsFetchingArtifacts(false));
+                        }}
+                        disabled={isFetchingArtifacts}
+                        className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-accent/50 transition-colors"
+                        title="Refresh artifacts from backend"
+                      >
+                        <RefreshCw className={`h-3 w-3 ${isFetchingArtifacts ? "animate-spin text-primary" : ""}`} />
+                      </button>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    {Object.keys(artifacts).map((file) => {
+                      const isSelected = activeArtifactFile === file;
+                      const parts = file.split("/");
+                      const fileName = parts.pop() || file;
+                      const dirPath = parts.join("/");
+                      return (
+                        <div
+                          key={file}
+                          onClick={() => setSelectedArtifactFile(file)}
+                          className={`text-xs p-1.5 rounded flex items-center justify-between group cursor-pointer font-mono transition-colors ${
+                            isSelected
+                              ? "bg-accent text-accent-foreground font-semibold"
+                              : "hover:bg-accent/50 text-muted-foreground"
+                          }`}
+                          title={file}
+                        >
+                          <div className="flex items-center gap-2 min-w-0 flex-1 truncate">
+                            <Code className={`h-3.5 w-3.5 flex-shrink-0 ${getFileIconColor(file)}`} />
+                            <div className="flex flex-col min-w-0 truncate">
+                              <span className="truncate leading-tight">{fileName}</span>
+                              {dirPath && (
+                                <span className="text-[10px] text-muted-foreground/60 truncate font-sans leading-tight">
+                                  {dirPath}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          {(file.endsWith(".py") || file.endsWith(".sh")) && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRunArtifact(file);
+                              }}
+                              className="opacity-0 group-hover:opacity-100 p-1 hover:bg-primary/20 text-primary rounded flex-shrink-0 ml-1"
+                              title="Run in Sandbox"
+                            >
+                              <Play className="h-3 w-3" />
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
               ) : (
                 <>
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Files</h4>
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Files</h4>
+                    {activeRunId && (
+                      <button
+                        onClick={() => {
+                          setIsFetchingArtifacts(true);
+                          fetchRunArtifacts(activeRunId).finally(() => setIsFetchingArtifacts(false));
+                        }}
+                        disabled={isFetchingArtifacts}
+                        className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-accent/50 transition-colors"
+                        title="Fetch artifacts from backend"
+                      >
+                        <RefreshCw className={`h-3 w-3 ${isFetchingArtifacts ? "animate-spin text-primary" : ""}`} />
+                      </button>
+                    )}
+                  </div>
                   <div className="space-y-1">
                     <div 
                       onClick={() => setSelectedArtifactFile("main.py")}
                       className={`text-xs p-1.5 rounded flex items-center justify-between group cursor-pointer font-mono ${
-                        selectedArtifactFile === "main.py"
+                        activeArtifactFile === "main.py"
                           ? "bg-accent text-accent-foreground font-semibold"
                           : "hover:bg-accent/50 text-muted-foreground"
                       }`}
@@ -2211,7 +2507,7 @@ export function CenterWorkspace() {
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleRunArtifact();
+                          handleRunArtifact("main.py");
                         }} 
                         className="opacity-0 group-hover:opacity-100 p-1 hover:bg-primary/20 text-primary rounded" 
                         title="Run in Sandbox"
@@ -2222,7 +2518,7 @@ export function CenterWorkspace() {
                     <div 
                       onClick={() => setSelectedArtifactFile("config.json")}
                       className={`text-xs p-1.5 rounded flex items-center gap-2 cursor-pointer font-mono ${
-                        selectedArtifactFile === "config.json"
+                        activeArtifactFile === "config.json"
                           ? "bg-accent text-accent-foreground font-semibold"
                           : "hover:bg-accent/50 text-muted-foreground"
                       }`}
@@ -2234,7 +2530,18 @@ export function CenterWorkspace() {
               )}
             </div>
             <div className="flex-1 bg-[#1E1E1E] relative">
-              {artifactCode === "Loading..." ? (
+              {isFetchingArtifacts && Object.keys(artifacts).length === 0 ? (
+                <div className="absolute inset-0 p-6 space-y-4 bg-[#1E1E1E]">
+                  <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground mb-4">
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" /> Fetching run artifacts from backend...
+                  </div>
+                  <div className="h-4 bg-muted/20 rounded w-1/3 animate-pulse" />
+                  <div className="h-4 bg-muted/20 rounded w-1/2 animate-pulse" />
+                  <div className="h-4 bg-muted/20 rounded w-2/3 animate-pulse" />
+                  <div className="h-4 bg-muted/20 rounded w-1/4 animate-pulse" />
+                  <div className="h-4 bg-muted/20 rounded w-3/4 animate-pulse" />
+                </div>
+              ) : artifactCode === "Loading..." ? (
                 <div className="absolute inset-0 p-6 space-y-4">
                   <div className="h-4 bg-muted/20 rounded w-1/3 animate-pulse" />
                   <div className="h-4 bg-muted/20 rounded w-1/2 animate-pulse" />
@@ -2246,36 +2553,24 @@ export function CenterWorkspace() {
                 <div className="h-full flex flex-col bg-[#1E1E1E] text-zinc-200 font-mono text-xs p-4 overflow-hidden">
                   <div className="flex items-center justify-between text-[11px] text-muted-foreground pb-2 border-b border-border/20 mb-2">
                     <span className="flex items-center gap-2">
-                      <Code className="h-3.5 w-3.5 text-primary" /> {selectedArtifactFile}
+                      <Code className={`h-3.5 w-3.5 ${getFileIconColor(activeArtifactFile)}`} /> {activeArtifactFile}
                     </span>
                     <Badge variant="outline" className="text-[10px] py-0 border-white/20">Standard Editor</Badge>
                   </div>
                   <textarea
                     className="flex-1 w-full bg-transparent resize-none outline-none font-mono text-xs text-zinc-100 leading-relaxed p-2 rounded bg-black/20 border border-white/5"
-                    value={selectedArtifactFile === "config.json" ? configCode : (artifactCode || DEFAULT_MAIN_PY)}
-                    onChange={(e) => {
-                      if (selectedArtifactFile === "config.json") {
-                        setConfigCode(e.target.value);
-                      } else {
-                        setArtifactCode(e.target.value);
-                      }
-                    }}
+                    value={currentEditorCode}
+                    onChange={(e) => handleEditorChange(e.target.value)}
                     spellCheck={false}
                   />
                 </div>
               ) : (
                 <Editor
                   height="100%"
-                  language={selectedArtifactFile === "config.json" ? "json" : "python"}
+                  language={currentEditorLanguage}
                   theme="vs-dark"
-                  value={selectedArtifactFile === "config.json" ? configCode : (artifactCode || DEFAULT_MAIN_PY)}
-                  onChange={(val) => {
-                    if (selectedArtifactFile === "config.json") {
-                      setConfigCode(val || "");
-                    } else {
-                      setArtifactCode(val || "");
-                    }
-                  }}
+                  value={currentEditorCode}
+                  onChange={(val) => handleEditorChange(val || "")}
                   onMount={(editor) => {
                     setEditorReady(true);
                     setEditorInstance(editor);
@@ -2362,9 +2657,8 @@ export function CenterWorkspace() {
                 <Button 
                   onClick={() => {
                     if (securityFindings.some(f => f.severity === 'critical')) return;
-                    const codeToCopy = selectedArtifactFile === "config.json" ? configCode : (artifactCode || DEFAULT_MAIN_PY);
-                    navigator.clipboard.writeText(codeToCopy);
-                    setToastMessage(`Copied ${selectedArtifactFile} to clipboard`);
+                    navigator.clipboard.writeText(currentEditorCode);
+                    setToastMessage(`Copied ${activeArtifactFile} to clipboard`);
                     setTimeout(() => setToastMessage(null), 3000);
                   }}
                   className={`bg-[#202833] hover:bg-[#2A3441] text-white shadow-lg gap-2 ${securityFindings.some(f => f.severity === 'critical') ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -2375,7 +2669,7 @@ export function CenterWorkspace() {
                 </Button>
 
                 <Button 
-                  onClick={handleRunArtifact}
+                  onClick={() => handleRunArtifact(activeArtifactFile)}
                   className={`bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg gap-2 ${securityFindings.some(f => f.severity === 'critical') ? 'opacity-50 cursor-not-allowed' : ''}`}
                   size="sm"
                   disabled={securityFindings.some(f => f.severity === 'critical')}
