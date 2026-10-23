@@ -105,8 +105,12 @@ class ExploreManager:
         if workspace_root:
             self.workspace_root = Path(workspace_root).resolve()
         else:
-            # Default to ASEP repo root
-            self.workspace_root = Path(__file__).resolve().parent.parent.parent.parent
+            is_serverless = os.environ.get("VERCEL") == "1" or os.environ.get("AWS_LAMBDA_FUNCTION_NAME") is not None
+            if is_serverless:
+                from src.utils.paths import get_workspaces_dir
+                self.workspace_root = get_workspaces_dir()
+            else:
+                self.workspace_root = Path(__file__).resolve().parent.parent.parent.parent
 
         # In-memory historical exploration events and summaries per thread
         self._thread_events: Dict[str, List[Dict[str, Any]]] = {}

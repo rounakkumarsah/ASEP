@@ -44,8 +44,17 @@ class FilesystemTool(BaseTool):
             path = os.path.abspath(inputs.path)
 
             # Strict sandbox workspace boundary check to prevent path traversal
+            from src.utils.paths import get_workspaces_dir
+
             workspace_root = os.path.abspath(os.environ.get("WORKSPACE_ROOT", os.getcwd()))
-            if not path.startswith(workspace_root) and not path.startswith(os.path.abspath(os.path.dirname(os.getcwd()))):
+            workspaces_path = os.path.abspath(str(get_workspaces_dir()))
+            allowed = (
+                path.startswith(workspace_root)
+                or path.startswith(os.path.abspath(os.path.dirname(os.getcwd())))
+                or path.startswith(workspaces_path)
+                or path.startswith("/tmp")
+            )
+            if not allowed:
                 return ToolExecutionOutput(
                     success=False,
                     error=f"Security Policy Violation: Access denied to path outside workspace boundary: {path}",
