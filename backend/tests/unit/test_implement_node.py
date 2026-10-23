@@ -627,3 +627,83 @@ async def test_restricted_executor_tsx_validation_edge_cases():
 
 
 
+
+
+@pytest.mark.asyncio
+async def test_implement_and_explore_nodes_serverless_zero_disk_writes(monkeypatch):
+    """Verify that in serverless mode (VERCEL=1), explore and implement nodes do not touch disk."""
+    import uuid
+    import json
+    from src.runtime.nodes import explore_node, implement_node, IS_SERVERLESS
+    from src.utils.paths import get_workspaces_dir
+
+    monkeypatch.setenv("VERCEL", "1")
+
+    unique_project_id = f"test_proj_serverless_{uuid.uuid4().hex[:8]}"
+    workspace_dir = get_workspaces_dir() / unique_project_id
+
+    # 1. explore_node with empty artifacts in serverless
+    state = {
+        "goal": "Build a Next.js SaaS dashboard",
+        "current_phase": "explore",
+        "project_id": unique_project_id,
+        "workspace_id": unique_project_id,
+        "thread_id": f"thread_{unique_project_id}",
+        "artifacts": {},
+    }
+
+    explore_res = await explore_node(state)
+    assert explore_res["status"] == "explored"
+    assert "Empty workspace. Starting from scratch." in explore_res["exploration_summary"]["architecture_understanding"]
+    # Verify no directory was created on disk
+    assert not workspace_dir.exists()
+
+    # 2. implement_node in serverless: outputs artifacts with 0 disk writes
+    mock_llm_json = json.dumps({
+        "package.json": json.dumps({"name": "serverless-app", "dependencies": {"next": "^14.2.0"}}),
+        "app/page.tsx": "export default function ServerlessPage() { return <h1>Serverless Works</h1>; }",
+    })
+    mock_res = MagicMock()
+    mock_res.text = f"```json\n{mock_llm_json}\n```"
+
+    impl_state = {
+        "goal": "Build a Next.js landing page",
+        "product_type": "website",
+        "project_id": unique_project_id,
+        "workspace_id": unique_project_id,
+        "thread_id": f"thread_{unique_project_id}",
+        "token_usage_per_phase": {},
+        "token_budget_per_phase": {},
+        "token_savings": {},
+        "file_history": {},
+        "budget_approvals": [],
+        "active_skills": ["web-website-build"],
+        "artifacts": {},
+    }
+
+    with patch("src.ai_runtime.service.AIRuntimeService.complete", new_callable=AsyncMock, return_value=mock_res):
+        impl_res = await implement_node(impl_state)
+
+    assert impl_res["status"] == "verified"
+    artifacts = impl_res["artifacts"]
+    assert "package.json" in artifacts
+    assert "app/page.tsx" in artifacts
+    assert impl_res["generated_code"] == artifacts["app/page.tsx"]
+
+    # Verify 0 disk writes: directory should still NOT exist!
+    assert not workspace_dir.exists()
+
+    # 3. explore_node with populated artifacts in serverless
+    state_with_artifacts = {
+        "goal": "Update the header",
+        "current_phase": "explore",
+        "project_id": unique_project_id,
+        "workspace_id": unique_project_id,
+        "thread_id": f"thread_{unique_project_id}",
+        "artifacts": artifacts,
+    }
+    explore_res_2 = await explore_node(state_with_artifacts)
+    assert explore_res_2["status"] == "explored"
+    assert "package.json" in explore_res_2["explored_files"]
+    assert "app/page.tsx" in explore_res_2["explored_files"]
+    assert not workspace_dir.exists()
