@@ -505,8 +505,8 @@ async def test_implement_multi_file_nextjs_written_to_workspace():
     assert result["generated_code"] == artifacts["app/page.tsx"]
 
     # Verify files were physically written to disk under workspaces/<project_id>/
-    repo_root = Path(__file__).resolve().parent.parent.parent.parent
-    workspace_dir = repo_root / "workspaces" / unique_project_id
+    from src.utils.paths import get_workspaces_dir
+    workspace_dir = get_workspaces_dir() / unique_project_id
     assert workspace_dir.exists()
     assert (workspace_dir / "package.json").exists()
     assert (workspace_dir / "app" / "page.tsx").exists()

@@ -30,6 +30,7 @@ from src.utils.package_resolver import PackageResolver
 from src.utils.doc_crawler import doc_crawler, DOC_SOURCE_REGISTRY
 from src.utils.host_manager import host_manager, find_free_port, HostManagerResult
 from src.runtime.explore_manager import get_explore_manager, ExploreEvent, ExplorationSummary
+from src.utils.paths import get_workspaces_dir
 
 logger = logging.getLogger(__name__)
 
@@ -218,8 +219,7 @@ async def explore_node(state: AgentState) -> dict[str, Any]:
     current_phase = state.get("current_phase") or "explore"
     project_id = str(state.get("project_id") or state.get("workspace_id") or "default_project")
 
-    repo_root = Path(__file__).resolve().parent.parent.parent.parent
-    workspace_dir = repo_root / "workspaces" / project_id
+    workspace_dir = get_workspaces_dir() / project_id
     workspace_dir.mkdir(parents=True, exist_ok=True)
 
     # Check if the workspace directory is empty (ignoring hidden files)
@@ -1290,8 +1290,7 @@ async def research_phase_node(state: AgentState) -> dict[str, Any]:
     # Strictly isolated to project sandbox directory: workspaces/<project_id>/
     # -------------------------------------------------------------------------
     project_id = str(state.get("project_id") or state.get("workspace_id") or "default_project")
-    repo_root = Path(__file__).resolve().parent.parent.parent.parent
-    workspace_dir = repo_root / "workspaces" / project_id
+    workspace_dir = get_workspaces_dir() / project_id
     workspace_dir.mkdir(parents=True, exist_ok=True)
     project_files = [p for p in workspace_dir.rglob("*") if p.is_file() and not p.name.startswith(".")]
 
@@ -1506,7 +1505,9 @@ def write_secrets_to_env_file(secrets_dict: dict[str, str]) -> None:
     Values are kept only on disk and in server memory (_SERVER_MEMORY_SECRETS),
     never returned over SSE or exposed to the frontend.
     """
-    workspace_root = os.environ.get("WORKSPACE_ROOT", os.getcwd())
+    is_serverless = os.environ.get("VERCEL") == "1" or os.environ.get("AWS_LAMBDA_FUNCTION_NAME") is not None
+    default_root = str(get_workspaces_dir()) if is_serverless else os.getcwd()
+    workspace_root = os.environ.get("WORKSPACE_ROOT", default_root)
     env_path = Path(workspace_root) / ".env"
 
     # Store in memory
@@ -2234,8 +2235,7 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
 
     if not implement_summary:
         project_id = str(state.get("project_id") or state.get("workspace_id") or "default_project")
-        repo_root = Path(__file__).resolve().parent.parent.parent.parent
-        workspace_dir = repo_root / "workspaces" / project_id
+        workspace_dir = get_workspaces_dir() / project_id
         workspace_dir.mkdir(parents=True, exist_ok=True)
         project_files = [p for p in workspace_dir.rglob("*") if p.is_file() and not p.name.startswith(".")]
         if not project_files:
@@ -3480,8 +3480,7 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
 
     # Write all generated files to project workspace directory (workspaces/<project_id>/...)
     project_id = str(state.get("project_id") or state.get("workspace_id") or "default_project")
-    repo_root = Path(__file__).resolve().parent.parent.parent.parent
-    workspace_dir = repo_root / "workspaces" / project_id
+    workspace_dir = get_workspaces_dir() / project_id
     workspace_dir.mkdir(parents=True, exist_ok=True)
     for rel_path, file_content in current_artifacts.items():
         if file_content:
@@ -3549,8 +3548,7 @@ async def critic_node(state: AgentState) -> dict[str, Any]:
 
     # Ensure all generated files are written to disk in workspaces/<project_id>/
     project_id = str(state.get("project_id") or state.get("workspace_id") or "default_project")
-    repo_root = Path(__file__).resolve().parent.parent.parent.parent
-    workspace_dir = repo_root / "workspaces" / project_id
+    workspace_dir = get_workspaces_dir() / project_id
     workspace_dir.mkdir(parents=True, exist_ok=True)
     for rel_path, file_content in artifacts.items():
         if file_content:
