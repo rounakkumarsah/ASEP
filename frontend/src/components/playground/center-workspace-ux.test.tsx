@@ -668,6 +668,132 @@ describe('CenterWorkspace UX - Event Classification, Extraction, and Message Rou
       expect(result).toBeNull();
       expect(getSpy).not.toHaveBeenCalled();
     });
+
+    it('dynamically updates selectedArtifactFile when setArtifacts is called with files', () => {
+      usePlaygroundStore.setState({ artifacts: {}, selectedArtifactFile: null });
+      usePlaygroundStore.getState().setArtifacts({
+        'app/page.tsx': 'export default function Page() {}',
+        'package.json': '{"name": "test"}',
+      });
+
+      const state = usePlaygroundStore.getState();
+      expect(Object.keys(state.artifacts)).toEqual(['app/page.tsx', 'package.json']);
+      expect(state.selectedArtifactFile).toBe('app/page.tsx');
+    });
+
+    it('resets selectedArtifactFile to null when setArtifacts is called with empty object', () => {
+      usePlaygroundStore.setState({
+        artifacts: { 'main.py': 'print("hello")' },
+        selectedArtifactFile: 'main.py',
+      });
+      usePlaygroundStore.getState().setArtifacts({});
+
+      const state = usePlaygroundStore.getState();
+      expect(state.artifacts).toEqual({});
+      expect(state.selectedArtifactFile).toBeNull();
+    });
+
+    it('updates selectedArtifactFile to first available key when current selection is removed', () => {
+      usePlaygroundStore.setState({
+        artifacts: { 'file1.ts': '// 1', 'file2.ts': '// 2' },
+        selectedArtifactFile: 'file2.ts',
+      });
+      usePlaygroundStore.getState().setArtifacts({
+        'file3.ts': '// 3',
+        'file4.ts': '// 4',
+      });
+
+      const state = usePlaygroundStore.getState();
+      expect(state.selectedArtifactFile).toBe('file3.ts');
+    });
+
+    it('supports functional updater in setArtifacts while maintaining valid selection', () => {
+      usePlaygroundStore.setState({
+        artifacts: { 'a.py': 'x = 1' },
+        selectedArtifactFile: 'a.py',
+      });
+      usePlaygroundStore.getState().setArtifacts((prev) => ({
+        ...prev,
+        'b.py': 'y = 2',
+      }));
+
+      const state = usePlaygroundStore.getState();
+      expect(Object.keys(state.artifacts)).toEqual(['a.py', 'b.py']);
+      expect(state.selectedArtifactFile).toBe('a.py');
+    });
+
+    it('normalizes paths with backslashes and leading dot-slashes in setArtifacts', () => {
+      usePlaygroundStore.setState({ artifacts: {}, selectedArtifactFile: null });
+      usePlaygroundStore.getState().setArtifacts({
+        'src\\components\\App.tsx': 'export const App = () => null;',
+        './package.json': '{"name": "test"}',
+        '/index.html': '<html />',
+      });
+
+      const state = usePlaygroundStore.getState();
+      expect(Object.keys(state.artifacts)).toEqual([
+        'src/components/App.tsx',
+        'package.json',
+        'index.html',
+      ]);
+      expect(state.selectedArtifactFile).toBe('src/components/App.tsx');
+    });
+
+    it('returns null and does not corrupt store when fetchRunArtifacts receives error/detail payload', async () => {
+      usePlaygroundStore.setState({
+        artifacts: { 'existing.py': 'print(1)' },
+        selectedArtifactFile: 'existing.py',
+      });
+      vi.spyOn(apiClient, 'get').mockResolvedValueOnce({
+        data: { detail: 'Run 1234 not found' },
+      });
+
+      const result = await usePlaygroundStore.getState().fetchRunArtifacts('1234');
+      expect(result).toBeNull();
+      const state = usePlaygroundStore.getState();
+      expect(state.artifacts).toEqual({ 'existing.py': 'print(1)' });
+      expect(state.selectedArtifactFile).toBe('existing.py');
+    });
+
+    it('unwraps nested artifacts object and normalizes keys in fetchRunArtifacts', async () => {
+      usePlaygroundStore.setState({ artifacts: {}, selectedArtifactFile: null });
+      vi.spyOn(apiClient, 'get').mockResolvedValueOnce({
+        data: {
+          run_id: 'run-abc',
+          artifacts: {
+            'lib\\utils.ts': 'export const sum = (a, b) => a + b;',
+            './README.md': '# Hello',
+          },
+        },
+      });
+
+      const result = await usePlaygroundStore.getState().fetchRunArtifacts('run-abc');
+      expect(result).toEqual({
+        'lib/utils.ts': 'export const sum = (a, b) => a + b;',
+        'README.md': '# Hello',
+      });
+
+      const state = usePlaygroundStore.getState();
+      expect(Object.keys(state.artifacts)).toEqual(['lib/utils.ts', 'README.md']);
+      expect(state.selectedArtifactFile).toBe('lib/utils.ts');
+    });
+
+    it('normalizes path when setSelectedArtifactFile is called with backslashes or leading dot-slash', () => {
+      usePlaygroundStore.setState({
+        artifacts: {
+          'src/index.ts': '// code',
+          'docs/readme.md': '# doc',
+        },
+        selectedArtifactFile: 'src/index.ts',
+      });
+
+      usePlaygroundStore.getState().setSelectedArtifactFile('.\\docs\\readme.md');
+      expect(usePlaygroundStore.getState().selectedArtifactFile).toBe('docs/readme.md');
+
+      usePlaygroundStore.getState().setSelectedArtifactFile(null);
+      expect(usePlaygroundStore.getState().selectedArtifactFile).toBeNull();
+    });
   });
 });
+
 
