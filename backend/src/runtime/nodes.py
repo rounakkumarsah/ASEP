@@ -34,6 +34,14 @@ from src.utils.paths import get_workspaces_dir
 
 logger = logging.getLogger(__name__)
 
+IS_SERVERLESS = os.environ.get("VERCEL") == "1"
+
+
+def is_serverless() -> bool:
+    """Return True if executing inside a serverless runtime (e.g. Vercel)."""
+    return os.environ.get("VERCEL") == "1" or bool(IS_SERVERLESS)
+
+
 NodeFunc = Callable[[AgentState], dict[str, Any] | Awaitable[dict[str, Any]]]
 
 
@@ -218,6 +226,103 @@ async def explore_node(state: AgentState) -> dict[str, Any]:
     goal = extract_clean_goal(state.get("goal") or "Software Engineering Task")
     current_phase = state.get("current_phase") or "explore"
     project_id = str(state.get("project_id") or state.get("workspace_id") or "default_project")
+
+    artifacts = state.get("artifacts") or {}
+
+    if is_serverless():
+        if not artifacts:
+            empty_msg = "Empty workspace. Starting from scratch."
+            logger.info(
+                "explore_node: Serverless workspace for project_id=%s is empty. %s",
+                project_id,
+                empty_msg,
+            )
+            empty_event = {
+                "id": str(uuid.uuid4()),
+                "phase": current_phase,
+                "type": "think",
+                "detail": empty_msg,
+                "duration_ms": 1,
+                "timestamp": time.strftime("%M:%S"),
+                "status": "completed",
+            }
+            empty_summary = {
+                "phase": current_phase,
+                "relevant_files": [],
+                "architecture_understanding": empty_msg,
+                "risks_identified": [],
+                "files_explored_count": 0,
+                "searches_count": 0,
+                "duration_ms": 1,
+                "tokens_saved": 0,
+            }
+            mgr = get_explore_manager()
+            thread_id = state.get("thread_id", "default-thread")
+            if thread_id not in mgr._thread_events:
+                mgr._thread_events[thread_id] = []
+            mgr._thread_events[thread_id].append(empty_event)
+            if thread_id not in mgr._thread_summaries:
+                mgr._thread_summaries[thread_id] = {}
+            mgr._thread_summaries[thread_id][current_phase] = empty_summary
+            mgr._thread_summaries[thread_id]["latest"] = empty_summary
+
+            event_messages = [
+                {"role": "system", "content": f"[Explore Event] {json.dumps(empty_event)}"},
+                {"role": "system", "content": f"[Explore Summary] {json.dumps(empty_summary)}"},
+            ]
+            return {
+                "status": "explored",
+                "current_phase": current_phase,
+                "exploration_events": [empty_event],
+                "exploration_summary": empty_summary,
+                "phase_explorations": {**(state.get("phase_explorations") or {}), current_phase: empty_summary},
+                "explored_files": [],
+                "messages": event_messages,
+            }
+        else:
+            file_names = list(artifacts.keys())
+            explore_event = {
+                "id": str(uuid.uuid4()),
+                "phase": current_phase,
+                "type": "read",
+                "detail": f"Explored {len(file_names)} files from artifacts",
+                "duration_ms": 1,
+                "timestamp": time.strftime("%M:%S"),
+                "status": "completed",
+            }
+            explore_summary = {
+                "phase": current_phase,
+                "relevant_files": file_names,
+                "architecture_understanding": f"Workspace containing artifacts: {', '.join(file_names)}",
+                "risks_identified": [],
+                "files_explored_count": len(file_names),
+                "searches_count": 0,
+                "duration_ms": 1,
+                "tokens_saved": 100,
+            }
+            mgr = get_explore_manager()
+            thread_id = state.get("thread_id", "default-thread")
+            if thread_id not in mgr._thread_events:
+                mgr._thread_events[thread_id] = []
+            mgr._thread_events[thread_id].append(explore_event)
+            if thread_id not in mgr._thread_summaries:
+                mgr._thread_summaries[thread_id] = {}
+            mgr._thread_summaries[thread_id][current_phase] = explore_summary
+            mgr._thread_summaries[thread_id]["latest"] = explore_summary
+
+            event_messages = [
+                {"role": "system", "content": f"[Explore Event] {json.dumps(explore_event)}"},
+                {"role": "system", "content": f"[Explore Summary] {json.dumps(explore_summary)}"},
+            ]
+            return {
+                "status": "explored",
+                "current_phase": current_phase,
+                "exploration_events": [explore_event],
+                "exploration_summary": explore_summary,
+                "phase_explorations": {**(state.get("phase_explorations") or {}), current_phase: explore_summary},
+                "explored_files": file_names,
+                "messages": event_messages,
+            }
 
     workspace_dir = get_workspaces_dir() / project_id
     workspace_dir.mkdir(parents=True, exist_ok=True)
@@ -1290,9 +1395,16 @@ async def research_phase_node(state: AgentState) -> dict[str, Any]:
     # Strictly isolated to project sandbox directory: workspaces/<project_id>/
     # -------------------------------------------------------------------------
     project_id = str(state.get("project_id") or state.get("workspace_id") or "default_project")
-    workspace_dir = get_workspaces_dir() / project_id
-    workspace_dir.mkdir(parents=True, exist_ok=True)
-    project_files = [p for p in workspace_dir.rglob("*") if p.is_file() and not p.name.startswith(".")]
+    artifacts = state.get("artifacts") or {}
+    if is_serverless():
+        if not artifacts:
+            project_files = []
+        else:
+            project_files = [Path(k) for k in artifacts.keys()]
+    else:
+        workspace_dir = get_workspaces_dir() / project_id
+        workspace_dir.mkdir(parents=True, exist_ok=True)
+        project_files = [p for p in workspace_dir.rglob("*") if p.is_file() and not p.name.startswith(".")]
 
     if not project_files:
         empty_msg = "Empty workspace. Starting from scratch."
@@ -1505,8 +1617,11 @@ def write_secrets_to_env_file(secrets_dict: dict[str, str]) -> None:
     Values are kept only on disk and in server memory (_SERVER_MEMORY_SECRETS),
     never returned over SSE or exposed to the frontend.
     """
-    is_serverless = os.environ.get("VERCEL") == "1" or os.environ.get("AWS_LAMBDA_FUNCTION_NAME") is not None
-    default_root = str(get_workspaces_dir()) if is_serverless else os.getcwd()
+    if is_serverless():
+        # Serverless filesystem is read-only; keep secrets in memory only
+        return
+    is_serverless_env = os.environ.get("VERCEL") == "1" or os.environ.get("AWS_LAMBDA_FUNCTION_NAME") is not None
+    default_root = str(get_workspaces_dir()) if is_serverless_env else os.getcwd()
     workspace_root = os.environ.get("WORKSPACE_ROOT", default_root)
     env_path = Path(workspace_root) / ".env"
 
@@ -2234,47 +2349,101 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
     explore_events: list[dict[str, Any]] = state.get("exploration_events") or []
 
     if not implement_summary:
-        project_id = str(state.get("project_id") or state.get("workspace_id") or "default_project")
-        workspace_dir = get_workspaces_dir() / project_id
-        workspace_dir.mkdir(parents=True, exist_ok=True)
-        project_files = [p for p in workspace_dir.rglob("*") if p.is_file() and not p.name.startswith(".")]
-        if not project_files:
-            empty_msg = "Empty workspace. Starting from scratch."
-            implement_summary = {
-                "phase": "implement",
-                "relevant_files": [],
-                "architecture_understanding": empty_msg,
-                "risks_identified": [],
-                "files_explored_count": 0,
-                "searches_count": 0,
-                "duration_ms": 1,
-                "tokens_saved": 0,
-            }
-            explore_events = [{
-                "id": str(uuid.uuid4()),
-                "phase": "implement",
-                "type": "think",
-                "detail": empty_msg,
-                "duration_ms": 1,
-                "timestamp": time.strftime("%M:%S"),
-                "status": "completed",
-            }]
+        artifacts = state.get("artifacts") or {}
+        if is_serverless():
+            if not artifacts:
+                empty_msg = "Empty workspace. Starting from scratch."
+                implement_summary = {
+                    "phase": "implement",
+                    "relevant_files": [],
+                    "architecture_understanding": empty_msg,
+                    "risks_identified": [],
+                    "files_explored_count": 0,
+                    "searches_count": 0,
+                    "duration_ms": 1,
+                    "tokens_saved": 0,
+                }
+                explore_events = [{
+                    "id": str(uuid.uuid4()),
+                    "phase": "implement",
+                    "type": "think",
+                    "detail": empty_msg,
+                    "duration_ms": 1,
+                    "timestamp": time.strftime("%M:%S"),
+                    "status": "completed",
+                }]
+            else:
+                file_names = list(artifacts.keys())
+                implement_summary = {
+                    "phase": "implement",
+                    "relevant_files": file_names,
+                    "architecture_understanding": f"Artifact workspace with files: {', '.join(file_names)}",
+                    "risks_identified": [],
+                    "files_explored_count": len(file_names),
+                    "searches_count": 0,
+                    "duration_ms": 1,
+                    "tokens_saved": 100,
+                }
+                explore_events = [{
+                    "id": str(uuid.uuid4()),
+                    "phase": "implement",
+                    "type": "read",
+                    "detail": f"Explored {len(file_names)} files from in-memory artifacts",
+                    "duration_ms": 1,
+                    "timestamp": time.strftime("%M:%S"),
+                    "status": "completed",
+                }]
+            mgr = get_explore_manager()
+            thread_id = state.get("thread_id", "default-thread")
+            if thread_id not in mgr._thread_events:
+                mgr._thread_events[thread_id] = []
+            mgr._thread_events[thread_id].extend(explore_events)
+            if thread_id not in mgr._thread_summaries:
+                mgr._thread_summaries[thread_id] = {}
+            mgr._thread_summaries[thread_id]["implement"] = implement_summary
+            mgr._thread_summaries[thread_id]["latest"] = implement_summary
         else:
-            from src.runtime.explore_manager import ExploreManager
-            project_explore_mgr = ExploreManager(workspace_root=str(workspace_dir))
-            explore_events, implement_summary = await project_explore_mgr.explore_phase("explore", goal, state)
-            explore_events, implement_summary = _sanitize_exploration_for_frontend(goal, explore_events, implement_summary)
+            project_id = str(state.get("project_id") or state.get("workspace_id") or "default_project")
+            workspace_dir = get_workspaces_dir() / project_id
+            workspace_dir.mkdir(parents=True, exist_ok=True)
+            project_files = [p for p in workspace_dir.rglob("*") if p.is_file() and not p.name.startswith(".")]
+            if not project_files:
+                empty_msg = "Empty workspace. Starting from scratch."
+                implement_summary = {
+                    "phase": "implement",
+                    "relevant_files": [],
+                    "architecture_understanding": empty_msg,
+                    "risks_identified": [],
+                    "files_explored_count": 0,
+                    "searches_count": 0,
+                    "duration_ms": 1,
+                    "tokens_saved": 0,
+                }
+                explore_events = [{
+                    "id": str(uuid.uuid4()),
+                    "phase": "implement",
+                    "type": "think",
+                    "detail": empty_msg,
+                    "duration_ms": 1,
+                    "timestamp": time.strftime("%M:%S"),
+                    "status": "completed",
+                }]
+            else:
+                from src.runtime.explore_manager import ExploreManager
+                project_explore_mgr = ExploreManager(workspace_root=str(workspace_dir))
+                explore_events, implement_summary = await project_explore_mgr.explore_phase("explore", goal, state)
+                explore_events, implement_summary = _sanitize_exploration_for_frontend(goal, explore_events, implement_summary)
 
-        # Sync with global ExploreManager for SSE stream and explore endpoints
-        mgr = get_explore_manager()
-        thread_id = state.get("thread_id", "default-thread")
-        if thread_id not in mgr._thread_events:
-            mgr._thread_events[thread_id] = []
-        mgr._thread_events[thread_id].extend(explore_events)
-        if thread_id not in mgr._thread_summaries:
-            mgr._thread_summaries[thread_id] = {}
-        mgr._thread_summaries[thread_id]["implement"] = implement_summary
-        mgr._thread_summaries[thread_id]["latest"] = implement_summary
+            # Sync with global ExploreManager for SSE stream and explore endpoints
+            mgr = get_explore_manager()
+            thread_id = state.get("thread_id", "default-thread")
+            if thread_id not in mgr._thread_events:
+                mgr._thread_events[thread_id] = []
+            mgr._thread_events[thread_id].extend(explore_events)
+            if thread_id not in mgr._thread_summaries:
+                mgr._thread_summaries[thread_id] = {}
+            mgr._thread_summaries[thread_id]["implement"] = implement_summary
+            mgr._thread_summaries[thread_id]["latest"] = implement_summary
 
     # Summary shown to coding agent so it never re-explores the same files (token saving, per-phase)
     relevant_files = implement_summary.get("relevant_files", []) if implement_summary else []
@@ -3478,15 +3647,16 @@ async def implement_phase_node(state: AgentState) -> dict[str, Any]:
     else:
         current_artifacts[target_path] = code_to_save
 
-    # Write all generated files to project workspace directory (workspaces/<project_id>/...)
-    project_id = str(state.get("project_id") or state.get("workspace_id") or "default_project")
-    workspace_dir = get_workspaces_dir() / project_id
-    workspace_dir.mkdir(parents=True, exist_ok=True)
-    for rel_path, file_content in current_artifacts.items():
-        if file_content:
-            out_file = workspace_dir / rel_path
-            out_file.parent.mkdir(parents=True, exist_ok=True)
-            out_file.write_text(file_content, encoding="utf-8")
+    # Write all generated files to project workspace directory (workspaces/<project_id>/...) - skipped in serverless
+    if not is_serverless():
+        project_id = str(state.get("project_id") or state.get("workspace_id") or "default_project")
+        workspace_dir = get_workspaces_dir() / project_id
+        workspace_dir.mkdir(parents=True, exist_ok=True)
+        for rel_path, file_content in current_artifacts.items():
+            if file_content:
+                out_file = workspace_dir / rel_path
+                out_file.parent.mkdir(parents=True, exist_ok=True)
+                out_file.write_text(file_content, encoding="utf-8")
 
     if is_frontend_prompt or is_frontend_req or is_frontend_domain_guard or has_website_skill:
         clean_explored = [f for f in (state.get("explored_files") or []) if not f.endswith(".py") and "backend" not in f.lower()]
@@ -3546,15 +3716,16 @@ async def critic_node(state: AgentState) -> dict[str, Any]:
             artifacts["app/page.tsx"] = code
             artifacts["page.tsx"] = code
 
-    # Ensure all generated files are written to disk in workspaces/<project_id>/
-    project_id = str(state.get("project_id") or state.get("workspace_id") or "default_project")
-    workspace_dir = get_workspaces_dir() / project_id
-    workspace_dir.mkdir(parents=True, exist_ok=True)
-    for rel_path, file_content in artifacts.items():
-        if file_content:
-            target_file = workspace_dir / rel_path
-            target_file.parent.mkdir(parents=True, exist_ok=True)
-            target_file.write_text(file_content, encoding="utf-8")
+    # Ensure all generated files are written to disk in workspaces/<project_id>/ (skipped in serverless)
+    if not is_serverless():
+        project_id = str(state.get("project_id") or state.get("workspace_id") or "default_project")
+        workspace_dir = get_workspaces_dir() / project_id
+        workspace_dir.mkdir(parents=True, exist_ok=True)
+        for rel_path, file_content in artifacts.items():
+            if file_content:
+                target_file = workspace_dir / rel_path
+                target_file.parent.mkdir(parents=True, exist_ok=True)
+                target_file.write_text(file_content, encoding="utf-8")
 
     # -------------------------------------------------------------------------
     # FRONTEND / MULTI-FILE WORKSPACE STATIC VALIDATION:
@@ -3671,16 +3842,16 @@ async def critic_node(state: AgentState) -> dict[str, Any]:
     # SERVERLESS / NON-PYTHON BYPASS: Validate via static AST or skip sandbox
     # -------------------------------------------------------------------------
     from src.services.e2b_sandbox import is_e2b_configured
-    is_serverless = (os.environ.get("VERCEL") == "1" or os.environ.get("SERVERLESS") == "1") and not is_e2b_configured()
+    serverless_env = (os.environ.get("VERCEL") == "1" or os.environ.get("SERVERLESS") == "1" or is_serverless()) and not is_e2b_configured()
 
     is_placeholder = code_stripped in (
         "print('No code to evaluate')",
         "print('Implementation complete')",
     ) or code_stripped.startswith("# ") and "\n" not in code_stripped.strip("\n")
 
-    if is_serverless or is_non_python or is_placeholder:
+    if serverless_env or is_non_python or is_placeholder:
         # On serverless with real Python code: validate statically via ast.parse
-        if is_serverless and not is_non_python and not is_placeholder:
+        if serverless_env and not is_non_python and not is_placeholder:
             try:
                 ast.parse(code)
                 logger.info("Critic: Code passed static AST syntax validation on serverless")

@@ -304,3 +304,42 @@ async def test_run_step_observability_logged_on_exception(test_client: TestClien
     assert f"POST /run/{run_id}/step observability" in log_text
     assert "step_index=3" in log_text
     assert "finish_reason=error" in log_text
+
+
+@pytest.mark.asyncio
+async def test_get_run_artifacts_endpoint(test_client: TestClient):
+    """GET /run/{run_id}/artifacts returns artifacts from cache or state."""
+    from src.api.routers import conversations
+
+    run_id = str(uuid.uuid4())
+    expected_artifacts = {
+        "package.json": "{\"name\": \"demo\"}",
+        "app/page.tsx": "export default function Page() { return <div>Demo</div>; }",
+    }
+
+    # 1. Test in-memory cache hit
+    conversations._run_artifacts[run_id] = expected_artifacts
+
+    resp = test_client.get(f"/api/v1/conversations/run/{run_id}/artifacts")
+    assert resp.status_code == 200
+    assert resp.json() == expected_artifacts
+
+    # 2. Test checkpointer fallback when not in cache
+    run_id_2 = str(uuid.uuid4())
+    thread_id_2 = str(uuid.uuid4())
+    conversations._run_threads[run_id_2] = thread_id_2
+
+    with patch("src.api.routers.conversations.get_langgraph_runtime") as mock_rt:
+        runtime = MagicMock()
+        runtime.graph.aget_state = AsyncMock(return_value=MagicMock(values={"artifacts": expected_artifacts}))
+        mock_rt.return_value = runtime
+
+        resp2 = test_client.get(f"/api/v1/conversations/run/{run_id_2}/artifacts")
+        assert resp2.status_code == 200
+        assert resp2.json() == expected_artifacts
+
+    # 3. Test empty fallback
+    run_id_empty = str(uuid.uuid4())
+    resp3 = test_client.get(f"/api/v1/conversations/run/{run_id_empty}/artifacts")
+    assert resp3.status_code == 200
+    assert resp3.json() == {}

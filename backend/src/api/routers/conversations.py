@@ -44,6 +44,9 @@ _run_step_counters: dict[str, int] = {}
 _run_start_times: dict[str, float] = {}
 _run_project_ids: dict[str, str] = {}
 _thread_project_ids: dict[str, str] = {}
+_run_threads: dict[str, str] = {}
+_thread_runs: dict[str, str] = {}
+_run_artifacts: dict[str, dict[str, str]] = {}
 
 MAX_STEPS = int(os.environ.get("MAX_STEPS", "40"))
 MAX_RUN_DURATION_SECONDS = float(os.environ.get("MAX_RUN_DURATION_SECONDS", "480"))  # 8 minutes
@@ -243,6 +246,8 @@ async def start_run(
     resolved_project_id = resolved_project_id or "default_project"
     _run_project_ids[run_id] = resolved_project_id
     _thread_project_ids[thread_id] = resolved_project_id
+    _run_threads[run_id] = thread_id
+    _thread_runs[thread_id] = run_id
 
     logger.info(
         "Initiating run run_id=%s thread_id=%s user=%s project_id=%s",
@@ -353,6 +358,8 @@ async def run_step(
     project_id = project_id or "default_project"
     _run_project_ids[run_id] = project_id
     _thread_project_ids[thread_id] = project_id
+    _run_threads[run_id] = thread_id
+    _thread_runs[thread_id] = run_id
 
     # 1. Server-side max_steps and max_duration guard
     current_step = payload.step_index if payload.step_index is not None else (_run_step_counters.get(run_id, 0) + 1)
@@ -488,6 +495,9 @@ async def run_step(
             finish_reason,
         )
 
+    if isinstance(step_result.get("artifacts"), dict) and step_result["artifacts"]:
+        _run_artifacts[run_id] = step_result["artifacts"]
+
     if step_result.get("status") == "done":
         try:
             from src.api.dependencies import get_uow_factory
@@ -550,6 +560,81 @@ async def get_run_status(
     except Exception as e:
         logger.warning("Could not fetch status for run %s: %s", run_id, e)
     return {"run_id": run_id, "status": "unknown"}
+
+
+@router.options("/run/{run_id}/artifacts")
+async def options_get_run_artifacts(run_id: str):
+    return {"message": "OK"}
+
+
+@router.get(
+    "/run/{run_id}/artifacts",
+    summary="Get generated code artifacts for a run",
+)
+async def get_run_artifacts(
+    run_id: str,
+    current_user: CurrentUser,
+) -> dict[str, Any]:
+    """Retrieve code artifacts generated during the run directly from state/checkpointer."""
+    import inspect
+    from langchain_core.runnables.config import RunnableConfig
+
+    # 1. Check in-memory artifacts cached during step execution
+    if run_id in _run_artifacts and _run_artifacts[run_id]:
+        return _run_artifacts[run_id]
+
+    thread_id = _run_threads.get(run_id)
+    if not thread_id:
+        try:
+            from src.api.dependencies import get_uow_factory
+            async with get_uow_factory()() as uow:
+                run_record = await uow.agent_runs.get(uuid.UUID(run_id))
+                if run_record and run_record.session_id:
+                    thread_id = run_record.session_id
+        except Exception:
+            pass
+
+    # 2. Try loading state from LangGraph checkpointer
+    if thread_id:
+        try:
+            runtime = get_langgraph_runtime()
+            config = RunnableConfig(configurable={"thread_id": thread_id})
+            if hasattr(runtime, "graph") and hasattr(runtime.graph, "aget_state"):
+                state_call = runtime.graph.aget_state(config)
+                if inspect.isawaitable(state_call):
+                    st = await state_call
+                else:
+                    st = state_call
+                if st and getattr(st, "values", None):
+                    artifacts = st.values.get("artifacts")
+                    if isinstance(artifacts, dict) and artifacts:
+                        _run_artifacts[run_id] = artifacts
+                        return artifacts
+        except Exception as e:
+            logger.warning("Could not fetch state from LangGraph checkpointer for run %s: %s", run_id, e)
+
+    # 3. Fallback: check project workspace on disk if local development (non-serverless)
+    project_id = _run_project_ids.get(run_id) or thread_id or run_id
+    if os.environ.get("VERCEL") != "1":
+        try:
+            from src.utils.paths import get_workspaces_dir
+            workspace_dir = get_workspaces_dir() / project_id
+            if workspace_dir.exists():
+                disk_artifacts = {}
+                for p in workspace_dir.rglob("*"):
+                    if p.is_file() and not p.name.startswith("."):
+                        rel_path = str(p.relative_to(workspace_dir)).replace("\\", "/")
+                        try:
+                            disk_artifacts[rel_path] = p.read_text(encoding="utf-8")
+                        except Exception:
+                            pass
+                if disk_artifacts:
+                    _run_artifacts[run_id] = disk_artifacts
+                    return disk_artifacts
+        except Exception:
+            pass
+
+    return _run_artifacts.get(run_id, {})
 
 
 @router.get(
