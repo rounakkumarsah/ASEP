@@ -256,7 +256,7 @@ import { persist } from 'zustand/middleware';
 
 export const usePlaygroundStore = create<PlaygroundState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       model: 'gemini-flash-latest',
       setModel: (model) => set({ model }),
       temperature: 0.7,
@@ -463,9 +463,37 @@ export const usePlaygroundStore = create<PlaygroundState>()(
 
       artifacts: {},
       setArtifacts: (artifacts) =>
-        set((state) => ({
-          artifacts: typeof artifacts === 'function' ? artifacts(state.artifacts) : artifacts,
-        })),
+        set((state) => {
+          const rawArtifacts =
+            typeof artifacts === 'function' ? artifacts(state.artifacts) : artifacts;
+          const nextArtifacts: Record<string, string> = {};
+          if (rawArtifacts && typeof rawArtifacts === 'object') {
+            for (const [k, v] of Object.entries(rawArtifacts)) {
+              const normKey = k.replace(/\\/g, '/').replace(/^\.\//, '').replace(/^\//, '');
+              nextArtifacts[normKey] =
+                typeof v === 'string'
+                  ? v
+                  : v !== null && v !== undefined
+                  ? typeof v === 'object'
+                    ? JSON.stringify(v, null, 2)
+                    : String(v)
+                  : '';
+            }
+          }
+          const keys = Object.keys(nextArtifacts);
+          const currentSelected = state.selectedArtifactFile;
+          const normalizedCurrent = currentSelected
+            ? currentSelected.replace(/\\/g, '/').replace(/^\.\//, '').replace(/^\//, '')
+            : null;
+          const nextSelected =
+            normalizedCurrent && nextArtifacts[normalizedCurrent] !== undefined
+              ? normalizedCurrent
+              : (keys[0] || null);
+          return {
+            artifacts: nextArtifacts,
+            selectedArtifactFile: nextSelected,
+          };
+        }),
       selectedArtifactFile: null,
       setSelectedArtifactFile: (file) =>
         set((state) => {
@@ -487,13 +515,17 @@ export const usePlaygroundStore = create<PlaygroundState>()(
           const res = await apiClient.get<Record<string, unknown>>(`/api/v1/conversations/run/${runId}/artifacts`);
           if (res.data && typeof res.data === 'object' && !Array.isArray(res.data)) {
             const rawData = res.data as Record<string, unknown>;
-            const rawMap =
-              'artifacts' in rawData &&
-              rawData.artifacts &&
-              typeof rawData.artifacts === 'object' &&
-              !Array.isArray(rawData.artifacts)
-                ? (rawData.artifacts as Record<string, unknown>)
-                : rawData;
+            if ('detail' in rawData || 'error' in rawData) {
+              return null;
+            }
+            let rawMap: Record<string, unknown> = {};
+            if ('artifacts' in rawData) {
+              if (rawData.artifacts && typeof rawData.artifacts === 'object' && !Array.isArray(rawData.artifacts)) {
+                rawMap = rawData.artifacts as Record<string, unknown>;
+              }
+            } else {
+              rawMap = rawData;
+            }
 
             const sanitized: Record<string, string> = {};
             for (const [k, v] of Object.entries(rawMap)) {
@@ -505,21 +537,7 @@ export const usePlaygroundStore = create<PlaygroundState>()(
               }
             }
 
-            set((state) => {
-              const keys = Object.keys(sanitized);
-              const currentSelected = state.selectedArtifactFile;
-              const normalizedCurrent = currentSelected
-                ? currentSelected.replace(/\\/g, '/').replace(/^\.\//, '').replace(/^\//, '')
-                : null;
-              const nextSelected =
-                normalizedCurrent && sanitized[normalizedCurrent] !== undefined
-                  ? normalizedCurrent
-                  : (keys[0] || null);
-              return {
-                artifacts: sanitized,
-                selectedArtifactFile: nextSelected,
-              };
-            });
+            get().setArtifacts(sanitized);
             return sanitized;
           }
           return null;
