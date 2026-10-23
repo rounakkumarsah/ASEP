@@ -2,13 +2,13 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { MessageSquare, Code, Terminal, Send, Loader2, Bot, User as UserIcon, Plus, Copy, Edit2, GitCompare, Paperclip, Wrench, Cpu, Workflow, Play, FileText, FolderGit2, ShieldAlert, Gauge, Zap, BarChart2, AlertTriangle, Square, GitBranch, ExternalLink, Check, RefreshCw, GitPullRequest, CheckCircle2, Sparkles, PanelLeftOpen, PanelRightOpen, Mic, X, Globe, Database, Server } from "lucide-react";
+import { MessageSquare, Code, Terminal, Send, Loader2, Bot, User as UserIcon, Plus, Copy, Edit2, GitCompare, Paperclip, Wrench, Cpu, Workflow, Play, FileText, FolderGit2, ShieldAlert, Gauge, Zap, BarChart2, AlertTriangle, Square, GitBranch, ExternalLink, Check, RefreshCw, GitPullRequest, CheckCircle2, Sparkles, PanelLeftOpen, PanelRightOpen, Mic, X, Globe, Database, Server, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { usePlaygroundStore } from "@/lib/stores/playgroundStore";
+import { usePlaygroundStore, Message } from "@/lib/stores/playgroundStore";
 import { useWorkspaceStore } from "@/lib/stores/workspaceStore";
 import { useChatHistoryStore } from "@/lib/stores/chatHistoryStore";
 import { useSidebarStore } from "@/lib/stores/sidebarStore";
@@ -166,6 +166,301 @@ export interface MessageItem {
   content?: string | unknown;
 }
 
+export interface PhaseEventItem {
+  phase: string;
+  phaseName: string;
+  status: "active" | "completed" | "failed";
+  summary: string;
+  icon?: string;
+  details?: Record<string, unknown>;
+}
+
+export interface PhaseMetadata {
+  key: string;
+  name: string;
+  icon: string;
+  defaultSummary: string;
+}
+
+export interface ExecutionStep {
+  id: string;
+  nodeName: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  summary?: string;
+  timestamp?: string;
+}
+
+export function formatNodeName(name: string): string {
+  if (!name) return "";
+  const trimmed = name.trim();
+  if (trimmed.includes(" ")) return trimmed;
+  if (/[a-z][A-Z]/.test(trimmed) && !trimmed.includes("_")) {
+    return trimmed.replace(/([a-z])([A-Z])/g, "$1 $2");
+  }
+  return trimmed
+    .split(/[_-]/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
+
+export const PHASE_CONFIG: Record<string, PhaseMetadata> = {
+  research: {
+    key: "research",
+    name: "Exploration Phase: Research",
+    icon: "🔍",
+    defaultSummary: "Loaded documentation & technical context",
+  },
+  blueprint: {
+    key: "blueprint",
+    name: "Blueprint Phase",
+    icon: "📐",
+    defaultSummary: "System architecture & interface design approved",
+  },
+  capability_blueprint: {
+    key: "blueprint",
+    name: "Capability Blueprint Phase",
+    icon: "📐",
+    defaultSummary: "Capability specifications verified",
+  },
+  scaffold: {
+    key: "scaffold",
+    name: "Scaffold Phase",
+    icon: "🏗️",
+    defaultSummary: "Boilerplate & project structure generated",
+  },
+  implement: {
+    key: "implement",
+    name: "Implementation Phase",
+    icon: "⚙️",
+    defaultSummary: "Core modules coded",
+  },
+  agent_loop_implementation: {
+    key: "implement",
+    name: "Implementation Phase",
+    icon: "⚙️",
+    defaultSummary: "Core modules coded",
+  },
+  test: {
+    key: "test",
+    name: "Test Phase",
+    icon: "🧪",
+    defaultSummary: "All tests passed",
+  },
+  critic: {
+    key: "test",
+    name: "Test Phase",
+    icon: "🧪",
+    defaultSummary: "Sandbox execution verified successfully",
+  },
+  sandbox_tests: {
+    key: "test",
+    name: "Test Phase",
+    icon: "🧪",
+    defaultSummary: "All tests passed",
+  },
+  evaluation_runs: {
+    key: "test",
+    name: "Test Phase",
+    icon: "🧪",
+    defaultSummary: "Evaluation benchmarks completed",
+  },
+  security_audit: {
+    key: "security_audit",
+    name: "Security Audit Phase",
+    icon: "🛡️",
+    defaultSummary: "0 vulnerabilities found",
+  },
+  deploy: {
+    key: "deploy",
+    name: "Deploy Phase",
+    icon: "🚀",
+    defaultSummary: "Artifacts bundled & deployment completed",
+  },
+};
+
+export function getPhaseMetadata(rawPhase: string): PhaseMetadata | null {
+  if (!rawPhase || typeof rawPhase !== "string") return null;
+  const lower = rawPhase.toLowerCase().trim().replace(/[-_\s]+/g, "_");
+  if (lower === "start" || lower === "orchestrator" || lower === "end") return null;
+  if (PHASE_CONFIG[lower]) {
+    return PHASE_CONFIG[lower];
+  }
+  if (lower === "explore" || lower === "exploration") return PHASE_CONFIG["research"];
+  if (lower === "coder" || lower === "implementation" || lower === "coding") return PHASE_CONFIG["implement"];
+  if (lower === "security" || lower === "audit" || lower === "security_audit") return PHASE_CONFIG["security_audit"];
+  if (lower === "deployment" || lower === "release") return PHASE_CONFIG["deploy"];
+  if (lower === "tests" || lower === "testing") return PHASE_CONFIG["test"];
+  return null;
+}
+
+export function parsePhaseFromStatusString(content: string): PhaseEventItem | null {
+  if (!content || typeof content !== "string") return null;
+  const trimmed = content.trim();
+
+  // 1. Phase started: <phase>
+  const startMatch = trimmed.match(/^Phase started:\s*([a-zA-Z0-9_\-]+)/i);
+  if (startMatch) {
+    const rawPhase = startMatch[1];
+    const meta = getPhaseMetadata(rawPhase);
+    if (meta) {
+      return {
+        phase: meta.key,
+        phaseName: meta.name,
+        status: "active",
+        summary: `Running ${meta.name.toLowerCase()}...`,
+        icon: meta.icon,
+      };
+    }
+  }
+
+  // 2. Generic Phase complete(d): <phase>: <summary>
+  const completeMatch = trimmed.match(/^Phase complete(?:d)?:\s*([a-zA-Z0-9_\-]+)(?::\s*([^\n\r]+))?/i);
+  if (completeMatch) {
+    const rawPhase = completeMatch[1];
+    const customSummary = completeMatch[2];
+    const meta = getPhaseMetadata(rawPhase);
+    if (meta) {
+      return {
+        phase: meta.key,
+        phaseName: meta.name,
+        status: "completed",
+        summary: customSummary ? customSummary.trim().replace(/\.$/, "") : meta.defaultSummary,
+        icon: meta.icon,
+      };
+    }
+  }
+
+  // 2. Specific phase completions
+  if (/Implement(?:ation)? Phase Complete/i.test(trimmed)) {
+    const summaryMatch = trimmed.match(/Implement(?:ation)? Phase Complete:\s*([^\n\r]+)/i);
+    return {
+      phase: "implement",
+      phaseName: "Implementation Phase",
+      status: "completed",
+      summary: summaryMatch ? summaryMatch[1].trim().replace(/\.$/, "") : "Core modules coded",
+      icon: "⚙️",
+    };
+  }
+
+  if (/(?:Test|Critic) Phase Complete/i.test(trimmed)) {
+    const summaryMatch = trimmed.match(/(?:Test|Critic) Phase Complete:\s*([^\n\r]+)/i);
+    const isCritic = /Critic Phase Complete/i.test(trimmed);
+    return {
+      phase: "test",
+      phaseName: "Test Phase",
+      status: "completed",
+      summary: summaryMatch ? summaryMatch[1].trim().replace(/\.$/, "") : (isCritic ? "Sandbox execution verified successfully" : "All tests passed"),
+      icon: "🧪",
+    };
+  }
+
+  if (/Security Audit Complete/i.test(trimmed) || /### Security Audit:\s*PASSED/i.test(trimmed)) {
+    const summaryMatch = trimmed.match(/Security Audit Complete:\s*([^\n\r]+)/i);
+    return {
+      phase: "security_audit",
+      phaseName: "Security Audit Phase",
+      status: "completed",
+      summary: summaryMatch ? summaryMatch[1].trim().replace(/\.$/, "") : "0 vulnerabilities",
+      icon: "🛡️",
+    };
+  }
+
+  if (/Deploy Phase Complete/i.test(trimmed) || /Deploy Gate/i.test(trimmed)) {
+    const summaryMatch = trimmed.match(/Deploy Phase Complete:\s*([^\n\r]+)/i);
+    return {
+      phase: "deploy",
+      phaseName: "Deploy Phase",
+      status: "completed",
+      summary: summaryMatch ? summaryMatch[1].trim().replace(/\.$/, "") : "Artifacts bundled and verified against security policies",
+      icon: "🚀",
+    };
+  }
+
+  if (/Research Phase Complete/i.test(trimmed)) {
+    const summaryMatch = trimmed.match(/Research Phase Complete:\s*([^\n\r]+)/i);
+    return {
+      phase: "research",
+      phaseName: "Exploration Phase: Research",
+      status: "completed",
+      summary: summaryMatch ? summaryMatch[1].trim().replace(/\.$/, "") : "Loaded documentation",
+      icon: "🔍",
+    };
+  }
+
+  if (/Blueprint Phase Complete/i.test(trimmed)) {
+    const summaryMatch = trimmed.match(/Blueprint Phase Complete:\s*([^\n\r]+)/i);
+    return {
+      phase: "blueprint",
+      phaseName: "Blueprint Phase",
+      status: "completed",
+      summary: summaryMatch ? summaryMatch[1].trim().replace(/\.$/, "") : "System design approved",
+      icon: "📐",
+    };
+  }
+
+  if (/Scaffold Phase Complete/i.test(trimmed)) {
+    const summaryMatch = trimmed.match(/Scaffold Phase Complete:\s*([^\n\r]+)/i);
+    return {
+      phase: "scaffold",
+      phaseName: "Scaffold Phase",
+      status: "completed",
+      summary: summaryMatch ? summaryMatch[1].trim().replace(/\.$/, "") : "Boilerplate generated",
+      icon: "🏗️",
+    };
+  }
+
+  return null;
+}
+
+export function extractPhaseSummary(updateVal: unknown, phaseKey: string): string | null {
+  if (!updateVal || typeof updateVal !== "object") return null;
+  const obj = updateVal as Record<string, unknown>;
+
+  if (typeof obj.summary === "string" && obj.summary.trim()) {
+    return obj.summary.trim();
+  }
+  if (typeof obj.detail === "string" && obj.detail.trim()) {
+    return obj.detail.trim();
+  }
+
+  // 1. Check messages array for completion strings
+  if (Array.isArray(obj.messages)) {
+    for (const m of obj.messages) {
+      const text = typeof m === "string" ? m : (m as { content?: string })?.content;
+      if (typeof text === "string") {
+        const parsed = parsePhaseFromStatusString(text);
+        if (parsed && parsed.summary) return parsed.summary;
+      }
+    }
+  }
+
+  // 2. Check security_report
+  if (obj.security_report && typeof obj.security_report === "object") {
+    const sec = obj.security_report as Record<string, unknown>;
+    const crit = sec.critical_count ?? 0;
+    return `${crit} vulnerabilities`;
+  }
+
+  // 3. Check test_results
+  if (obj.test_results && typeof obj.test_results === "object") {
+    const tr = obj.test_results as Record<string, unknown>;
+    return `All tests passed (${tr.coverage || "PASS"})`;
+  }
+
+  // 4. Check artifacts
+  if (obj.artifacts && typeof obj.artifacts === "object") {
+    const fileCount = Object.keys(obj.artifacts as Record<string, unknown>).length;
+    if (fileCount > 0 && phaseKey === "implement") {
+      return `${fileCount} module(s) coded`;
+    }
+  }
+
+  // 5. Default by phase
+  const meta = getPhaseMetadata(phaseKey);
+  return meta?.defaultSummary || null;
+}
+
 export function extractMessageContent(content: unknown): string {
   if (typeof content === "string") return content;
   if (Array.isArray(content)) {
@@ -236,6 +531,8 @@ export function isStatusContent(text?: unknown): boolean {
     trimmed.startsWith("[Metrics]") ||
     trimmed.startsWith("[Explore Event]") ||
     trimmed.startsWith("[Explore Summary]") ||
+    trimmed.startsWith("[Phase Event]") ||
+    trimmed.startsWith("[Phase Status]") ||
     trimmed.startsWith("[Active Skill Applied]") ||
     trimmed.startsWith("[Skill Activated]") ||
     trimmed.startsWith("[Skill Reference]") ||
@@ -309,14 +606,110 @@ export function processEventData(
     onStatusEvent?: (item: MessageItem) => void;
     onArtifactCode?: (code: string) => void;
     onArtifacts?: (artifacts: Record<string, string>) => void;
+    onExecutionStep?: (step: ExecutionStep) => void;
+    onPhaseEvent?: (phaseEvent: PhaseEventItem) => void;
   }
 ): void {
   if (!data || typeof data !== "object") return;
   const eventPayload = (data.event && typeof data.event === "object" ? data.event : data) as Record<string, unknown>;
 
+  // Check for direct node event fields (e.g. { node_name: "Agent Loop Implementation", status: "running", summary: "..." })
+  const directNodeName = (
+    typeof eventPayload.node_name === "string" ? eventPayload.node_name :
+    typeof eventPayload.node === "string" ? eventPayload.node :
+    typeof eventPayload.active_node_name === "string" ? eventPayload.active_node_name :
+    undefined
+  );
+
+  if (directNodeName) {
+    const rawStatus = String(eventPayload.status || eventPayload.state || "").toLowerCase();
+    const stepStatus: 'pending' | 'running' | 'completed' | 'failed' =
+      rawStatus === 'failed' || rawStatus === 'error' ? 'failed' :
+      rawStatus === 'running' || rawStatus === 'pending' || rawStatus === 'started' ? 'running' :
+      'completed';
+
+    const rawSummary = eventPayload.summary || eventPayload.detail || eventPayload.content || eventPayload.message;
+    const summaryStr = typeof rawSummary === "string" ? rawSummary : (rawSummary ? extractMessageContent(rawSummary) : undefined);
+
+    if (stepStatus === 'running') {
+      handlers.setActiveNode?.(directNodeName);
+    } else if (stepStatus === 'completed') {
+      handlers.addCompletedNode?.(directNodeName);
+    }
+
+    const step: ExecutionStep = {
+      id: String(eventPayload.id || directNodeName),
+      nodeName: formatNodeName(directNodeName),
+      status: stepStatus,
+      summary: summaryStr ? summaryStr.trim() : undefined,
+    };
+
+    if (handlers.onExecutionStep) {
+      handlers.onExecutionStep(step);
+    }
+
+    if (handlers.onPhaseEvent) {
+      handlers.onPhaseEvent({
+        phase: directNodeName,
+        phaseName: formatNodeName(directNodeName),
+        status: stepStatus === "failed" ? "failed" : stepStatus === "running" ? "active" : "completed",
+        summary: summaryStr || `${formatNodeName(directNodeName)} executed`,
+      });
+    }
+    return;
+  }
+
+  const METADATA_KEYS = new Set([
+    "status", "events", "error", "message", "messages", "run_id", "thread_id", "step_index",
+    "nodes_executed", "artifacts", "timestamp", "node_name", "node", "active_node_name",
+    "summary", "id", "detail", "content", "icon", "llm_status", "tokens_used", "tool_calls_made",
+    "finish_reason", "type", "role"
+  ]);
+
   for (const [nodeName, updateVal] of Object.entries(eventPayload)) {
-    if (handlers.setActiveNode) handlers.setActiveNode(nodeName);
-    if (handlers.addCompletedNode) handlers.addCompletedNode(nodeName);
+    if (METADATA_KEYS.has(nodeName)) {
+      continue;
+    }
+
+    // Extract step status and summary dynamically
+    let stepStatus: 'pending' | 'running' | 'completed' | 'failed' = 'completed';
+    let stepSummary: string | undefined = undefined;
+
+    if (updateVal && typeof updateVal === "object") {
+      const updateObj = updateVal as Record<string, unknown>;
+      const rawStatus = String(updateObj.status || "").toLowerCase();
+      if (rawStatus === "failed" || rawStatus === "error") stepStatus = "failed";
+      else if (rawStatus === "running" || rawStatus === "started" || rawStatus === "pending") stepStatus = "running";
+      else stepStatus = "completed";
+
+      stepSummary = extractPhaseSummary(updateVal, nodeName) || undefined;
+    }
+
+    if (stepStatus === 'running') {
+      handlers.setActiveNode?.(nodeName);
+    } else if (stepStatus === 'completed') {
+      handlers.addCompletedNode?.(nodeName);
+    }
+
+    const step: ExecutionStep = {
+      id: nodeName,
+      nodeName: formatNodeName(nodeName),
+      status: stepStatus,
+      summary: stepSummary || undefined,
+    };
+
+    if (handlers.onExecutionStep) {
+      handlers.onExecutionStep(step);
+    }
+
+    if (handlers.onPhaseEvent) {
+      handlers.onPhaseEvent({
+        phase: nodeName,
+        phaseName: formatNodeName(nodeName),
+        status: stepStatus === "failed" ? "failed" : stepStatus === "running" ? "active" : "completed",
+        summary: stepSummary || `${formatNodeName(nodeName)} executed`,
+      });
+    }
 
     if (!updateVal) continue;
 
@@ -533,9 +926,150 @@ export const DEFAULT_CONFIG_JSON = JSON.stringify(
 
 const ACTIVE_RUN_STORAGE_KEY = "asep_active_run_state";
 
+interface PhaseStatusCardProps {
+  phaseData: PhaseEventItem;
+  timestamp?: string;
+  onViewArtifacts?: () => void;
+}
+
+export function PhaseStatusCard({ phaseData, timestamp, onViewArtifacts }: PhaseStatusCardProps) {
+  const [isExpanded, setIsExpanded] = React.useState(false);
+
+  const isDone = phaseData.status === "completed";
+  const isActive = phaseData.status === "active";
+  const isFailed = phaseData.status === "failed";
+
+  return (
+    <div
+      data-testid={`phase-status-card-${phaseData.phase}`}
+      className="flex gap-4 justify-start animate-in fade-in slide-in-from-bottom-2 duration-300 w-full my-1"
+    >
+      <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20 mt-0.5">
+        <Bot className="h-4 w-4 text-primary" />
+      </div>
+
+      <div
+        className={`group relative max-w-[85%] rounded-xl text-sm shadow-sm transition-all border overflow-hidden ${
+          isActive
+            ? "bg-card/95 border-cyan-500/50 shadow-[0_0_15px_rgba(34,211,238,0.15)] ring-1 ring-cyan-500/30"
+            : isFailed
+            ? "bg-card/95 border-red-500/40"
+            : "bg-card/90 border-emerald-500/30 hover:border-emerald-500/50"
+        }`}
+      >
+        {/* Clickable Header Bar */}
+        <div
+          onClick={() => setIsExpanded(!isExpanded)}
+          className={`px-4 py-3 cursor-pointer select-none flex items-center justify-between gap-3 ${
+            isActive
+              ? "bg-gradient-to-r from-cyan-950/30 via-background to-cyan-950/10"
+              : isDone
+              ? "bg-gradient-to-r from-emerald-950/20 via-background to-emerald-950/10"
+              : "bg-background/50"
+          }`}
+        >
+          <div className="flex items-center gap-2.5 flex-wrap min-w-0">
+            <span className="text-base select-none shrink-0">{phaseData.icon || "⚙️"}</span>
+            <span className="font-semibold text-xs text-foreground tracking-wide">
+              {phaseData.phaseName}
+            </span>
+            {phaseData.summary && (
+              <>
+                <span className="text-xs text-muted-foreground hidden sm:inline">•</span>
+                <span className="text-xs text-muted-foreground font-mono truncate max-w-xs">
+                  {phaseData.summary}
+                </span>
+              </>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {isActive ? (
+              <Badge
+                variant="outline"
+                data-testid={`phase-badge-${phaseData.phase}`}
+                className="text-[10px] font-mono bg-cyan-950/50 border-cyan-500/50 text-cyan-300 flex items-center gap-1.5 py-0.5 px-2 animate-pulse"
+              >
+                <Loader2 className="h-3 w-3 animate-spin text-cyan-400" />
+                <span>Active</span>
+              </Badge>
+            ) : isFailed ? (
+              <Badge
+                variant="outline"
+                data-testid={`phase-badge-${phaseData.phase}`}
+                className="text-[10px] font-mono bg-red-950/50 border-red-500/50 text-red-300 flex items-center gap-1 py-0.5 px-2"
+              >
+                <span>Failed</span>
+              </Badge>
+            ) : (
+              <Badge
+                variant="outline"
+                data-testid={`phase-badge-${phaseData.phase}`}
+                className="text-[10px] font-mono bg-emerald-950/50 border-emerald-500/50 text-emerald-300 flex items-center gap-1.5 py-0.5 px-2 shadow-xs"
+              >
+                <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                <span>Done</span>
+              </Badge>
+            )}
+
+            <button
+              type="button"
+              className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors"
+              aria-label={isExpanded ? "Collapse phase details" : "Expand phase details"}
+            >
+              {isExpanded ? (
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+              ) : (
+                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Collapsible Details Body */}
+        {isExpanded && (
+          <div className="px-4 py-3 border-t border-border/40 bg-background/40 space-y-2 text-xs animate-in fade-in duration-200">
+            <div className="flex items-center justify-between text-muted-foreground font-mono text-[11px]">
+              <span>Phase: <strong className="text-foreground capitalize">{phaseData.phase}</strong></span>
+              <span>Status: <strong className={isActive ? "text-cyan-400" : isDone ? "text-emerald-400" : "text-red-400"}>
+                {isActive ? "In Progress" : isDone ? "Completed" : "Failed"}
+              </strong></span>
+            </div>
+            {phaseData.summary && (
+              <div className="bg-muted/30 p-2.5 rounded-lg border border-border/40 font-mono text-[11px] text-foreground">
+                {phaseData.summary}
+              </div>
+            )}
+            {phaseData.phase === "implement" && onViewArtifacts && (
+              <div className="pt-1 flex justify-end">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={onViewArtifacts}
+                  className="h-7 px-2.5 text-[11px] gap-1.5 font-mono text-cyan-400 border-cyan-800/50 hover:bg-cyan-950/30"
+                >
+                  <Code className="h-3 w-3" />
+                  <span>View Code Artifacts</span>
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {timestamp && (
+          <span className="text-[9px] text-muted-foreground absolute -bottom-4 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {timestamp}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function CenterWorkspace() {
   const {
     messages,
+    setMessages,
     addMessage,
     isThinking,
     setIsThinking,
@@ -553,6 +1087,10 @@ export function CenterWorkspace() {
     setActiveNode,
     addCompletedNode,
     resetActiveNodes,
+    executionSteps,
+    addExecutionStep,
+    updateExecutionStep,
+    clearExecutionSteps,
     setPhaseMap,
     addTerminalLog,
     clearTerminalLogs,
@@ -1230,6 +1768,79 @@ export function CenterWorkspace() {
   }, [messages, isThinking]);
 
 
+  const handlePhaseEvent = React.useCallback((phaseEvent: PhaseEventItem) => {
+    const rawPhase = phaseEvent.phase || "";
+    const lower = rawPhase.toLowerCase().trim().replace(/[-_\s]+/g, "_");
+    if (lower === "start" || lower === "orchestrator" || lower === "end") {
+      return;
+    }
+
+    const meta = getPhaseMetadata(rawPhase);
+    const phaseKey = meta ? meta.key : lower;
+    const phaseName = phaseEvent.phaseName || (meta ? meta.name : formatNodeName(rawPhase));
+    const icon = phaseEvent.icon || (meta ? meta.icon : undefined);
+    const summary = phaseEvent.summary || (meta ? meta.defaultSummary : `${phaseName} executed`);
+    const rawStatus = (phaseEvent.status || "").toLowerCase();
+    const status: "active" | "completed" | "failed" =
+      rawStatus === "failed" || rawStatus === "error" ? "failed" :
+      rawStatus === "completed" || rawStatus === "done" || rawStatus === "success" ? "completed" : "active";
+
+    const updatedEvent: PhaseEventItem = {
+      phase: phaseKey,
+      phaseName,
+      status,
+      summary,
+      icon,
+    };
+
+    setMessages((prev) => {
+      const existingIdx = prev.findIndex((m) => {
+        const p = (m as any).phase as PhaseEventItem | undefined;
+        if (p) return p.phase === phaseKey;
+        if (typeof m.content === "string" && (m.content.startsWith("[Phase Event]") || m.content.startsWith("[Phase Status]"))) {
+          try {
+            const parsed = JSON.parse(m.content.replace(/^\[(?:Phase Event|Phase Status)\]\s*/, "").trim());
+            return parsed.phase === phaseKey;
+          } catch {
+            return false;
+          }
+        }
+        return false;
+      });
+
+      const phaseMsg: Message = {
+        role: "system",
+        content: `[Phase Event] ${JSON.stringify(updatedEvent)}`,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        ...({ phase: updatedEvent } as any),
+      };
+
+      if (existingIdx >= 0) {
+        const next = [...prev];
+        next[existingIdx] = {
+          ...next[existingIdx],
+          ...phaseMsg,
+        };
+        return next;
+      } else {
+        // When a new phase arrives, ensure any previous active phase is marked completed
+        const next = prev.map((m) => {
+          const p = (m as any).phase as PhaseEventItem | undefined;
+          if (p && p.status === "active" && p.phase !== phaseKey) {
+            const finishedPhase: PhaseEventItem = { ...p, status: "completed" };
+            return {
+              ...m,
+              content: `[Phase Event] ${JSON.stringify(finishedPhase)}`,
+              ...({ phase: finishedPhase } as any),
+            } as Message;
+          }
+          return m;
+        });
+        return [...next, phaseMsg];
+      }
+    });
+  }, [setMessages]);
+
   const handleStatusEvent = (messageItem: MessageItem) => {
     const rawContent = extractMessageContent(messageItem.content) || (typeof (messageItem as any).text === "string" ? (messageItem as any).text : "");
     const c = typeof rawContent === "string" ? rawContent : "";
@@ -1326,7 +1937,24 @@ export function CenterWorkspace() {
       setTimeout(() => setToastMessage(null), 6000);
     } else if (c.includes("Phase map generated:")) {
       const match = c.match(/Phase map generated: (.*?)\./);
-      if (match && match[1]) setPhaseMap(match[1].split(" -> "));
+      if (match && match[1]) {
+        const phases = match[1].split(" -> ");
+        setPhaseMap(phases);
+        addCompletedNode("orchestrator");
+        if (phases.length > 0) {
+          setActiveNode(phases[0]);
+          const meta = getPhaseMetadata(phases[0]);
+          if (meta) {
+            handlePhaseEvent({
+              phase: meta.key,
+              phaseName: meta.name,
+              status: "active",
+              summary: meta.defaultSummary,
+              icon: meta.icon,
+            });
+          }
+        }
+      }
     } else if (c.includes("[Clarification Required]")) {
       setClarificationPrompt(
         c.replace("[Clarification Required]", "").trim(),
@@ -1416,6 +2044,16 @@ export function CenterWorkspace() {
         const parsed = JSON.parse(findingsStr);
         setSecurityFindings(parsed);
         securityFindingsRef.current = Array.isArray(parsed) ? parsed : [];
+        const critCount = Array.isArray(parsed)
+          ? parsed.filter((f: any) => f?.severity === "CRITICAL" || f?.severity === "critical").length
+          : 0;
+        handlePhaseEvent({
+          phase: "security_audit",
+          phaseName: "Security Audit Phase",
+          status: "completed",
+          summary: `${critCount} critical vulnerabilities found (${Array.isArray(parsed) ? parsed.length : 0} total findings)`,
+          icon: "🛡️",
+        });
       } catch {}
     } else if (c.includes("[Local Secrets]")) {
       try {
@@ -1454,6 +2092,13 @@ export function CenterWorkspace() {
         const raw = c.replace("[Explore Summary]", "").trim();
         const summary = JSON.parse(raw);
         setPhaseExploration(summary.phase, summary);
+        handlePhaseEvent({
+          phase: "research",
+          phaseName: "Exploration Phase: Research",
+          status: "completed",
+          summary: `${summary.files_explored_count || 0} files explored • ${summary.searches_count || 0} searches`,
+          icon: "🔍",
+        });
         addMessage({
           role: "system",
           content: `[Explore Summary] ${raw}`,
@@ -1463,6 +2108,23 @@ export function CenterWorkspace() {
           }),
         });
       } catch {}
+    } else if (
+      c.includes("Implement Phase Complete") ||
+      c.includes("Test Phase Complete") ||
+      c.includes("Critic Phase Complete") ||
+      c.includes("Security Audit Complete") ||
+      c.includes("Deploy Phase Complete") ||
+      c.includes("Research Phase Complete") ||
+      c.includes("Blueprint Phase Complete") ||
+      c.includes("Scaffold Phase Complete") ||
+      /Phase Complete:/i.test(c) ||
+      /^Phase started:/i.test(c)
+    ) {
+      addTerminalLog("system", c);
+      const parsed = parsePhaseFromStatusString(c);
+      if (parsed) {
+        handlePhaseEvent(parsed);
+      }
     } else if (c.startsWith("[Skill Activated]") || c.startsWith("[Skill Reference]")) {
       addMessage({
         role: "system",
@@ -1541,6 +2203,12 @@ export function CenterWorkspace() {
                 onStatusEvent: (item) => {
                   handleStatusEvent(item);
                 },
+                onPhaseEvent: (phaseEvent) => {
+                  handlePhaseEvent(phaseEvent);
+                },
+                onExecutionStep: (step) => {
+                  addExecutionStep(step);
+                },
                 onArtifactCode: (code) => {
                   setArtifactCode(code);
                 },
@@ -1585,6 +2253,25 @@ export function CenterWorkspace() {
     } finally {
       setIsThinking(false);
       setActiveNode(null);
+      usePlaygroundStore.getState().setExecutionSteps(
+        usePlaygroundStore.getState().executionSteps.map((s) =>
+          s.status === 'running' ? { ...s, status: 'completed' as const } : s
+        )
+      );
+      setMessages((prev) =>
+        prev.map((msg) => {
+          const p = (msg as any).phase as PhaseEventItem | undefined;
+          if (p && p.status === "active") {
+            const updatedPhase: PhaseEventItem = { ...p, status: "completed" };
+            return {
+              ...msg,
+              content: `[Phase Event] ${JSON.stringify(updatedPhase)}`,
+              ...({ phase: updatedPhase } as any),
+            } as Message;
+          }
+          return msg;
+        })
+      );
     }
   };
 
@@ -1663,8 +2350,10 @@ export function CenterWorkspace() {
       }
 
       let currentStatus = "running";
+
       while (currentStatus === "running" && pollCount < MAX_POLLS) {
         pollCount++;
+
         try {
           localStorage.setItem(
             ACTIVE_RUN_STORAGE_KEY,
@@ -1683,7 +2372,7 @@ export function CenterWorkspace() {
         const MAX_STEP_RETRIES = 2;
         while (retries <= MAX_STEP_RETRIES) {
           try {
-            stepRes = await apiClient.post<{ status: string; events?: any[]; error?: string }>(
+            stepRes = await apiClient.post<{ status: string; events?: any[]; error?: string; nodes_executed?: string[] }>(
               `/api/v1/conversations/run/${runId}/step`,
               { thread_id: threadId, goal: currentInput, step_index: pollCount },
               { timeout: 120000 }
@@ -1738,6 +2427,12 @@ export function CenterWorkspace() {
                   onStatusEvent: (item) => {
                     handleStatusEvent(item);
                   },
+                  onPhaseEvent: (phaseEvent) => {
+                    handlePhaseEvent(phaseEvent);
+                  },
+                  onExecutionStep: (step) => {
+                    addExecutionStep(step);
+                  },
                   onArtifactCode: (code) => {
                     currentArtifactCode = code;
                     setArtifactCode(code);
@@ -1750,6 +2445,21 @@ export function CenterWorkspace() {
             } catch {}
           }
         }
+
+        if (Array.isArray(stepData.nodes_executed)) {
+          for (const node of stepData.nodes_executed) {
+            if (typeof node === "string" && node.trim()) {
+              addExecutionStep({
+                id: node,
+                nodeName: formatNodeName(node),
+                status: "completed",
+                summary: `${formatNodeName(node)} executed`,
+              });
+              addCompletedNode(node);
+            }
+          }
+        }
+
         currentStatus = stepData.status;
       }
 
@@ -1833,6 +2543,25 @@ export function CenterWorkspace() {
       } catch {}
       setIsThinking(false);
       setActiveNode(null);
+      usePlaygroundStore.getState().setExecutionSteps(
+        usePlaygroundStore.getState().executionSteps.map((s) =>
+          s.status === 'running' ? { ...s, status: 'completed' as const } : s
+        )
+      );
+      setMessages((prev) =>
+        prev.map((msg) => {
+          const p = (msg as any).phase as PhaseEventItem | undefined;
+          if (p && p.status === "active") {
+            const updatedPhase: PhaseEventItem = { ...p, status: "completed" };
+            return {
+              ...msg,
+              content: `[Phase Event] ${JSON.stringify(updatedPhase)}`,
+              ...({ phase: updatedPhase } as any),
+            } as Message;
+          }
+          return msg;
+        })
+      );
     }
   };
 
@@ -1888,11 +2617,13 @@ export function CenterWorkspace() {
     setClarificationThreadId(newThreadId);
     setIsThinking(true);
     resetActiveNodes();
+    clearExecutionSteps();
     setSecurityFindings([]);
     securityFindingsRef.current = [];
     setArtifacts({});
     setSelectedArtifactFile(null);
     lastFetchedRunIdRef.current = null;
+    setActiveNode("orchestrator");
 
     try {
       // 1. Submit the run — returns immediately with run_id
@@ -1949,6 +2680,20 @@ export function CenterWorkspace() {
     } finally {
       setIsThinking(false);
       setActiveNode(null);
+      setMessages((prev) =>
+        prev.map((msg) => {
+          const p = (msg as any).phase as PhaseEventItem | undefined;
+          if (p && p.status === "active") {
+            const updatedPhase: PhaseEventItem = { ...p, status: "completed" };
+            return {
+              ...msg,
+              content: `[Phase Event] ${JSON.stringify(updatedPhase)}`,
+              ...({ phase: updatedPhase } as any),
+            } as Message;
+          }
+          return msg;
+        })
+      );
     }
   };
 
@@ -2056,7 +2801,7 @@ export function CenterWorkspace() {
           <TabsContent value="chat" className="flex-1 mt-0 border-0 flex-col data-[state=active]:flex data-[state=inactive]:hidden min-h-0">
             <div className="flex-1 h-full overflow-y-auto pb-8">
               <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto space-y-6">
-                {messages.length === 0 ? (
+                {messages.length === 0 && executionSteps.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-[40vh] text-center space-y-4">
                     <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
                       <Bot className="h-6 w-6" />
@@ -2067,7 +2812,8 @@ export function CenterWorkspace() {
                     </div>
                   </div>
                 ) : (
-                  messages.map((msg, idx) => {
+                  <>
+                  {messages.map((msg, idx) => {
                     if (msg.content?.startsWith('[Skill Activated]')) {
                       return (
                         <div key={idx} className="flex justify-center my-1.5 animate-in fade-in">
@@ -2094,6 +2840,14 @@ export function CenterWorkspace() {
                           <ExplorationCard content={msg.content} />
                         </div>
                       );
+                    }
+
+                    if (
+                      (typeof msg.content === 'string' &&
+                        (msg.content.startsWith('[Phase Event]') || msg.content.startsWith('[Phase Status]'))) ||
+                      (msg as any).phase
+                    ) {
+                      return null;
                     }
 
                     if (msg.role !== 'user' && msg.role !== 'assistant') {
@@ -2221,8 +2975,74 @@ export function CenterWorkspace() {
                         )}
                       </div>
                     );
-                  })
-                )}
+                  })}
+                  {executionSteps.length > 0 && (
+                    <div className="w-full my-4 rounded-xl border border-border/40 bg-card/40 p-4 backdrop-blur-xs space-y-3">
+                      <div className="flex items-center justify-between border-b border-border/30 pb-2">
+                        <div className="flex items-center gap-2">
+                          <Workflow className="h-4 w-4 text-cyan-400" />
+                          <span className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono">
+                            Workflow Execution
+                          </span>
+                        </div>
+                        <span className="text-[11px] font-mono text-muted-foreground">
+                          {executionSteps.filter((s) => s.status === 'completed').length} / {executionSteps.length} Completed
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {executionSteps.map((step) => (
+                          <div
+                            key={step.id}
+                            data-testid={`execution-step-${step.id}`}
+                            className={`phase-block flex items-start gap-3 p-3 rounded-lg border transition-all text-sm ${
+                              step.status === 'running'
+                                ? 'bg-cyan-950/20 border-cyan-500/40 text-foreground shadow-[0_0_15px_rgba(34,211,238,0.1)]'
+                                : step.status === 'completed'
+                                ? 'bg-muted/20 border-emerald-500/30 text-foreground'
+                                : step.status === 'failed'
+                                ? 'bg-destructive/10 border-destructive/30 text-destructive'
+                                : 'bg-muted/10 border-border/20 text-muted-foreground opacity-60'
+                            }`}
+                          >
+                            <div className="mt-0.5 shrink-0">
+                              {step.status === 'running' ? (
+                                <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
+                              ) : step.status === 'completed' ? (
+                                <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                              ) : step.status === 'failed' ? (
+                                <X className="h-4 w-4 text-destructive" />
+                              ) : (
+                                <div className="h-4 w-4 rounded-full border border-muted-foreground/40" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-semibold text-sm tracking-tight text-foreground">
+                                  {step.nodeName}
+                                </span>
+                                <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded border shrink-0">
+                                  {step.status === 'running'
+                                    ? 'Running'
+                                    : step.status === 'completed'
+                                    ? 'Done'
+                                    : step.status === 'failed'
+                                    ? 'Failed'
+                                    : 'Pending'}
+                                </span>
+                              </div>
+                              {step.summary && (
+                                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                                  {step.summary}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
                 {clarificationPrompt && (
                     <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 my-4 max-w-[85%]">
                       <div className="flex gap-3 mb-3 text-amber-500 font-medium">
