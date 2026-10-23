@@ -20,6 +20,14 @@ export interface GitHubUser {
 
 export type GitHubSyncStatus = 'idle' | 'synced' | 'behind' | 'conflict';
 
+export interface ExecutionStep {
+  id: string;
+  nodeName: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  summary?: string;
+  timestamp?: string;
+}
+
 export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
@@ -99,6 +107,11 @@ export interface PlaygroundState {
   completedNodes: string[];
   addCompletedNode: (node: string) => void;
   resetActiveNodes: () => void;
+  executionSteps: ExecutionStep[];
+  setExecutionSteps: (steps: ExecutionStep[]) => void;
+  addExecutionStep: (step: ExecutionStep) => void;
+  updateExecutionStep: (id: string, updates: Partial<ExecutionStep>) => void;
+  clearExecutionSteps: () => void;
 
   // Terminal State
   terminalLogs: TerminalLogItem[];
@@ -317,7 +330,67 @@ export const usePlaygroundStore = create<PlaygroundState>()(
             ? state.completedNodes
             : [...state.completedNodes, node],
         })),
-      resetActiveNodes: () => set({ activeNode: null, completedNodes: [] }),
+      executionSteps: [],
+      setExecutionSteps: (steps) => set({ executionSteps: steps }),
+      addExecutionStep: (step) =>
+        set((state) => {
+          const normKey = (s: string) => (s || "").toLowerCase().replace(/[\s_-]/g, "");
+          const targetKey = normKey(step.id || step.nodeName);
+          const baseSteps = step.status === 'running'
+            ? state.executionSteps.map((s) =>
+                s.status === 'running' && normKey(s.id) !== targetKey && normKey(s.nodeName) !== targetKey
+                  ? { ...s, status: 'completed' as const }
+                  : s
+              )
+            : state.executionSteps;
+
+          const existingIdx = baseSteps.findIndex(
+            (s) => normKey(s.id) === targetKey || normKey(s.nodeName) === targetKey
+          );
+          if (existingIdx >= 0) {
+            const updated = [...baseSteps];
+            updated[existingIdx] = {
+              ...updated[existingIdx],
+              ...step,
+              nodeName: step.nodeName || updated[existingIdx].nodeName,
+              status: step.status || updated[existingIdx].status,
+              summary: step.summary !== undefined ? step.summary : updated[existingIdx].summary,
+            };
+            return { executionSteps: updated };
+          }
+          return { executionSteps: [...baseSteps, step] };
+        }),
+      updateExecutionStep: (id, updates) =>
+        set((state) => {
+          const normKey = (s: string) => (s || "").toLowerCase().replace(/[\s_-]/g, "");
+          const targetKey = normKey(id);
+          const exists = state.executionSteps.some(
+            (step) => normKey(step.id) === targetKey || normKey(step.nodeName) === targetKey
+          );
+          if (!exists) {
+            const newStep: ExecutionStep = {
+              id,
+              nodeName: id
+                .split(/[_-]/)
+                .filter(Boolean)
+                .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+                .join(" ") || id,
+              status: updates.status || 'running',
+              summary: updates.summary,
+              ...updates,
+            };
+            return { executionSteps: [...state.executionSteps, newStep] };
+          }
+          return {
+            executionSteps: state.executionSteps.map((step) =>
+              normKey(step.id) === targetKey || normKey(step.nodeName) === targetKey
+                ? { ...step, ...updates }
+                : step
+            ),
+          };
+        }),
+      clearExecutionSteps: () => set({ executionSteps: [] }),
+      resetActiveNodes: () => set({ activeNode: null, completedNodes: [], executionSteps: [] }),
 
       terminalSessions: [
         {
