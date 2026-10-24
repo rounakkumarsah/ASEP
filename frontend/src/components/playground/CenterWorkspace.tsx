@@ -193,105 +193,28 @@ export interface ExecutionStep {
 export function formatNodeName(name: string): string {
   if (!name) return "";
   const trimmed = name.trim();
-  if (trimmed.includes(" ")) return trimmed;
-  if (/[a-z][A-Z]/.test(trimmed) && !trimmed.includes("_")) {
-    return trimmed.replace(/([a-z])([A-Z])/g, "$1 $2");
-  }
-  return trimmed
-    .split(/[_-]/)
+  if (!trimmed) return "";
+  const normalized = (/[a-z][A-Z]/.test(trimmed) && !trimmed.includes("_") && !trimmed.includes(" "))
+    ? trimmed.replace(/([a-z])([A-Z])/g, "$1 $2")
+    : trimmed;
+  return normalized
+    .split(/[\s_-]+/)
     .filter(Boolean)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(" ");
 }
 
-export const PHASE_CONFIG: Record<string, PhaseMetadata> = {
-  research: {
-    key: "research",
-    name: "Exploration Phase: Research",
-    icon: "🔍",
-    defaultSummary: "Loaded documentation & technical context",
-  },
-  blueprint: {
-    key: "blueprint",
-    name: "Blueprint Phase",
-    icon: "📐",
-    defaultSummary: "System architecture & interface design approved",
-  },
-  capability_blueprint: {
-    key: "blueprint",
-    name: "Capability Blueprint Phase",
-    icon: "📐",
-    defaultSummary: "Capability specifications verified",
-  },
-  scaffold: {
-    key: "scaffold",
-    name: "Scaffold Phase",
-    icon: "🏗️",
-    defaultSummary: "Boilerplate & project structure generated",
-  },
-  implement: {
-    key: "implement",
-    name: "Implementation Phase",
-    icon: "⚙️",
-    defaultSummary: "Core modules coded",
-  },
-  agent_loop_implementation: {
-    key: "implement",
-    name: "Implementation Phase",
-    icon: "⚙️",
-    defaultSummary: "Core modules coded",
-  },
-  test: {
-    key: "test",
-    name: "Test Phase",
-    icon: "🧪",
-    defaultSummary: "All tests passed",
-  },
-  critic: {
-    key: "test",
-    name: "Test Phase",
-    icon: "🧪",
-    defaultSummary: "Sandbox execution verified successfully",
-  },
-  sandbox_tests: {
-    key: "test",
-    name: "Test Phase",
-    icon: "🧪",
-    defaultSummary: "All tests passed",
-  },
-  evaluation_runs: {
-    key: "test",
-    name: "Test Phase",
-    icon: "🧪",
-    defaultSummary: "Evaluation benchmarks completed",
-  },
-  security_audit: {
-    key: "security_audit",
-    name: "Security Audit Phase",
-    icon: "🛡️",
-    defaultSummary: "0 vulnerabilities found",
-  },
-  deploy: {
-    key: "deploy",
-    name: "Deploy Phase",
-    icon: "🚀",
-    defaultSummary: "Artifacts bundled & deployment completed",
-  },
-};
-
 export function getPhaseMetadata(rawPhase: string): PhaseMetadata | null {
   if (!rawPhase || typeof rawPhase !== "string") return null;
   const lower = rawPhase.toLowerCase().trim().replace(/[-_\s]+/g, "_");
-  if (lower === "start" || lower === "orchestrator" || lower === "end") return null;
-  if (PHASE_CONFIG[lower]) {
-    return PHASE_CONFIG[lower];
-  }
-  if (lower === "explore" || lower === "exploration") return PHASE_CONFIG["research"];
-  if (lower === "coder" || lower === "implementation" || lower === "coding") return PHASE_CONFIG["implement"];
-  if (lower === "security" || lower === "audit" || lower === "security_audit") return PHASE_CONFIG["security_audit"];
-  if (lower === "deployment" || lower === "release") return PHASE_CONFIG["deploy"];
-  if (lower === "tests" || lower === "testing") return PHASE_CONFIG["test"];
-  return null;
+  if (!lower) return null;
+  const name = formatNodeName(rawPhase);
+  return {
+    key: lower,
+    name,
+    icon: "⚙️",
+    defaultSummary: `${name} executed`,
+  };
 }
 
 export function parsePhaseFromStatusString(content: string): PhaseEventItem | null {
@@ -331,82 +254,33 @@ export function parsePhaseFromStatusString(content: string): PhaseEventItem | nu
     }
   }
 
-  // 2. Specific phase completions
-  if (/Implement(?:ation)? Phase Complete/i.test(trimmed)) {
-    const summaryMatch = trimmed.match(/Implement(?:ation)? Phase Complete:\s*([^\n\r]+)/i);
-    return {
-      phase: "implement",
-      phaseName: "Implementation Phase",
-      status: "completed",
-      summary: summaryMatch ? summaryMatch[1].trim().replace(/\.$/, "") : "Core modules coded",
-      icon: "⚙️",
-    };
+  // 3. Dynamic <node_name> [Phase] Complete(d): <summary>
+  const nodeCompleteMatch = trimmed.match(/^([a-zA-Z0-9_\-\s]+?)(?:\s+Phase)?\s+Complete(?:d)?(?::\s*([^\n\r]+))?/i);
+  if (nodeCompleteMatch) {
+    const rawPhase = nodeCompleteMatch[1].trim();
+    if (rawPhase) {
+      const customSummary = nodeCompleteMatch[2];
+      const meta = getPhaseMetadata(rawPhase);
+      if (meta) {
+        return {
+          phase: meta.key,
+          phaseName: meta.name,
+          status: "completed",
+          summary: customSummary ? customSummary.trim().replace(/\.$/, "") : meta.defaultSummary,
+          icon: meta.icon,
+        };
+      }
+    }
   }
 
-  if (/(?:Test|Critic) Phase Complete/i.test(trimmed)) {
-    const summaryMatch = trimmed.match(/(?:Test|Critic) Phase Complete:\s*([^\n\r]+)/i);
-    const isCritic = /Critic Phase Complete/i.test(trimmed);
-    return {
-      phase: "test",
-      phaseName: "Test Phase",
-      status: "completed",
-      summary: summaryMatch ? summaryMatch[1].trim().replace(/\.$/, "") : (isCritic ? "Sandbox execution verified successfully" : "All tests passed"),
-      icon: "🧪",
-    };
-  }
-
-  if (/Security Audit Complete/i.test(trimmed) || /### Security Audit:\s*PASSED/i.test(trimmed)) {
-    const summaryMatch = trimmed.match(/Security Audit Complete:\s*([^\n\r]+)/i);
+  // 4. Special audit passed line
+  if (/### Security Audit:\s*PASSED/i.test(trimmed)) {
     return {
       phase: "security_audit",
-      phaseName: "Security Audit Phase",
+      phaseName: formatNodeName("security_audit"),
       status: "completed",
-      summary: summaryMatch ? summaryMatch[1].trim().replace(/\.$/, "") : "0 vulnerabilities",
-      icon: "🛡️",
-    };
-  }
-
-  if (/Deploy Phase Complete/i.test(trimmed) || /Deploy Gate/i.test(trimmed)) {
-    const summaryMatch = trimmed.match(/Deploy Phase Complete:\s*([^\n\r]+)/i);
-    return {
-      phase: "deploy",
-      phaseName: "Deploy Phase",
-      status: "completed",
-      summary: summaryMatch ? summaryMatch[1].trim().replace(/\.$/, "") : "Artifacts bundled and verified against security policies",
-      icon: "🚀",
-    };
-  }
-
-  if (/Research Phase Complete/i.test(trimmed)) {
-    const summaryMatch = trimmed.match(/Research Phase Complete:\s*([^\n\r]+)/i);
-    return {
-      phase: "research",
-      phaseName: "Exploration Phase: Research",
-      status: "completed",
-      summary: summaryMatch ? summaryMatch[1].trim().replace(/\.$/, "") : "Loaded documentation",
-      icon: "🔍",
-    };
-  }
-
-  if (/Blueprint Phase Complete/i.test(trimmed)) {
-    const summaryMatch = trimmed.match(/Blueprint Phase Complete:\s*([^\n\r]+)/i);
-    return {
-      phase: "blueprint",
-      phaseName: "Blueprint Phase",
-      status: "completed",
-      summary: summaryMatch ? summaryMatch[1].trim().replace(/\.$/, "") : "System design approved",
-      icon: "📐",
-    };
-  }
-
-  if (/Scaffold Phase Complete/i.test(trimmed)) {
-    const summaryMatch = trimmed.match(/Scaffold Phase Complete:\s*([^\n\r]+)/i);
-    return {
-      phase: "scaffold",
-      phaseName: "Scaffold Phase",
-      status: "completed",
-      summary: summaryMatch ? summaryMatch[1].trim().replace(/\.$/, "") : "Boilerplate generated",
-      icon: "🏗️",
+      summary: "0 vulnerabilities",
+      icon: "⚙️",
     };
   }
 
@@ -1771,7 +1645,7 @@ export function CenterWorkspace() {
   const handlePhaseEvent = React.useCallback((phaseEvent: PhaseEventItem) => {
     const rawPhase = phaseEvent.phase || "";
     const lower = rawPhase.toLowerCase().trim().replace(/[-_\s]+/g, "_");
-    if (lower === "start" || lower === "orchestrator" || lower === "end") {
+    if (!lower) {
       return;
     }
 
@@ -1792,6 +1666,19 @@ export function CenterWorkspace() {
       summary,
       icon,
     };
+
+    if (status === "active") {
+      setActiveNode(phaseKey);
+    } else if (status === "completed") {
+      addCompletedNode(phaseKey);
+    }
+
+    addExecutionStep({
+      id: phaseKey,
+      nodeName: phaseName,
+      status: status === "active" ? "running" : status,
+      summary,
+    });
 
     setMessages((prev) => {
       const existingIdx = prev.findIndex((m) => {
@@ -1839,7 +1726,7 @@ export function CenterWorkspace() {
         return [...next, phaseMsg];
       }
     });
-  }, [setMessages]);
+  }, [setMessages, setActiveNode, addCompletedNode, addExecutionStep]);
 
   const handleStatusEvent = (messageItem: MessageItem) => {
     const rawContent = extractMessageContent(messageItem.content) || (typeof (messageItem as any).text === "string" ? (messageItem as any).text : "");
@@ -1940,7 +1827,6 @@ export function CenterWorkspace() {
       if (match && match[1]) {
         const phases = match[1].split(" -> ");
         setPhaseMap(phases);
-        addCompletedNode("orchestrator");
         if (phases.length > 0) {
           setActiveNode(phases[0]);
           const meta = getPhaseMetadata(phases[0]);
@@ -2049,7 +1935,7 @@ export function CenterWorkspace() {
           : 0;
         handlePhaseEvent({
           phase: "security_audit",
-          phaseName: "Security Audit Phase",
+          phaseName: formatNodeName("security_audit"),
           status: "completed",
           summary: `${critCount} critical vulnerabilities found (${Array.isArray(parsed) ? parsed.length : 0} total findings)`,
           icon: "🛡️",
@@ -2092,9 +1978,10 @@ export function CenterWorkspace() {
         const raw = c.replace("[Explore Summary]", "").trim();
         const summary = JSON.parse(raw);
         setPhaseExploration(summary.phase, summary);
+        const explorePhase = summary.phase || "research";
         handlePhaseEvent({
-          phase: "research",
-          phaseName: "Exploration Phase: Research",
+          phase: explorePhase,
+          phaseName: formatNodeName(explorePhase),
           status: "completed",
           summary: `${summary.files_explored_count || 0} files explored • ${summary.searches_count || 0} searches`,
           icon: "🔍",
@@ -2108,18 +1995,7 @@ export function CenterWorkspace() {
           }),
         });
       } catch {}
-    } else if (
-      c.includes("Implement Phase Complete") ||
-      c.includes("Test Phase Complete") ||
-      c.includes("Critic Phase Complete") ||
-      c.includes("Security Audit Complete") ||
-      c.includes("Deploy Phase Complete") ||
-      c.includes("Research Phase Complete") ||
-      c.includes("Blueprint Phase Complete") ||
-      c.includes("Scaffold Phase Complete") ||
-      /Phase Complete:/i.test(c) ||
-      /^Phase started:/i.test(c)
-    ) {
+    } else if (parsePhaseFromStatusString(c)) {
       addTerminalLog("system", c);
       const parsed = parsePhaseFromStatusString(c);
       if (parsed) {
@@ -2623,7 +2499,7 @@ export function CenterWorkspace() {
     setArtifacts({});
     setSelectedArtifactFile(null);
     lastFetchedRunIdRef.current = null;
-    setActiveNode("orchestrator");
+    setActiveNode(null);
 
     try {
       // 1. Submit the run — returns immediately with run_id
@@ -3018,7 +2894,7 @@ export function CenterWorkspace() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between gap-2">
                                 <span className="font-semibold text-sm tracking-tight text-foreground">
-                                  {step.nodeName}
+                                  {formatNodeName(step.nodeName || step.id)}
                                 </span>
                                 <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded border shrink-0">
                                   {step.status === 'running'
@@ -3114,7 +2990,7 @@ export function CenterWorkspace() {
                       </div>
                       <div className="text-sm text-foreground space-y-1">
                         <p>
-                          Phase: <code className="px-1.5 py-0.5 rounded bg-muted/60 font-mono text-xs text-amber-300 capitalize">{budgetExceeded.phase.replace(/_/g, " ")}</code>
+                          Phase: <code className="px-1.5 py-0.5 rounded bg-muted/60 font-mono text-xs text-amber-300 capitalize">{formatNodeName(budgetExceeded.phase)}</code>
                         </p>
                         <p className="text-xs text-muted-foreground">{budgetExceeded.prompt}</p>
                         <div className="flex flex-wrap items-center gap-4 text-xs font-mono pt-1 text-muted-foreground">
@@ -3149,7 +3025,7 @@ export function CenterWorkspace() {
                       <span>
                         {activeNode ? (
                           <span>
-                            Active Node: <strong className="text-[#22D3EE] font-mono text-xs uppercase">{activeNode}</strong>
+                            Active Node: <strong className="text-[#22D3EE] font-mono text-xs uppercase">{formatNodeName(activeNode)}</strong>
                           </span>
                         ) : (
                           "Orchestrating agents..."
@@ -4008,9 +3884,9 @@ export function CenterWorkspace() {
 
                 <div className="p-4 space-y-4">
                   {(() => {
-                    const defaultPhases = ["research", "clarification_gate", "blueprint", "scaffold", "implement", "test", "security_audit", "deploy"];
                     const phases = Array.from(new Set([
-                      ...(phaseMap && phaseMap.length > 0 ? phaseMap : defaultPhases),
+                      ...executionSteps.map((s) => s.id),
+                      ...(phaseMap || []),
                       ...Object.keys(tokenUsagePerPhase || {}),
                     ]));
 
@@ -4026,7 +3902,7 @@ export function CenterWorkspace() {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <span className="font-semibold text-sm capitalize text-foreground">
-                                {phase.replace(/_/g, " ")}
+                                {formatNodeName(phase)}
                               </span>
                               {isExceeded ? (
                                 <span className="text-[10px] px-2 py-0.5 rounded font-bold bg-destructive/20 text-destructive border border-destructive/30">

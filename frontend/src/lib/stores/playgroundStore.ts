@@ -28,6 +28,20 @@ export interface ExecutionStep {
   timestamp?: string;
 }
 
+export function formatNodeName(name: string): string {
+  if (!name) return "";
+  const trimmed = name.trim();
+  if (!trimmed) return "";
+  const normalized = (/[a-z][A-Z]/.test(trimmed) && !trimmed.includes("_") && !trimmed.includes(" "))
+    ? trimmed.replace(/([a-z])([A-Z])/g, "$1 $2")
+    : trimmed;
+  return normalized
+    .split(/[\s_-]+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
+
 export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
@@ -352,13 +366,21 @@ export const usePlaygroundStore = create<PlaygroundState>()(
             updated[existingIdx] = {
               ...updated[existingIdx],
               ...step,
-              nodeName: step.nodeName || updated[existingIdx].nodeName,
+              nodeName: formatNodeName(step.nodeName || updated[existingIdx].nodeName || updated[existingIdx].id),
               status: step.status || updated[existingIdx].status,
               summary: step.summary !== undefined ? step.summary : updated[existingIdx].summary,
             };
             return { executionSteps: updated };
           }
-          return { executionSteps: [...baseSteps, step] };
+          return {
+            executionSteps: [
+              ...baseSteps,
+              {
+                ...step,
+                nodeName: formatNodeName(step.nodeName || step.id),
+              },
+            ],
+          };
         }),
       updateExecutionStep: (id, updates) =>
         set((state) => {
@@ -370,21 +392,21 @@ export const usePlaygroundStore = create<PlaygroundState>()(
           if (!exists) {
             const newStep: ExecutionStep = {
               id,
-              nodeName: id
-                .split(/[_-]/)
-                .filter(Boolean)
-                .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-                .join(" ") || id,
               status: updates.status || 'running',
               summary: updates.summary,
               ...updates,
+              nodeName: formatNodeName(updates.nodeName || id),
             };
             return { executionSteps: [...state.executionSteps, newStep] };
           }
           return {
             executionSteps: state.executionSteps.map((step) =>
               normKey(step.id) === targetKey || normKey(step.nodeName) === targetKey
-                ? { ...step, ...updates }
+                ? {
+                    ...step,
+                    ...updates,
+                    ...(updates.nodeName ? { nodeName: formatNodeName(updates.nodeName) } : {}),
+                  }
                 : step
             ),
           };

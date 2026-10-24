@@ -805,30 +805,20 @@ describe('CenterWorkspace UX - Event Classification, Extraction, and Message Rou
 
   describe('Phase Event Streaming & Parsing (Chat UI Live Progress)', () => {
     describe('getPhaseMetadata()', () => {
-      it('resolves all key pipeline phases to their proper titles and icons', () => {
-        expect(getPhaseMetadata('research')?.name).toBe('Exploration Phase: Research');
-        expect(getPhaseMetadata('research')?.icon).toBe('🔍');
-
-        expect(getPhaseMetadata('implement')?.name).toBe('Implementation Phase');
-        expect(getPhaseMetadata('implement')?.icon).toBe('⚙️');
-
-        expect(getPhaseMetadata('test')?.name).toBe('Test Phase');
-        expect(getPhaseMetadata('test')?.icon).toBe('🧪');
-
-        expect(getPhaseMetadata('critic')?.name).toBe('Test Phase');
-        expect(getPhaseMetadata('critic')?.icon).toBe('🧪');
-
-        expect(getPhaseMetadata('security_audit')?.name).toBe('Security Audit Phase');
-        expect(getPhaseMetadata('security_audit')?.icon).toBe('🛡️');
-
-        expect(getPhaseMetadata('deploy')?.name).toBe('Deploy Phase');
-        expect(getPhaseMetadata('deploy')?.icon).toBe('🚀');
+      it('resolves pipeline nodes to dynamic title-cased names', () => {
+        expect(getPhaseMetadata('research')?.name).toBe('Research');
+        expect(getPhaseMetadata('implement')?.name).toBe('Implement');
+        expect(getPhaseMetadata('test')?.name).toBe('Test');
+        expect(getPhaseMetadata('critic')?.name).toBe('Critic');
+        expect(getPhaseMetadata('security_audit')?.name).toBe('Security Audit');
+        expect(getPhaseMetadata('deploy')?.name).toBe('Deploy');
       });
 
-      it('returns null for non-phase orchestration lifecycle nodes', () => {
-        expect(getPhaseMetadata('start')).toBeNull();
-        expect(getPhaseMetadata('orchestrator')).toBeNull();
-        expect(getPhaseMetadata('end')).toBeNull();
+      it('resolves lifecycle nodes dynamically without hardcoding', () => {
+        expect(getPhaseMetadata('start')?.name).toBe('Start');
+        expect(getPhaseMetadata('orchestrator')?.name).toBe('Orchestrator');
+        expect(getPhaseMetadata('end')?.name).toBe('End');
+        expect(getPhaseMetadata('')).toBeNull();
       });
     });
 
@@ -837,7 +827,7 @@ describe('CenterWorkspace UX - Event Classification, Extraction, and Message Rou
         const parsed = parsePhaseFromStatusString('Implement Phase Complete: Core modules coded.');
         expect(parsed).toEqual({
           phase: 'implement',
-          phaseName: 'Implementation Phase',
+          phaseName: 'Implement',
           status: 'completed',
           summary: 'Core modules coded',
           icon: '⚙️',
@@ -848,40 +838,40 @@ describe('CenterWorkspace UX - Event Classification, Extraction, and Message Rou
         const parsed = parsePhaseFromStatusString('Test Phase Complete: All units passed.');
         expect(parsed).toEqual({
           phase: 'test',
-          phaseName: 'Test Phase',
+          phaseName: 'Test',
           status: 'completed',
           summary: 'All units passed',
-          icon: '🧪',
+          icon: '⚙️',
         });
       });
 
-      it('parses Critic Phase Complete string and maps to Test phase', () => {
+      it('parses Critic Phase Complete string dynamically', () => {
         const parsed = parsePhaseFromStatusString('Critic Phase Complete: Sandbox execution verified successfully');
         expect(parsed).toEqual({
-          phase: 'test',
-          phaseName: 'Test Phase',
+          phase: 'critic',
+          phaseName: 'Critic',
           status: 'completed',
           summary: 'Sandbox execution verified successfully',
-          icon: '🧪',
+          icon: '⚙️',
         });
       });
 
       it('parses Security Audit Complete string and extracts summary', () => {
         const parsed = parsePhaseFromStatusString('Security Audit Complete: Verified with 0 critical vulnerabilities (0 High, 0 Medium, 0 Low).');
         expect(parsed?.phase).toBe('security_audit');
-        expect(parsed?.phaseName).toBe('Security Audit Phase');
+        expect(parsed?.phaseName).toBe('Security Audit');
         expect(parsed?.status).toBe('completed');
-        expect(parsed?.icon).toBe('🛡️');
+        expect(parsed?.icon).toBe('⚙️');
       });
 
       it('parses Deploy Phase Complete string and extracts summary', () => {
         const parsed = parsePhaseFromStatusString('Deploy Phase Complete: Artifacts bundled and verified against security policies.');
         expect(parsed).toEqual({
           phase: 'deploy',
-          phaseName: 'Deploy Phase',
+          phaseName: 'Deploy',
           status: 'completed',
           summary: 'Artifacts bundled and verified against security policies',
-          icon: '🚀',
+          icon: '⚙️',
         });
       });
 
@@ -889,9 +879,9 @@ describe('CenterWorkspace UX - Event Classification, Extraction, and Message Rou
         const parsed = parsePhaseFromStatusString('Phase started: implement');
         expect(parsed).toEqual({
           phase: 'implement',
-          phaseName: 'Implementation Phase',
+          phaseName: 'Implement',
           status: 'active',
-          summary: 'Running implementation phase...',
+          summary: 'Running implement...',
           icon: '⚙️',
         });
       });
@@ -922,7 +912,7 @@ describe('CenterWorkspace UX - Event Classification, Extraction, and Message Rou
       });
 
       it('falls back to default summary when update object has no custom summary', () => {
-        expect(extractPhaseSummary({}, 'deploy')).toBe('Artifacts bundled & deployment completed');
+        expect(extractPhaseSummary({}, 'deploy')).toBe('Deploy executed');
       });
     });
 
@@ -1322,26 +1312,20 @@ describe('CenterWorkspace UX - Event Classification, Extraction, and Message Rou
     });
   });
 
-  describe('getPhaseMetadata() aliases and variations', () => {
-    it('resolves common aliases for pipeline phases', () => {
-      expect(getPhaseMetadata('exploration')?.key).toBe('research');
-      expect(getPhaseMetadata('explore')?.key).toBe('research');
-      expect(getPhaseMetadata('implementation')?.key).toBe('implement');
-      expect(getPhaseMetadata('coder')?.key).toBe('implement');
-      expect(getPhaseMetadata('coding')?.key).toBe('implement');
-      expect(getPhaseMetadata('testing')?.key).toBe('test');
-      expect(getPhaseMetadata('tests')?.key).toBe('test');
-      expect(getPhaseMetadata('security')?.key).toBe('security_audit');
-      expect(getPhaseMetadata('audit')?.key).toBe('security_audit');
-      expect(getPhaseMetadata('security_audit')?.key).toBe('security_audit');
-      expect(getPhaseMetadata('deployment')?.key).toBe('deploy');
-      expect(getPhaseMetadata('release')?.key).toBe('deploy');
+  describe('getPhaseMetadata() dynamic handling', () => {
+    it('formats node keys dynamically to title case', () => {
+      expect(getPhaseMetadata('exploration')?.key).toBe('exploration');
+      expect(getPhaseMetadata('exploration')?.name).toBe('Exploration');
+      expect(getPhaseMetadata('agent_loop_implementation')?.name).toBe('Agent Loop Implementation');
+      expect(getPhaseMetadata('planner_executor_critic_architecture')?.name).toBe('Planner Executor Critic Architecture');
+      expect(getPhaseMetadata('start')?.name).toBe('Start');
+      expect(getPhaseMetadata('orchestrator')?.name).toBe('Orchestrator');
+      expect(getPhaseMetadata('end')?.name).toBe('End');
     });
 
-    it('returns null for lifecycle control flow nodes', () => {
-      expect(getPhaseMetadata('start')).toBeNull();
-      expect(getPhaseMetadata('orchestrator')).toBeNull();
-      expect(getPhaseMetadata('end')).toBeNull();
+    it('returns null for empty strings or invalid input', () => {
+      expect(getPhaseMetadata('')).toBeNull();
+      expect(getPhaseMetadata('   ')).toBeNull();
     });
   });
 
@@ -1350,7 +1334,7 @@ describe('CenterWorkspace UX - Event Classification, Extraction, and Message Rou
       const res = parsePhaseFromStatusString('Phase complete: implement: 4 modules compiled.');
       expect(res).toEqual({
         phase: 'implement',
-        phaseName: 'Implementation Phase',
+        phaseName: 'Implement',
         status: 'completed',
         summary: '4 modules compiled',
         icon: '⚙️',
@@ -1361,11 +1345,169 @@ describe('CenterWorkspace UX - Event Classification, Extraction, and Message Rou
       const res = parsePhaseFromStatusString('Phase completed: deploy');
       expect(res).toEqual({
         phase: 'deploy',
-        phaseName: 'Deploy Phase',
+        phaseName: 'Deploy',
         status: 'completed',
-        summary: 'Artifacts bundled & deployment completed',
-        icon: '🚀',
+        summary: 'Deploy executed',
+        icon: '⚙️',
       });
+    });
+
+    it('parses dynamic snake_case LangGraph node completion strings', () => {
+      const res = parsePhaseFromStatusString('Agent Loop Implementation Complete: Cyclic loop constructed with 4 tools.');
+      expect(res).toEqual({
+        phase: 'agent_loop_implementation',
+        phaseName: 'Agent Loop Implementation',
+        status: 'completed',
+        summary: 'Cyclic loop constructed with 4 tools',
+        icon: '⚙️',
+      });
+    });
+
+    it('parses dynamic node with Phase keyword', () => {
+      const res = parsePhaseFromStatusString('Planner Executor Critic Architecture Phase Complete: Architecture validated.');
+      expect(res).toEqual({
+        phase: 'planner_executor_critic_architecture',
+        phaseName: 'Planner Executor Critic Architecture',
+        status: 'completed',
+        summary: 'Architecture validated',
+        icon: '⚙️',
+      });
+    });
+  });
+
+  describe('Strict 32 Backend LangGraph Nodes Formatting and Skipped Nodes Handling', () => {
+    const ALL_32_BACKEND_NODES = [
+      'start',
+      'explore',
+      'orchestrator',
+      'research',
+      'clarification_gate',
+      'deploy_clarification_gate',
+      'blueprint',
+      'scaffold',
+      'implement',
+      'critic',
+      'debugger',
+      'test',
+      'security_audit',
+      'deploy',
+      'host_manager',
+      'capability_blueprint',
+      'tool_design',
+      'agent_loop_implementation',
+      'memory_state_design',
+      'sandbox_tests',
+      'evaluation_runs',
+      'goal_decomposition_design',
+      'planner_executor_critic_architecture',
+      'tool_integration',
+      'multi_step_test_scenarios',
+      'failure_recovery_tests',
+      'workflow_mapping',
+      'trigger_action_design',
+      'integration_points',
+      'end_to_end_automation_tests',
+      'error_handling_paths',
+      'end',
+    ];
+
+    it('correctly converts all 32 real backend LangGraph nodes to Title Case', () => {
+      const formatted = ALL_32_BACKEND_NODES.map(formatNodeName);
+      expect(formatted).toEqual([
+        'Start',
+        'Explore',
+        'Orchestrator',
+        'Research',
+        'Clarification Gate',
+        'Deploy Clarification Gate',
+        'Blueprint',
+        'Scaffold',
+        'Implement',
+        'Critic',
+        'Debugger',
+        'Test',
+        'Security Audit',
+        'Deploy',
+        'Host Manager',
+        'Capability Blueprint',
+        'Tool Design',
+        'Agent Loop Implementation',
+        'Memory State Design',
+        'Sandbox Tests',
+        'Evaluation Runs',
+        'Goal Decomposition Design',
+        'Planner Executor Critic Architecture',
+        'Tool Integration',
+        'Multi Step Test Scenarios',
+        'Failure Recovery Tests',
+        'Workflow Mapping',
+        'Trigger Action Design',
+        'Integration Points',
+        'End To End Automation Tests',
+        'Error Handling Paths',
+        'End',
+      ]);
+    });
+
+    it('gracefully handles skipped nodes without creating phantom or fallback steps', () => {
+      usePlaygroundStore.getState().clearExecutionSteps();
+
+      // Backend skips clarification_gate, critic, debugger, security_audit, etc.
+      // Emits only 3 nodes in this run:
+      const emittedEvents = [
+        { research: { status: 'completed', summary: 'Gathered context' } },
+        { implement: { status: 'completed', summary: 'Generated core code' } },
+        { deploy: { status: 'completed', summary: 'Deployed to staging' } },
+      ];
+
+      for (const ev of emittedEvents) {
+        processEventData(
+          { event: ev },
+          {
+            onExecutionStep: (step) => {
+              usePlaygroundStore.getState().addExecutionStep(step);
+            },
+          }
+        );
+      }
+
+      const steps = usePlaygroundStore.getState().executionSteps;
+      expect(steps).toHaveLength(3);
+      expect(steps.map((s) => s.id)).toEqual(['research', 'implement', 'deploy']);
+      expect(steps.map((s) => s.nodeName)).toEqual(['Research', 'Implement', 'Deploy']);
+
+      // Verify that skipped nodes are NOT present in executionSteps
+      const skippedNodes = ['clarification_gate', 'critic', 'debugger', 'security_audit', 'sandbox_tests'];
+      for (const skipped of skippedNodes) {
+        expect(steps.some((s) => s.id === skipped)).toBe(false);
+      }
+    });
+
+    it('updateExecutionStep always formats nodeName to Title Case even when passed snake_case', () => {
+      usePlaygroundStore.getState().clearExecutionSteps();
+
+      // Step does not exist yet; create via updateExecutionStep
+      usePlaygroundStore.getState().updateExecutionStep('agent_loop_implementation', {
+        nodeName: 'agent_loop_implementation',
+        status: 'running',
+        summary: 'Building cyclic graph',
+      });
+
+      const steps = usePlaygroundStore.getState().executionSteps;
+      expect(steps).toHaveLength(1);
+      expect(steps[0].nodeName).toBe('Agent Loop Implementation');
+      expect(steps[0].status).toBe('running');
+
+      // Update existing step with another snake_case nodeName
+      usePlaygroundStore.getState().updateExecutionStep('agent_loop_implementation', {
+        nodeName: 'agent_loop_implementation_updated',
+        status: 'completed',
+      });
+
+      const updatedSteps = usePlaygroundStore.getState().executionSteps;
+      expect(updatedSteps).toHaveLength(1);
+      expect(updatedSteps[0].nodeName).toBe('Agent Loop Implementation Updated');
+      expect(updatedSteps[0].status).toBe('completed');
     });
   });
 });
