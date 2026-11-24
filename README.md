@@ -1,396 +1,181 @@
+```
 # ASEP — Autonomous Software Engineering Platform
 
 <div align="center">
 
-```
-   █████╗ ███████╗███████╗██████╗ 
-  ██╔══██╗██╔════╝██╔════╝██╔══██╗
-  ███████║███████╗█████╗  ██████╔╝
-  ██╔══██║╚════██║██╔══╝  ██╔═══╝ 
-  ██║  ██║███████║███████╗██║     
-  ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝     
+
 ```
 
-### **Enterprise-Grade Local-First AI Engineering Operating System**
+█████╗ ███████╗███████╗██████╗
+██╔══██╗██╔════╝██╔════╝██╔══██╗
+███████║███████╗█████╗  ██████╔╝
+██╔══██║╚════██║██╔══╝  ██╔═══╝
+██║  ██║███████║███████╗██║
 
-*Orchestrate autonomous agent swarms, compile deterministic task graphs, enforce cryptographic human-in-the-loop policies, and execute code in isolated container sandboxes.*
+╚═╝  ╚═╝╚══════╝╚══════╝╚═╝
+
+```
+
+### **Stateful Multi-Agent Software Engineering Platform with Sandboxed Execution & HITL Governance**
+
+*Orchestrate bounded 32-node LangGraph workflows, enforce Human-in-the-Loop approval interrupts backed by PostgreSQL checkpoints, and execute untrusted code inside hardened ephemeral Docker sandboxes.*
 
 ---
 
-[![CI/CD Pipeline](https://github.com/rounakkumarsah/ASEP/actions/workflows/push-main.yml/badge.svg)](https://github.com/rounakkumarsah/ASEP/actions)
-[![Next.js 15](https://img.shields.io/badge/Next.js-15.5.23-black?style=flat&logo=next.js)](https://nextjs.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![LangGraph](https://img.shields.io/badge/LangGraph-Multi--Agent-FF6F00?style=flat)](https://github.com/langchain-ai/langgraph)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16.0-336791?style=flat&logo=postgresql)](https://www.postgresql.org/)
-[![Qdrant](https://img.shields.io/badge/Qdrant-Vector_RAG-DC2626?style=flat)](https://qdrant.tech/)
-[![Neo4j](https://img.shields.io/badge/Neo4j-Graph_AST-008CC1?style=flat&logo=neo4j)](https://neo4j.com/)
-[![Docker](https://img.shields.io/badge/Docker-Sandboxed_Exec-2496ED?style=flat&logo=docker)](https://www.docker.com/)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[[https://github.com/rounakkumarsah/ASEP/actions/workflows/push-main.yml/badge.svg]](https://github.com/rounakkumarsah/ASEP/actions)
+[[https://img.shields.io/badge/Next.js-15.5.23-black?style=flat&logo=next.js]](https://nextjs.org/)
+[[https://img.shields.io/badge/FastAPI-0.115+-009688?style=flat&logo=fastapi]](https://fastapi.tiangolo.com/)
+[[https://img.shields.io/badge/LangGraph-32_Nodes-FF6F00?style=flat]](https://github.com/langchain-ai/langgraph)
+[[https://img.shields.io/badge/Tests-706_Passing-16A34A?style=flat]](https://github.com/rounakkumarsah/ASEP/actions)
+[[https://img.shields.io/badge/PostgreSQL-16-336791?style=flat&logo=postgresql]](https://www.postgresql.org/)
+[[https://img.shields.io/badge/Qdrant-Vector_Search-DC2626?style=flat]](https://qdrant.tech/)
+[[https://img.shields.io/badge/Neo4j-Graph_AST-008CC1?style=flat&logo=neo4j]](https://neo4j.com/)
+[[https://img.shields.io/badge/Docker-Hardened_Sandbox-2496ED?style=flat&logo=docker]](https://www.docker.com/)
+[[https://img.shields.io/badge/License-MIT-blue.svg]](LICENSE)
 
-[Data Room Index](docs/DATA_ROOM_INDEX.md) • [Investment Memorandum](docs/sales_package/17_EXECUTIVE_SUMMARY_AND_INVESTMENT_MEMORANDUM.md) • [Benchmark Report](docs/sales_package/20_TECHNICAL_BENCHMARK_REPORT.md) • [Architecture Specs](docs/sales_package/01_TECHNICAL_ARCHITECTURE.md) • [Deployment Guide](docs/DEPLOYMENT_GUIDE.md)
+[Architecture Specs](docs/sales_package/01_TECHNICAL_ARCHITECTURE.md) • [Deployment Guide](docs/DEPLOYMENT_GUIDE.md) • [CI Workflows](.github/workflows/)
 
 </div>
 
 ---
 
-## 1. Executive Summary & Core Value
+## 1. Overview & Verified Engineering Scope
 
-**ASEP (Autonomous Software Engineering Platform)** is an enterprise control plane that transforms high-level engineering objectives into verified, compiled code. Unlike standard chat-based copilots or single-prompt scripts, ASEP deploys specialized multi-agent graphs that deconstruct goals, query 3-tier memory stores, execute operations inside isolated Docker sandboxes, and submit critical state mutations to Human-in-the-Loop (HITL) approval gates.
+**ASEP** transforms engineering objectives into verified code using a **32-node LangGraph StateGraph** across **33 FastAPI router modules** and a **Next.js 15 / React 19** workspace (React Flow, Monaco Editor, xterm.js).
 
-```
-                  ┌──────────────────────────────────────────────┐
-                  │           User Goal / Issue Trigger          │
-                  └──────────────────────┬───────────────────────┘
-                                         │
-                                         ▼
-                  ┌──────────────────────────────────────────────┐
-                  │    LangGraph Deconstruction Planner (DAG)    │
-                  └──────────────┬────────────────┬──────────────┘
-                                 │                │
-                    ┌────────────┴───┐        ┌───┴────────────┐
-                    ▼                ▼        ▼                ▼
-             ┌─────────────┐  ┌─────────────┐ ┌─────────────┐  ┌─────────────┐
-             │ Research    │  │ Memory Graph│ │ Codebase    │  │ Sandboxed   │
-             │ Swarm       │  │ (Neo4j RAG) │ │ Vector DB   │  │ Docker Exec │
-             └──────┬──────┘  └──────┬──────┘ └──────┬──────┘  └──────┬──────┘
-                    │                │               │                │
-                    └────────────────┴───────┬───────┴────────────────┘
-                                             │
-                                             ▼
-                  ┌──────────────────────────────────────────────┐
-                  │       Governance Guardrail & HITL Gate       │
-                  └──────────────────────┬───────────────────────┘
-                                         │ Cryptographic Signature
-                                         ▼
-                  ┌──────────────────────────────────────────────┐
-                  │    Autonomous Evaluation & PR Verification   │
-                  └──────────────────────────────────────────────┘
-```
+- **Bounded Self-Healing Runtime:** Dynamic `phase_router()` manages `critic ↔ debugger` self-healing loops with strict step and token bounds to prevent infinite execution.
+- **Non-Blocking HITL Governance:** High-risk actions (`filesystem.delete`, `terminal`, `docker`) pause via LangGraph `interrupt()` and persist state in PostgreSQL (`AsyncPostgresSaver`), freeing FastAPI worker threads until resumed via `POST /api/v1/hitl/sessions/{id}/decision`.
+- **Hardened Ephemeral Code Sandbox:** Untrusted execution runs in isolated Docker containers (`network_mode="none"`, `read_only=True`, `cap_drop=["ALL"]`, `no-new-privileges`, `50MB` RAM, `0.5` CPU, `50` PIDs, 5s watchdog) with an AST-based `RestrictedPython` fallback.
+- **3-Tier Hybrid Memory & Telemetry:** Combines PostgreSQL (ACID state & checkpoints), Qdrant (semantic vector embeddings), Neo4j (code AST call-graph), and Redis (caching, rate-limiting, WebSocket PTY pub/sub relay).
+- **Verified Quality & DevSecOps:** **706 passing automated tests** (555 `pytest` backend + 151 `Vitest` frontend) and **7 CI security gates** (`pip-audit`/`Bandit`, `npm audit`, `Semgrep`, `CodeQL`, `Gitleaks`, `Trivy`, `Cosign` SLSA provenance).
 
 ---
 
-## 2. Visual Previews & Showcase
+## 2. Visual Previews
 
-### 2.1 3D Neural Matrix & Marketing Control Plane
-![ASEP Landing Page Preview](docs/images/landing.png)
-> *Figure 1: High-FPS 3D Neural Matrix Canvas with orbital inertia and live node telemetry.*
+### 2.1 Platform Control Plane
+[docs/images/landing.png]
 
-### 2.2 Live Product Dashboard & Task Stream
-![ASEP Dashboard Preview](docs/images/dashboard.png)
-> *Figure 2: Real-time telemetry, agent task queues, governance gates, and stdout streaming.*
+### 2.2 Live Workspace, Task Stream & HITL Approvals
+[docs/images/dashboard.png]
 
 ---
 
-## 3. Run Locally in 5 Minutes
-
-Get the ASEP multi-agent engine and dashboard running locally.
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/rounakkumarsah/ASEP.git
-   cd ASEP
-   ```
-
-2. **Start the backend (FastAPI + Agent Runtime):**
-   ```bash
-   cd backend
-   python -m venv .venv
-   source .venv/bin/activate  # Windows: .venv\Scripts\activate
-   pip install -r requirements.txt
-   cp .env.example .env       # Add your API keys to .env
-   uvicorn src.main:app --reload --port 8000
-   ```
-
-3. **Start the frontend (Next.js Dashboard):**
-   ```bash
-   # In a new terminal
-   cd frontend
-   npm install
-   npm run dev
-   ```
-
-4. **Access the platform:**
-   Open `http://localhost:3000` in your browser. You can immediately access the playground and execution trace views.
-
----
-
-## 4. Key Differentiators: Why ASEP?
-
-| Dimension | Generic AI Copilots | AutoGen / CrewAI Scripts | ASEP Enterprise Platform |
-|---|---|---|---|
-| **Execution Isolation** | Host machine / Local IDE | Direct host execution (Risky) | **Isolated Docker Sandboxes (`backend/src/executor/docker.py`)** |
-| **Governance & Safety** | Manual diff review | Uncontrolled loops | **Cryptographic HITL Gates (`backend/src/governance/hitl.py`)** |
-| **Memory Architecture** | In-context sliding window | Flat JSON or single Vector DB | **3-Tier: Working + Qdrant Vector + Neo4j Graph AST** |
-| **Tool Protocol** | Proprietary wrappers | Ad-hoc Python functions | **Model Context Protocol (MCP v1.0) Standard Client** |
-| **Air-Gap Readiness** | Cloud API only | Cloud API only | **Native Ollama Local LLM Runtime (`providers/ollama.py`)** |
-| **SaaS & Monetization** | N/A | N/A | **Razorpay Orders, JWT Auth, Turnstile, Scoped API Keys** |
-
----
-
-## 5. Comprehensive Feature Matrix
-
-<details open>
-<summary><b>Core Subsystems & Enterprise Capabilities</b></summary>
-<br>
-
-- **Autonomous Planning**: LangGraph supervisor decomposing complex engineering goals into Directed Acyclic Graphs (`backend/src/agents/planner.py`).
-- **Human-in-the-Loop (HITL)**: Interactive pause/resume state machine with resume tokens, risk assessment (`Low`, `Medium`, `High`, `Critical`), and SLA latency metrics (`backend/src/governance/hitl.py`).
-- **Model Context Protocol (MCP)**: Standardized dynamic client discovery and tool dispatching (`backend/src/tools/mcp_client.py`).
-- **3-Layer Memory & Codebase Ingestion**:
-  - *Working Memory*: In-context session sliding window (`backend/src/memory/working.py`).
-  - *Semantic Memory*: Qdrant dense vector store with cosine similarity (`backend/src/memory/semantic.py`).
-  - *Procedural Memory*: Neo4j code AST and execution relationship graph (`backend/src/graph/neo4j.py`).
-- **Multi-Model AI Runtime**: Polymorphic router dynamically load-balancing across Google Gemini, OpenAI GPT-4o, and local Ollama (`backend/src/ai_runtime/service.py`).
-- **Enterprise Security**: Cloudflare Turnstile bot verification, bcrypt salted password hashing, httpOnly JWT cookies, and strict CSP headers (`backend/src/api/app.py`).
-- **Observability & Health Probes**: Live cluster metrics, Prometheus endpoints, and Sentry distributed error tracking (`backend/src/api/routers/health.py`).
-
-</details>
-
----
-
-## 5. System Architecture
+## 3. System Architecture
 
 ```mermaid
 graph TD
-    subgraph Client Layer [Next.js 15 App Router Frontend]
-        Landing[Showcase & 3D Matrix]
-        Dashboard[Sessions & Overview]
-        GovUI[HITL Approvals]
-        MemUI[Memory Inspector]
+    subgraph UI["Next.js 15 / React 19 Frontend (35 Pages, 113 Components)"]
+        Workspace["Monaco Editor + React Flow + xterm.js"]
+        GovUI["HITL Approval Queue & Memory Inspector"]
     end
 
-    subgraph Backend API [FastAPI Async Application Factory]
-        RouterAuth[Auth & Turnstile]
-        RouterAgents[Agent Runs & Tasks]
-        RouterHITL[Governance & Policy]
-        RouterMemory[Memory & RAG]
-        RouterPay[Razorpay Payments]
+    subgraph API["FastAPI Async Backend (33 Routers)"]
+        REST["REST + SSE (/explore/stream) + WS (/ws/sessions)"]
+        Auth["PyJWT + Argon2 + BYOK Fernet Vault"]
     end
 
-    subgraph AI Runtime [LangGraph Agent Core]
-        Supervisor[Agent Supervisor]
-        Planner[DAG Deconstruction]
-        Swarm[Research Swarm]
-        MCPClient[MCP Tool Registry]
+    subgraph Runtime["LangGraph Core (32 Nodes)"]
+        Orchestrator["Supervisor + Bounded critic ↔ debugger Loop"]
+        HITL["HITLEngine (interrupt + AsyncPostgresSaver)"]
+        MCP["MCP Tool Registry (14 Tools + RBAC)"]
     end
 
-    subgraph Storage & Infrastructure [Persistent Layer]
-        PG[(PostgreSQL 16)]
-        Redis[(Redis 7 Streams)]
-        Qdrant[(Qdrant Vector DB)]
-        Neo4j[(Neo4j Graph DB)]
-        DockerEngine[Docker Container Sandboxes]
+    subgraph Infra["Persistent & Isolated Infrastructure"]
+        PG[("PostgreSQL 16")]
+        Redis[("Redis 7 Pub/Sub")]
+        Qdrant[("Qdrant Vector DB")]
+        Neo4j[("Neo4j 5 AST Graph")]
+        Sandbox["Ephemeral Docker Sandbox"]
     end
 
-    ClientLayer -->|REST / SSE JSON| BackendAPI
-    BackendAPI --> AIRuntime
-    BackendAPI --> Storage&Infrastructure
-    AIRuntime --> DockerEngine
-    AIRuntime --> Qdrant
-    AIRuntime --> Neo4j
+    UI -->|"REST / SSE / WebSocket"| API
+    API --> Runtime
+    Runtime --> PG
+    Runtime --> Redis
+    Runtime --> Qdrant
+    Runtime --> Neo4j
+    MCP --> Sandbox
+
 ```
 
 ---
 
-## 6. Repository Layout
+## 4. Quick Start
 
-```
-ASEP/
-├── backend/                         # FastAPI & Python Agent Runtime
-│   ├── alembic/                     # 7 Database migration scripts
-│   ├── src/
-│   │   ├── agents/                  # LangGraph planner, supervisor, swarm
-│   │   ├── ai_runtime/              # Gemini, OpenAI, Ollama providers
-│   │   ├── api/                     # 21 REST routers & middleware
-│   │   ├── auth/                    # JWT, bcrypt, Turnstile validation
-│   │   ├── db/                      # SQLAlchemy models & DB pool drivers
-│   │   ├── executor/                # Docker sandbox execution engine
-│   │   ├── governance/              # HITL state machine & policy engine
-│   │   ├── memory/                  # Working, semantic, procedural memory
-│   │   └── tools/                   # MCP client & sandboxed tool suite
-│   ├── tests/                       # Unit & integration test suites
-│   ├── Dockerfile                   # Multi-stage production container build
-│   └── pyproject.toml               # Python 3.12 dependencies
-├── frontend/                        # Next.js 15 Control Plane Dashboard
-│   ├── src/
-│   │   ├── app/                     # 38 static/dynamic routes (App Router)
-│   │   ├── components/              # 3D Matrix Canvas, Bento, ThemeToggle
-│   │   └── lib/                     # API client services & react-query
-│   ├── Dockerfile                   # Standalone Next.js container build
-│   └── package.json                 # React 19, TailwindCSS, Framer Motion
-├── docker/                          # Infrastructure provisioning configs
-├── docs/                            # Whitepapers & Architecture reports
-├── .github/workflows/               # CI/CD: pull-request, push-main, release
-└── docker-compose.yml               # Multi-service production stack
-```
-
----
-
-## 7. Quick Start Guide
-
-### Prerequisites
-- [Docker](https://www.docker.com/) & Docker Compose v2.20+
-- [Node.js](https://nodejs.org/) v20+ & [Python](https://www.python.org/) 3.12+ (for local native development)
-
-### 7.1 Single-Command Docker Deployment (Recommended)
+### 4.1 Docker Compose (Recommended)
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/rounakkumarsah/ASEP.git
+git clone [https://github.com/rounakkumarsah/ASEP.git](https://github.com/rounakkumarsah/ASEP.git)
 cd ASEP
 
-# 2. Configure Environment Variables
 cp backend/.env.example backend/.env
 cp .env.example frontend/.env.local
 
-# 3. Start the entire container stack
 docker compose up -d --build
 
-# 4. Verify deployment health
-curl http://localhost:8000/health
 ```
 
-- **Frontend Dashboard**: `http://localhost:3000`
-- **Backend API & Swagger Docs**: `http://localhost:8000/docs`
-- **PostgreSQL**: `localhost:5432` | **Redis**: `localhost:6379` | **Qdrant**: `localhost:6333`
+* **Frontend Workspace:** `http://localhost:3000`
+* **Backend API & Docs:** `http://localhost:8000/docs`
+* **Cold Start Readiness:** First startup initializes Postgres, Qdrant, and Neo4j (and caches the ~130 MB embedding model in `~/.cache/huggingface/`). Poll readiness instead of fixed sleeps:
 
----
+```bash
+until curl -sf http://localhost:8000/api/v1/health/ready > /dev/null; do
+  echo "Waiting for ASEP..."
+  sleep 2
+done
 
-### 7.2 Native Development Setup
+```
 
-<details>
-<summary><b>Backend Setup (FastAPI)</b></summary>
+### 4.2 Local Development
 
 ```bash
 cd backend
 python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-pip install -e ".[dev]"
-
-# Run database migrations
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
 python -m alembic upgrade head
-
-# Start FastAPI development server
 uvicorn src.main:app --reload --port 8000
-```
-</details>
 
-<details>
-<summary><b>Frontend Setup (Next.js 15)</b></summary>
+```
 
 ```bash
 cd frontend
 npm install
-
-# Verify type safety and code quality
-npm run typecheck
-npm run lint
-
-# Start Next.js development server
+npm run typecheck && npm run lint
 npm run dev
+
 ```
-</details>
 
 ---
 
-## 8. Environment Variables Reference
+## 5. Security, BYOK & Production Guardrails
 
-| Variable | Scope | Description | Default |
-|---|---|---|---|
-| `POSTGRES_DB_URI` | Backend | Async PostgreSQL connection string | `postgresql+asyncpg://asep:changeme@localhost:5432/asep` |
-| `REDIS_URL` | Backend | Redis host URI for streams and cache | `redis://localhost:6379/0` |
-| `QDRANT_HOST` | Backend | Qdrant vector database host | `localhost` |
-| `NEO4J_URI` | Backend | Neo4j graph database URI | `bolt://localhost:7687` |
-| `GEMINI_API_KEY` | Backend | Google Gemini LLM API key | `""` (Fallback to Ollama) |
-| `OPENAI_API_KEY` | Backend | OpenAI GPT-4o API key | `""` (Fallback to Ollama) |
-| `OLLAMA_BASE_URL`| Backend | Local Ollama endpoint | `http://localhost:11434` |
-| `JWT_SECRET_KEY` | Backend | Cryptographic secret for auth tokens | Auto-generated in production |
-| `ASEP_KEY_VAULT_SECRET` | Backend | Fernet master encryption key for BYOK user vault | Deterministic fallback from `SECRET_KEY` |
-| `NEXT_PUBLIC_API_URL` | Frontend | Backend API endpoint | `http://localhost:8000` |
-| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Frontend | Cloudflare Turnstile Captcha key | `1x00000000000000000000AA` (Test) |
-
-### 🔑 Bring Your Own Key (BYOK) & LLM Credentials
-
-ASEP supports flexible **BYOK (Bring Your Own Key)** for individual developers and multi-tenant teams:
-- **User-Scoped Custom Keys:** Authenticated users can configure, validate, update, and delete their own API keys for **Groq**, **Gemini**, **OpenRouter**, **OpenAI**, and **Anthropic** via **Settings → LLM Providers** (or `/api/v1/user-keys`). When set, the user's personal key is used for all their agent sessions and requests.
-- **Platform Fallback:** If a user has not configured a custom key (or for background jobs without user context), ASEP seamlessly falls back to the platform environment keys (`GEMINI_API_KEY`, `GROQ_API_KEY`, `OPENROUTER_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`).
-- **Encryption at Rest:** All user credentials are encrypted with `Fernet` symmetric encryption before being persisted to PostgreSQL. Master vault key is configured with `ASEP_KEY_VAULT_SECRET`:
-  ```bash
-  python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-  ```
-
-### 🔒 Fail-Fast Production Guardrails
-In **staging** or **production** (`APP_ENV=staging` or `APP_ENV=production`), a Pydantic `model_validator` executes on startup to verify that no local fallback values exist. The backend service will refuse to boot and raise a validation error if any of the following variables are missing or set to defaults:
-* `DATABASE_URL` (rejects `localhost`, `postgres:5432`, `changeme`, or `asep:changeme`)
-* `REDIS_URL` (rejects `localhost`, `redis:6379`, or `127.0.0.1`)
-* `SECRET_KEY` (rejects `change-this-to-a-random-256-bit-secret` or `change_me_in_production`)
+* **BYOK Encrypted Credential Vault:** Users can configure personal API keys (Gemini, Anthropic, OpenAI, Groq, OpenRouter) encrypted at rest with `Fernet` (`ASEP_KEY_VAULT_SECRET`), with platform-level fallback.
+* **Fail-Fast Environment Validation:** In `staging`/`production`, a Pydantic `model_validator` blocks startup if `DATABASE_URL`, `REDIS_URL`, or `SECRET_KEY` still contain localhost or default placeholder values.
+* **Multi-Stage Non-Root Containers:** Both `backend/Dockerfile` (`asepuser`) and `frontend/Dockerfile` (`nextjs`, `.next/standalone`) run as unprivileged users.
 
 ---
 
-## 9. Automated Testing & Verification Gates
+## 6. Automated Tests & CI Security Gates
 
 ```bash
-# Run Backend Test Suite (Pytest + Asyncio)
-cd backend
-pytest -v --cov=src
+# Backend (555 passing pytest cases across 101 test files)
+cd backend && pytest -v
 
-# Run Frontend Quality Checks
-cd frontend
-npm run typecheck       # 0 errors
-npm run lint            # 0 warnings
-npm run build           # 38/38 static pages generated cleanly
+# Frontend (151 passing Vitest cases across 15 suites)
+cd frontend && npm test && npm run typecheck && npm run lint
+
 ```
 
----
-
-## 10. Phased Engineering Roadmap
-
-- [x] **Phase 1: Foundation & Core Stack** — Polyglot Next.js/FastAPI scaffold, PostgreSQL pool, Redis cache, JWT auth.
-- [x] **Phase 2: Agent Execution & Sandboxing** — LangGraph DAG Planner, Docker isolation, Model Context Protocol (MCP).
-- [x] **Phase 3: Multi-Tier Memory & Knowledge RAG** — Qdrant vector retrieval, Neo4j code AST graph persistence.
-- [x] **Phase 4: Governance & Enterprise SaaS** — HITL resume-token approval engine, Razorpay checkout, 3D WebGL UI.
-- [ ] **Phase 5: Cloud Ecosystem Integration** — GitHub Marketplace App bot, Helm charts for Kubernetes VPC deployment.
+CI (`.github/workflows/security-scan.yml`) runs **7 automated gates**: `pip-audit` & `Bandit`, `npm audit` & `tsc`, `Semgrep SAST`, `CodeQL`, `Gitleaks`, `Trivy`, and `Cosign` SLSA Build Level 2 image attestation.
 
 ---
 
-## 11. Contributing & Code of Conduct
+## 7. Author & License
 
-Contributions are welcome! Please review [`docs/Development.md`](docs/Development.md) for coding standards, pull request protocols, and formatting guidelines.
+* **Author:** Rounak Kumar Sah ([@rounakkumarsah](https://github.com/rounakkumarsah) • [LinkedIn](https://www.linkedin.com/in/rounak-kumar-sah))
+* **License:** [MIT License](https://www.google.com/search?q=LICENSE)
 
-```bash
-# Verify all pre-commit hooks before opening a PR
-pre-commit run --all-files
 ```
-
----
-
-## 12. License & Authorship
-
-- **Author**: Rounak Kumar Sah ([@rounakkumarsah](https://github.com/rounakkumarsah))
-- **License**: [MIT License](LICENSE) — Free for open-source research, developer tooling, and enterprise modification.
-
----
-
-## Startup & Readiness
-
-ASEP takes 30-40 seconds to become fully ready on cold start (Neo4j + Qdrant + Postgres initialization).
-
-- **Health check (liveness):** GET /api/v1/health — returns 200 as soon as the process is up (does NOT wait for DBs).
-- **Readiness check:** GET /api/v1/health/ready — returns 200 only after all dependencies are reachable.
-
-**For CI/CD and automated tests:** poll `/api/v1/health/ready` instead of using fixed `sleep` durations.
-
-Example wait loop (bash):
-    until curl -sf http://localhost:8000/api/v1/health/ready > /dev/null; do
-      echo "waiting for ASEP to be ready..."
-      sleep 2
-    done
-
-Example wait loop (PowerShell):
-    while (-not (Invoke-WebRequest -Uri "http://localhost:8000/api/v1/health/ready" -UseBasicParsing -ErrorAction SilentlyContinue)) {
-      Write-Host "waiting for ASEP to be ready..."
-      Start-Sleep -Seconds 2
-    }
-
-**Buyer note:** First cold start after `git clone` downloads the BGE embedding model (~130 MB). This is a one-time download cached in `~/.cache/huggingface/`. Subsequent starts are fast.
-
