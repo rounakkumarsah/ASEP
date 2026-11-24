@@ -1,4 +1,4 @@
-```
+
 # ASEP — Autonomous Software Engineering Platform
 
 <div align="center">
@@ -178,4 +178,4 @@ CI (`.github/workflows/security-scan.yml`) runs **7 automated gates**: `pip-audi
 * **Author:** Rounak Kumar Sah ([@rounakkumarsah](https://github.com/rounakkumarsah) • [LinkedIn](https://www.linkedin.com/in/rounak-kumar-sah))
 * **License:** [MIT License](https://www.google.com/search?q=LICENSE)
 
-```
+
